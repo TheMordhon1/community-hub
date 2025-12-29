@@ -1,0 +1,237 @@
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { motion } from 'framer-motion';
+import { Eye, EyeOff, Home, Users, Shield, Loader2 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useToast } from '@/hooks/use-toast';
+import type { AppRole } from '@/types/database';
+
+const registerSchema = z.object({
+  fullName: z.string().min(2, 'Nama lengkap minimal 2 karakter').max(100, 'Nama terlalu panjang'),
+  email: z.string().email('Email tidak valid').max(255, 'Email terlalu panjang'),
+  password: z.string().min(6, 'Password minimal 6 karakter').max(100, 'Password terlalu panjang'),
+  confirmPassword: z.string(),
+  role: z.enum(['admin', 'pengurus', 'warga'] as const),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Password tidak cocok',
+  path: ['confirmPassword'],
+});
+
+type RegisterForm = z.infer<typeof registerSchema>;
+
+const roleInfo = [
+  {
+    value: 'warga' as AppRole,
+    label: 'Warga',
+    description: 'Penghuni perumahan',
+    icon: Home,
+    color: 'text-primary',
+  },
+  {
+    value: 'pengurus' as AppRole,
+    label: 'Pengurus',
+    description: 'Anggota pengurus RT/RW',
+    icon: Users,
+    color: 'text-accent',
+  },
+  {
+    value: 'admin' as AppRole,
+    label: 'Admin',
+    description: 'Administrator sistem',
+    icon: Shield,
+    color: 'text-secondary',
+  },
+];
+
+export default function Register() {
+  const navigate = useNavigate();
+  const { signUp } = useAuth();
+  const { toast } = useToast();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const form = useForm<RegisterForm>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      fullName: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      role: 'warga',
+    },
+  });
+
+  const onSubmit = async (data: RegisterForm) => {
+    setIsLoading(true);
+    const { error } = await signUp(data.email, data.password, data.fullName, data.role);
+    setIsLoading(false);
+
+    if (error) {
+      let message = 'Terjadi kesalahan saat mendaftar';
+      if (error.message.includes('already registered')) {
+        message = 'Email sudah terdaftar';
+      } else if (error.message.includes('invalid')) {
+        message = 'Data yang dimasukkan tidak valid';
+      }
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Mendaftar',
+        description: message,
+      });
+      return;
+    }
+
+    toast({
+      title: 'Berhasil Mendaftar!',
+      description: 'Selamat datang di Perumahan Kita',
+    });
+    navigate('/dashboard');
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4 gradient-hero">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md"
+      >
+        <Card className="glass-card">
+          <CardHeader className="text-center space-y-2">
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: 'spring' }}
+              className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2"
+            >
+              <Home className="w-8 h-8 text-primary" />
+            </motion.div>
+            <CardTitle className="font-display text-2xl">Daftar Akun</CardTitle>
+            <CardDescription>Bergabung dengan komunitas Perumahan Kita</CardDescription>
+          </CardHeader>
+
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Nama Lengkap</Label>
+                <Input
+                  id="fullName"
+                  placeholder="Masukkan nama lengkap"
+                  {...form.register('fullName')}
+                />
+                {form.formState.errors.fullName && (
+                  <p className="text-sm text-destructive">{form.formState.errors.fullName.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="nama@email.com"
+                  {...form.register('email')}
+                />
+                {form.formState.errors.email && (
+                  <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Minimal 6 karakter"
+                    {...form.register('password')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {form.formState.errors.password && (
+                  <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Konfirmasi Password</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Ulangi password"
+                    {...form.register('confirmPassword')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {form.formState.errors.confirmPassword && (
+                  <p className="text-sm text-destructive">{form.formState.errors.confirmPassword.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <Label>Daftar Sebagai</Label>
+                <RadioGroup
+                  value={form.watch('role')}
+                  onValueChange={(value) => form.setValue('role', value as AppRole)}
+                  className="grid grid-cols-3 gap-2"
+                >
+                  {roleInfo.map((role) => (
+                    <Label
+                      key={role.value}
+                      htmlFor={role.value}
+                      className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                        form.watch('role') === role.value
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <RadioGroupItem value={role.value} id={role.value} className="sr-only" />
+                      <role.icon className={`w-5 h-5 ${role.color}`} />
+                      <span className="font-medium text-sm">{role.label}</span>
+                      <span className="text-xs text-muted-foreground text-center">{role.description}</span>
+                    </Label>
+                  ))}
+                </RadioGroup>
+              </div>
+            </CardContent>
+
+            <CardFooter className="flex flex-col gap-4">
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Daftar
+              </Button>
+              <p className="text-sm text-muted-foreground text-center">
+                Sudah punya akun?{' '}
+                <Link to="/login" className="text-primary hover:underline font-medium">
+                  Masuk di sini
+                </Link>
+              </p>
+            </CardFooter>
+          </form>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}
