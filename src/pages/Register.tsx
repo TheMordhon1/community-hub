@@ -4,52 +4,25 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Home, Users, Shield, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Home, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import type { AppRole } from '@/types/database';
 
 const registerSchema = z.object({
   fullName: z.string().min(2, 'Nama lengkap minimal 2 karakter').max(100, 'Nama terlalu panjang'),
   email: z.string().email('Email tidak valid').max(255, 'Email terlalu panjang'),
   password: z.string().min(6, 'Password minimal 6 karakter').max(100, 'Password terlalu panjang'),
   confirmPassword: z.string(),
-  role: z.enum(['admin', 'pengurus', 'warga'] as const),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Password tidak cocok',
   path: ['confirmPassword'],
 });
 
 type RegisterForm = z.infer<typeof registerSchema>;
-
-const roleInfo = [
-  {
-    value: 'warga' as AppRole,
-    label: 'Warga',
-    description: 'Penghuni perumahan',
-    icon: Home,
-    color: 'text-primary',
-  },
-  {
-    value: 'pengurus' as AppRole,
-    label: 'Pengurus',
-    description: 'Anggota pengurus RT/RW',
-    icon: Users,
-    color: 'text-accent',
-  },
-  {
-    value: 'admin' as AppRole,
-    label: 'Admin',
-    description: 'Administrator sistem',
-    icon: Shield,
-    color: 'text-secondary',
-  },
-];
 
 export default function Register() {
   const navigate = useNavigate();
@@ -66,13 +39,12 @@ export default function Register() {
       email: '',
       password: '',
       confirmPassword: '',
-      role: 'warga',
     },
   });
 
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true);
-    const { error } = await signUp(data.email, data.password, data.fullName, data.role);
+    const { error } = await signUp(data.email, data.password, data.fullName);
     setIsLoading(false);
 
     if (error) {
@@ -188,32 +160,6 @@ export default function Register() {
                 {form.formState.errors.confirmPassword && (
                   <p className="text-sm text-destructive">{form.formState.errors.confirmPassword.message}</p>
                 )}
-              </div>
-
-              <div className="space-y-3">
-                <Label>Daftar Sebagai</Label>
-                <RadioGroup
-                  value={form.watch('role')}
-                  onValueChange={(value) => form.setValue('role', value as AppRole)}
-                  className="grid grid-cols-3 gap-2"
-                >
-                  {roleInfo.map((role) => (
-                    <Label
-                      key={role.value}
-                      htmlFor={role.value}
-                      className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                        form.watch('role') === role.value
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <RadioGroupItem value={role.value} id={role.value} className="sr-only" />
-                      <role.icon className={`w-5 h-5 ${role.color}`} />
-                      <span className="font-medium text-sm">{role.label}</span>
-                      <span className="text-xs text-muted-foreground text-center">{role.description}</span>
-                    </Label>
-                  ))}
-                </RadioGroup>
               </div>
             </CardContent>
 
