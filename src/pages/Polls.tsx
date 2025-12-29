@@ -1,0 +1,539 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { format } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { ArrowLeft, Plus, Vote, Loader2, Calendar as CalendarIcon, Trash2, X, CheckCircle2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import type { Poll, PollVote } from '@/types/database';
+
+interface PollWithVotes extends Poll {
+  votes: PollVote[];
+  userVote?: PollVote;
+}
+
+export default function Polls() {
+  const { user, canManageContent } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [options, setOptions] = useState<string[]>(['', '']);
+  const [endsAt, setEndsAt] = useState<Date>();
+  const [isActive, setIsActive] = useState(true);
+
+  const { data: polls, isLoading } = useQuery({
+    queryKey: ['polls'],
+    queryFn: async () => {
+      const { data: pollsData, error: pollsError } = await supabase
+        .from('polls')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (pollsError) throw pollsError;
+
+      const { data: votesData, error: votesError } = await supabase
+        .from('poll_votes')
+        .select('*');
+
+      if (votesError) throw votesError;
+
+      const pollsWithVotes: PollWithVotes[] = pollsData.map(poll => {
+        const pollVotes = votesData?.filter(v => v.poll_id === poll.id) || [];
+        const userVote = pollVotes.find(v => v.user_id === user?.id);
+        return {
+          ...poll,
+          options: poll.options as string[],
+          votes: pollVotes,
+          userVote,
+        };
+      });
+
+      return pollsWithVotes;
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: { title: string; description: string; options: string[]; ends_at: string | null; is_active: boolean }) => {
+      const { error } = await supabase.from('polls').insert({
+        title: data.title,
+        description: data.description,
+        options: data.options,
+        ends_at: data.ends_at,
+        is_active: data.is_active,
+        author_id: user?.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['polls'] });
+      toast({ title: 'Berhasil', description: 'Polling berhasil dibuat' });
+      resetForm();
+    },
+    onError: () => {
+      toast({ variant: 'destructive', title: 'Gagal', description: 'Gagal membuat polling' });
+    },
+  });
+
+  const voteMutation = useMutation({
+    mutationFn: async ({ pollId, optionIndex }: { pollId: string; optionIndex: number }) => {
+      const { error } = await supabase.from('poll_votes').insert({
+        poll_id: pollId,
+        user_id: user?.id,
+        option_index: optionIndex,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['polls'] });
+      toast({ title: 'Berhasil', description: 'Suara Anda berhasil dicatat' });
+    },
+    onError: (error: Error) => {
+      if (error.message.includes('duplicate')) {
+        toast({ variant: 'destructive', title: 'Gagal', description: 'Anda sudah memberikan suara' });
+      } else {
+        toast({ variant: 'destructive', title: 'Gagal', description: 'Gagal memberikan suara' });
+      }
+    },
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const { error } = await supabase
+        .from('polls')
+        .update({ is_active: isActive })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['polls'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('polls').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['polls'] });
+      toast({ title: 'Berhasil', description: 'Polling berhasil dihapus' });
+    },
+    onError: () => {
+      toast({ variant: 'destructive', title: 'Gagal', description: 'Gagal menghapus polling' });
+    },
+  });
+
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setOptions(['', '']);
+    setEndsAt(undefined);
+    setIsActive(true);
+    setIsCreateOpen(false);
+  };
+
+  const addOption = () => {
+    if (options.length < 6) {
+      setOptions([...options, '']);
+    }
+  };
+
+  const removeOption = (index: number) => {
+    if (options.length > 2) {
+      setOptions(options.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateOption = (index: number, value: string) => {
+    const newOptions = [...options];
+    newOptions[index] = value;
+    setOptions(newOptions);
+  };
+
+  const handleSubmit = () => {
+    const validOptions = options.filter(o => o.trim());
+    if (!title.trim() || validOptions.length < 2) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Judul dan minimal 2 pilihan wajib diisi' });
+      return;
+    }
+    createMutation.mutate({
+      title,
+      description,
+      options: validOptions,
+      ends_at: endsAt?.toISOString() || null,
+      is_active: isActive,
+    });
+  };
+
+  const activePolls = polls?.filter(p => p.is_active) || [];
+  const closedPolls = polls?.filter(p => !p.is_active) || [];
+
+  const isPollExpired = (poll: PollWithVotes) => {
+    if (!poll.ends_at) return false;
+    return new Date(poll.ends_at) < new Date();
+  };
+
+  const canVote = (poll: PollWithVotes) => {
+    return poll.is_active && !poll.userVote && !isPollExpired(poll);
+  };
+
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between"
+        >
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/dashboard">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="font-display text-2xl font-bold">Polling</h1>
+              <p className="text-muted-foreground">Berikan suara untuk keputusan komunitas</p>
+            </div>
+          </div>
+
+          {canManageContent() && (
+            <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) resetForm(); }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Buat Polling
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Buat Polling Baru</DialogTitle>
+                  <DialogDescription>Buat polling untuk mengumpulkan suara warga</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Judul Polling</Label>
+                    <Input
+                      id="title"
+                      placeholder="Contoh: Pemilihan Ketua RT"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Deskripsi (opsional)</Label>
+                    <Textarea
+                      id="description"
+                      placeholder="Jelaskan tujuan polling..."
+                      rows={2}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Pilihan</Label>
+                    <div className="space-y-2">
+                      {options.map((option, index) => (
+                        <div key={index} className="flex gap-2">
+                          <Input
+                            placeholder={`Pilihan ${index + 1}`}
+                            value={option}
+                            onChange={(e) => updateOption(index, e.target.value)}
+                          />
+                          {options.length > 2 && (
+                            <Button variant="ghost" size="icon" onClick={() => removeOption(index)}>
+                              <X className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {options.length < 6 && (
+                      <Button variant="outline" size="sm" onClick={addOption}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Tambah Pilihan
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Batas Waktu (opsional)</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !endsAt && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {endsAt ? format(endsAt, "d MMMM yyyy", { locale: idLocale }) : "Tidak ada batas waktu"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-popover" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={endsAt}
+                          onSelect={setEndsAt}
+                          disabled={(date) => date < new Date()}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Aktifkan Sekarang</Label>
+                      <p className="text-sm text-muted-foreground">Polling akan langsung terlihat oleh warga</p>
+                    </div>
+                    <Switch checked={isActive} onCheckedChange={setIsActive} />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={resetForm}>Batal</Button>
+                  <Button onClick={handleSubmit} disabled={createMutation.isPending}>
+                    {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Buat
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </motion.div>
+
+        {/* Polls List */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : polls?.length === 0 ? (
+          <Card className="py-12">
+            <CardContent className="flex flex-col items-center justify-center text-center">
+              <Vote className="w-12 h-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Belum Ada Polling</h3>
+              <p className="text-muted-foreground">Polling untuk keputusan komunitas akan muncul di sini</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {/* Active Polls */}
+            {activePolls.length > 0 && (
+              <div className="space-y-4">
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Polling Aktif</h2>
+                {activePolls.map((poll, index) => (
+                  <PollCard
+                    key={poll.id}
+                    poll={poll}
+                    index={index}
+                    canVote={canVote(poll)}
+                    isPollExpired={isPollExpired(poll)}
+                    canManage={canManageContent()}
+                    onVote={(optionIndex) => voteMutation.mutate({ pollId: poll.id, optionIndex })}
+                    onToggleActive={() => toggleActiveMutation.mutate({ id: poll.id, isActive: false })}
+                    onDelete={() => deleteMutation.mutate(poll.id)}
+                    isVoting={voteMutation.isPending}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Closed Polls */}
+            {closedPolls.length > 0 && (
+              <div className="space-y-4">
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Polling Selesai</h2>
+                {closedPolls.map((poll, index) => (
+                  <PollCard
+                    key={poll.id}
+                    poll={poll}
+                    index={index}
+                    canVote={false}
+                    isPollExpired={true}
+                    canManage={canManageContent()}
+                    onVote={() => {}}
+                    onToggleActive={() => toggleActiveMutation.mutate({ id: poll.id, isActive: true })}
+                    onDelete={() => deleteMutation.mutate(poll.id)}
+                    isVoting={false}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PollCard({
+  poll,
+  index,
+  canVote,
+  isPollExpired,
+  canManage,
+  onVote,
+  onToggleActive,
+  onDelete,
+  isVoting,
+}: {
+  poll: PollWithVotes;
+  index: number;
+  canVote: boolean;
+  isPollExpired: boolean;
+  canManage: boolean;
+  onVote: (optionIndex: number) => void;
+  onToggleActive: () => void;
+  onDelete: () => void;
+  isVoting: boolean;
+}) {
+  const totalVotes = poll.votes.length;
+  const hasVoted = !!poll.userVote;
+  const showResults = hasVoted || !poll.is_active || isPollExpired;
+
+  const getVoteCount = (optionIndex: number) => {
+    return poll.votes.filter(v => v.option_index === optionIndex).length;
+  };
+
+  const getVotePercentage = (optionIndex: number) => {
+    if (totalVotes === 0) return 0;
+    return Math.round((getVoteCount(optionIndex) / totalVotes) * 100);
+  };
+
+  const getWinningIndex = () => {
+    let maxVotes = -1;
+    let winningIndex = -1;
+    poll.options.forEach((_, index) => {
+      const count = getVoteCount(index);
+      if (count > maxVotes) {
+        maxVotes = count;
+        winningIndex = index;
+      }
+    });
+    return winningIndex;
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+    >
+      <Card className={!poll.is_active ? 'opacity-70' : ''}>
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                {poll.is_active ? (
+                  isPollExpired ? (
+                    <Badge variant="secondary">Kadaluarsa</Badge>
+                  ) : (
+                    <Badge className="bg-success/10 text-success">Aktif</Badge>
+                  )
+                ) : (
+                  <Badge variant="secondary">Ditutup</Badge>
+                )}
+                {hasVoted && (
+                  <Badge variant="outline" className="text-primary border-primary">
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    Sudah Voting
+                  </Badge>
+                )}
+              </div>
+              <CardTitle className="text-lg">{poll.title}</CardTitle>
+              {poll.description && (
+                <CardDescription className="mt-1">{poll.description}</CardDescription>
+              )}
+              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                <span>{totalVotes} suara</span>
+                {poll.ends_at && (
+                  <span>Berakhir {format(new Date(poll.ends_at), 'd MMM yyyy', { locale: idLocale })}</span>
+                )}
+              </div>
+            </div>
+            {canManage && (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={onToggleActive}>
+                  {poll.is_active ? 'Tutup' : 'Buka'}
+                </Button>
+                <Button variant="ghost" size="icon" onClick={onDelete}>
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {poll.options.map((option, optionIndex) => {
+            const isUserChoice = poll.userVote?.option_index === optionIndex;
+            const isWinning = showResults && getWinningIndex() === optionIndex && totalVotes > 0;
+            const percentage = getVotePercentage(optionIndex);
+
+            return (
+              <div key={optionIndex} className="space-y-1">
+                {canVote ? (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-auto py-3 px-4"
+                    onClick={() => onVote(optionIndex)}
+                    disabled={isVoting}
+                  >
+                    {isVoting ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <div className="w-4 h-4 mr-2 rounded-full border-2 border-primary" />
+                    )}
+                    {option}
+                  </Button>
+                ) : (
+                  <div
+                    className={cn(
+                      "relative rounded-lg border p-3 overflow-hidden",
+                      isUserChoice && "border-primary bg-primary/5",
+                      isWinning && "border-success"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "absolute inset-0 transition-all",
+                        isWinning ? "bg-success/10" : "bg-muted"
+                      )}
+                      style={{ width: `${percentage}%` }}
+                    />
+                    <div className="relative flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {isUserChoice && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                        <span className={cn("font-medium", isWinning && "text-success")}>{option}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">{getVoteCount(optionIndex)} suara</span>
+                        <span className={cn("text-sm font-semibold", isWinning && "text-success")}>{percentage}%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}

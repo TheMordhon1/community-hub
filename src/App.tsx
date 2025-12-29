@@ -12,6 +12,7 @@ import AdminUsers from "./pages/admin/Users";
 import Announcements from "./pages/Announcements";
 import Events from "./pages/Events";
 import Complaints from "./pages/Complaints";
+import Polls from "./pages/Polls";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -46,6 +47,7 @@ function AppRoutes() {
         <Route path="/announcements" element={<Announcements />} />
         <Route path="/events" element={<Events />} />
         <Route path="/complaints" element={<Complaints />} />
+        <Route path="/polls" element={<Polls />} />
         <Route path="/admin/users" element={<AdminUsers />} />
       </Route>
       <Route path="*" element={<NotFound />} />
