@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import type { AppRole, Profile } from '@/types/database';
+import type { AppRole, PengurusTitle, Profile } from '@/types/database';
 
 interface AuthState {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
   role: AppRole | null;
+  pengurusTitle: PengurusTitle | null;
   isLoading: boolean;
   isInitialized: boolean;
   
@@ -16,12 +17,13 @@ interface AuthState {
   setSession: (session: Session | null) => void;
   setProfile: (profile: Profile | null) => void;
   setRole: (role: AppRole | null) => void;
+  setPengurusTitle: (title: PengurusTitle | null) => void;
   setIsLoading: (loading: boolean) => void;
   setIsInitialized: (initialized: boolean) => void;
   
   // Auth operations
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName: string, role: AppRole) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   
   // Data fetching
@@ -40,6 +42,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   profile: null,
   role: null,
+  pengurusTitle: null,
   isLoading: true,
   isInitialized: false,
 
@@ -47,6 +50,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setSession: (session) => set({ session }),
   setProfile: (profile) => set({ profile }),
   setRole: (role) => set({ role }),
+  setPengurusTitle: (pengurusTitle) => set({ pengurusTitle }),
   setIsLoading: (isLoading) => set({ isLoading }),
   setIsInitialized: (isInitialized) => set({ isInitialized }),
 
@@ -60,7 +64,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return { error: error as Error | null };
   },
 
-  signUp: async (email, password, fullName, role) => {
+  signUp: async (email, password, fullName) => {
     set({ isLoading: true });
     const redirectUrl = `${window.location.origin}/`;
     
@@ -71,7 +75,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
-          role: role,
         },
       },
     });
@@ -87,6 +90,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       session: null,
       profile: null,
       role: null,
+      pengurusTitle: null,
       isLoading: false,
     });
   },
@@ -106,12 +110,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   fetchRole: async (userId) => {
     const { data, error } = await supabase
       .from('user_roles')
-      .select('role')
+      .select('role, title')
       .eq('user_id', userId)
       .single();
 
     if (!error && data) {
-      set({ role: data.role as AppRole });
+      set({ 
+        role: data.role as AppRole,
+        pengurusTitle: data.title as PengurusTitle | null
+      });
     }
   },
 

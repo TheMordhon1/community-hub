@@ -2,18 +2,20 @@ import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Home, Users, FileText, Calendar, MessageSquare, Vote, LogOut } from 'lucide-react';
+import { Home, Users, FileText, Calendar, MessageSquare, Vote, LogOut, Map, CreditCard, Settings } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from '@/types/database';
 
 export default function Dashboard() {
-  const { profile, role, signOut } = useAuth();
+  const { profile, role, pengurusTitle, signOut, isAdmin, isPengurus, canManageContent } = useAuth();
 
-  const getRoleLabel = () => {
-    switch (role) {
-      case 'admin': return 'Administrator';
-      case 'pengurus': return 'Pengurus';
-      case 'warga': return 'Warga';
-      default: return 'User';
+  const getRoleDisplay = () => {
+    if (!role) return 'User';
+    const roleLabel = ROLE_LABELS[role];
+    if (role === 'pengurus' && pengurusTitle) {
+      return `${PENGURUS_TITLE_LABELS[pengurusTitle]}`;
     }
+    return roleLabel;
   };
 
   const stats = [
@@ -23,6 +25,23 @@ export default function Dashboard() {
     { label: 'Polling', value: '1', icon: Vote, color: 'text-info' },
   ];
 
+  const quickActions = [
+    { label: 'Pengumuman', icon: FileText, color: 'text-primary', href: '/announcements' },
+    { label: 'Acara', icon: Calendar, color: 'text-accent', href: '/events' },
+    { label: 'Pengaduan', icon: MessageSquare, color: 'text-warning', href: '/complaints' },
+    { label: 'Polling', icon: Vote, color: 'text-info', href: '/polls' },
+    { label: 'Peta Rumah', icon: Map, color: 'text-success', href: '/house-map' },
+  ];
+
+  const adminActions = [
+    { label: 'Kelola Warga', icon: Users, color: 'text-secondary', href: '/admin/users' },
+    { label: 'Pengaturan', icon: Settings, color: 'text-muted-foreground', href: '/admin/settings' },
+  ];
+
+  const pengurusActions = [
+    { label: 'Kelola Iuran', icon: CreditCard, color: 'text-success', href: '/payments' },
+  ];
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -30,7 +49,7 @@ export default function Dashboard() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
+          className="flex items-center justify-between flex-wrap gap-4"
         >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -44,8 +63,12 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
-              {getRoleLabel()}
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+              isAdmin() ? 'bg-destructive/10 text-destructive' :
+              isPengurus() ? 'bg-accent/10 text-accent' :
+              'bg-primary/10 text-primary'
+            }`}>
+              {getRoleDisplay()}
             </span>
             <Button variant="outline" size="sm" onClick={signOut}>
               <LogOut className="w-4 h-4 mr-2" />
@@ -84,35 +107,57 @@ export default function Dashboard() {
             <CardTitle className="font-display">Menu Cepat</CardTitle>
             <CardDescription>Akses fitur-fitur utama</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-              <FileText className="w-6 h-6 text-primary" />
-              <span>Pengumuman</span>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-              <Calendar className="w-6 h-6 text-accent" />
-              <span>Acara</span>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-              <MessageSquare className="w-6 h-6 text-warning" />
-              <span>Pengaduan</span>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-              <Vote className="w-6 h-6 text-info" />
-              <span>Polling</span>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-              <Home className="w-6 h-6 text-success" />
-              <span>Peta Rumah</span>
-            </Button>
-            {(role === 'admin' || role === 'pengurus') && (
-              <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-                <Users className="w-6 h-6 text-secondary" />
-                <span>Kelola Warga</span>
+          <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {quickActions.map((action) => (
+              <Button key={action.label} variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
+                <Link to={action.href}>
+                  <action.icon className={`w-6 h-6 ${action.color}`} />
+                  <span>{action.label}</span>
+                </Link>
               </Button>
-            )}
+            ))}
           </CardContent>
         </Card>
+
+        {/* Pengurus Actions */}
+        {canManageContent() && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-display">Menu Pengurus</CardTitle>
+              <CardDescription>Kelola fitur khusus pengurus</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {pengurusActions.map((action) => (
+                <Button key={action.label} variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
+                  <Link to={action.href}>
+                    <action.icon className={`w-6 h-6 ${action.color}`} />
+                    <span>{action.label}</span>
+                  </Link>
+                </Button>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Admin Actions */}
+        {isAdmin() && (
+          <Card className="border-destructive/20">
+            <CardHeader>
+              <CardTitle className="font-display text-destructive">Menu Admin</CardTitle>
+              <CardDescription>Kelola sistem dan pengguna</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {adminActions.map((action) => (
+                <Button key={action.label} variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
+                  <Link to={action.href}>
+                    <action.icon className={`w-6 h-6 ${action.color}`} />
+                    <span>{action.label}</span>
+                  </Link>
+                </Button>
+              ))}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

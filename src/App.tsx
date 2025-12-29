@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+import AdminUsers from "./pages/admin/Users";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -39,6 +40,7 @@ function AppRoutes() {
       <Route path="/register" element={<AuthRedirect><Register /></AuthRedirect>} />
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/admin/users" element={<AdminUsers />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

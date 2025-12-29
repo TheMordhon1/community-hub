@@ -471,18 +471,21 @@ export type Database = {
           created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
+          title: Database["public"]["Enums"]["pengurus_title"] | null
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          title?: Database["public"]["Enums"]["pengurus_title"] | null
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          title?: Database["public"]["Enums"]["pengurus_title"] | null
           user_id?: string
         }
         Relationships: []
@@ -508,6 +511,15 @@ export type Database = {
       app_role: "admin" | "pengurus" | "warga"
       complaint_status: "pending" | "in_progress" | "resolved"
       payment_status: "pending" | "paid" | "overdue"
+      pengurus_title:
+        | "ketua"
+        | "wakil_ketua"
+        | "sekretaris"
+        | "bendahara"
+        | "sie_keamanan"
+        | "sie_kebersihan"
+        | "sie_sosial"
+        | "anggota"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -638,6 +650,16 @@ export const Constants = {
       app_role: ["admin", "pengurus", "warga"],
       complaint_status: ["pending", "in_progress", "resolved"],
       payment_status: ["pending", "paid", "overdue"],
+      pengurus_title: [
+        "ketua",
+        "wakil_ketua",
+        "sekretaris",
+        "bendahara",
+        "sie_keamanan",
+        "sie_kebersihan",
+        "sie_sosial",
+        "anggota",
+      ],
     },
   },
 } as const

@@ -1,8 +1,27 @@
 export type AppRole = 'admin' | 'pengurus' | 'warga';
 
+export type PengurusTitle = 'ketua' | 'wakil_ketua' | 'sekretaris' | 'bendahara' | 'sie_keamanan' | 'sie_kebersihan' | 'sie_sosial' | 'anggota';
+
 export type ComplaintStatus = 'pending' | 'in_progress' | 'resolved';
 
 export type PaymentStatus = 'pending' | 'paid' | 'overdue';
+
+export const PENGURUS_TITLE_LABELS: Record<PengurusTitle, string> = {
+  ketua: 'Ketua RT',
+  wakil_ketua: 'Wakil Ketua RT',
+  sekretaris: 'Sekretaris',
+  bendahara: 'Bendahara',
+  sie_keamanan: 'Sie. Keamanan',
+  sie_kebersihan: 'Sie. Kebersihan',
+  sie_sosial: 'Sie. Sosial',
+  anggota: 'Anggota Pengurus',
+};
+
+export const ROLE_LABELS: Record<AppRole, string> = {
+  admin: 'Super Admin',
+  pengurus: 'Pengurus',
+  warga: 'Warga',
+};
 
 export interface Profile {
   id: string;
@@ -18,6 +37,7 @@ export interface UserRole {
   id: string;
   user_id: string;
   role: AppRole;
+  title: PengurusTitle | null;
   created_at: string;
 }
 
@@ -152,6 +172,10 @@ export interface FAQ {
 }
 
 // Extended types with relations
+export interface UserWithRole extends Profile {
+  user_role?: UserRole;
+}
+
 export interface HouseWithResidents extends House {
   residents?: (HouseResident & { profile?: Profile })[];
   payments?: Payment[];
