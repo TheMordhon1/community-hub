@@ -13,6 +13,7 @@ import Announcements from "./pages/Announcements";
 import Events from "./pages/Events";
 import Complaints from "./pages/Complaints";
 import Polls from "./pages/Polls";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -40,14 +41,29 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
-      <Route path="/register" element={<AuthRedirect><Register /></AuthRedirect>} />
+      <Route
+        path="/login"
+        element={
+          <AuthRedirect>
+            <Login />
+          </AuthRedirect>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <AuthRedirect>
+            <Register />
+          </AuthRedirect>
+        }
+      />
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/announcements" element={<Announcements />} />
         <Route path="/events" element={<Events />} />
         <Route path="/complaints" element={<Complaints />} />
         <Route path="/polls" element={<Polls />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/admin/users" element={<AdminUsers />} />
       </Route>
       <Route path="*" element={<NotFound />} />

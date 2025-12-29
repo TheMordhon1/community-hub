@@ -11,7 +11,7 @@ interface AuthState {
   pengurusTitle: PengurusTitle | null;
   isLoading: boolean;
   isInitialized: boolean;
-  
+
   // Actions
   setUser: (user: User | null) => void;
   setSession: (session: Session | null) => void;
@@ -20,16 +20,16 @@ interface AuthState {
   setPengurusTitle: (title: PengurusTitle | null) => void;
   setIsLoading: (loading: boolean) => void;
   setIsInitialized: (initialized: boolean) => void;
-  
+
   // Auth operations
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, houseNumber?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
-  
+
   // Data fetching
   fetchProfile: (userId: string) => Promise<void>;
   fetchRole: (userId: string) => Promise<void>;
-  
+
   // Helpers
   isAdmin: () => boolean;
   isPengurus: () => boolean;
@@ -64,20 +64,57 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return { error: error as Error | null };
   },
 
-  signUp: async (email, password, fullName) => {
+  signUp: async (email, password, fullName, houseNumber) => {
     set({ isLoading: true });
     const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
+          house_number: houseNumber,
         },
       },
     });
+
+    // If user was created, also upsert a profile row so it's available immediately
+    try {
+      const userId = data?.user?.id;
+      if (userId) {
+        // Detect whether the profiles table contains the `house_number` column.
+        // This avoids PostgREST "PGRST204" errors when the migration hasn't been applied.
+        let includeHouseNumber = false;
+        try {
+          await supabase.from('profiles').select('house_number').limit(1);
+          includeHouseNumber = true;
+        } catch (err: any) {
+          // PGRST204 means PostgREST/cache doesn't know about the column yet.
+          if (err?.code === 'PGRST204') {
+            includeHouseNumber = false;
+          } else {
+            // For any other error, be conservative and skip the column to avoid blocking signup.
+            includeHouseNumber = false;
+          }
+        }
+
+        const payload: any = {
+          id: userId,
+          email,
+          full_name: fullName,
+        };
+
+        if (includeHouseNumber) payload.house_number = houseNumber ?? null;
+
+        await supabase.from('profiles').upsert(payload);
+      }
+    } catch (e) {
+      // silently ignore profile upsert errors - signUp itself is authoritative
+      console.error('Failed to upsert profile after signUp', e);
+    }
+
     set({ isLoading: false });
     return { error: error as Error | null };
   },
@@ -115,7 +152,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .single();
 
     if (!error && data) {
-      set({ 
+      set({
         role: data.role as AppRole,
         pengurusTitle: data.title as PengurusTitle | null
       });

@@ -29,6 +29,7 @@ export interface Profile {
   email: string;
   phone: string | null;
   avatar_url: string | null;
+  house_number?: string | null;
   created_at: string;
   updated_at: string;
 }
