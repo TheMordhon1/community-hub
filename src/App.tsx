@@ -9,6 +9,9 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import AdminUsers from "./pages/admin/Users";
+import Announcements from "./pages/Announcements";
+import Events from "./pages/Events";
+import Complaints from "./pages/Complaints";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -40,6 +43,9 @@ function AppRoutes() {
       <Route path="/register" element={<AuthRedirect><Register /></AuthRedirect>} />
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/announcements" element={<Announcements />} />
+        <Route path="/events" element={<Events />} />
+        <Route path="/complaints" element={<Complaints />} />
         <Route path="/admin/users" element={<AdminUsers />} />
       </Route>
       <Route path="*" element={<NotFound />} />
