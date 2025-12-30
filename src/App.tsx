@@ -16,6 +16,7 @@ import Polls from "./pages/Polls";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
+import PollsDetail from "./pages/PollsDetail";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ function AppRoutes() {
         <Route path="/events" element={<Events />} />
         <Route path="/complaints" element={<Complaints />} />
         <Route path="/polls" element={<Polls />} />
+        <Route path="/polls/:id" element={<PollsDetail />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/admin/users" element={<AdminUsers />} />
       </Route>
