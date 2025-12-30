@@ -9,41 +9,21 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Home,
-  Users,
   FileText,
   Calendar,
   MessageSquare,
   Vote,
-  LogOut,
   Map,
   CreditCard,
+  Users,
   Settings,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from "@/types/database";
 
 export default function Dashboard() {
-  const {
-    profile,
-    role,
-    pengurusTitle,
-    signOut,
-    isAdmin,
-    isPengurus,
-    canManageContent,
-  } = useAuth();
-
-  const getRoleDisplay = () => {
-    if (!role) return "User";
-    const roleLabel = ROLE_LABELS[role];
-    if (role === "pengurus" && pengurusTitle) {
-      return `${PENGURUS_TITLE_LABELS[pengurusTitle]}`;
-    }
-    return roleLabel;
-  };
+  const { profile, isAdmin, canManageContent } = useAuth();
 
   const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ["dashboard", "stats"],
@@ -148,45 +128,20 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between flex-wrap gap-4"
         >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Home className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="font-display text-2xl font-bold">Warga PKT</h1>
-              <p className="text-muted-foreground">
-                Selamat datang,{" "}
-                <span className="font-medium text-foreground">
-                  {profile?.full_name || "User"}
-                </span>
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <span
-              className={`px-3 py-1 rounded-full text-sm font-medium ${
-                isAdmin()
-                  ? "bg-destructive/10 text-destructive"
-                  : isPengurus()
-                  ? "bg-accent/10 text-accent"
-                  : "bg-primary/10 text-primary"
-              }`}
-            >
-              {getRoleDisplay()}
+          <h1 className="font-display text-2xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Selamat datang kembali,{" "}
+            <span className="font-medium text-foreground">
+              {profile?.full_name || "User"}
             </span>
-            <Button variant="outline" size="sm" onClick={signOut}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Keluar
-            </Button>
-          </div>
+          </p>
         </motion.div>
 
         {/* Stats */}
@@ -228,7 +183,7 @@ export default function Dashboard() {
               <Button
                 key={action.label}
                 variant="outline"
-                className="h-auto py-4 flex-col gap-2 hover:bg-black"
+                className="h-auto py-4 flex-col gap-2 hover:bg-muted"
                 asChild
               >
                 <Link to={action.href}>
@@ -252,7 +207,7 @@ export default function Dashboard() {
                 <Button
                   key={action.label}
                   variant="outline"
-                  className="h-auto py-4 flex-col gap-2 hover:bg-black"
+                  className="h-auto py-4 flex-col gap-2 hover:bg-muted"
                   asChild
                 >
                   <Link to={action.href}>
@@ -279,7 +234,7 @@ export default function Dashboard() {
                 <Button
                   key={action.label}
                   variant="outline"
-                  className="h-auto py-4 flex-col gap-2 hover:bg-black"
+                  className="h-auto py-4 flex-col gap-2 hover:bg-muted"
                   asChild
                 >
                   <Link to={action.href}>
