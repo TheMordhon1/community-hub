@@ -68,7 +68,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true });
     const redirectUrl = `${window.location.origin}/`;
 
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -79,41 +79,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         },
       },
     });
-
-    // If user was created, also upsert a profile row so it's available immediately
-    try {
-      const userId = data?.user?.id;
-      if (userId) {
-        // Detect whether the profiles table contains the `house_number` column.
-        // This avoids PostgREST "PGRST204" errors when the migration hasn't been applied.
-        let includeHouseNumber = false;
-        try {
-          await supabase.from('profiles').select('house_number').limit(1);
-          includeHouseNumber = true;
-        } catch (err: any) {
-          // PGRST204 means PostgREST/cache doesn't know about the column yet.
-          if (err?.code === 'PGRST204') {
-            includeHouseNumber = false;
-          } else {
-            // For any other error, be conservative and skip the column to avoid blocking signup.
-            includeHouseNumber = false;
-          }
-        }
-
-        const payload: any = {
-          id: userId,
-          email,
-          full_name: fullName,
-        };
-
-        if (includeHouseNumber) payload.house_number = houseNumber ?? null;
-
-        await supabase.from('profiles').upsert(payload);
-      }
-    } catch (e) {
-      // silently ignore profile upsert errors - signUp itself is authoritative
-      console.error('Failed to upsert profile after signUp', e);
-    }
 
     set({ isLoading: false });
     return { error: error as Error | null };
