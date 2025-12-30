@@ -411,6 +411,7 @@ export type Database = {
           options: Json
           title: string
           updated_at: string
+          vote_type: Database["public"]["Enums"]["poll_vote_type"]
         }
         Insert: {
           author_id?: string | null
@@ -422,6 +423,7 @@ export type Database = {
           options?: Json
           title: string
           updated_at?: string
+          vote_type?: Database["public"]["Enums"]["poll_vote_type"]
         }
         Update: {
           author_id?: string | null
@@ -433,6 +435,7 @@ export type Database = {
           options?: Json
           title?: string
           updated_at?: string
+          vote_type?: Database["public"]["Enums"]["poll_vote_type"]
         }
         Relationships: []
       }
@@ -442,7 +445,6 @@ export type Database = {
           created_at: string
           email: string
           full_name: string
-          house_number: string | null
           id: string
           phone: string | null
           updated_at: string
@@ -452,7 +454,6 @@ export type Database = {
           created_at?: string
           email: string
           full_name: string
-          house_number?: string | null
           id: string
           phone?: string | null
           updated_at?: string
@@ -462,7 +463,6 @@ export type Database = {
           created_at?: string
           email?: string
           full_name?: string
-          house_number?: string | null
           id?: string
           phone?: string | null
           updated_at?: string
@@ -498,6 +498,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_house_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -507,6 +508,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      house_has_voted: {
+        Args: { _house_id: string; _poll_id: string }
         Returns: boolean
       }
     }
@@ -523,6 +528,7 @@ export type Database = {
         | "sie_kebersihan"
         | "sie_sosial"
         | "anggota"
+      poll_vote_type: "per_account" | "per_house"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -663,6 +669,7 @@ export const Constants = {
         "sie_sosial",
         "anggota",
       ],
+      poll_vote_type: ["per_account", "per_house"],
     },
   },
 } as const

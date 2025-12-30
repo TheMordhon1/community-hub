@@ -4,11 +4,20 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 import { Eye, EyeOff, Home, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -18,6 +27,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import type { House } from "@/types/database";
 
 const registerSchema = z
   .object({
@@ -25,10 +35,7 @@ const registerSchema = z
       .string()
       .min(2, "Nama lengkap minimal 2 karakter")
       .max(100, "Nama terlalu panjang"),
-    houseNumber: z
-      .string()
-      .min(1, "Nomor rumah wajib diisi")
-      .max(20, "Nomor rumah terlalu panjang"),
+    houseId: z.string().min(1, "Pilih nomor rumah"),
     email: z
       .string()
       .email("Email tidak valid")
@@ -54,11 +61,25 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const { data: houses, isLoading: housesLoading } = useQuery({
+    queryKey: ["houses-register"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("houses")
+        .select("*")
+        .order("block")
+        .order("number");
+
+      if (error) throw error;
+      return data as House[];
+    },
+  });
+
   const form = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       fullName: "",
-      houseNumber: "",
+      houseId: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -67,12 +88,11 @@ export default function Register() {
 
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true);
-    const { error } = await signUp(
-      data.email,
-      data.password,
-      data.fullName,
-      data.houseNumber
-    );
+
+    // Find the selected house
+    const selectedHouse = houses?.find((h) => h.id === data.houseId);
+
+    const { error, userId } = await signUp(data.email, data.password, data.fullName);
     setIsLoading(false);
 
     if (error) {
@@ -88,6 +108,21 @@ export default function Register() {
         description: message,
       });
       return;
+    }
+
+    // Link user to house via house_residents
+    if (userId && selectedHouse) {
+      await supabase.from("house_residents").insert({
+        user_id: userId,
+        house_id: selectedHouse.id,
+        is_owner: false,
+      });
+
+      // Mark house as occupied
+      await supabase
+        .from("houses")
+        .update({ is_occupied: true })
+        .eq("id", selectedHouse.id);
     }
 
     toast({
@@ -136,15 +171,25 @@ export default function Register() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="houseNumber">Nomor Rumah</Label>
-                <Input
-                  id="houseNumber"
-                  placeholder="Masukkan nomor rumah (contoh: 12 atau A-12)"
-                  {...form.register("houseNumber")}
-                />
-                {form.formState.errors.houseNumber && (
+                <Label htmlFor="houseId">Nomor Rumah</Label>
+                <Select
+                  value={form.watch("houseId")}
+                  onValueChange={(value) => form.setValue("houseId", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={housesLoading ? "Memuat..." : "Pilih nomor rumah"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {houses?.map((house) => (
+                      <SelectItem key={house.id} value={house.id}>
+                        Blok {house.block} No. {house.number}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.formState.errors.houseId && (
                   <p className="text-sm text-destructive">
-                    {form.formState.errors.houseNumber.message}
+                    {form.formState.errors.houseId.message}
                   </p>
                 )}
               </div>
@@ -222,7 +267,7 @@ export default function Register() {
             </CardContent>
 
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || housesLoading}>
                 {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Daftar
               </Button>

@@ -23,13 +23,14 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   warga: 'Warga',
 };
 
+export type PollVoteType = 'per_account' | 'per_house';
+
 export interface Profile {
   id: string;
   full_name: string;
   email: string;
   phone: string | null;
   avatar_url: string | null;
-  house_number?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -129,6 +130,7 @@ export interface Poll {
   description: string | null;
   options: string[];
   is_active: boolean;
+  vote_type: PollVoteType;
   ends_at: string | null;
   author_id: string | null;
   created_at: string;

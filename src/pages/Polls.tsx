@@ -10,9 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-
 import { Switch } from "@/components/ui/switch";
-
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -39,12 +38,13 @@ import {
   X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { Poll, PollVote } from "@/types/database";
+import type { Poll, PollVote, PollVoteType } from "@/types/database";
 import { PollCard } from "@/components/PollCard";
 
 export interface PollWithVotesProps extends Poll {
   votes: PollVote[];
   userVote?: PollVote;
+  houseHasVoted?: boolean;
 }
 
 export default function Polls() {
@@ -57,6 +57,24 @@ export default function Polls() {
   const [options, setOptions] = useState<string[]>(["", ""]);
   const [endsAt, setEndsAt] = useState<Date>();
   const [isActive, setIsActive] = useState(true);
+  const [voteType, setVoteType] = useState<PollVoteType>("per_account");
+
+  // Get user's house
+  const { data: userHouse } = useQuery({
+    queryKey: ["user-house", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("house_residents")
+        .select("house_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data?.house_id as string | null;
+    },
+    enabled: !!user?.id,
+  });
 
   const { data: polls, isLoading } = useQuery({
     queryKey: ["polls"],
@@ -74,14 +92,34 @@ export default function Polls() {
 
       if (votesError) throw votesError;
 
+      // Get house residents to check house votes
+      const { data: residentsData } = await supabase
+        .from("house_residents")
+        .select("user_id, house_id");
+
       const pollsWithVotes: PollWithVotesProps[] = pollsData.map((poll) => {
         const pollVotes = votesData?.filter((v) => v.poll_id === poll.id) || [];
         const userVote = pollVotes.find((v) => v.user_id === user?.id);
+
+        // Check if user's house has already voted (for per_house polls)
+        let houseHasVoted = false;
+        if (poll.vote_type === "per_house" && userHouse) {
+          const houseResidentIds =
+            residentsData
+              ?.filter((r) => r.house_id === userHouse)
+              .map((r) => r.user_id) || [];
+          houseHasVoted = pollVotes.some((v) =>
+            houseResidentIds.includes(v.user_id)
+          );
+        }
+
         return {
           ...poll,
           options: poll.options as string[],
+          vote_type: poll.vote_type as PollVoteType,
           votes: pollVotes,
           userVote,
+          houseHasVoted,
         };
       });
 
@@ -96,6 +134,7 @@ export default function Polls() {
       options: string[];
       ends_at: string | null;
       is_active: boolean;
+      vote_type: PollVoteType;
     }) => {
       const { error } = await supabase.from("polls").insert({
         title: data.title,
@@ -103,6 +142,7 @@ export default function Polls() {
         options: data.options,
         ends_at: data.ends_at,
         is_active: data.is_active,
+        vote_type: data.vote_type,
         author_id: user?.id,
       });
       if (error) throw error;
@@ -194,6 +234,7 @@ export default function Polls() {
     setOptions(["", ""]);
     setEndsAt(undefined);
     setIsActive(true);
+    setVoteType("per_account");
     setIsCreateOpen(false);
   };
 
@@ -231,6 +272,7 @@ export default function Polls() {
       options: validOptions,
       ends_at: endsAt?.toISOString() || null,
       is_active: isActive,
+      vote_type: voteType,
     });
   };
 
@@ -243,11 +285,33 @@ export default function Polls() {
   };
 
   const canVote = (poll: PollWithVotesProps) => {
-    return poll.is_active && !poll.userVote && !isPollExpired(poll);
+    if (!poll.is_active || poll.userVote || isPollExpired(poll)) return false;
+
+    // For per_house voting, check if user's house has voted
+    if (poll.vote_type === "per_house") {
+      if (!userHouse) {
+        // User has no house assigned, cannot vote
+        return false;
+      }
+      if (poll.houseHasVoted) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const getVoteBlockReason = (poll: PollWithVotesProps) => {
+    if (poll.userVote) return "Anda sudah voting";
+    if (poll.vote_type === "per_house" && poll.houseHasVoted)
+      return "Rumah Anda sudah voting";
+    if (poll.vote_type === "per_house" && !userHouse)
+      return "Anda belum terdaftar di rumah manapun";
+    return null;
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <motion.div
@@ -255,18 +319,11 @@ export default function Polls() {
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center justify-between"
         >
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/dashboard">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-            </Button>
-            <div>
-              <h1 className="font-display text-2xl font-bold">Polling</h1>
-              <p className="text-muted-foreground">
-                Berikan suara untuk keputusan komunitas
-              </p>
-            </div>
+          <div>
+            <h1 className="font-display text-2xl font-bold">Polling</h1>
+            <p className="text-muted-foreground">
+              Berikan suara untuk keputusan komunitas
+            </p>
           </div>
 
           {canManageContent() && (
@@ -310,6 +367,49 @@ export default function Polls() {
                       onChange={(e) => setDescription(e.target.value)}
                     />
                   </div>
+
+                  <div className="space-y-3">
+                    <Label>Metode Voting</Label>
+                    <RadioGroup
+                      value={voteType}
+                      onValueChange={(v) => setVoteType(v as PollVoteType)}
+                      className="grid grid-cols-2 gap-4"
+                    >
+                      <div>
+                        <RadioGroupItem
+                          value="per_account"
+                          id="per_account"
+                          className="peer sr-only"
+                        />
+                        <Label
+                          htmlFor="per_account"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                        >
+                          <span className="font-medium">1 Akun 1 Suara</span>
+                          <span className="text-xs text-muted-foreground mt-1">
+                            Setiap pengguna bisa voting
+                          </span>
+                        </Label>
+                      </div>
+                      <div>
+                        <RadioGroupItem
+                          value="per_house"
+                          id="per_house"
+                          className="peer sr-only"
+                        />
+                        <Label
+                          htmlFor="per_house"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                        >
+                          <span className="font-medium">1 Rumah 1 Suara</span>
+                          <span className="text-xs text-muted-foreground mt-1">
+                            Satu suara per rumah
+                          </span>
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
                   <div className="space-y-2">
                     <Label>Pilihan</Label>
                     <div className="space-y-2">
@@ -435,6 +535,7 @@ export default function Polls() {
                     canVote={canVote(poll)}
                     isPollExpired={isPollExpired(poll)}
                     canManage={canManageContent()}
+                    voteBlockReason={getVoteBlockReason(poll)}
                     onVote={(optionIndex) =>
                       voteMutation.mutate({ pollId: poll.id, optionIndex })
                     }
