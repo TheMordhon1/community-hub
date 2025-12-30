@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { CheckCircle2, Loader2, Trash2 } from "lucide-react";
+import { CheckCircle2, Loader2, Trash2, Home, User } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Button } from "./ui/button";
@@ -21,6 +21,7 @@ export const PollCard = ({
   canVote,
   isPollExpired,
   canManage,
+  voteBlockReason,
   onVote,
   onToggleActive,
   onDelete,
@@ -31,6 +32,7 @@ export const PollCard = ({
   canVote: boolean;
   isPollExpired: boolean;
   canManage: boolean;
+  voteBlockReason?: string | null;
   onVote: (optionIndex: number) => void;
   onToggleActive: () => void;
   onDelete: () => void;
@@ -38,7 +40,7 @@ export const PollCard = ({
 }) => {
   const totalVotes = poll.votes.length;
   const hasVoted = !!poll?.userVote;
-  const showResults = hasVoted || !poll.is_active || isPollExpired;
+  const showResults = hasVoted || !poll.is_active || isPollExpired || poll.houseHasVoted;
 
   const getVoteCount = (optionIndex: number) => {
     return poll.votes.filter((v) => v.option_index === optionIndex).length;
@@ -67,13 +69,13 @@ export const PollCard = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
+      transition={{ delay: index ? index * 0.05 : 0 }}
     >
       <Card className={!poll.is_active ? "opacity-70" : ""}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div>
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 {poll.is_active ? (
                   isPollExpired ? (
                     <Badge variant="secondary">Kadaluarsa</Badge>
@@ -83,6 +85,15 @@ export const PollCard = ({
                 ) : (
                   <Badge variant="secondary">Ditutup</Badge>
                 )}
+                {poll.vote_type === "per_house" ? (
+                  <Badge variant="outline" className="text-info border-info">
+                    <Home className="w-3 h-3 mr-1" />1 Rumah 1 Suara
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    <User className="w-3 h-3 mr-1" />1 Akun 1 Suara
+                  </Badge>
+                )}
                 {hasVoted && (
                   <Badge
                     variant="outline"
@@ -90,6 +101,15 @@ export const PollCard = ({
                   >
                     <CheckCircle2 className="w-3 h-3 mr-1" />
                     Sudah Voting
+                  </Badge>
+                )}
+                {poll.houseHasVoted && !hasVoted && (
+                  <Badge
+                    variant="outline"
+                    className="text-warning border-warning"
+                  >
+                    <Home className="w-3 h-3 mr-1" />
+                    Rumah Sudah Voting
                   </Badge>
                 )}
               </div>
@@ -129,6 +149,11 @@ export const PollCard = ({
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
+          {voteBlockReason && !hasVoted && poll.is_active && !isPollExpired && (
+            <p className="text-sm text-warning bg-warning/10 p-2 rounded-md">
+              {voteBlockReason}
+            </p>
+          )}
           {poll.options.map((option, optionIndex) => {
             const isUserChoice = poll.userVote?.option_index === optionIndex;
             const isWinning =

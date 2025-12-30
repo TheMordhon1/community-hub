@@ -23,7 +23,7 @@ interface AuthState {
 
   // Auth operations
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName: string, houseNumber?: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null; userId?: string }>;
   signOut: () => Promise<void>;
 
   // Data fetching
@@ -64,24 +64,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return { error: error as Error | null };
   },
 
-  signUp: async (email, password, fullName, houseNumber) => {
+  signUp: async (email, password, fullName) => {
     set({ isLoading: true });
     const redirectUrl = `${window.location.origin}/`;
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
-          house_number: houseNumber,
         },
       },
     });
 
     set({ isLoading: false });
-    return { error: error as Error | null };
+    return { error: error as Error | null, userId: data?.user?.id };
   },
 
   signOut: async () => {

@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import AdminUsers from "./pages/admin/Users";
+import AdminHouses from "./pages/admin/Houses";
 import Announcements from "./pages/Announcements";
 import Events from "./pages/Events";
 import Complaints from "./pages/Complaints";
@@ -69,6 +70,7 @@ function AppRoutes() {
           <Route path="/polls/:id" element={<PollsDetail />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/houses" element={<AdminHouses />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFound />} />

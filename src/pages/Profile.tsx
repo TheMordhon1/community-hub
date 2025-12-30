@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -19,7 +20,6 @@ import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from "@/types/database";
 import { Loader2, Pencil, Save, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
 
 const profileSchema = z.object({
   full_name: z
@@ -29,11 +29,6 @@ const profileSchema = z.object({
   phone: z
     .string()
     .max(20, "Nomor telepon terlalu panjang")
-    .optional()
-    .or(z.literal("")),
-  house_number: z
-    .string()
-    .max(20, "Nomor rumah terlalu panjang")
     .optional()
     .or(z.literal("")),
 });
@@ -52,8 +47,24 @@ export default function Profile() {
     defaultValues: {
       full_name: profile?.full_name ?? "",
       phone: profile?.phone ?? "",
-      house_number: profile?.house_number ?? "",
     },
+  });
+
+  // Fetch user's house info
+  const { data: userHouse } = useQuery({
+    queryKey: ["user-house", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("house_residents")
+        .select("*, houses(*)")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
   });
 
   const getRoleDisplay = () => {
@@ -61,6 +72,12 @@ export default function Profile() {
     if (role === "pengurus" && pengurusTitle)
       return PENGURUS_TITLE_LABELS[pengurusTitle];
     return ROLE_LABELS[role];
+  };
+
+  const getHouseDisplay = () => {
+    if (!userHouse?.houses) return "-";
+    const house = userHouse.houses as { block: string; number: string };
+    return `Blok ${house.block} No. ${house.number}`;
   };
 
   const onSubmit = async (data: ProfileForm) => {
@@ -72,7 +89,6 @@ export default function Profile() {
       .update({
         full_name: data.full_name,
         phone: data.phone || null,
-        house_number: data.house_number || null,
       })
       .eq("id", user.id);
 
@@ -94,7 +110,6 @@ export default function Profile() {
 
     setIsEditing(false);
     queryClient.invalidateQueries({ queryKey: ["profile"] });
-    // Refresh the auth store profile
     window.location.reload();
   };
 
@@ -102,7 +117,6 @@ export default function Profile() {
     form.reset({
       full_name: profile?.full_name ?? "",
       phone: profile?.phone ?? "",
-      house_number: profile?.house_number ?? "",
     });
     setIsEditing(false);
   };
@@ -177,20 +191,6 @@ export default function Profile() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="house_number">Nomor Rumah</Label>
-                      <Input
-                        id="house_number"
-                        {...form.register("house_number")}
-                        placeholder="Contoh: A-12"
-                      />
-                      {form.formState.errors.house_number && (
-                        <p className="text-sm text-destructive">
-                          {form.formState.errors.house_number.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
                       <Label htmlFor="phone">Nomor Telepon</Label>
                       <Input
                         id="phone"
@@ -240,9 +240,7 @@ export default function Profile() {
                         <p className="text-xs text-muted-foreground">
                           Nomor Rumah
                         </p>
-                        <p className="font-medium">
-                          {profile?.house_number ?? "-"}
-                        </p>
+                        <p className="font-medium">{getHouseDisplay()}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Telepon</p>

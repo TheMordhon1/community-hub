@@ -11,6 +11,7 @@ import {
   CreditCard,
   Map,
   LogOut,
+  Building2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from "@/types/database";
@@ -40,6 +41,7 @@ const mainMenuItems = [
 ];
 
 const pengurusMenuItems = [
+  { title: "Kelola Rumah", url: "/admin/houses", icon: Building2 },
   { title: "Kelola Iuran", url: "/payments", icon: CreditCard },
 ];
 
