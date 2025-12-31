@@ -62,18 +62,24 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
 
   const { data: houses, isLoading: housesLoading } = useQuery({
-    queryKey: ["houses-register"],
+    queryKey: ["houses-available"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("houses")
         .select("*")
+        .eq("is_occupied", false)
         .order("block")
         .order("number");
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching houses:", error);
+        throw error;
+      }
       return data as House[];
     },
   });
+
+  const availableHouses = houses ?? [];
 
   const form = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
@@ -90,7 +96,7 @@ export default function Register() {
     setIsLoading(true);
 
     // Find the selected house
-    const selectedHouse = houses?.find((h) => h.id === data.houseId);
+    const selectedHouse = availableHouses.find((h) => h.id === data.houseId);
 
     const { error, userId } = await signUp(data.email, data.password, data.fullName);
     setIsLoading(false);
@@ -179,12 +185,18 @@ export default function Register() {
                   <SelectTrigger>
                     <SelectValue placeholder={housesLoading ? "Memuat..." : "Pilih nomor rumah"} />
                   </SelectTrigger>
-                  <SelectContent>
-                    {houses?.map((house) => (
-                      <SelectItem key={house.id} value={house.id}>
-                        Blok {house.block} No. {house.number}
-                      </SelectItem>
-                    ))}
+                  <SelectContent className="bg-background border shadow-lg z-50 max-h-60">
+                    {availableHouses.length === 0 ? (
+                      <div className="py-2 px-3 text-sm text-muted-foreground">
+                        Tidak ada rumah tersedia
+                      </div>
+                    ) : (
+                      availableHouses.map((house) => (
+                        <SelectItem key={house.id} value={house.id}>
+                          Blok {house.block} No. {house.number}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 {form.formState.errors.houseId && (
