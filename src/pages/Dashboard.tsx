@@ -97,7 +97,7 @@ export default function Dashboard() {
     { label: "Polling", icon: Vote, color: "text-info", href: "/polls" },
     {
       label: "Pembayaran",
-      icon: Map,
+      icon: CreditCard,
       color: "text-success",
       href: "/payments",
     },

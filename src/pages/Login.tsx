@@ -75,12 +75,13 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 gradient-hero">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-primary lg:bg-pkt-logo">
+      <div className="absolute top-0 bottom-0 left-0 right-0 bg-black/60 z-[1]" />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md relative z-10"
       >
         <Card className="glass-card">
           <CardHeader className="text-center space-y-2">
@@ -88,14 +89,14 @@ export default function Login() {
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring" }}
-              className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2"
+              className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-2 overflow-hidden"
             >
-              <Home className="w-8 h-8 text-primary" />
+              <img src="./logo-pkt.png" className="w-16 h-16" />
             </motion.div>
             <CardTitle className="font-display text-2xl">
               Selamat Datang
             </CardTitle>
-            <CardDescription>Masuk ke akun Warga PKT</CardDescription>
+            <CardDescription>Portal Warga PKT</CardDescription>
           </CardHeader>
 
           <form onSubmit={form.handleSubmit(onSubmit)}>

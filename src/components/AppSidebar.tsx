@@ -37,13 +37,13 @@ const mainMenuItems = [
   { title: "Pengumuman", url: "/announcements", icon: FileText },
   { title: "Acara", url: "/events", icon: Calendar },
   { title: "Pengaduan", url: "/complaints", icon: MessageSquare },
+  { title: "IPL", url: "/payments", icon: CreditCard },
   { title: "Polling", url: "/polls", icon: Vote },
   { title: "Peta Rumah", url: "/house-map", icon: Map },
 ];
 
 const pengurusMenuItems = [
   { title: "Kelola Rumah", url: "/admin/houses", icon: Building2 },
-  { title: "Pembayaran", url: "/payments", icon: CreditCard },
   { title: "Keuangan", url: "/finance", icon: Wallet },
 ];
 
@@ -71,8 +71,8 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-sidebar-primary/20 flex items-center justify-center">
-            <Home className="w-5 h-5 text-sidebar-primary" />
+          <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden">
+            <img src="./logo-pkt.png" className="w-10 h-10" />
           </div>
           <div className="flex flex-col">
             <span className="font-display font-bold text-lg">Warga PKT</span>

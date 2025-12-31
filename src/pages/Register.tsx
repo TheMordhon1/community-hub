@@ -98,7 +98,11 @@ export default function Register() {
     // Find the selected house
     const selectedHouse = availableHouses.find((h) => h.id === data.houseId);
 
-    const { error, userId } = await signUp(data.email, data.password, data.fullName);
+    const { error, userId } = await signUp(
+      data.email,
+      data.password,
+      data.fullName
+    );
     setIsLoading(false);
 
     if (error) {
@@ -139,12 +143,13 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 gradient-hero">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-primary lg:bg-pkt-logo">
+      <div className="absolute top-0 bottom-0 left-0 right-0 bg-black/60 z-[1]" />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md relative z-10"
       >
         <Card className="glass-card">
           <CardHeader className="text-center space-y-2">
@@ -152,9 +157,9 @@ export default function Register() {
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring" }}
-              className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2"
+              className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-2 overflow-hidden"
             >
-              <Home className="w-8 h-8 text-primary" />
+              <img src="./logo-pkt.png" className="w-22 h-20" />
             </motion.div>
             <CardTitle className="font-display text-2xl">Daftar Akun</CardTitle>
             <CardDescription>Bergabung dengan warga PKT</CardDescription>
@@ -183,7 +188,11 @@ export default function Register() {
                   onValueChange={(value) => form.setValue("houseId", value)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={housesLoading ? "Memuat..." : "Pilih nomor rumah"} />
+                    <SelectValue
+                      placeholder={
+                        housesLoading ? "Memuat..." : "Pilih nomor rumah"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent className="bg-background border shadow-lg z-50 max-h-60">
                     {availableHouses.length === 0 ? (
@@ -279,7 +288,11 @@ export default function Register() {
             </CardContent>
 
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full" disabled={isLoading || housesLoading}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || housesLoading}
+              >
                 {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Daftar
               </Button>
