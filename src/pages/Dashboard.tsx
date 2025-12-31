@@ -96,6 +96,12 @@ export default function Dashboard() {
     },
     { label: "Polling", icon: Vote, color: "text-info", href: "/polls" },
     {
+      label: "Pembayaran",
+      icon: Map,
+      color: "text-success",
+      href: "/payments",
+    },
+    {
       label: "Peta Rumah",
       icon: Map,
       color: "text-success",

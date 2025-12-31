@@ -163,8 +163,8 @@ export default function PollsDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-2xl mx-auto space-y-6">
+    <section className="min-h-screen bg-background p-6">
+      <div className="mx-auto space-y-6">
         <Button variant="link" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Kembali
         </Button>
@@ -187,6 +187,6 @@ export default function PollsDetail() {
           isVoting={voteMutation.isPending}
         />
       </div>
-    </div>
+    </section>
   );
 }

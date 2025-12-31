@@ -122,8 +122,8 @@ export default function Profile() {
   };
 
   return (
-    <div className="p-6">
-      <div className="max-w-2xl mx-auto space-y-6">
+    <section className="p-6">
+      <div className="mx-auto space-y-6">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -271,6 +271,6 @@ export default function Profile() {
           </Card>
         </motion.div>
       </div>
-    </div>
+    </section>
   );
 }

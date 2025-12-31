@@ -311,19 +311,26 @@ export default function Polls() {
   };
 
   return (
-    <div className="p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <section className="p-6">
+      <div className="mx-auto space-y-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center justify-between"
         >
-          <div>
-            <h1 className="font-display text-2xl font-bold">Polling</h1>
-            <p className="text-muted-foreground">
-              Berikan suara untuk keputusan komunitas
-            </p>
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/dashboard">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="font-display text-2xl font-bold">Polling</h1>
+              <p className="text-muted-foreground">
+                Berikan suara untuk keputusan komunitas
+              </p>
+            </div>
           </div>
 
           {canManageContent() && (
@@ -582,6 +589,6 @@ export default function Polls() {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

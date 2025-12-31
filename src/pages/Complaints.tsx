@@ -1,32 +1,76 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { format } from 'date-fns';
-import { id as idLocale } from 'date-fns/locale';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, MessageSquare, Loader2, Clock, CheckCircle, AlertCircle, Send } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import type { Complaint, ComplaintStatus, Profile } from '@/types/database';
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import { format } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import {
+  ArrowLeft,
+  Plus,
+  MessageSquare,
+  Loader2,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Send,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import type { Complaint, ComplaintStatus, Profile } from "@/types/database";
 
 interface ComplaintWithProfile extends Complaint {
   profile?: Profile;
 }
 
-const STATUS_CONFIG: Record<ComplaintStatus, { label: string; color: string; icon: React.ElementType }> = {
-  pending: { label: 'Menunggu', color: 'bg-warning/10 text-warning', icon: Clock },
-  in_progress: { label: 'Diproses', color: 'bg-info/10 text-info', icon: AlertCircle },
-  resolved: { label: 'Selesai', color: 'bg-success/10 text-success', icon: CheckCircle },
+const STATUS_CONFIG: Record<
+  ComplaintStatus,
+  { label: string; color: string; icon: React.ElementType }
+> = {
+  pending: {
+    label: "Menunggu",
+    color: "bg-warning/10 text-warning",
+    icon: Clock,
+  },
+  in_progress: {
+    label: "Diproses",
+    color: "bg-info/10 text-info",
+    icon: AlertCircle,
+  },
+  resolved: {
+    label: "Selesai",
+    color: "bg-success/10 text-success",
+    icon: CheckCircle,
+  },
 };
 
 export default function Complaints() {
@@ -34,33 +78,36 @@ export default function Complaints() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [selectedComplaint, setSelectedComplaint] = useState<ComplaintWithProfile | null>(null);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [response, setResponse] = useState('');
-  const [newStatus, setNewStatus] = useState<ComplaintStatus>('pending');
+  const [selectedComplaint, setSelectedComplaint] =
+    useState<ComplaintWithProfile | null>(null);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [response, setResponse] = useState("");
+  const [newStatus, setNewStatus] = useState<ComplaintStatus>("pending");
 
   const { data: complaints, isLoading } = useQuery({
-    queryKey: ['complaints'],
+    queryKey: ["complaints"],
     queryFn: async () => {
       const { data: complaintsData, error } = await supabase
-        .from('complaints')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("complaints")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
       // Fetch profiles for each complaint
-      const userIds = [...new Set(complaintsData.map(c => c.user_id))];
+      const userIds = [...new Set(complaintsData.map((c) => c.user_id))];
       const { data: profiles } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('id', userIds);
+        .from("profiles")
+        .select("*")
+        .in("id", userIds);
 
-      const complaintsWithProfiles: ComplaintWithProfile[] = complaintsData.map(complaint => ({
-        ...complaint,
-        profile: profiles?.find(p => p.id === complaint.user_id),
-      }));
+      const complaintsWithProfiles: ComplaintWithProfile[] = complaintsData.map(
+        (complaint) => ({
+          ...complaint,
+          profile: profiles?.find((p) => p.id === complaint.user_id),
+        })
+      );
 
       return complaintsWithProfiles;
     },
@@ -68,57 +115,73 @@ export default function Complaints() {
 
   const createMutation = useMutation({
     mutationFn: async (data: { title: string; description: string }) => {
-      const { error } = await supabase.from('complaints').insert({
+      const { error } = await supabase.from("complaints").insert({
         title: data.title,
         description: data.description,
         user_id: user?.id,
-        status: 'pending',
+        status: "pending",
       });
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['complaints'] });
-      toast({ title: 'Berhasil', description: 'Pengaduan berhasil dikirim' });
+      queryClient.invalidateQueries({ queryKey: ["complaints"] });
+      toast({ title: "Berhasil", description: "Pengaduan berhasil dikirim" });
       resetForm();
     },
     onError: () => {
-      toast({ variant: 'destructive', title: 'Gagal', description: 'Gagal mengirim pengaduan' });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal mengirim pengaduan",
+      });
     },
   });
 
   const respondMutation = useMutation({
-    mutationFn: async (data: { id: string; status: ComplaintStatus; response: string }) => {
+    mutationFn: async (data: {
+      id: string;
+      status: ComplaintStatus;
+      response: string;
+    }) => {
       const { error } = await supabase
-        .from('complaints')
+        .from("complaints")
         .update({
           status: data.status,
           response: data.response,
           responded_by: user?.id,
           responded_at: new Date().toISOString(),
         })
-        .eq('id', data.id);
+        .eq("id", data.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['complaints'] });
-      toast({ title: 'Berhasil', description: 'Tanggapan berhasil disimpan' });
+      queryClient.invalidateQueries({ queryKey: ["complaints"] });
+      toast({ title: "Berhasil", description: "Tanggapan berhasil disimpan" });
       setSelectedComplaint(null);
-      setResponse('');
+      setResponse("");
     },
     onError: () => {
-      toast({ variant: 'destructive', title: 'Gagal', description: 'Gagal menyimpan tanggapan' });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal menyimpan tanggapan",
+      });
     },
   });
 
   const resetForm = () => {
-    setTitle('');
-    setDescription('');
+    setTitle("");
+    setDescription("");
     setIsCreateOpen(false);
   };
 
   const handleSubmit = () => {
     if (!title.trim() || !description.trim()) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Judul dan deskripsi wajib diisi' });
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Judul dan deskripsi wajib diisi",
+      });
       return;
     }
     createMutation.mutate({ title, description });
@@ -133,7 +196,7 @@ export default function Complaints() {
     });
   };
 
-  const myComplaints = complaints?.filter(c => c.user_id === user?.id) || [];
+  const myComplaints = complaints?.filter((c) => c.user_id === user?.id) || [];
   const allComplaints = complaints || [];
 
   const getStatusBadge = (status: ComplaintStatus) => {
@@ -148,8 +211,8 @@ export default function Complaints() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <section className="min-h-screen bg-background p-6">
+      <div className="mx-auto space-y-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -164,7 +227,9 @@ export default function Complaints() {
             </Button>
             <div>
               <h1 className="font-display text-2xl font-bold">Pengaduan</h1>
-              <p className="text-muted-foreground">Sampaikan keluhan atau saran Anda</p>
+              <p className="text-muted-foreground">
+                Sampaikan keluhan atau saran Anda
+              </p>
             </div>
           </div>
 
@@ -178,7 +243,9 @@ export default function Complaints() {
             <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>Buat Pengaduan Baru</DialogTitle>
-                <DialogDescription>Sampaikan keluhan atau saran Anda kepada pengurus</DialogDescription>
+                <DialogDescription>
+                  Sampaikan keluhan atau saran Anda kepada pengurus
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
@@ -202,9 +269,16 @@ export default function Complaints() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={resetForm}>Batal</Button>
-                <Button onClick={handleSubmit} disabled={createMutation.isPending}>
-                  {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                <Button variant="outline" onClick={resetForm}>
+                  Batal
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={createMutation.isPending}
+                >
+                  {createMutation.isPending && (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  )}
                   <Send className="w-4 h-4 mr-2" />
                   Kirim
                 </Button>
@@ -219,11 +293,18 @@ export default function Complaints() {
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
         ) : (
-          <Tabs defaultValue={canManageContent() ? "all" : "my"} className="space-y-4">
+          <Tabs
+            defaultValue={canManageContent() ? "all" : "my"}
+            className="space-y-4"
+          >
             <TabsList>
-              <TabsTrigger value="my">Pengaduan Saya ({myComplaints.length})</TabsTrigger>
+              <TabsTrigger value="my">
+                Pengaduan Saya ({myComplaints.length})
+              </TabsTrigger>
               {canManageContent() && (
-                <TabsTrigger value="all">Semua Pengaduan ({allComplaints.length})</TabsTrigger>
+                <TabsTrigger value="all">
+                  Semua Pengaduan ({allComplaints.length})
+                </TabsTrigger>
               )}
             </TabsList>
 
@@ -232,8 +313,12 @@ export default function Complaints() {
                 <Card className="py-12">
                   <CardContent className="flex flex-col items-center justify-center text-center">
                     <MessageSquare className="w-12 h-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Belum Ada Pengaduan</h3>
-                    <p className="text-muted-foreground">Anda belum membuat pengaduan</p>
+                    <h3 className="text-lg font-semibold mb-2">
+                      Belum Ada Pengaduan
+                    </h3>
+                    <p className="text-muted-foreground">
+                      Anda belum membuat pengaduan
+                    </p>
                   </CardContent>
                 </Card>
               ) : (
@@ -255,8 +340,12 @@ export default function Complaints() {
                   <Card className="py-12">
                     <CardContent className="flex flex-col items-center justify-center text-center">
                       <MessageSquare className="w-12 h-12 text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">Belum Ada Pengaduan</h3>
-                      <p className="text-muted-foreground">Belum ada pengaduan dari warga</p>
+                      <h3 className="text-lg font-semibold mb-2">
+                        Belum Ada Pengaduan
+                      </h3>
+                      <p className="text-muted-foreground">
+                        Belum ada pengaduan dari warga
+                      </p>
                     </CardContent>
                   </Card>
                 ) : (
@@ -270,7 +359,7 @@ export default function Complaints() {
                       onRespond={() => {
                         setSelectedComplaint(complaint);
                         setNewStatus(complaint.status);
-                        setResponse(complaint.response || '');
+                        setResponse(complaint.response || "");
                       }}
                     />
                   ))
@@ -281,7 +370,10 @@ export default function Complaints() {
         )}
 
         {/* Respond Dialog */}
-        <Dialog open={!!selectedComplaint} onOpenChange={(open) => !open && setSelectedComplaint(null)}>
+        <Dialog
+          open={!!selectedComplaint}
+          onOpenChange={(open) => !open && setSelectedComplaint(null)}
+        >
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Tanggapi Pengaduan</DialogTitle>
@@ -289,12 +381,19 @@ export default function Complaints() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium mb-1">Pengaduan dari {selectedComplaint?.profile?.full_name}:</p>
-                <p className="text-sm text-muted-foreground">{selectedComplaint?.description}</p>
+                <p className="text-sm font-medium mb-1">
+                  Pengaduan dari {selectedComplaint?.profile?.full_name}:
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedComplaint?.description}
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select value={newStatus} onValueChange={(v) => setNewStatus(v as ComplaintStatus)}>
+                <Select
+                  value={newStatus}
+                  onValueChange={(v) => setNewStatus(v as ComplaintStatus)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -317,16 +416,26 @@ export default function Complaints() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setSelectedComplaint(null)}>Batal</Button>
-              <Button onClick={handleRespond} disabled={respondMutation.isPending}>
-                {respondMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <Button
+                variant="outline"
+                onClick={() => setSelectedComplaint(null)}
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={handleRespond}
+                disabled={respondMutation.isPending}
+              >
+                {respondMutation.isPending && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
                 Simpan
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -356,8 +465,12 @@ function ComplaintCard({
               {getStatusBadge(complaint.status)}
               <CardTitle className="text-lg mt-2">{complaint.title}</CardTitle>
               <CardDescription>
-                {showUser && complaint.profile && `${complaint.profile.full_name} • `}
-                {format(new Date(complaint.created_at), 'd MMMM yyyy, HH:mm', { locale: idLocale })}
+                {showUser &&
+                  complaint.profile &&
+                  `${complaint.profile.full_name} • `}
+                {format(new Date(complaint.created_at), "d MMMM yyyy, HH:mm", {
+                  locale: idLocale,
+                })}
               </CardDescription>
             </div>
             {onRespond && (
@@ -371,11 +484,17 @@ function ComplaintCard({
           <p className="text-foreground">{complaint.description}</p>
           {complaint.response && (
             <div className="p-3 bg-primary/5 rounded-lg border-l-4 border-primary">
-              <p className="text-sm font-medium text-primary mb-1">Tanggapan Pengurus:</p>
+              <p className="text-sm font-medium text-primary mb-1">
+                Tanggapan Pengurus:
+              </p>
               <p className="text-sm">{complaint.response}</p>
               {complaint.responded_at && (
                 <p className="text-xs text-muted-foreground mt-2">
-                  {format(new Date(complaint.responded_at), 'd MMMM yyyy, HH:mm', { locale: idLocale })}
+                  {format(
+                    new Date(complaint.responded_at),
+                    "d MMMM yyyy, HH:mm",
+                    { locale: idLocale }
+                  )}
                 </p>
               )}
             </div>

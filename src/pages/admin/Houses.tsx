@@ -168,8 +168,8 @@ export default function AdminHouses() {
   }
 
   return (
-    <div className="p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <section className="p-6">
+      <div className="space-y-6">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -318,6 +318,6 @@ export default function AdminHouses() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </section>
   );
 }

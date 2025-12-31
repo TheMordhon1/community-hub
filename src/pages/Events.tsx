@@ -1,24 +1,52 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { format } from 'date-fns';
-import { id as idLocale } from 'date-fns/locale';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-import { ArrowLeft, Plus, Calendar as CalendarIcon, MapPin, Users, Loader2, Edit, Trash2, Check } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import type { Event, EventRsvp } from '@/types/database';
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import { format } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import {
+  ArrowLeft,
+  Plus,
+  Calendar as CalendarIcon,
+  MapPin,
+  Users,
+  Loader2,
+  Edit,
+  Trash2,
+  Check,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import type { Event, EventRsvp } from "@/types/database";
 
 export default function Events() {
   const { user, canManageContent } = useAuth();
@@ -26,18 +54,18 @@ export default function Events() {
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [location, setLocation] = useState('');
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [location, setLocation] = useState("");
   const [eventDate, setEventDate] = useState<Date>();
 
   const { data: events, isLoading } = useQuery({
-    queryKey: ['events'],
+    queryKey: ["events"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .order('event_date', { ascending: true });
+        .from("events")
+        .select("*")
+        .order("event_date", { ascending: true });
 
       if (error) throw error;
       return data as Event[];
@@ -45,11 +73,9 @@ export default function Events() {
   });
 
   const { data: rsvps } = useQuery({
-    queryKey: ['event-rsvps'],
+    queryKey: ["event-rsvps"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('event_rsvps')
-        .select('*');
+      const { data, error } = await supabase.from("event_rsvps").select("*");
 
       if (error) throw error;
       return data as EventRsvp[];
@@ -57,8 +83,13 @@ export default function Events() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: { title: string; description: string; location: string; event_date: string }) => {
-      const { error } = await supabase.from('events').insert({
+    mutationFn: async (data: {
+      title: string;
+      description: string;
+      location: string;
+      event_date: string;
+    }) => {
+      const { error } = await supabase.from("events").insert({
         title: data.title,
         description: data.description,
         location: data.location,
@@ -68,75 +99,103 @@ export default function Events() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast({ title: 'Berhasil', description: 'Acara berhasil dibuat' });
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      toast({ title: "Berhasil", description: "Acara berhasil dibuat" });
       resetForm();
     },
     onError: () => {
-      toast({ variant: 'destructive', title: 'Gagal', description: 'Gagal membuat acara' });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal membuat acara",
+      });
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: { id: string; title: string; description: string; location: string; event_date: string }) => {
+    mutationFn: async (data: {
+      id: string;
+      title: string;
+      description: string;
+      location: string;
+      event_date: string;
+    }) => {
       const { error } = await supabase
-        .from('events')
+        .from("events")
         .update({
           title: data.title,
           description: data.description,
           location: data.location,
           event_date: data.event_date,
         })
-        .eq('id', data.id);
+        .eq("id", data.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast({ title: 'Berhasil', description: 'Acara berhasil diperbarui' });
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      toast({ title: "Berhasil", description: "Acara berhasil diperbarui" });
       resetForm();
     },
     onError: () => {
-      toast({ variant: 'destructive', title: 'Gagal', description: 'Gagal memperbarui acara' });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal memperbarui acara",
+      });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('events').delete().eq('id', id);
+      const { error } = await supabase.from("events").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast({ title: 'Berhasil', description: 'Acara berhasil dihapus' });
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      toast({ title: "Berhasil", description: "Acara berhasil dihapus" });
     },
     onError: () => {
-      toast({ variant: 'destructive', title: 'Gagal', description: 'Gagal menghapus acara' });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal menghapus acara",
+      });
     },
   });
 
   const rsvpMutation = useMutation({
-    mutationFn: async ({ eventId, isAttending }: { eventId: string; isAttending: boolean }) => {
+    mutationFn: async ({
+      eventId,
+      isAttending,
+    }: {
+      eventId: string;
+      isAttending: boolean;
+    }) => {
       if (isAttending) {
-        const { error } = await supabase.from('event_rsvps').delete().eq('event_id', eventId).eq('user_id', user?.id);
+        const { error } = await supabase
+          .from("event_rsvps")
+          .delete()
+          .eq("event_id", eventId)
+          .eq("user_id", user?.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('event_rsvps').insert({
+        const { error } = await supabase.from("event_rsvps").insert({
           event_id: eventId,
           user_id: user?.id,
-          status: 'attending',
+          status: "attending",
         });
         if (error) throw error;
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['event-rsvps'] });
+      queryClient.invalidateQueries({ queryKey: ["event-rsvps"] });
     },
   });
 
   const resetForm = () => {
-    setTitle('');
-    setDescription('');
-    setLocation('');
+    setTitle("");
+    setDescription("");
+    setLocation("");
     setEventDate(undefined);
     setIsCreateOpen(false);
     setEditingEvent(null);
@@ -145,15 +204,19 @@ export default function Events() {
   const handleEdit = (event: Event) => {
     setEditingEvent(event);
     setTitle(event.title);
-    setDescription(event.description || '');
-    setLocation(event.location || '');
+    setDescription(event.description || "");
+    setLocation(event.location || "");
     setEventDate(new Date(event.event_date));
     setIsCreateOpen(true);
   };
 
   const handleSubmit = () => {
     if (!title.trim() || !eventDate) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Judul dan tanggal wajib diisi' });
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Judul dan tanggal wajib diisi",
+      });
       return;
     }
 
@@ -172,19 +235,21 @@ export default function Events() {
   };
 
   const isUserAttending = (eventId: string) => {
-    return rsvps?.some(r => r.event_id === eventId && r.user_id === user?.id);
+    return rsvps?.some((r) => r.event_id === eventId && r.user_id === user?.id);
   };
 
   const getAttendeeCount = (eventId: string) => {
-    return rsvps?.filter(r => r.event_id === eventId).length || 0;
+    return rsvps?.filter((r) => r.event_id === eventId).length || 0;
   };
 
-  const upcomingEvents = events?.filter(e => new Date(e.event_date) >= new Date()) || [];
-  const pastEvents = events?.filter(e => new Date(e.event_date) < new Date()) || [];
+  const upcomingEvents =
+    events?.filter((e) => new Date(e.event_date) >= new Date()) || [];
+  const pastEvents =
+    events?.filter((e) => new Date(e.event_date) < new Date()) || [];
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <section className="min-h-screen bg-background p-6">
+      <div className="mx-auto space-y-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -199,12 +264,20 @@ export default function Events() {
             </Button>
             <div>
               <h1 className="font-display text-2xl font-bold">Acara</h1>
-              <p className="text-muted-foreground">Kegiatan dan acara komunitas</p>
+              <p className="text-muted-foreground">
+                Kegiatan dan acara komunitas
+              </p>
             </div>
           </div>
 
           {canManageContent() && (
-            <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) resetForm(); }}>
+            <Dialog
+              open={isCreateOpen}
+              onOpenChange={(open) => {
+                setIsCreateOpen(open);
+                if (!open) resetForm();
+              }}
+            >
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="w-4 h-4 mr-2" />
@@ -213,8 +286,12 @@ export default function Events() {
               </DialogTrigger>
               <DialogContent className="max-w-lg">
                 <DialogHeader>
-                  <DialogTitle>{editingEvent ? 'Edit Acara' : 'Buat Acara Baru'}</DialogTitle>
-                  <DialogDescription>Isi detail acara di bawah ini</DialogDescription>
+                  <DialogTitle>
+                    {editingEvent ? "Edit Acara" : "Buat Acara Baru"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Isi detail acara di bawah ini
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -257,10 +334,17 @@ export default function Events() {
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {eventDate ? format(eventDate, "d MMMM yyyy", { locale: idLocale }) : "Pilih tanggal"}
+                          {eventDate
+                            ? format(eventDate, "d MMMM yyyy", {
+                                locale: idLocale,
+                              })
+                            : "Pilih tanggal"}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-popover" align="start">
+                      <PopoverContent
+                        className="w-auto p-0 bg-popover"
+                        align="start"
+                      >
                         <Calendar
                           mode="single"
                           selected={eventDate}
@@ -273,10 +357,19 @@ export default function Events() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={resetForm}>Batal</Button>
-                  <Button onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending}>
-                    {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    {editingEvent ? 'Simpan' : 'Buat'}
+                  <Button variant="outline" onClick={resetForm}>
+                    Batal
+                  </Button>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={
+                      createMutation.isPending || updateMutation.isPending
+                    }
+                  >
+                    {(createMutation.isPending || updateMutation.isPending) && (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    )}
+                    {editingEvent ? "Simpan" : "Buat"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -294,7 +387,9 @@ export default function Events() {
             <CardContent className="flex flex-col items-center justify-center text-center">
               <CalendarIcon className="w-12 h-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">Belum Ada Acara</h3>
-              <p className="text-muted-foreground">Acara komunitas akan muncul di sini</p>
+              <p className="text-muted-foreground">
+                Acara komunitas akan muncul di sini
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -302,7 +397,9 @@ export default function Events() {
             {/* Upcoming Events */}
             {upcomingEvents.length > 0 && (
               <div className="space-y-3">
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Acara Mendatang</h2>
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                  Acara Mendatang
+                </h2>
                 {upcomingEvents.map((event, index) => (
                   <motion.div
                     key={event.id}
@@ -314,18 +411,24 @@ export default function Events() {
                       <div className="flex">
                         <div className="w-20 bg-primary/10 flex flex-col items-center justify-center p-3 text-center">
                           <span className="text-2xl font-bold text-primary">
-                            {format(new Date(event.event_date), 'd')}
+                            {format(new Date(event.event_date), "d")}
                           </span>
                           <span className="text-xs text-primary uppercase">
-                            {format(new Date(event.event_date), 'MMM', { locale: idLocale })}
+                            {format(new Date(event.event_date), "MMM", {
+                              locale: idLocale,
+                            })}
                           </span>
                         </div>
                         <div className="flex-1 p-4">
                           <div className="flex items-start justify-between">
                             <div>
-                              <h3 className="font-semibold text-lg">{event.title}</h3>
+                              <h3 className="font-semibold text-lg">
+                                {event.title}
+                              </h3>
                               {event.description && (
-                                <p className="text-muted-foreground text-sm mt-1">{event.description}</p>
+                                <p className="text-muted-foreground text-sm mt-1">
+                                  {event.description}
+                                </p>
                               )}
                               <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                                 {event.location && (
@@ -342,9 +445,19 @@ export default function Events() {
                             </div>
                             <div className="flex items-center gap-2">
                               <Button
-                                variant={isUserAttending(event.id) ? "default" : "outline"}
+                                variant={
+                                  isUserAttending(event.id)
+                                    ? "default"
+                                    : "outline"
+                                }
                                 size="sm"
-                                onClick={() => rsvpMutation.mutate({ eventId: event.id, isAttending: isUserAttending(event.id) || false })}
+                                onClick={() =>
+                                  rsvpMutation.mutate({
+                                    eventId: event.id,
+                                    isAttending:
+                                      isUserAttending(event.id) || false,
+                                  })
+                                }
                                 disabled={rsvpMutation.isPending}
                               >
                                 {isUserAttending(event.id) ? (
@@ -353,18 +466,24 @@ export default function Events() {
                                     Hadir
                                   </>
                                 ) : (
-                                  'Ikut'
+                                  "Ikut"
                                 )}
                               </Button>
                               {canManageContent() && (
                                 <>
-                                  <Button variant="ghost" size="icon" onClick={() => handleEdit(event)}>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEdit(event)}
+                                  >
                                     <Edit className="w-4 h-4" />
                                   </Button>
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => deleteMutation.mutate(event.id)}
+                                    onClick={() =>
+                                      deleteMutation.mutate(event.id)
+                                    }
                                   >
                                     <Trash2 className="w-4 h-4 text-destructive" />
                                   </Button>
@@ -383,7 +502,9 @@ export default function Events() {
             {/* Past Events */}
             {pastEvents.length > 0 && (
               <div className="space-y-3">
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Acara Selesai</h2>
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                  Acara Selesai
+                </h2>
                 {pastEvents.map((event, index) => (
                   <motion.div
                     key={event.id}
@@ -396,9 +517,15 @@ export default function Events() {
                         <div className="flex items-start justify-between">
                           <div>
                             <Badge variant="secondary">Selesai</Badge>
-                            <CardTitle className="text-lg mt-2">{event.title}</CardTitle>
+                            <CardTitle className="text-lg mt-2">
+                              {event.title}
+                            </CardTitle>
                             <CardDescription>
-                              {format(new Date(event.event_date), 'd MMMM yyyy', { locale: idLocale })}
+                              {format(
+                                new Date(event.event_date),
+                                "d MMMM yyyy",
+                                { locale: idLocale }
+                              )}
                             </CardDescription>
                           </div>
                           {canManageContent() && (
@@ -420,6 +547,6 @@ export default function Events() {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }
