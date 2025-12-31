@@ -107,8 +107,37 @@ export interface Payment {
   status: PaymentStatus;
   paid_at: string | null;
   notes: string | null;
+  description: string | null;
+  proof_url: string | null;
+  submitted_by: string | null;
+  verified_by: string | null;
+  verified_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface FinanceRecord {
+  id: string;
+  type: 'income' | 'outcome';
+  amount: number;
+  description: string;
+  category: string | null;
+  recorded_by: string | null;
+  payment_id: string | null;
+  transaction_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaymentWithDetails extends Payment {
+  house?: House;
+  submitter?: Profile;
+  verifier?: Profile;
+}
+
+export interface FinanceRecordWithDetails extends FinanceRecord {
+  recorder?: Profile;
+  payment?: Payment;
 }
 
 export interface Complaint {

@@ -217,6 +217,53 @@ export type Database = {
         }
         Relationships: []
       }
+      finance_records: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string
+          description: string
+          id: string
+          payment_id: string | null
+          recorded_by: string | null
+          transaction_date: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          payment_id?: string | null
+          recorded_by?: string | null
+          transaction_date?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          payment_id?: string | null
+          recorded_by?: string | null
+          transaction_date?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_records_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gallery: {
         Row: {
           created_at: string
@@ -325,37 +372,52 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          description: string | null
           house_id: string
           id: string
           month: number
           notes: string | null
           paid_at: string | null
+          proof_url: string | null
           status: Database["public"]["Enums"]["payment_status"] | null
+          submitted_by: string | null
           updated_at: string
+          verified_at: string | null
+          verified_by: string | null
           year: number
         }
         Insert: {
           amount: number
           created_at?: string
+          description?: string | null
           house_id: string
           id?: string
           month: number
           notes?: string | null
           paid_at?: string | null
+          proof_url?: string | null
           status?: Database["public"]["Enums"]["payment_status"] | null
+          submitted_by?: string | null
           updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
           year: number
         }
         Update: {
           amount?: number
           created_at?: string
+          description?: string | null
           house_id?: string
           id?: string
           month?: number
           notes?: string | null
           paid_at?: string | null
+          proof_url?: string | null
           status?: Database["public"]["Enums"]["payment_status"] | null
+          submitted_by?: string | null
           updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
           year?: number
         }
         Relationships: [
