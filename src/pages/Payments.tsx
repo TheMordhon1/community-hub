@@ -131,7 +131,7 @@ export default function Payments() {
       new Date(new Date().setDate(new Date().getDate() + 7)),
       "yyyy-MM-dd"
     ),
-    bankAccount: "BCA 1234567890 a/n Bendahara RT",
+    bankAccount: "BSI 7263306915 a/n Bendahara",
   });
 
   const isBendahara = pengurusTitle === "bendahara";
@@ -315,11 +315,11 @@ export default function Payments() {
       "dd MMMM yyyy",
       { locale: localeId }
     );
-    return `🏠 *PENGINGAT IURAN BULANAN RT*
+    return `🏠 *PENGINGAT IURAN BULANAN*
 
 Assalamualaikum Wr. Wb.
 
-Bapak/Ibu Warga RT yang terhormat,
+Bapak/Ibu Warga PKT yang terhormat,
 
 Dengan hormat, kami ingatkan untuk pembayaran *Iuran Bulanan* periode *${
       MONTHS[reminderData.month - 1]
@@ -335,14 +335,14 @@ Dengan hormat, kami ingatkan untuk pembayaran *Iuran Bulanan* periode *${
 2. Simpan bukti transfer
 3. Upload bukti pembayaran melalui aplikasi Warga PKT
 
-Mohon kerjasamanya untuk melakukan pembayaran tepat waktu. Iuran yang terkumpul akan digunakan untuk keperluan bersama seperti keamanan, kebersihan, dan kegiatan RT.
+Mohon kerjasamanya bapak ibu yang terhormat.
 
 Terima kasih atas perhatian dan kerjasamanya. 🙏
 
 Wassalamualaikum Wr. Wb.
 
-_Bendahara RT_
-_Pesona Kenari Townhouse_`;
+_Bendahara_
+_Paguyuban Nijuuroku_`;
   };
 
   const copyToClipboard = () => {
