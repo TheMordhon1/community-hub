@@ -1,7 +1,7 @@
 export type AppRole = 'admin' | 'pengurus' | 'warga';
 
 // Legacy type - kept for backward compatibility
-export type PengurusTitle = 'ketua' | 'wakil_ketua' | 'sekretaris' | 'bendahara' | 'sie_keamanan' | 'sie_kebersihan' | 'sie_sosial' | 'anggota';
+export type PengurusTitle = 'ketua' | 'wakil_ketua' | 'sekretaris' | 'bendahara' | 'menteri_keamanan' | 'menteri_agama' | 'menteri_humas' | 'menteri_olahraga' | 'menteri_sisdigi' | 'anggota';
 
 export type ComplaintStatus = 'pending' | 'in_progress' | 'resolved';
 
@@ -21,13 +21,15 @@ export interface PengurusTitleRecord {
 
 // Legacy static labels - kept for backward compatibility
 export const PENGURUS_TITLE_LABELS: Record<PengurusTitle, string> = {
-  ketua: 'Ketua RT',
-  wakil_ketua: 'Wakil Ketua RT',
+  ketua: 'Ketua',
+  wakil_ketua: 'Wakil Ketua',
   sekretaris: 'Sekretaris',
   bendahara: 'Bendahara',
-  sie_keamanan: 'Sie. Keamanan',
-  sie_kebersihan: 'Sie. Kebersihan',
-  sie_sosial: 'Sie. Sosial',
+  menteri_keamanan: 'Menteri Keamanan',
+  menteri_agama: 'Menteri Agama',
+  menteri_humas: 'Menteri Humas',
+  menteri_olahraga: 'Menteri Olahraga',
+  menteri_sisdigi: 'Menteri Sistem & Digital',
   anggota: 'Anggota Pengurus',
 };
 

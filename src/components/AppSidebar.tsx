@@ -70,6 +70,8 @@ export function AppSidebar() {
     return ROLE_LABELS[role];
   };
 
+  console.log(getRoleDisplay());
+
   return (
     <Sidebar>
       <SidebarHeader className="p-4">

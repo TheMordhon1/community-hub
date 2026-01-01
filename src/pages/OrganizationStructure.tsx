@@ -99,7 +99,7 @@ export default function OrganizationStructure() {
             Struktur Organisasi
           </h1>
           <p className="text-sm text-muted-foreground">
-            Susunan pengurus RT Pesona Kenari Townhouse
+            Susunan pengurus Paguyuban Nijuuroku
           </p>
         </motion.div>
 
@@ -120,9 +120,6 @@ export default function OrganizationStructure() {
         <Card>
           <CardHeader>
             <CardTitle className="font-display">Daftar Pengurus</CardTitle>
-            <CardDescription>
-              Pengurus RT berdasarkan urutan jabatan
-            </CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
