@@ -62,12 +62,11 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
 
   const { data: houses, isLoading: housesLoading } = useQuery({
-    queryKey: ["houses-available"],
+    queryKey: ["houses-all"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("houses")
         .select("*")
-        .eq("is_occupied", false)
         .order("block")
         .order("number");
 
@@ -128,7 +127,7 @@ export default function Register() {
         is_owner: false,
       });
 
-      // Mark house as occupied
+      // Mark house as occupied (even if already occupied, keeps it occupied)
       await supabase
         .from("houses")
         .update({ is_occupied: true })
@@ -203,6 +202,7 @@ export default function Register() {
                       availableHouses.map((house) => (
                         <SelectItem key={house.id} value={house.id}>
                           Blok {house.block} No. {house.number}
+                          {house.is_occupied && " (sudah ada penghuni)"}
                         </SelectItem>
                       ))
                     )}
