@@ -48,12 +48,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import type {
-  AppRole,
-  PengurusTitle,
-  Profile,
-  UserRole,
-} from "@/types/database";
+import type { AppRole, Profile, PengurusTitleRecord } from "@/types/database";
 
 const ROLE_LABELS_MAP: Record<AppRole, string> = {
   admin: "Super Admin",
@@ -61,21 +56,11 @@ const ROLE_LABELS_MAP: Record<AppRole, string> = {
   warga: "Warga",
 };
 
-const PENGURUS_TITLE_LABELS_MAP: Record<PengurusTitle, string> = {
-  ketua: "Ketua RT",
-  wakil_ketua: "Wakil Ketua RT",
-  sekretaris: "Sekretaris",
-  bendahara: "Bendahara",
-  sie_keamanan: "Sie. Keamanan",
-  sie_kebersihan: "Sie. Kebersihan",
-  sie_sosial: "Sie. Sosial",
-  anggota: "Anggota Pengurus",
-};
-
 interface UserWithRole extends Profile {
   user_role?: {
     role: AppRole;
-    title: PengurusTitle | null;
+    title_id: string | null;
+    pengurus_title?: PengurusTitleRecord;
   };
 }
 
@@ -87,7 +72,7 @@ export default function AdminUsers() {
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
   const [newRole, setNewRole] = useState<AppRole>("warga");
-  const [newTitle, setNewTitle] = useState<PengurusTitle | "">("");
+  const [newTitleId, setNewTitleId] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -95,6 +80,21 @@ export default function AdminUsers() {
       navigate("/dashboard");
     }
   }, [isAdmin, navigate]);
+
+  // Fetch dynamic pengurus titles
+  const { data: pengurusTitles } = useQuery({
+    queryKey: ["pengurus-titles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pengurus_titles")
+        .select("*")
+        .order("order_index", { ascending: true });
+
+      if (error) throw error;
+      return data as PengurusTitleRecord[];
+    },
+    enabled: isAdmin(),
+  });
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["admin-users"],
@@ -107,14 +107,24 @@ export default function AdminUsers() {
 
       if (profilesError) throw profilesError;
 
-      // Fetch all roles
+      // Fetch all roles with title_id
       const { data: roles, error: rolesError } = await supabase
         .from("user_roles")
         .select("*");
 
       if (rolesError) throw rolesError;
 
-      // Combine profiles with their roles
+      // Fetch all pengurus titles
+      const { data: titles, error: titlesError } = await supabase
+        .from("pengurus_titles")
+        .select("*");
+
+      if (titlesError) throw titlesError;
+
+      // Create a map for quick title lookup
+      const titleMap = new Map(titles.map((t) => [t.id, t]));
+
+      // Combine profiles with their roles and titles
       const usersWithRoles: UserWithRole[] = profiles.map((profile) => {
         const userRole = roles.find((r) => r.user_id === profile.id);
         return {
@@ -122,7 +132,10 @@ export default function AdminUsers() {
           user_role: userRole
             ? {
                 role: userRole.role as AppRole,
-                title: userRole.title as PengurusTitle | null,
+                title_id: userRole.title_id,
+                pengurus_title: userRole.title_id
+                  ? (titleMap.get(userRole.title_id) as PengurusTitleRecord)
+                  : undefined,
               }
             : undefined,
         };
@@ -137,15 +150,15 @@ export default function AdminUsers() {
     mutationFn: async ({
       userId,
       role,
-      title,
+      titleId,
     }: {
       userId: string;
       role: AppRole;
-      title: PengurusTitle | null;
+      titleId: string | null;
     }) => {
       const { error } = await supabase
         .from("user_roles")
-        .update({ role, title })
+        .update({ role, title_id: titleId })
         .eq("user_id", userId);
 
       if (error) throw error;
@@ -177,7 +190,7 @@ export default function AdminUsers() {
   const handleEditRole = (user: UserWithRole) => {
     setSelectedUser(user);
     setNewRole(user.user_role?.role || "warga");
-    setNewTitle(user.user_role?.title || "");
+    setNewTitleId(user.user_role?.title_id || "");
     setIsDialogOpen(true);
   };
 
@@ -186,13 +199,13 @@ export default function AdminUsers() {
     updateRoleMutation.mutate({
       userId: selectedUser.id,
       role: newRole,
-      title: newRole === "pengurus" ? (newTitle as PengurusTitle) : null,
+      titleId: newRole === "pengurus" && newTitleId ? newTitleId : null,
     });
   };
 
   const getRoleBadge = (
     role: AppRole | undefined,
-    title: PengurusTitle | null | undefined
+    pengurusTitle?: PengurusTitleRecord
   ) => {
     if (role === "admin") {
       return <Badge variant="destructive">Super Admin</Badge>;
@@ -200,7 +213,7 @@ export default function AdminUsers() {
     if (role === "pengurus") {
       return (
         <Badge className="bg-accent text-accent-foreground">
-          {title ? PENGURUS_TITLE_LABELS_MAP[title] : "Pengurus"}
+          {pengurusTitle?.display_name || "Pengurus"}
         </Badge>
       );
     }
@@ -212,13 +225,13 @@ export default function AdminUsers() {
   }
 
   return (
-    <section className="min-h-screen bg-background p-6">
+    <section className="min-h-screen bg-background p-4 md:p-6">
       <div className="mx-auto space-y-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-4"
+          className="flex flex-col sm:flex-row sm:items-center gap-4"
         >
           <Button variant="ghost" size="icon" asChild>
             <Link to="/dashboard">
@@ -226,13 +239,13 @@ export default function AdminUsers() {
             </Link>
           </Button>
           <div>
-            <h1 className="font-display text-2xl font-bold">Kelola Pengguna</h1>
-            <p className="text-muted-foreground">Atur role dan jabatan warga</p>
+            <h1 className="font-display text-xl md:text-2xl font-bold">Kelola Pengguna</h1>
+            <p className="text-sm text-muted-foreground">Atur role dan jabatan warga</p>
           </div>
         </motion.div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
@@ -281,14 +294,14 @@ export default function AdminUsers() {
         {/* Users Table */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <CardTitle className="font-display">Daftar Pengguna</CardTitle>
                 <CardDescription>
                   Total {users?.length || 0} pengguna terdaftar
                 </CardDescription>
               </div>
-              <div className="relative w-64">
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Cari nama atau email..."
@@ -310,9 +323,9 @@ export default function AdminUsers() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nama</TableHead>
-                      <TableHead>Email</TableHead>
+                      <TableHead className="hidden md:table-cell">Email</TableHead>
                       <TableHead>Role</TableHead>
-                      <TableHead>Terdaftar</TableHead>
+                      <TableHead className="hidden sm:table-cell">Terdaftar</TableHead>
                       <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -320,16 +333,21 @@ export default function AdminUsers() {
                     {filteredUsers?.map((user) => (
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">
-                          {user.full_name}
+                          <div>
+                            <p>{user.full_name}</p>
+                            <p className="text-xs text-muted-foreground md:hidden">
+                              {user.email}
+                            </p>
+                          </div>
                         </TableCell>
-                        <TableCell>{user.email}</TableCell>
+                        <TableCell className="hidden md:table-cell">{user.email}</TableCell>
                         <TableCell>
                           {getRoleBadge(
                             user.user_role?.role,
-                            user.user_role?.title
+                            user.user_role?.pengurus_title
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden sm:table-cell">
                           {new Date(user.created_at).toLocaleDateString(
                             "id-ID",
                             {
@@ -345,8 +363,8 @@ export default function AdminUsers() {
                             size="sm"
                             onClick={() => handleEditRole(user)}
                           >
-                            <UserCog className="w-4 h-4 mr-2" />
-                            Ubah Role
+                            <UserCog className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Ubah Role</span>
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -360,7 +378,7 @@ export default function AdminUsers() {
 
         {/* Edit Role Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Ubah Role Pengguna</DialogTitle>
               <DialogDescription>
@@ -390,42 +408,32 @@ export default function AdminUsers() {
                 <div className="space-y-2">
                   <Label>Jabatan Pengurus</Label>
                   <Select
-                    value={newTitle}
-                    onValueChange={(value) =>
-                      setNewTitle(value as PengurusTitle)
-                    }
+                    value={newTitleId}
+                    onValueChange={setNewTitleId}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih jabatan" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ketua">Ketua RT</SelectItem>
-                      <SelectItem value="wakil_ketua">
-                        Wakil Ketua RT
-                      </SelectItem>
-                      <SelectItem value="sekretaris">Sekretaris</SelectItem>
-                      <SelectItem value="bendahara">Bendahara</SelectItem>
-                      <SelectItem value="sie_keamanan">
-                        Sie. Keamanan
-                      </SelectItem>
-                      <SelectItem value="sie_kebersihan">
-                        Sie. Kebersihan
-                      </SelectItem>
-                      <SelectItem value="sie_sosial">Sie. Sosial</SelectItem>
-                      <SelectItem value="anggota">Anggota Pengurus</SelectItem>
+                      {pengurusTitles?.map((title) => (
+                        <SelectItem key={title.id} value={title.id}>
+                          {title.display_name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
               )}
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
                 Batal
               </Button>
               <Button
                 onClick={handleSaveRole}
                 disabled={updateRoleMutation.isPending}
+                className="w-full sm:w-auto"
               >
                 {updateRoleMutation.isPending && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />

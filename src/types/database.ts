@@ -1,11 +1,25 @@
 export type AppRole = 'admin' | 'pengurus' | 'warga';
 
+// Legacy type - kept for backward compatibility
 export type PengurusTitle = 'ketua' | 'wakil_ketua' | 'sekretaris' | 'bendahara' | 'sie_keamanan' | 'sie_kebersihan' | 'sie_sosial' | 'anggota';
 
 export type ComplaintStatus = 'pending' | 'in_progress' | 'resolved';
 
 export type PaymentStatus = 'pending' | 'paid' | 'overdue';
 
+// Dynamic pengurus title from database
+export interface PengurusTitleRecord {
+  id: string;
+  name: string;
+  display_name: string;
+  description: string | null;
+  has_finance_access: boolean;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Legacy static labels - kept for backward compatibility
 export const PENGURUS_TITLE_LABELS: Record<PengurusTitle, string> = {
   ketua: 'Ketua RT',
   wakil_ketua: 'Wakil Ketua RT',
@@ -39,8 +53,13 @@ export interface UserRole {
   id: string;
   user_id: string;
   role: AppRole;
-  title: PengurusTitle | null;
+  title: PengurusTitle | null; // Legacy field
+  title_id: string | null; // New dynamic field
   created_at: string;
+}
+
+export interface UserRoleWithTitle extends UserRole {
+  pengurus_title?: PengurusTitleRecord;
 }
 
 export interface House {
