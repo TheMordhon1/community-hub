@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from "@/types/database";
-import { Loader2, Pencil, Save, X, Camera } from "lucide-react";
+import { Loader2, Pencil, Save, X, Camera, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -42,6 +42,7 @@ export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isRemovingPhoto, setIsRemovingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<ProfileForm>({
@@ -192,6 +193,48 @@ export default function Profile() {
     }
   };
 
+  const handleRemovePhoto = async () => {
+    if (!user?.id || !profile?.avatar_url) return;
+
+    setIsRemovingPhoto(true);
+
+    try {
+      // Extract file path from URL
+      const avatarUrl = profile.avatar_url;
+      const pathMatch = avatarUrl.match(/avatars\/(.+)$/);
+
+      if (pathMatch) {
+        // Delete from storage
+        await supabase.storage.from("avatars").remove([pathMatch[1]]);
+      }
+
+      // Update profile to remove avatar URL
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: null })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Foto berhasil dihapus",
+        description: "Foto profil Anda telah dihapus",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      window.location.reload();
+    } catch (error) {
+      console.error("Remove photo error:", error);
+      toast({
+        variant: "destructive",
+        title: "Gagal menghapus foto",
+        description: "Terjadi kesalahan saat menghapus foto",
+      });
+    } finally {
+      setIsRemovingPhoto(false);
+    }
+  };
+
   return (
     <section className="p-6">
       <div className="mx-auto space-y-6">
@@ -257,10 +300,28 @@ export default function Profile() {
                   >
                     {isUploadingPhoto ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : profile?.avatar_url ? (
+                      <Pencil className="w-4 h-4" />
                     ) : (
                       <Camera className="w-4 h-4" />
                     )}
                   </Button>
+                  {profile?.avatar_url && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="destructive"
+                      className="absolute -bottom-1 -left-1 w-8 h-8 rounded-full shadow-md"
+                      onClick={handleRemovePhoto}
+                      disabled={isUploadingPhoto || isRemovingPhoto}
+                    >
+                      {isRemovingPhoto ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </Button>
+                  )}
                 </div>
 
                 {isEditing ? (
