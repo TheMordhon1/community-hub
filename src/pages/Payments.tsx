@@ -939,9 +939,15 @@ _Paguyuban Nijuuroku_`;
                 </Table>
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                Belum ada data pembayaran
-              </div>
+              <CardContent className="flex flex-col items-center justify-center text-center">
+                <CreditCard className="w-12 h-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">
+                  Belum Ada Pembayaran
+                </h3>
+                <p className="text-muted-foreground">
+                  Belum ada data pembayaran
+                </p>
+              </CardContent>
             )}
           </CardContent>
         </Card>
