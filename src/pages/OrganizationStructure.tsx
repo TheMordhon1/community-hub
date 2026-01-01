@@ -177,7 +177,9 @@ export default function OrganizationStructure() {
                               asChild
                             >
                               <a
-                                href={`https://wa.me/${person.phone.replace(/\D/g, "")}`}
+                                href={`https://wa.me/${person.phone
+                                  .replace(/\D/g, "")
+                                  .replace(/^0/, "+62")}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                               >
