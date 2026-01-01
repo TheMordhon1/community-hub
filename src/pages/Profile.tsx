@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useForm } from "react-hook-form";
@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from "@/types/database";
-import { Loader2, Pencil, Save, X } from "lucide-react";
+import { Loader2, Pencil, Save, X, Camera } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -41,6 +41,8 @@ export default function Profile() {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
@@ -121,6 +123,75 @@ export default function Profile() {
     setIsEditing(false);
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast({
+        variant: "destructive",
+        title: "File tidak valid",
+        description: "Silakan pilih file gambar (JPG, PNG, dll)",
+      });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "File terlalu besar",
+        description: "Ukuran maksimal foto adalah 2MB",
+      });
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const filePath = `${user.id}/avatar.${fileExt}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      // Update profile with avatar URL
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: urlData.publicUrl })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Foto berhasil diperbarui",
+        description: "Foto profil Anda telah diperbarui",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      window.location.reload();
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast({
+        variant: "destructive",
+        title: "Gagal mengunggah foto",
+        description: "Terjadi kesalahan saat mengunggah foto",
+      });
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   return (
     <section className="p-6">
       <div className="mx-auto space-y-6">
@@ -156,7 +227,7 @@ export default function Profile() {
             </CardHeader>
             <CardContent>
               <div className="flex items-start gap-6">
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 relative group">
                   <Avatar className="w-20 h-20">
                     {profile?.avatar_url ? (
                       <AvatarImage
@@ -169,6 +240,27 @@ export default function Profile() {
                       </AvatarFallback>
                     )}
                   </Avatar>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handlePhotoUpload}
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="secondary"
+                    className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full shadow-md"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingPhoto}
+                  >
+                    {isUploadingPhoto ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Camera className="w-4 h-4" />
+                    )}
+                  </Button>
                 </div>
 
                 {isEditing ? (
