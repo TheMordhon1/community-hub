@@ -40,6 +40,7 @@ const mainMenuItems = [
   { title: "Pengaduan", url: "/complaints", icon: MessageSquare },
   { title: "IPL", url: "/payments", icon: CreditCard },
   { title: "Polling", url: "/polls", icon: Vote },
+  { title: "Struktur Organisasi", url: "/organization", icon: Users },
   { title: "Peta Rumah", url: "/house-map", icon: Map },
 ];
 
