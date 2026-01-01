@@ -31,8 +31,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, Trash2, Home, Pencil } from "lucide-react";
+import { Plus, Loader2, Trash2, Home, Pencil, Map } from "lucide-react";
+import { HouseMap } from "@/components/HouseMap";
 import type { House } from "@/types/database";
 
 export default function AdminHouses() {
@@ -246,77 +248,96 @@ export default function AdminHouses() {
           </Dialog>
         </motion.div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Home className="w-5 h-5" />
-              Daftar Rumah ({houses?.length ?? 0})
-            </CardTitle>
-            <CardDescription>
-              Kelola daftar rumah untuk registrasi warga
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              </div>
-            ) : houses?.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Belum ada data rumah. Klik "Tambah Rumah" untuk menambahkan.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Blok</TableHead>
-                    <TableHead>Nomor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {houses?.map((house) => (
-                    <TableRow key={house.id}>
-                      <TableCell className="font-medium">
-                        {house.block}
-                      </TableCell>
-                      <TableCell>{house.number}</TableCell>
-                      <TableCell>
-                        {house.is_occupied ? (
-                          <Badge className="bg-success/10 text-success">
-                            Dihuni
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">Kosong</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEdit(house)}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteMutation.mutate(house.id)}
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="list" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="list" className="gap-2">
+              <Home className="w-4 h-4" />
+              Daftar
+            </TabsTrigger>
+            <TabsTrigger value="map" className="gap-2">
+              <Map className="w-4 h-4" />
+              Peta
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="list">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Home className="w-5 h-5" />
+                  Daftar Rumah ({houses?.length ?? 0})
+                </CardTitle>
+                <CardDescription>
+                  Kelola daftar rumah untuk registrasi warga
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  </div>
+                ) : houses?.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Belum ada data rumah. Klik "Tambah Rumah" untuk menambahkan.
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Blok</TableHead>
+                        <TableHead>Nomor</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {houses?.map((house) => (
+                        <TableRow key={house.id}>
+                          <TableCell className="font-medium">
+                            {house.block}
+                          </TableCell>
+                          <TableCell>{house.number}</TableCell>
+                          <TableCell>
+                            {house.is_occupied ? (
+                              <Badge className="bg-success/10 text-success">
+                                Dihuni
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">Kosong</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEdit(house)}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteMutation.mutate(house.id)}
+                                disabled={deleteMutation.isPending}
+                              >
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="map">
+            <HouseMap editable />
+          </TabsContent>
+        </Tabs>
       </div>
     </section>
   );

@@ -17,9 +17,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from "@/types/database";
-import { Loader2, Pencil, Save, X, Camera } from "lucide-react";
+import { Loader2, Pencil, Save, X, Camera, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ImageCropper } from "@/components/ImageCropper";
 
 const profileSchema = z.object({
   full_name: z
@@ -42,6 +43,8 @@ export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<ProfileForm>({
@@ -123,9 +126,9 @@ export default function Profile() {
     setIsEditing(false);
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user?.id) return;
+    if (!file) return;
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
@@ -147,28 +150,46 @@ export default function Profile() {
       return;
     }
 
+    // Create URL for cropper
+    const imageUrl = URL.createObjectURL(file);
+    setSelectedImage(imageUrl);
+    setCropperOpen(true);
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    if (!user?.id) return;
+
     setIsUploadingPhoto(true);
 
     try {
-      const fileExt = file.name.split(".").pop();
-      const filePath = `${user.id}/avatar.${fileExt}`;
+      const filePath = `${user.id}/avatar.jpg`;
 
-      // Upload to storage
+      // Upload cropped image to storage
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, croppedBlob, { 
+          upsert: true,
+          contentType: "image/jpeg",
+        });
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
+      // Get public URL with cache buster
       const { data: urlData } = supabase.storage
         .from("avatars")
         .getPublicUrl(filePath);
 
+      const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
       // Update profile with avatar URL
       const { error: updateError } = await supabase
         .from("profiles")
-        .update({ avatar_url: urlData.publicUrl })
+        .update({ avatar_url: avatarUrl })
         .eq("id", user.id);
 
       if (updateError) throw updateError;
@@ -178,6 +199,8 @@ export default function Profile() {
         description: "Foto profil Anda telah diperbarui",
       });
 
+      setCropperOpen(false);
+      setSelectedImage(null);
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       window.location.reload();
     } catch (error) {
@@ -192,8 +215,61 @@ export default function Profile() {
     }
   };
 
+  const handleRemovePhoto = async () => {
+    if (!user?.id) return;
+
+    setIsUploadingPhoto(true);
+
+    try {
+      // Delete from storage
+      const { error: deleteError } = await supabase.storage
+        .from("avatars")
+        .remove([`${user.id}/avatar.jpg`]);
+
+      if (deleteError) console.warn("Delete error:", deleteError);
+
+      // Update profile to remove avatar URL
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: null })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Foto berhasil dihapus",
+        description: "Foto profil Anda telah dihapus",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      window.location.reload();
+    } catch (error) {
+      console.error("Remove error:", error);
+      toast({
+        variant: "destructive",
+        title: "Gagal menghapus foto",
+        description: "Terjadi kesalahan saat menghapus foto",
+      });
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   return (
-    <section className="p-6">
+    <>
+      {selectedImage && (
+        <ImageCropper
+          imageSrc={selectedImage}
+          open={cropperOpen}
+          onClose={() => {
+            setCropperOpen(false);
+            setSelectedImage(null);
+          }}
+          onCropComplete={handleCropComplete}
+          isUploading={isUploadingPhoto}
+        />
+      )}
+      <section className="p-6">
       <div className="mx-auto space-y-6">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -245,22 +321,36 @@ export default function Profile() {
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={handlePhotoUpload}
+                    onChange={handleFileSelect}
                   />
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="secondary"
-                    className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full shadow-md"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploadingPhoto}
-                  >
-                    {isUploadingPhoto ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Camera className="w-4 h-4" />
+                  <div className="absolute -bottom-1 -right-1 flex gap-1">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="secondary"
+                      className="w-7 h-7 rounded-full shadow-md"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingPhoto}
+                    >
+                      {isUploadingPhoto ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Camera className="w-3 h-3" />
+                      )}
+                    </Button>
+                    {profile?.avatar_url && (
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="destructive"
+                        className="w-7 h-7 rounded-full shadow-md"
+                        onClick={handleRemovePhoto}
+                        disabled={isUploadingPhoto}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
                     )}
-                  </Button>
+                  </div>
                 </div>
 
                 {isEditing ? (
@@ -364,5 +454,6 @@ export default function Profile() {
         </motion.div>
       </div>
     </section>
+    </>
   );
 }
