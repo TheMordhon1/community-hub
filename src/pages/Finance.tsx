@@ -51,11 +51,14 @@ import {
   Download,
   FileText,
   FileSpreadsheet,
+  CreditCard,
+  ArrowLeft,
 } from "lucide-react";
 import type { FinanceRecordWithDetails } from "@/types/database";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { Link } from "react-router-dom";
 
 const CATEGORIES = {
   income: ["iuran", "donasi", "lainnya"],
@@ -120,7 +123,7 @@ export default function Finance() {
         if (r.recorded_by) userIds.add(r.recorded_by);
       });
 
-      let profiles: Record<string, any> = {};
+      const profiles: Record<string, any> = {};
       if (userIds.size > 0) {
         const { data: profileData } = await supabase
           .from("profiles")
@@ -199,7 +202,7 @@ export default function Finance() {
         : `${MONTHS[parseInt(filterMonth) - 1]} ${filterYear}`;
 
     doc.setFontSize(18);
-    doc.text("Laporan Keuangan RT", 14, 22);
+    doc.text("Laporan Keuangan paguyuban", 14, 22);
     doc.setFontSize(12);
     doc.text(`Periode: ${periodText}`, 14, 32);
     doc.text(
@@ -313,13 +316,20 @@ export default function Finance() {
       <div className="space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-display font-bold">
-              Laporan Keuangan
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Catatan pemasukan dan pengeluaran RT
-            </p>
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/dashboard">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-display font-bold">
+                Laporan Keuangan
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Catatan pemasukan dan pengeluaran paguyuban
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -629,9 +639,15 @@ export default function Finance() {
                 </Table>
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                Belum ada catatan keuangan
-              </div>
+              <CardContent className="flex flex-col items-center justify-center text-center">
+                <CreditCard className="w-12 h-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">
+                  Belum Ada Catatan
+                </h3>
+                <p className="text-muted-foreground">
+                  Belum ada catatan keuangan yang masuk
+                </p>
+              </CardContent>
             )}
           </CardContent>
         </Card>

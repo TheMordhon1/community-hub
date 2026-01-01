@@ -90,8 +90,12 @@ export default function AdminTitles() {
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [editingTitle, setEditingTitle] = useState<PengurusTitleRow | null>(null);
-  const [deletingTitle, setDeletingTitle] = useState<PengurusTitleRow | null>(null);
+  const [editingTitle, setEditingTitle] = useState<PengurusTitleRow | null>(
+    null
+  );
+  const [deletingTitle, setDeletingTitle] = useState<PengurusTitleRow | null>(
+    null
+  );
   const [formData, setFormData] = useState<TitleFormData>(initialFormData);
 
   // Redirect non-admin users
@@ -146,7 +150,10 @@ export default function AdminTitles() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pengurus-titles"] });
-      toast({ title: "Berhasil", description: "Jabatan baru berhasil ditambahkan" });
+      toast({
+        title: "Berhasil",
+        description: "Jabatan baru berhasil ditambahkan",
+      });
       handleCloseForm();
     },
     onError: (error: Error) => {
@@ -192,7 +199,10 @@ export default function AdminTitles() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("pengurus_titles").delete().eq("id", id);
+      const { error } = await supabase
+        .from("pengurus_titles")
+        .delete()
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -285,7 +295,7 @@ export default function AdminTitles() {
               Kelola Jabatan Pengurus
             </h1>
             <p className="text-sm text-muted-foreground">
-              Tambah, ubah, atau hapus jabatan pengurus RT
+              Tambah, ubah, atau hapus jabatan pengurus paguyuban
             </p>
           </div>
           <Button onClick={handleOpenCreate} className="w-full sm:w-auto">
@@ -327,7 +337,7 @@ export default function AdminTitles() {
           <CardHeader>
             <CardTitle className="font-display">Daftar Jabatan</CardTitle>
             <CardDescription>
-              Kelola jabatan pengurus RT yang tersedia
+              Kelola jabatan pengurus paguyuban yang tersedia
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -342,9 +352,13 @@ export default function AdminTitles() {
                     <TableRow>
                       <TableHead className="w-12">#</TableHead>
                       <TableHead>Nama Tampilan</TableHead>
-                      <TableHead className="hidden md:table-cell">Kode</TableHead>
+                      <TableHead className="hidden md:table-cell">
+                        Kode
+                      </TableHead>
                       <TableHead>Akses Keuangan</TableHead>
-                      <TableHead className="hidden sm:table-cell">Pengguna</TableHead>
+                      <TableHead className="hidden sm:table-cell">
+                        Pengguna
+                      </TableHead>
                       <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -410,7 +424,8 @@ export default function AdminTitles() {
                           colSpan={6}
                           className="text-center py-8 text-muted-foreground"
                         >
-                          Belum ada jabatan. Klik "Tambah Jabatan" untuk membuat.
+                          Belum ada jabatan. Klik "Tambah Jabatan" untuk
+                          membuat.
                         </TableCell>
                       </TableRow>
                     )}
@@ -431,7 +446,7 @@ export default function AdminTitles() {
               <DialogDescription>
                 {editingTitle
                   ? "Perbarui informasi jabatan pengurus"
-                  : "Buat jabatan baru untuk pengurus RT"}
+                  : "Buat jabatan baru untuk pengurus paguyuban"}
               </DialogDescription>
             </DialogHeader>
 
@@ -440,7 +455,7 @@ export default function AdminTitles() {
                 <Label htmlFor="display_name">Nama Tampilan *</Label>
                 <Input
                   id="display_name"
-                  placeholder="Contoh: Ketua RT"
+                  placeholder="Contoh: Ketua paguyuban"
                   value={formData.display_name}
                   onChange={(e) =>
                     setFormData({ ...formData, display_name: e.target.value })

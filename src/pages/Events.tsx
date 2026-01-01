@@ -265,7 +265,7 @@ export default function Events() {
             <div>
               <h1 className="font-display text-2xl font-bold">Acara</h1>
               <p className="text-muted-foreground">
-                Kegiatan dan acara komunitas
+                Kegiatan dan acara paguyuban
               </p>
             </div>
           </div>
@@ -388,7 +388,7 @@ export default function Events() {
               <CalendarIcon className="w-12 h-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">Belum Ada Acara</h3>
               <p className="text-muted-foreground">
-                Acara komunitas akan muncul di sini
+                Acara paguyuban akan muncul di sini
               </p>
             </CardContent>
           </Card>

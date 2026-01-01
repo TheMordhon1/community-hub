@@ -53,11 +53,13 @@ import {
   MessageCircle,
   Copy,
   Send,
+  ArrowLeft,
 } from "lucide-react";
 import type { House, Profile } from "@/types/database";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { Link } from "react-router-dom";
 
 interface PaymentItem {
   id: string;
@@ -439,13 +441,20 @@ _Paguyuban Nijuuroku_`;
       <div className="space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-display font-bold">
-              Pembayaran Iuran
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Kelola pembayaran iuran bulanan
-            </p>
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/dashboard">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-display font-bold">
+                Pembayaran Iuran
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Kelola pembayaran iuran bulanan
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">

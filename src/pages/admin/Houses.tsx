@@ -40,8 +40,18 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, Trash2, Home, Pencil, Users, X } from "lucide-react";
+import {
+  Plus,
+  Loader2,
+  Trash2,
+  Home,
+  Pencil,
+  Users,
+  X,
+  ArrowLeft,
+} from "lucide-react";
 import type { House } from "@/types/database";
+import { Link } from "react-router-dom";
 
 interface HouseResident {
   id: string;
@@ -69,8 +79,11 @@ export default function AdminHouses() {
   const [editingHouse, setEditingHouse] = useState<House | null>(null);
   const [block, setBlock] = useState("");
   const [number, setNumber] = useState("");
-  const [selectedResidentsHouse, setSelectedResidentsHouse] = useState<HouseWithResidents | null>(null);
-  const [editingResident, setEditingResident] = useState<HouseResident | null>(null);
+  const [selectedResidentsHouse, setSelectedResidentsHouse] =
+    useState<HouseWithResidents | null>(null);
+  const [editingResident, setEditingResident] = useState<HouseResident | null>(
+    null
+  );
   const [newHouseId, setNewHouseId] = useState("");
 
   const { data: housesData, isLoading } = useQuery({
@@ -86,9 +99,9 @@ export default function AdminHouses() {
       if (housesError) throw housesError;
 
       // Fetch all house residents with profiles
-      const { data: residents, error: residentsError } = await supabase
-        .from("house_residents")
-        .select(`
+      const { data: residents, error: residentsError } = await supabase.from(
+        "house_residents"
+      ).select(`
           id,
           user_id,
           house_id,
@@ -105,10 +118,14 @@ export default function AdminHouses() {
       if (residentsError) throw residentsError;
 
       // Map residents to houses
-      const housesWithResidents: HouseWithResidents[] = (houses as House[]).map((house) => ({
-        ...house,
-        residents: (residents as unknown as HouseResident[]).filter((r) => r.house_id === house.id),
-      }));
+      const housesWithResidents: HouseWithResidents[] = (houses as House[]).map(
+        (house) => ({
+          ...house,
+          residents: (residents as unknown as HouseResident[]).filter(
+            (r) => r.house_id === house.id
+          ),
+        })
+      );
 
       return housesWithResidents;
     },
@@ -183,7 +200,11 @@ export default function AdminHouses() {
   });
 
   const updateResidentHouseMutation = useMutation({
-    mutationFn: async (data: { residentId: string; newHouseId: string; oldHouseId: string }) => {
+    mutationFn: async (data: {
+      residentId: string;
+      newHouseId: string;
+      oldHouseId: string;
+    }) => {
       // Update the house_residents record
       const { error } = await supabase
         .from("house_residents")
@@ -213,7 +234,10 @@ export default function AdminHouses() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["houses-with-residents"] });
-      toast({ title: "Berhasil", description: "Rumah penghuni berhasil diperbarui" });
+      toast({
+        title: "Berhasil",
+        description: "Rumah penghuni berhasil diperbarui",
+      });
       setEditingResident(null);
       setNewHouseId("");
       setSelectedResidentsHouse(null);
@@ -296,13 +320,19 @@ export default function AdminHouses() {
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center justify-between"
         >
-          <div>
-            <h1 className="font-display text-2xl font-bold">Kelola Rumah</h1>
-            <p className="text-muted-foreground">
-              Daftar nomor rumah di perumahan
-            </p>
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/dashboard">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="font-display text-2xl font-bold">Kelola Rumah</h1>
+              <p className="text-muted-foreground">
+                Daftar nomor rumah di perumahan
+              </p>
+            </div>
           </div>
-
           <Dialog
             open={isCreateOpen}
             onOpenChange={(open) => {
@@ -410,12 +440,21 @@ export default function AdminHouses() {
                         ) : house.residents.length === 1 ? (
                           <div className="flex items-center gap-2">
                             <Avatar className="w-6 h-6">
-                              <AvatarImage src={house.residents[0].profiles?.avatar_url || undefined} />
+                              <AvatarImage
+                                src={
+                                  house.residents[0].profiles?.avatar_url ||
+                                  undefined
+                                }
+                              />
                               <AvatarFallback className="text-xs">
-                                {getInitials(house.residents[0].profiles?.full_name || "?")}
+                                {getInitials(
+                                  house.residents[0].profiles?.full_name || "?"
+                                )}
                               </AvatarFallback>
                             </Avatar>
-                            <span className="text-sm">{house.residents[0].profiles?.full_name}</span>
+                            <span className="text-sm">
+                              {house.residents[0].profiles?.full_name}
+                            </span>
                           </div>
                         ) : (
                           <Button
@@ -467,12 +506,16 @@ export default function AdminHouses() {
       </div>
 
       {/* Residents Popup Dialog */}
-      <Dialog open={!!selectedResidentsHouse} onOpenChange={(open) => !open && setSelectedResidentsHouse(null)}>
+      <Dialog
+        open={!!selectedResidentsHouse}
+        onOpenChange={(open) => !open && setSelectedResidentsHouse(null)}
+      >
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Home className="w-5 h-5" />
-              Penghuni Blok {selectedResidentsHouse?.block} No. {selectedResidentsHouse?.number}
+              Penghuni Blok {selectedResidentsHouse?.block} No.{" "}
+              {selectedResidentsHouse?.number}
             </DialogTitle>
             <DialogDescription>
               Daftar semua penghuni di rumah ini
@@ -480,19 +523,30 @@ export default function AdminHouses() {
           </DialogHeader>
           <div className="space-y-3 py-4 max-h-96 overflow-y-auto">
             {selectedResidentsHouse?.residents.map((resident) => (
-              <div key={resident.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+              <div
+                key={resident.id}
+                className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+              >
                 <div className="flex items-center gap-3">
                   <Avatar className="w-10 h-10">
-                    <AvatarImage src={resident.profiles?.avatar_url || undefined} />
+                    <AvatarImage
+                      src={resident.profiles?.avatar_url || undefined}
+                    />
                     <AvatarFallback>
                       {getInitials(resident.profiles?.full_name || "?")}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-medium">{resident.profiles?.full_name}</p>
-                    <p className="text-sm text-muted-foreground">{resident.profiles?.email}</p>
+                    <p className="font-medium">
+                      {resident.profiles?.full_name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {resident.profiles?.email}
+                    </p>
                     {resident.profiles?.phone && (
-                      <p className="text-sm text-muted-foreground">{resident.profiles?.phone}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {resident.profiles?.phone}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -514,7 +568,10 @@ export default function AdminHouses() {
       </Dialog>
 
       {/* Edit Resident House Dialog */}
-      <Dialog open={!!editingResident} onOpenChange={(open) => !open && setEditingResident(null)}>
+      <Dialog
+        open={!!editingResident}
+        onOpenChange={(open) => !open && setEditingResident(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ubah Rumah Penghuni</DialogTitle>
@@ -533,7 +590,8 @@ export default function AdminHouses() {
                   {houses.map((house) => (
                     <SelectItem key={house.id} value={house.id}>
                       Blok {house.block} No. {house.number}
-                      {house.residents.length > 0 && ` (${house.residents.length} penghuni)`}
+                      {house.residents.length > 0 &&
+                        ` (${house.residents.length} penghuni)`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -546,7 +604,11 @@ export default function AdminHouses() {
             </Button>
             <Button
               onClick={handleUpdateResidentHouse}
-              disabled={updateResidentHouseMutation.isPending || !newHouseId || newHouseId === editingResident?.house_id}
+              disabled={
+                updateResidentHouseMutation.isPending ||
+                !newHouseId ||
+                newHouseId === editingResident?.house_id
+              }
             >
               {updateResidentHouseMutation.isPending && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

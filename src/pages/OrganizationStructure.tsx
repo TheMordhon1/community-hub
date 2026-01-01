@@ -11,7 +11,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Users, Phone, Mail } from "lucide-react";
+import { Loader2, Users, Phone, Mail, ArrowLeft } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface PengurusData {
   id: string;
@@ -95,12 +96,21 @@ export default function OrganizationStructure() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-1"
         >
-          <h1 className="font-display text-xl md:text-2xl font-bold">
-            Struktur Organisasi
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Susunan pengurus Paguyuban Nijuuroku
-          </p>
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/dashboard">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="font-display text-xl md:text-2xl font-bold">
+                Struktur Organisasi
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Susunan pengurus Paguyuban Nijuuroku
+              </p>
+            </div>
+          </div>
         </motion.div>
 
         {/* Stats */}

@@ -328,7 +328,7 @@ export default function Polls() {
             <div>
               <h1 className="font-display text-2xl font-bold">Polling</h1>
               <p className="text-muted-foreground">
-                Berikan suara untuk keputusan komunitas
+                Berikan suara untuk keputusan paguyuban
               </p>
             </div>
           </div>
@@ -359,7 +359,7 @@ export default function Polls() {
                     <Label htmlFor="title">Judul Polling</Label>
                     <Input
                       id="title"
-                      placeholder="Contoh: Pemilihan Ketua RT"
+                      placeholder="Contoh: Pemilihan Ketua paguyuban"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                     />
@@ -522,7 +522,7 @@ export default function Polls() {
               <Vote className="w-12 h-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">Belum Ada Polling</h3>
               <p className="text-muted-foreground">
-                Polling untuk keputusan komunitas akan muncul di sini
+                Polling untuk keputusan paguyuban akan muncul di sini
               </p>
             </CardContent>
           </Card>

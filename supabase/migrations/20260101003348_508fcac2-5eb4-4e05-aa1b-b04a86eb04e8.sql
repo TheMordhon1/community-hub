@@ -38,8 +38,8 @@ EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Insert initial seed data
 INSERT INTO public.pengurus_titles (name, display_name, has_finance_access, order_index) VALUES
-('ketua', 'Ketua RT', false, 1),
-('wakil_ketua', 'Wakil Ketua RT', false, 2),
+('ketua', 'Ketua', false, 1),
+('wakil_ketua', 'Wakil Ketua', false, 2),
 ('sekretaris', 'Sekretaris', false, 3),
 ('bendahara', 'Bendahara', true, 4);
 
