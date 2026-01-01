@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Users, Phone, Mail } from "lucide-react";
 
 interface PengurusData {
   id: string;
@@ -164,12 +165,38 @@ export default function OrganizationStructure() {
                                 {person.title_description}
                               </p>
                             )}
-                            {person.phone && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {person.phone}
-                              </p>
-                            )}
                           </div>
+                        </div>
+                        {/* Contact Buttons */}
+                        <div className="flex gap-2 mt-4">
+                          {person.phone && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              asChild
+                            >
+                              <a
+                                href={`https://wa.me/${person.phone.replace(/\D/g, "")}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Phone className="w-4 h-4 mr-2" />
+                                WhatsApp
+                              </a>
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            asChild
+                          >
+                            <a href={`mailto:${person.email}`}>
+                              <Mail className="w-4 h-4 mr-2" />
+                              Email
+                            </a>
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
