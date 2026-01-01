@@ -20,6 +20,7 @@ import PollsDetail from "./pages/PollsDetail";
 import Profile from "./pages/Profile";
 import Payments from "./pages/Payments";
 import Finance from "./pages/Finance";
+import OrganizationStructure from "./pages/OrganizationStructure";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -73,6 +74,7 @@ function AppRoutes() {
           <Route path="/polls/:id" element={<PollsDetail />} />
           <Route path="/payments" element={<Payments />} />
           <Route path="/finance" element={<Finance />} />
+          <Route path="/organization" element={<OrganizationStructure />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/houses" element={<AdminHouses />} />
