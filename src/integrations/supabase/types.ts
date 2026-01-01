@@ -430,6 +430,39 @@ export type Database = {
           },
         ]
       }
+      pengurus_titles: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          display_name: string
+          has_finance_access: boolean | null
+          id: string
+          name: string
+          order_index: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          display_name: string
+          has_finance_access?: boolean | null
+          id?: string
+          name: string
+          order_index?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          display_name?: string
+          has_finance_access?: boolean | null
+          id?: string
+          name?: string
+          order_index?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       poll_votes: {
         Row: {
           created_at: string
@@ -537,6 +570,7 @@ export type Database = {
           id: string
           role: Database["public"]["Enums"]["app_role"]
           title: Database["public"]["Enums"]["pengurus_title"] | null
+          title_id: string | null
           user_id: string
         }
         Insert: {
@@ -544,6 +578,7 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           title?: Database["public"]["Enums"]["pengurus_title"] | null
+          title_id?: string | null
           user_id: string
         }
         Update: {
@@ -551,9 +586,18 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           title?: Database["public"]["Enums"]["pengurus_title"] | null
+          title_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_title_id_fkey"
+            columns: ["title_id"]
+            isOneToOne: false
+            referencedRelation: "pengurus_titles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -565,6 +609,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      has_finance_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

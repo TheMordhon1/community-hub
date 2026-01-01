@@ -13,6 +13,7 @@ import {
   LogOut,
   Building2,
   Wallet,
+  BadgeCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from "@/types/database";
@@ -49,6 +50,7 @@ const pengurusMenuItems = [
 
 const adminMenuItems = [
   { title: "Kelola Warga", url: "/admin/users", icon: Users },
+  { title: "Kelola Jabatan", url: "/admin/titles", icon: BadgeCheck },
   { title: "Pengaturan", url: "/admin/settings", icon: Settings },
 ];
 
