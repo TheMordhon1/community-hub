@@ -23,6 +23,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -85,6 +95,7 @@ export default function AdminHouses() {
     null
   );
   const [newHouseId, setNewHouseId] = useState("");
+  const [deletingHouse, setDeletingHouse] = useState<HouseWithResidents | null>(null);
 
   const { data: housesData, isLoading } = useQuery({
     queryKey: ["houses-with-residents"],
@@ -504,7 +515,7 @@ export default function AdminHouses() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => deleteMutation.mutate(house.id)}
+                            onClick={() => setDeletingHouse(house)}
                             disabled={deleteMutation.isPending}
                           >
                             <Trash2 className="w-4 h-4 text-destructive" />
@@ -633,6 +644,38 @@ export default function AdminHouses() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingHouse} onOpenChange={(open) => !open && setDeletingHouse(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Rumah?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus Blok {deletingHouse?.block} No. {deletingHouse?.number}?
+              {deletingHouse?.residents && deletingHouse.residents.length > 0 && (
+                <span className="block mt-2 text-destructive">
+                  Peringatan: Rumah ini masih memiliki {deletingHouse.residents.length} penghuni.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deletingHouse) {
+                  deleteMutation.mutate(deletingHouse.id);
+                  setDeletingHouse(null);
+                }
+              }}
+            >
+              {deleteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PollWithVotesProps } from "@/pages/Polls";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -8,6 +9,16 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 import { Badge } from "./ui/badge";
 import { CheckCircle2, Loader2, Trash2, Home, User } from "lucide-react";
 import { format } from "date-fns";
@@ -38,6 +49,7 @@ export const PollCard = ({
   onDelete: () => void;
   isVoting: boolean;
 }) => {
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const totalVotes = poll.votes.length;
   const hasVoted = !!poll?.userVote;
   const showResults = hasVoted || !poll.is_active || isPollExpired || poll.houseHasVoted;
@@ -141,7 +153,7 @@ export const PollCard = ({
                 <Button variant="outline" size="sm" onClick={onToggleActive}>
                   {poll.is_active ? "Tutup" : "Buka"}
                 </Button>
-                <Button variant="ghost" size="icon" onClick={onDelete}>
+                <Button variant="ghost" size="icon" onClick={() => setIsDeleteOpen(true)}>
                   <Trash2 className="w-4 h-4 text-destructive" />
                 </Button>
               </div>
@@ -228,6 +240,30 @@ export const PollCard = ({
           })}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Polling?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus polling "{poll.title}"? Semua suara akan ikut terhapus. Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                onDelete();
+                setIsDeleteOpen(false);
+              }}
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 };

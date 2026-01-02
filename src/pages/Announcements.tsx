@@ -27,6 +27,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
@@ -47,6 +57,8 @@ export default function Announcements() {
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] =
+    useState<Announcement | null>(null);
+  const [deletingAnnouncement, setDeletingAnnouncement] =
     useState<Announcement | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -351,9 +363,7 @@ export default function Announcements() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() =>
-                                deleteMutation.mutate(announcement.id)
-                              }
+                              onClick={() => setDeletingAnnouncement(announcement)}
                               disabled={deleteMutation.isPending}
                             >
                               <Trash2 className="w-4 h-4 text-destructive" />
@@ -421,9 +431,7 @@ export default function Announcements() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() =>
-                                  deleteMutation.mutate(announcement.id)
-                                }
+                                onClick={() => setDeletingAnnouncement(announcement)}
                                 disabled={deleteMutation.isPending}
                               >
                                 <Trash2 className="w-4 h-4 text-destructive" />
@@ -445,6 +453,33 @@ export default function Announcements() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingAnnouncement} onOpenChange={(open) => !open && setDeletingAnnouncement(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Pengumuman?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus pengumuman "{deletingAnnouncement?.title}"? Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deletingAnnouncement) {
+                  deleteMutation.mutate(deletingAnnouncement.id);
+                  setDeletingAnnouncement(null);
+                }
+              }}
+            >
+              {deleteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
