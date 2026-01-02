@@ -98,30 +98,45 @@ export default function AdminHouses() {
 
       if (housesError) throw housesError;
 
-      // Fetch all house residents with profiles
-      const { data: residents, error: residentsError } = await supabase.from(
-        "house_residents"
-      ).select(`
-          id,
-          user_id,
-          house_id,
-          is_owner,
-          profiles:user_id (
-            id,
-            full_name,
-            email,
-            phone,
-            avatar_url
-          )
-        `);
+      // Fetch all house residents
+      const { data: residents, error: residentsError } = await supabase
+        .from("house_residents")
+        .select("id, user_id, house_id, is_owner");
 
       if (residentsError) throw residentsError;
+
+      // Fetch all profiles for the resident user_ids
+      const userIds = residents?.map((r) => r.user_id) ?? [];
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, phone, avatar_url")
+        .in("id", userIds.length > 0 ? userIds : ["00000000-0000-0000-0000-000000000000"]);
+
+      if (profilesError) throw profilesError;
+
+      // Create a map of profiles by id
+      const profilesMap = new Map(profiles?.map((p) => [p.id, p]) ?? []);
+
+      // Map residents with their profiles
+      const residentsWithProfiles: HouseResident[] = (residents ?? []).map((r) => ({
+        id: r.id,
+        user_id: r.user_id,
+        house_id: r.house_id,
+        is_owner: r.is_owner ?? false,
+        profiles: profilesMap.get(r.user_id) ?? {
+          id: r.user_id,
+          full_name: "Unknown",
+          email: "",
+          phone: null,
+          avatar_url: null,
+        },
+      }));
 
       // Map residents to houses
       const housesWithResidents: HouseWithResidents[] = (houses as House[]).map(
         (house) => ({
           ...house,
-          residents: (residents as unknown as HouseResident[]).filter(
+          residents: residentsWithProfiles.filter(
             (r) => r.house_id === house.id
           ),
         })
