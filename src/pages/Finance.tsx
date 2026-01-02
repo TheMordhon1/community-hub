@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -53,12 +53,16 @@ import {
   FileSpreadsheet,
   CreditCard,
   ArrowLeft,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import type { FinanceRecordWithDetails } from "@/types/database";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Link } from "react-router-dom";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useAddFinanceRecord } from "@/hooks/finance/useAddFinanceRecord"; // Import the useAddFinanceRecord hook
 
 const CATEGORIES = {
   income: ["iuran", "donasi", "lainnya"],
@@ -88,14 +92,14 @@ const MONTHS = [
 ];
 
 export default function Finance() {
-  const { user, isAdmin, pengurusTitle } = useAuth();
-  const queryClient = useQueryClient();
+  const { isAdmin, isPengurus, pengurusTitle } = useAuth();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>(
     new Date().getFullYear().toString()
   );
+  const [isIuranExpanded, setIsIuranExpanded] = useState(false);
   const [formData, setFormData] = useState({
     type: "income" as "income" | "outcome",
     amount: "",
@@ -105,7 +109,7 @@ export default function Finance() {
   });
 
   const isBendahara = pengurusTitle === "bendahara";
-  const canManageFinance = isAdmin() || isBendahara;
+  const canManageFinance = isAdmin() || isBendahara || isPengurus();
 
   // Fetch finance records
   const { data: records, isLoading } = useQuery({
@@ -141,38 +145,20 @@ export default function Finance() {
     },
   });
 
-  // Add record mutation
-  const addRecord = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("finance_records").insert({
-        type: formData.type,
-        amount: parseFloat(formData.amount),
-        description: formData.description,
-        category: formData.category,
-        recorded_by: user?.id,
-        transaction_date: formData.transaction_date,
-      });
+  // Mutation for adding finance records
+  const addRecord = useAddFinanceRecord();
 
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Catatan keuangan berhasil ditambahkan");
-      queryClient.invalidateQueries({ queryKey: ["finance-records"] });
-      setIsAddOpen(false);
-      setFormData({
-        type: "income",
-        amount: "",
-        description: "",
-        category: "",
-        transaction_date: new Date().toISOString().split("T")[0],
-      });
-    },
-    onError: () => {
-      toast.error("Gagal menambahkan catatan keuangan");
-    },
-  });
+  const totalIncome =
+    records
+      ?.filter((r) => r.type === "income")
+      .reduce((sum, r) => sum + r.amount, 0) || 0;
+  const totalOutcome =
+    records
+      ?.filter((r) => r.type === "outcome")
+      .reduce((sum, r) => sum + r.amount, 0) || 0;
+  const balance = totalIncome - totalOutcome;
 
-  // Filter records based on tab and date
+  // Filter records based on tab and date for display only
   const filteredRecords = records?.filter((r) => {
     const typeMatch = activeTab === "all" || r.type === activeTab;
     const date = new Date(r.transaction_date);
@@ -182,25 +168,45 @@ export default function Finance() {
     return typeMatch && monthMatch && yearMatch;
   });
 
-  // Calculate totals for filtered records
-  const totalIncome =
-    filteredRecords
-      ?.filter((r) => r.type === "income")
-      .reduce((sum, r) => sum + r.amount, 0) || 0;
-  const totalOutcome =
-    filteredRecords
-      ?.filter((r) => r.type === "outcome")
-      .reduce((sum, r) => sum + r.amount, 0) || 0;
-  const balance = totalIncome - totalOutcome;
+  const groupedRecords = (() => {
+    if (!filteredRecords) return [];
+
+    const iuranRecords = filteredRecords.filter(
+      (r) => r.category?.toLowerCase() === "iuran"
+    );
+    const otherRecords = filteredRecords.filter(
+      (r) => r.category?.toLowerCase() !== "iuran"
+    );
+
+    if (iuranRecords.length === 0) return filteredRecords;
+
+    // Create summary row for iuran
+    const iuranTotal = iuranRecords.reduce((sum, r) => sum + r.amount, 0);
+    const iuranSummary = {
+      id: "iuran-summary",
+      type: "income" as const,
+      category: "iuran",
+      description: `Total Iuran (${iuranRecords.length} transaksi)`,
+      amount: iuranTotal,
+      transaction_date: iuranRecords[0].transaction_date,
+      recorded_by: null,
+      recorder: null,
+      created_at: iuranRecords[0].created_at,
+      isGroup: true,
+      groupRecords: iuranRecords,
+    };
+
+    return [iuranSummary, ...otherRecords];
+  })();
 
   // Export to PDF
   const exportToPDF = () => {
-    const doc = new jsPDF();
     const periodText =
       filterMonth === "all"
         ? `Tahun ${filterYear}`
-        : `${MONTHS[parseInt(filterMonth) - 1]} ${filterYear}`;
+        : `${MONTHS[Number.parseInt(filterMonth) - 1]} ${filterYear}`;
 
+    const doc = new jsPDF();
     doc.setFontSize(18);
     doc.text("Laporan Keuangan paguyuban", 14, 22);
     doc.setFontSize(12);
@@ -229,17 +235,22 @@ export default function Finance() {
 
     // Table
     const tableData =
-      filteredRecords?.map((r) => [
-        format(new Date(r.transaction_date), "dd/MM/yyyy"),
-        r.type === "income" ? "Masuk" : "Keluar",
-        r.category?.charAt(0).toUpperCase() + r.category?.slice(1),
-        r.description,
-        `Rp ${r.amount.toLocaleString("id-ID")}`,
-      ]) || [];
+      filteredRecords?.map((r) => {
+        return [
+          format(new Date(r.transaction_date), "dd/MM/yyyy"),
+          r.type === "income" ? "Masuk" : "Keluar",
+          r.category?.charAt(0).toUpperCase() + r.category?.slice(1),
+          r.description,
+          `Rp ${r.amount.toLocaleString("id-ID")}`,
+          r.recorder?.full_name || "Sistem",
+        ];
+      }) || [];
 
     autoTable(doc, {
       startY: 78,
-      head: [["Tanggal", "Jenis", "Kategori", "Deskripsi", "Jumlah"]],
+      head: [
+        ["Tanggal", "Jenis", "Kategori", "Deskripsi", "Jumlah", "Dicatat Oleh"],
+      ],
       body: tableData,
       styles: { fontSize: 9 },
       headStyles: { fillColor: [59, 130, 246] },
@@ -258,16 +269,30 @@ export default function Finance() {
     const periodText =
       filterMonth === "all"
         ? `Tahun ${filterYear}`
-        : `${MONTHS[parseInt(filterMonth) - 1]} ${filterYear}`;
+        : `${MONTHS[Number.parseInt(filterMonth) - 1]} ${filterYear}`;
 
     const data =
-      filteredRecords?.map((r) => ({
-        Tanggal: format(new Date(r.transaction_date), "dd/MM/yyyy"),
-        Jenis: r.type === "income" ? "Pemasukan" : "Pengeluaran",
-        Kategori: r.category?.charAt(0).toUpperCase() + r.category?.slice(1),
-        Deskripsi: r.description,
-        Jumlah: r.amount,
-      })) || [];
+      groupedRecords?.map((r) => {
+        if (r.isGroup) {
+          return {
+            Tanggal: format(new Date(r.transaction_date), "dd/MM/yyyy"),
+            Jenis: r.type === "income" ? "Pemasukan" : "Pengeluaran",
+            Kategori:
+              r.category?.charAt(0).toUpperCase() + r.category?.slice(1),
+            Deskripsi: r.description,
+            Jumlah: r.amount,
+            "Dicatat Oleh": "-",
+          };
+        }
+        return {
+          Tanggal: format(new Date(r.transaction_date), "dd/MM/yyyy"),
+          Jenis: r.type === "income" ? "Pemasukan" : "Pengeluaran",
+          Kategori: r.category?.charAt(0).toUpperCase() + r.category?.slice(1),
+          Deskripsi: r.description,
+          Jumlah: r.amount,
+          "Dicatat Oleh": r.recorder?.full_name || "Sistem",
+        };
+      }) || [];
 
     // Add summary rows
     data.push({
@@ -276,6 +301,7 @@ export default function Finance() {
       Kategori: "",
       Deskripsi: "",
       Jumlah: 0,
+      "Dicatat Oleh": "",
     });
     data.push({
       Tanggal: "",
@@ -283,6 +309,7 @@ export default function Finance() {
       Kategori: "",
       Deskripsi: "Total Pemasukan",
       Jumlah: totalIncome,
+      "Dicatat Oleh": "",
     });
     data.push({
       Tanggal: "",
@@ -290,6 +317,7 @@ export default function Finance() {
       Kategori: "",
       Deskripsi: "Total Pengeluaran",
       Jumlah: totalOutcome,
+      "Dicatat Oleh": "",
     });
     data.push({
       Tanggal: "",
@@ -297,6 +325,7 @@ export default function Finance() {
       Kategori: "",
       Deskripsi: "Saldo",
       Jumlah: balance,
+      "Dicatat Oleh": "",
     });
 
     const ws = XLSX.utils.json_to_sheet(data);
@@ -312,7 +341,7 @@ export default function Finance() {
   };
 
   return (
-    <section className="min-h-screen bg-background p-6">
+    <section className="min-h-screen bg-background p-4 sm:p-6">
       <div className="space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -447,7 +476,7 @@ export default function Finance() {
                     </div>
 
                     <Button
-                      onClick={() => addRecord.mutate()}
+                      onClick={() => addRecord.mutate(formData)}
                       disabled={
                         !formData.amount ||
                         !formData.description ||
@@ -552,7 +581,6 @@ export default function Finance() {
           </Card>
         </div>
 
-        {/* Records Table */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -574,80 +602,209 @@ export default function Finance() {
               </Tabs>
             </div>
           </CardHeader>
-          <CardContent className="p-0 sm:p-6 sm:pt-0">
+
+          <CardContent className="p-0">
             {isLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin" />
               </div>
-            ) : filteredRecords && filteredRecords.length > 0 ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">Tanggal</TableHead>
-                      <TableHead className="text-xs hidden sm:table-cell">
-                        Jenis
-                      </TableHead>
-                      <TableHead className="text-xs">Kategori</TableHead>
-                      <TableHead className="text-xs hidden md:table-cell">
-                        Deskripsi
-                      </TableHead>
-                      <TableHead className="text-xs text-right">
-                        Jumlah
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredRecords.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell className="text-xs sm:text-sm py-2">
-                          {format(new Date(record.transaction_date), "dd MMM", {
-                            locale: localeId,
-                          })}
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <div className="flex items-center gap-1">
-                            {record.type === "income" ? (
-                              <ArrowUpCircle className="w-3 h-3 text-green-600" />
-                            ) : (
-                              <ArrowDownCircle className="w-3 h-3 text-red-600" />
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-2">
-                          <Badge variant="outline" className="text-xs">
-                            {record.category?.charAt(0).toUpperCase() +
-                              record.category?.slice(1)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-[150px] truncate text-xs hidden md:table-cell">
-                          {record.description}
-                        </TableCell>
-                        <TableCell
-                          className={`text-right text-xs sm:text-sm font-medium py-2 ${
-                            record.type === "income"
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {record.type === "income" ? "+" : "-"} Rp{" "}
-                          {record.amount.toLocaleString("id-ID")}
-                        </TableCell>
+            ) : groupedRecords && groupedRecords.length > 0 ? (
+              <ScrollArea className="w-full">
+                <div className="min-w-[650px] px-6 pb-6">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[100px]">Tanggal</TableHead>
+                        <TableHead className="w-[90px]">Jenis</TableHead>
+                        <TableHead className="w-[110px]">Kategori</TableHead>
+                        <TableHead className="min-w-[180px]">
+                          Deskripsi
+                        </TableHead>
+                        <TableHead className="w-[130px] text-right">
+                          Jumlah
+                        </TableHead>
+                        <TableHead className="w-[120px]">
+                          Dicatat Oleh
+                        </TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    </TableHeader>
+                    <TableBody>
+                      {groupedRecords.map((record) => {
+                        if (record.isGroup) {
+                          return (
+                            <>
+                              <TableRow
+                                key={record.id}
+                                className="cursor-pointer hover:bg-muted/50"
+                                onClick={() =>
+                                  setIsIuranExpanded(!isIuranExpanded)
+                                }
+                              >
+                                <TableCell className="text-xs sm:text-sm font-medium whitespace-nowrap">
+                                  <div className="flex items-center gap-2">
+                                    {isIuranExpanded ? (
+                                      <ChevronDown className="w-4 h-4" />
+                                    ) : (
+                                      <ChevronRight className="w-4 h-4" />
+                                    )}
+                                    {format(
+                                      new Date(record.transaction_date),
+                                      "dd/MM/yyyy"
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant="default"
+                                    className="text-xs whitespace-nowrap bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20"
+                                  >
+                                    <ArrowUpCircle className="w-3 h-3 mr-1" />
+                                    Masuk
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-xs sm:text-sm capitalize font-semibold">
+                                  {record.category}
+                                </TableCell>
+                                <TableCell className="text-xs sm:text-sm font-medium">
+                                  {record.description}
+                                </TableCell>
+                                <TableCell className="text-xs sm:text-sm font-bold text-right whitespace-nowrap text-green-600">
+                                  + Rp {record.amount.toLocaleString("id-ID")}
+                                </TableCell>
+                                <TableCell className="text-xs sm:text-sm text-muted-foreground">
+                                  -
+                                </TableCell>
+                              </TableRow>
+                              {isIuranExpanded &&
+                                record.groupRecords?.map((iuranRecord) => (
+                                  <TableRow
+                                    key={iuranRecord.id}
+                                    className="bg-muted/30"
+                                  >
+                                    <TableCell className="text-xs sm:text-sm font-medium whitespace-nowrap pl-10">
+                                      {format(
+                                        new Date(iuranRecord.transaction_date),
+                                        "dd/MM/yyyy"
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge
+                                        variant="default"
+                                        className="text-xs whitespace-nowrap bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20"
+                                      >
+                                        <ArrowUpCircle className="w-3 h-3 mr-1" />
+                                        Masuk
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-xs sm:text-sm capitalize">
+                                      {iuranRecord.category}
+                                    </TableCell>
+                                    <TableCell className="text-xs sm:text-sm">
+                                      <div
+                                        className="max-w-[250px] truncate"
+                                        title={iuranRecord.description}
+                                      >
+                                        {iuranRecord.description}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-xs sm:text-sm font-semibold text-right whitespace-nowrap text-green-600">
+                                      + Rp{" "}
+                                      {iuranRecord.amount.toLocaleString(
+                                        "id-ID"
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-xs sm:text-sm text-muted-foreground">
+                                      {iuranRecord.recorder?.full_name ||
+                                        "Sistem"}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                            </>
+                          );
+                        }
+
+                        // Regular record row (non-iuran)
+                        return (
+                          <TableRow key={record.id}>
+                            <TableCell className="text-xs sm:text-sm font-medium whitespace-nowrap">
+                              {format(
+                                new Date(record.transaction_date),
+                                "dd/MM/yyyy"
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  record.type === "income"
+                                    ? "default"
+                                    : "secondary"
+                                }
+                                className={`text-xs whitespace-nowrap ${
+                                  record.type === "income"
+                                    ? "bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20"
+                                    : "bg-red-500/10 text-red-700 dark:text-red-400 hover:bg-red-500/20"
+                                }`}
+                              >
+                                {record.type === "income" ? (
+                                  <ArrowUpCircle className="w-3 h-3 mr-1" />
+                                ) : (
+                                  <ArrowDownCircle className="w-3 h-3 mr-1" />
+                                )}
+                                {record.type === "income" ? "Masuk" : "Keluar"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm capitalize">
+                              {record.category}
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm">
+                              <div
+                                className="max-w-[250px] truncate"
+                                title={record.description}
+                              >
+                                {record.description}
+                              </div>
+                            </TableCell>
+                            <TableCell
+                              className={`text-xs sm:text-sm font-semibold text-right whitespace-nowrap ${
+                                record.type === "income"
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }`}
+                            >
+                              {record.type === "income" ? "+" : "-"} Rp{" "}
+                              {record.amount.toLocaleString("id-ID")}
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm text-muted-foreground">
+                              {record.recorder?.full_name || "Sistem"}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
             ) : (
-              <CardContent className="flex flex-col items-center justify-center text-center">
-                <CreditCard className="w-12 h-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
-                  Belum Ada Catatan
+              <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                <CreditCard className="w-12 h-12 text-muted-foreground/40 mb-4" />
+                <h3 className="font-semibold text-lg mb-2">
+                  Belum ada transaksi
                 </h3>
-                <p className="text-muted-foreground">
-                  Belum ada catatan keuangan yang masuk
+                <p className="text-sm text-muted-foreground mb-4">
+                  {activeTab === "all"
+                    ? "Belum ada catatan keuangan untuk periode ini"
+                    : `Belum ada ${
+                        activeTab === "income" ? "pemasukan" : "pengeluaran"
+                      } untuk periode ini`}
                 </p>
-              </CardContent>
+                {canManageFinance && (
+                  <Button size="sm" onClick={() => setIsAddOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Tambah Catatan
+                  </Button>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>

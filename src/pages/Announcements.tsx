@@ -237,9 +237,9 @@ export default function Announcements() {
               }}
             >
               <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Buat Pengumuman
+                <Button className="w-12 h-12 rounded-full absolute bottom-4 right-2 md:rounded-sm md:static flex md:w-auto md:h-auto justify-center items-center">
+                  <Plus className="w-8 md:w-4 md:h-4 md:mr-2 mx-auto" />
+                  <span className="hidden md:block">Buat Pengumuman</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-lg">
@@ -363,7 +363,9 @@ export default function Announcements() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => setDeletingAnnouncement(announcement)}
+                              onClick={() =>
+                                setDeletingAnnouncement(announcement)
+                              }
                               disabled={deleteMutation.isPending}
                             >
                               <Trash2 className="w-4 h-4 text-destructive" />
@@ -431,7 +433,9 @@ export default function Announcements() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => setDeletingAnnouncement(announcement)}
+                                onClick={() =>
+                                  setDeletingAnnouncement(announcement)
+                                }
                                 disabled={deleteMutation.isPending}
                               >
                                 <Trash2 className="w-4 h-4 text-destructive" />
@@ -455,12 +459,17 @@ export default function Announcements() {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deletingAnnouncement} onOpenChange={(open) => !open && setDeletingAnnouncement(null)}>
+      <AlertDialog
+        open={!!deletingAnnouncement}
+        onOpenChange={(open) => !open && setDeletingAnnouncement(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Pengumuman?</AlertDialogTitle>
             <AlertDialogDescription>
-              Apakah Anda yakin ingin menghapus pengumuman "{deletingAnnouncement?.title}"? Tindakan ini tidak dapat dibatalkan.
+              Apakah Anda yakin ingin menghapus pengumuman "
+              {deletingAnnouncement?.title}"? Tindakan ini tidak dapat
+              dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -474,7 +483,9 @@ export default function Announcements() {
                 }
               }}
             >
-              {deleteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {deleteMutation.isPending && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
               Hapus
             </AlertDialogAction>
           </AlertDialogFooter>

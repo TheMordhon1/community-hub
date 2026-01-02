@@ -959,7 +959,7 @@ _Paguyuban Nijuuroku_`;
         >
           <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Bukti Pembayaran</DialogTitle>
+              <DialogTitle>Detail Pembayaran</DialogTitle>
             </DialogHeader>
             {selectedPayment && (
               <div className="space-y-4">
@@ -997,6 +997,40 @@ _Paguyuban Nijuuroku_`;
                       {STATUS_LABELS[selectedPayment.status]}
                     </Badge>
                   </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">
+                      Tanggal Upload:
+                    </span>{" "}
+                    <span className="text-sm">
+                      {format(
+                        new Date(selectedPayment.created_at),
+                        "dd MMMM yyyy HH:mm",
+                        { locale: localeId }
+                      )}
+                    </span>
+                  </div>
+                  {selectedPayment.submitter && (
+                    <div>
+                      <span className="text-muted-foreground text-xs">
+                        Diupload oleh:
+                      </span>{" "}
+                      <span className="text-sm">
+                        {selectedPayment.submitter.full_name ||
+                          "Tidak diketahui"}
+                      </span>
+                    </div>
+                  )}
+                  {selectedPayment.verifier && (
+                    <div>
+                      <span className="text-muted-foreground text-xs">
+                        Diverifikasi oleh:
+                      </span>{" "}
+                      <span className="text-sm font-medium text-green-600">
+                        {selectedPayment.verifier.full_name ||
+                          "Tidak diketahui"}
+                      </span>
+                    </div>
+                  )}
                   {selectedPayment.description && (
                     <div className="col-span-2">
                       <span className="text-muted-foreground text-xs">
@@ -1012,7 +1046,7 @@ _Paguyuban Nijuuroku_`;
                 {selectedPayment.proof_url && (
                   <div className="border rounded-lg overflow-hidden">
                     <img
-                      src={selectedPayment.proof_url}
+                      src={selectedPayment.proof_url || "/placeholder.svg"}
                       alt="Bukti Pembayaran"
                       className="w-full max-h-80 object-contain bg-muted"
                     />
@@ -1023,7 +1057,7 @@ _Paguyuban Nijuuroku_`;
                   <div className="flex gap-2 justify-end">
                     <Button
                       variant="outline"
-                      className="text-red-600"
+                      className="text-red-600 bg-transparent"
                       size="sm"
                       onClick={() =>
                         verifyPayment.mutate({

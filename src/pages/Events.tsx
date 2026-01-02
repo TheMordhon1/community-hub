@@ -290,9 +290,9 @@ export default function Events() {
               }}
             >
               <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Buat Acara
+                <Button className="w-12 h-12 rounded-full absolute bottom-4 right-2 md:rounded-sm md:static flex md:w-auto md:h-auto justify-center items-center">
+                  <Plus className="w-8 md:w-4 md:h-4 md:mr-2 mx-auto" />
+                  <span className="hidden md:block">Buat Acara</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-lg">
@@ -431,11 +431,59 @@ export default function Events() {
                           </span>
                         </div>
                         <div className="flex-1 p-4">
-                          <div className="flex items-start justify-between">
-                            <div>
+                          <div className="flex flex-col justify-between gap-4">
+                            <div className="flex justify-between items-start">
                               <h3 className="font-semibold text-lg">
                                 {event.title}
                               </h3>
+                              <div className="hidden md:flex items-center gap-2">
+                                <Button
+                                  variant={
+                                    isUserAttending(event.id)
+                                      ? "default"
+                                      : "outline"
+                                  }
+                                  size="sm"
+                                  onClick={() =>
+                                    rsvpMutation.mutate({
+                                      eventId: event.id,
+                                      isAttending:
+                                        isUserAttending(event.id) || false,
+                                    })
+                                  }
+                                  disabled={rsvpMutation.isPending}
+                                >
+                                  {isUserAttending(event.id) ? (
+                                    <>
+                                      <Check className="w-4 h-4 mr-1" />
+                                      Hadir
+                                    </>
+                                  ) : (
+                                    "Ikut"
+                                  )}
+                                </Button>
+                                {canManageContent() && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleEdit(event)}
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => setDeletingEvent(event)}
+                                    >
+                                      <Trash2 className="w-4 h-4 text-destructive" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="">
                               {event.description && (
                                 <p className="text-muted-foreground text-sm mt-1">
                                   {event.description}
@@ -454,7 +502,7 @@ export default function Events() {
                                 </span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex md:hidden items-center gap-2">
                               <Button
                                 variant={
                                   isUserAttending(event.id)
@@ -558,12 +606,16 @@ export default function Events() {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deletingEvent} onOpenChange={(open) => !open && setDeletingEvent(null)}>
+      <AlertDialog
+        open={!!deletingEvent}
+        onOpenChange={(open) => !open && setDeletingEvent(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Acara?</AlertDialogTitle>
             <AlertDialogDescription>
-              Apakah Anda yakin ingin menghapus acara "{deletingEvent?.title}"? Tindakan ini tidak dapat dibatalkan.
+              Apakah Anda yakin ingin menghapus acara "{deletingEvent?.title}"?
+              Tindakan ini tidak dapat dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -577,7 +629,9 @@ export default function Events() {
                 }
               }}
             >
-              {deleteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {deleteMutation.isPending && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
               Hapus
             </AlertDialogAction>
           </AlertDialogFooter>

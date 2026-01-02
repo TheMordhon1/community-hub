@@ -235,9 +235,9 @@ export default function Complaints() {
 
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Buat Pengaduan
+              <Button className="w-12 h-12 rounded-full absolute bottom-4 right-2 md:rounded-sm md:static flex md:w-auto md:h-auto justify-center items-center">
+                <Plus className="w-8 md:w-4 md:h-4 md:mr-2 mx-auto" />
+                <span className="hidden md:block">Buat Pengaduan</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -99,10 +99,11 @@ export default function AdminTitles() {
   const [formData, setFormData] = useState<TitleFormData>(initialFormData);
 
   // Redirect non-admin users
-  if (!isAdmin()) {
-    navigate("/dashboard");
-    return null;
-  }
+  useEffect(() => {
+    if (!isAdmin()) {
+      navigate("/dashboard");
+    }
+  }, [isAdmin, navigate]);
 
   const { data: titles, isLoading } = useQuery({
     queryKey: ["pengurus-titles"],
