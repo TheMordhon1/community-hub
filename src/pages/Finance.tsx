@@ -367,7 +367,7 @@ export default function Finance() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Download className="w-4 h-4 mr-2" />
-                    <span className="hidden sm:inline">Export</span>
+                    <span className="inline">Export</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -381,115 +381,6 @@ export default function Finance() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            )}
-
-            {canManageFinance && (
-              <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="w-4 h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Tambah Catatan</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-[95vw] sm:max-w-lg">
-                  <DialogHeader>
-                    <DialogTitle>Tambah Catatan Keuangan</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Jenis</Label>
-                      <Select
-                        value={formData.type}
-                        onValueChange={(v: "income" | "outcome") =>
-                          setFormData({ ...formData, type: v, category: "" })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="income">Pemasukan</SelectItem>
-                          <SelectItem value="outcome">Pengeluaran</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Kategori</Label>
-                      <Select
-                        value={formData.category}
-                        onValueChange={(v) =>
-                          setFormData({ ...formData, category: v })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih kategori" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CATEGORIES[formData.type].map((cat) => (
-                            <SelectItem key={cat} value={cat}>
-                              {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Jumlah (Rp)</Label>
-                      <Input
-                        type="number"
-                        value={formData.amount}
-                        onChange={(e) =>
-                          setFormData({ ...formData, amount: e.target.value })
-                        }
-                        placeholder="Contoh: 500000"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Tanggal Transaksi</Label>
-                      <Input
-                        type="date"
-                        value={formData.transaction_date}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            transaction_date: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Deskripsi</Label>
-                      <Textarea
-                        value={formData.description}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            description: e.target.value,
-                          })
-                        }
-                        placeholder="Keterangan transaksi"
-                      />
-                    </div>
-
-                    <Button
-                      onClick={() => addRecord.mutate(formData)}
-                      disabled={
-                        !formData.amount ||
-                        !formData.description ||
-                        !formData.category
-                      }
-                      className="w-full"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Tambah Catatan
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
             )}
           </div>
         </div>
@@ -580,7 +471,116 @@ export default function Finance() {
             </CardContent>
           </Card>
         </div>
+        {canManageFinance && (
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <div className="flex justify-end">
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="w-4 h-4 sm:mr-2" />
+                  <span className="inline">Tambah Catatan</span>
+                </Button>
+              </DialogTrigger>
+            </div>
+            <DialogContent className="max-w-[95vw] sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Tambah Catatan Keuangan</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Jenis</Label>
+                  <Select
+                    value={formData.type}
+                    onValueChange={(v: "income" | "outcome") =>
+                      setFormData({ ...formData, type: v, category: "" })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="income">Pemasukan</SelectItem>
+                      <SelectItem value="outcome">Pengeluaran</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
+                <div className="space-y-2">
+                  <Label>Kategori</Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(v) =>
+                      setFormData({ ...formData, category: v })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES[formData.type].map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Jumlah (Rp)</Label>
+                  <Input
+                    type="number"
+                    value={formData.amount}
+                    onChange={(e) =>
+                      setFormData({ ...formData, amount: e.target.value })
+                    }
+                    placeholder="Contoh: 500000"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Tanggal Transaksi</Label>
+                  <Input
+                    type="date"
+                    value={formData.transaction_date}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        transaction_date: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Deskripsi</Label>
+                  <Textarea
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        description: e.target.value,
+                      })
+                    }
+                    placeholder="Keterangan transaksi"
+                  />
+                </div>
+
+                <Button
+                  onClick={() => addRecord.mutate(formData)}
+                  disabled={
+                    !formData.amount ||
+                    !formData.description ||
+                    !formData.category
+                  }
+                  className="w-full"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Tambah Catatan
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -620,10 +620,8 @@ export default function Finance() {
                         <TableHead className="min-w-[180px]">
                           Deskripsi
                         </TableHead>
-                        <TableHead className="w-[130px] text-right">
-                          Jumlah
-                        </TableHead>
-                        <TableHead className="w-[120px]">
+                        <TableHead className="w-[130px]">Jumlah</TableHead>
+                        <TableHead className="min-w-[150px]">
                           Dicatat Oleh
                         </TableHead>
                       </TableRow>
@@ -668,7 +666,7 @@ export default function Finance() {
                                 <TableCell className="text-xs sm:text-sm font-medium">
                                   {record.description}
                                 </TableCell>
-                                <TableCell className="text-xs sm:text-sm font-bold text-right whitespace-nowrap text-green-600">
+                                <TableCell className="text-xs sm:text-sm font-bold whitespace-nowrap text-green-600">
                                   + Rp {record.amount.toLocaleString("id-ID")}
                                 </TableCell>
                                 <TableCell className="text-xs sm:text-sm text-muted-foreground">
@@ -676,7 +674,7 @@ export default function Finance() {
                                 </TableCell>
                               </TableRow>
                               {isIuranExpanded &&
-                                record.groupRecords?.map((iuranRecord) => (
+                                record?.groupRecords?.map((iuranRecord) => (
                                   <TableRow
                                     key={iuranRecord.id}
                                     className="bg-muted/30"
@@ -686,6 +684,7 @@ export default function Finance() {
                                         new Date(iuranRecord.transaction_date),
                                         "dd/MM/yyyy"
                                       )}
+                                      ff
                                     </TableCell>
                                     <TableCell>
                                       <Badge
@@ -707,7 +706,7 @@ export default function Finance() {
                                         {iuranRecord.description}
                                       </div>
                                     </TableCell>
-                                    <TableCell className="text-xs sm:text-sm font-semibold text-right whitespace-nowrap text-green-600">
+                                    <TableCell className="text-xs sm:text-sm font-semibold whitespace-nowrap text-green-600">
                                       + Rp{" "}
                                       {iuranRecord.amount.toLocaleString(
                                         "id-ID"
@@ -758,14 +757,14 @@ export default function Finance() {
                             </TableCell>
                             <TableCell className="text-xs sm:text-sm">
                               <div
-                                className="max-w-[250px] truncate"
+                                className="max-w-[250px] line-clamp-1 hover:line-clamp-none"
                                 title={record.description}
                               >
                                 {record.description}
                               </div>
                             </TableCell>
                             <TableCell
-                              className={`text-xs sm:text-sm font-semibold text-right whitespace-nowrap ${
+                              className={`text-xs sm:text-sm font-semibold whitespace-nowrap ${
                                 record.type === "income"
                                   ? "text-green-600"
                                   : "text-red-600"

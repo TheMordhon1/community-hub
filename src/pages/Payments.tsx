@@ -60,6 +60,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Link } from "react-router-dom";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface PaymentItem {
   id: string;
@@ -106,7 +107,7 @@ const STATUS_LABELS = {
 };
 
 export default function Payments() {
-  const { user, isAdmin, pengurusTitle } = useAuth();
+  const { user, isAdmin, pengurusTitle, isPengurus } = useAuth();
   const queryClient = useQueryClient();
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
@@ -135,9 +136,10 @@ export default function Payments() {
     ),
     bankAccount: "BSI 7263306915 a/n Bendahara",
   });
+  const [bendaharaTab, setBendaharaTab] = useState<"all" | "mine">("all");
 
   const isBendahara = pengurusTitle === "bendahara";
-  const canVerify = isAdmin() || isBendahara;
+  const canVerify = isAdmin() || isPengurus();
 
   // Get user's house
   const { data: userHouse } = useQuery({
@@ -205,6 +207,10 @@ export default function Payments() {
     return monthMatch && yearMatch;
   });
 
+  const displayPayments =
+    canVerify && bendaharaTab === "mine"
+      ? filteredPayments?.filter((p) => p.house_id === userHouse?.id)
+      : filteredPayments;
   // Submit payment mutation
   const submitPayment = useMutation({
     mutationFn: async () => {
@@ -378,18 +384,18 @@ _Paguyuban Nijuuroku_`;
     );
 
     const totalPaid =
-      filteredPayments
+      displayPayments
         ?.filter((p) => p.status === "paid")
         .reduce((sum, p) => sum + p.amount, 0) || 0;
     const totalPending =
-      filteredPayments?.filter((p) => p.status === "pending").length || 0;
+      displayPayments?.filter((p) => p.status === "pending").length || 0;
 
     doc.setFontSize(11);
     doc.text(`Total Terbayar: Rp ${totalPaid.toLocaleString("id-ID")}`, 14, 52);
     doc.text(`Menunggu Verifikasi: ${totalPending} pembayaran`, 14, 60);
 
     const tableData =
-      filteredPayments?.map((p) => [
+      displayPayments?.map((p) => [
         `${p.house?.block}${p.house?.number}`,
         `${MONTHS[p.month - 1]} ${p.year}`,
         `Rp ${p.amount.toLocaleString("id-ID")}`,
@@ -416,7 +422,7 @@ _Paguyuban Nijuuroku_`;
   // Export to Excel
   const exportToExcel = () => {
     const data =
-      filteredPayments?.map((p) => ({
+      displayPayments?.map((p) => ({
         Rumah: `${p.house?.block}${p.house?.number}`,
         Periode: `${MONTHS[p.month - 1]} ${p.year}`,
         Jumlah: p.amount,
@@ -464,7 +470,7 @@ _Paguyuban Nijuuroku_`;
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm">
                       <Download className="w-4 h-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Export</span>
+                      <span className="inline">Export</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -483,7 +489,7 @@ _Paguyuban Nijuuroku_`;
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm">
                       <MessageCircle className="w-4 h-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Pengingat</span>
+                      <span className="inline">Pengingat</span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
@@ -618,126 +624,6 @@ _Paguyuban Nijuuroku_`;
                 </Dialog>
               </>
             )}
-
-            {userHouse && (
-              <Dialog open={isSubmitOpen} onOpenChange={setIsSubmitOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Upload className="w-4 h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Upload Bukti</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-[95vw] sm:max-w-lg">
-                  <DialogHeader>
-                    <DialogTitle>Upload Bukti Pembayaran</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Bulan</Label>
-                        <Select
-                          value={formData.month.toString()}
-                          onValueChange={(v) =>
-                            setFormData({ ...formData, month: parseInt(v) })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {MONTHS.map((m, i) => (
-                              <SelectItem key={i} value={(i + 1).toString()}>
-                                {m}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Tahun</Label>
-                        <Select
-                          value={formData.year.toString()}
-                          onValueChange={(v) =>
-                            setFormData({ ...formData, year: parseInt(v) })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[2024, 2025, 2026].map((y) => (
-                              <SelectItem key={y} value={y.toString()}>
-                                {y}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Jumlah (Rp)</Label>
-                      <Input
-                        type="number"
-                        value={formData.amount}
-                        onChange={(e) =>
-                          setFormData({ ...formData, amount: e.target.value })
-                        }
-                        placeholder="Contoh: 100000"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Keterangan</Label>
-                      <Textarea
-                        value={formData.description}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            description: e.target.value,
-                          })
-                        }
-                        placeholder="Keterangan pembayaran (opsional)"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Bukti Pembayaran</Label>
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) =>
-                          setProofFile(e.target.files?.[0] || null)
-                        }
-                      />
-                      {proofFile && (
-                        <p className="text-sm text-muted-foreground">
-                          File: {proofFile.name}
-                        </p>
-                      )}
-                    </div>
-
-                    <Button
-                      onClick={() => submitPayment.mutate()}
-                      disabled={!proofFile || !formData.amount || isUploading}
-                      className="w-full"
-                    >
-                      {isUploading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Mengunggah...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Kirim Bukti Pembayaran
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            )}
           </div>
         </div>
 
@@ -782,7 +668,7 @@ _Paguyuban Nijuuroku_`;
             </CardHeader>
             <CardContent>
               <div className="text-lg sm:text-2xl font-bold">
-                {filteredPayments?.filter((p) => p.status === "pending")
+                {displayPayments?.filter((p) => p.status === "pending")
                   .length || 0}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -800,7 +686,7 @@ _Paguyuban Nijuuroku_`;
             </CardHeader>
             <CardContent>
               <div className="text-lg sm:text-2xl font-bold">
-                {filteredPayments?.filter((p) => p.status === "paid").length ||
+                {displayPayments?.filter((p) => p.status === "paid").length ||
                   0}
               </div>
               <p className="text-xs text-muted-foreground">Pembayaran</p>
@@ -816,7 +702,7 @@ _Paguyuban Nijuuroku_`;
               <div className="text-lg sm:text-2xl font-bold">
                 Rp{" "}
                 {(
-                  filteredPayments
+                  displayPayments
                     ?.filter((p) => p.status === "paid")
                     .reduce((sum, p) => sum + p.amount, 0) || 0
                 ).toLocaleString("id-ID")}
@@ -827,25 +713,156 @@ _Paguyuban Nijuuroku_`;
         </div>
 
         {/* Payments Table */}
+        {userHouse && (
+          <Dialog open={isSubmitOpen} onOpenChange={setIsSubmitOpen}>
+            <div className="flex justify-end">
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Upload className="w-4 h-4" />
+                  <span className="inline">Upload Bukti</span>
+                </Button>
+              </DialogTrigger>
+            </div>
+            <DialogContent className="max-w-[95vw] sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Upload Bukti Pembayaran</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Bulan</Label>
+                    <Select
+                      value={formData.month.toString()}
+                      onValueChange={(v) =>
+                        setFormData({ ...formData, month: parseInt(v) })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTHS.map((m, i) => (
+                          <SelectItem key={i} value={(i + 1).toString()}>
+                            {m}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tahun</Label>
+                    <Select
+                      value={formData.year.toString()}
+                      onValueChange={(v) =>
+                        setFormData({ ...formData, year: parseInt(v) })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[2024, 2025, 2026].map((y) => (
+                          <SelectItem key={y} value={y.toString()}>
+                            {y}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Jumlah (Rp)</Label>
+                  <Input
+                    type="number"
+                    value={formData.amount}
+                    onChange={(e) =>
+                      setFormData({ ...formData, amount: e.target.value })
+                    }
+                    placeholder="Contoh: 100000"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Keterangan</Label>
+                  <Textarea
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        description: e.target.value,
+                      })
+                    }
+                    placeholder="Keterangan pembayaran (opsional)"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Bukti Pembayaran</Label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                  />
+                  {proofFile && (
+                    <p className="text-sm text-muted-foreground">
+                      File: {proofFile.name}
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  onClick={() => submitPayment.mutate()}
+                  disabled={!proofFile || !formData.amount || isUploading}
+                  className="w-full"
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Mengunggah...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Kirim Bukti Pembayaran
+                    </>
+                  )}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 flex md:flex-row items-center justify-between">
             <CardTitle className="text-base sm:text-lg">
               Daftar Pembayaran
             </CardTitle>
+
+            {canVerify && (
+              <Tabs
+                value={bendaharaTab}
+                onValueChange={(v) => setBendaharaTab(v as "all" | "mine")}
+              >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="all">Kelola Semua IPL</TabsTrigger>
+                  <TabsTrigger value="mine">IPL Saya</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
           </CardHeader>
           <CardContent className="p-0 sm:p-6 sm:pt-0">
             {isLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin" />
               </div>
-            ) : filteredPayments && filteredPayments.length > 0 ? (
+            ) : displayPayments && displayPayments.length > 0 ? (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-xs">Rumah</TableHead>
                       <TableHead className="text-xs">Periode</TableHead>
-                      <TableHead className="text-xs hidden sm:table-cell">
+                      <TableHead className="text-xs table-cell">
                         Jumlah
                       </TableHead>
                       <TableHead className="text-xs">Status</TableHead>
@@ -853,22 +870,20 @@ _Paguyuban Nijuuroku_`;
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredPayments.map((payment) => (
+                    {displayPayments.map((payment) => (
                       <TableRow key={payment.id}>
                         <TableCell className="font-medium text-xs sm:text-sm py-2">
                           {payment.house?.block}
                           {payment.house?.number}
                         </TableCell>
                         <TableCell className="text-xs sm:text-sm py-2">
-                          <span className="hidden sm:inline">
-                            {MONTHS[payment.month - 1]}
+                          <span className="inline">
+                            {MONTHS[payment.month - 1]}{" "}
                           </span>
-                          <span className="sm:hidden">
-                            {MONTHS[payment.month - 1].slice(0, 3)}
-                          </span>{" "}
+
                           {payment.year}
                         </TableCell>
-                        <TableCell className="hidden sm:table-cell text-sm">
+                        <TableCell className="table-cell text-sm">
                           Rp {payment.amount.toLocaleString("id-ID")}
                         </TableCell>
                         <TableCell className="py-2">
@@ -877,15 +892,8 @@ _Paguyuban Nijuuroku_`;
                               STATUS_COLORS[payment.status]
                             } text-xs`}
                           >
-                            <span className="hidden sm:inline">
+                            <span className="inline">
                               {STATUS_LABELS[payment.status]}
-                            </span>
-                            <span className="sm:hidden">
-                              {payment.status === "pending"
-                                ? "Pending"
-                                : payment.status === "paid"
-                                ? "Lunas"
-                                : "Belum"}
                             </span>
                           </Badge>
                         </TableCell>
