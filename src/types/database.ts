@@ -112,11 +112,12 @@ export interface Event {
 }
 
 export interface EventRsvp {
-  id: string;
-  event_id: string;
-  user_id: string;
-  status: string;
-  created_at: string;
+  id: string
+  event_id: string
+  user_id: string
+  status: "going" | "maybe" | "not_going"
+  created_at: string
+  updated_at?: string
 }
 
 export interface Payment {

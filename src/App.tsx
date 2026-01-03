@@ -24,6 +24,7 @@ import Finance from "./pages/Finance";
 import OrganizationStructure from "./pages/OrganizationStructure";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
+import EventDetails from "./pages/EventDetails";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,7 @@ function AppRoutes() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/announcements" element={<Announcements />} />
           <Route path="/events" element={<Events />} />
+          <Route path="/events/:id" element={<EventDetails />} />
           <Route path="/complaints" element={<Complaints />} />
           <Route path="/polls" element={<Polls />} />
           <Route path="/polls/:id" element={<PollsDetail />} />

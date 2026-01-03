@@ -47,7 +47,7 @@ import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   Plus,
-  Calendar as CalendarIcon,
+  CalendarIcon,
   MapPin,
   Users,
   Loader2,
@@ -268,10 +268,11 @@ export default function Events() {
           className="flex items-center justify-between"
         >
           <div className="flex items-center gap-4">
-            <Link to="/dashboard">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/dashboard">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            </Button>
             <div>
               <h1 className="font-display text-2xl font-bold">Acara</h1>
               <p className="text-muted-foreground">
@@ -289,7 +290,7 @@ export default function Events() {
               }}
             >
               <DialogTrigger asChild>
-                <Button className="w-12 h-12 rounded-full fixed bottom-4 right-4 md:rounded-sm md:static flex md:w-auto md:h-auto justify-center items-center">
+                <Button className="w-12 h-12 rounded-full absolute bottom-4 right-2 md:rounded-sm md:static flex md:w-auto md:h-auto justify-center items-center">
                   <Plus className="w-8 md:w-4 md:h-4 md:mr-2 mx-auto" />
                   <span className="hidden md:block">Buat Acara</span>
                 </Button>
@@ -417,25 +418,101 @@ export default function Events() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                   >
-                    <Card className="overflow-hidden">
-                      <div className="flex">
-                        <div className="w-20 bg-primary/10 flex flex-col items-center justify-center p-3 text-center">
-                          <span className="text-2xl font-bold text-primary">
-                            {format(new Date(event.event_date), "d")}
-                          </span>
-                          <span className="text-xs text-primary uppercase">
-                            {format(new Date(event.event_date), "MMM", {
-                              locale: idLocale,
-                            })}
-                          </span>
-                        </div>
-                        <div className="flex-1 p-4">
-                          <div className="flex flex-col justify-between gap-4">
-                            <div className="flex justify-between items-start">
-                              <h3 className="font-semibold text-lg">
-                                {event.title}
-                              </h3>
-                              <div className="hidden md:flex items-center gap-2">
+                    <Link to={`/events/${event.id}`}>
+                      <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
+                        <div className="flex">
+                          <div className="w-20 bg-primary/10 flex flex-col items-center justify-center p-3 text-center shrink-0">
+                            <span className="text-2xl font-bold text-primary">
+                              {format(new Date(event.event_date), "d")}
+                            </span>
+                            <span className="text-xs text-primary uppercase">
+                              {format(new Date(event.event_date), "MMM", {
+                                locale: idLocale,
+                              })}
+                            </span>
+                          </div>
+                          <div className="flex-1 p-4 min-w-0">
+                            <div className="flex flex-col justify-between gap-4">
+                              <div className="flex justify-between items-start gap-2">
+                                <h3 className="font-semibold text-lg truncate">
+                                  {event.title}
+                                </h3>
+                                <div className="hidden md:flex items-center gap-2 shrink-0">
+                                  <Button
+                                    variant={
+                                      isUserAttending(event.id)
+                                        ? "default"
+                                        : "outline"
+                                    }
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      rsvpMutation.mutate({
+                                        eventId: event.id,
+                                        isAttending:
+                                          isUserAttending(event.id) || false,
+                                      });
+                                    }}
+                                    disabled={rsvpMutation.isPending}
+                                  >
+                                    {isUserAttending(event.id) ? (
+                                      <>
+                                        <Check className="w-4 h-4 mr-1" />
+                                        Hadir
+                                      </>
+                                    ) : (
+                                      "Ikut"
+                                    )}
+                                  </Button>
+                                  {canManageContent() && (
+                                    <>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          handleEdit(event);
+                                        }}
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          setDeletingEvent(event);
+                                        }}
+                                      >
+                                        <Trash2 className="w-4 h-4 text-destructive" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="">
+                                {event.description && (
+                                  <p className="text-muted-foreground text-sm mt-1 line-clamp-2">
+                                    {event.description}
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                  {event.location && (
+                                    <span className="flex items-center gap-1 truncate">
+                                      <MapPin className="w-3 h-3 shrink-0" />
+                                      <span className="truncate">
+                                        {event.location}
+                                      </span>
+                                    </span>
+                                  )}
+                                  <span className="flex items-center gap-1 shrink-0">
+                                    <Users className="w-3 h-3" />
+                                    {getAttendeeCount(event.id)} peserta
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex md:hidden items-center gap-2">
                                 <Button
                                   variant={
                                     isUserAttending(event.id)
@@ -443,13 +520,14 @@ export default function Events() {
                                       : "outline"
                                   }
                                   size="sm"
-                                  onClick={() =>
+                                  onClick={(e) => {
+                                    e.preventDefault();
                                     rsvpMutation.mutate({
                                       eventId: event.id,
                                       isAttending:
                                         isUserAttending(event.id) || false,
-                                    })
-                                  }
+                                    });
+                                  }}
                                   disabled={rsvpMutation.isPending}
                                 >
                                   {isUserAttending(event.id) ? (
@@ -466,14 +544,20 @@ export default function Events() {
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      onClick={() => handleEdit(event)}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        handleEdit(event);
+                                      }}
                                     >
                                       <Edit className="w-4 h-4" />
                                     </Button>
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      onClick={() => setDeletingEvent(event)}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        setDeletingEvent(event);
+                                      }}
                                     >
                                       <Trash2 className="w-4 h-4 text-destructive" />
                                     </Button>
@@ -481,75 +565,10 @@ export default function Events() {
                                 )}
                               </div>
                             </div>
-
-                            <div className="">
-                              {event.description && (
-                                <p className="text-muted-foreground text-sm mt-1">
-                                  {event.description}
-                                </p>
-                              )}
-                              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                                {event.location && (
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="w-3 h-3" />
-                                    {event.location}
-                                  </span>
-                                )}
-                                <span className="flex items-center gap-1">
-                                  <Users className="w-3 h-3" />
-                                  {getAttendeeCount(event.id)} peserta
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex md:hidden items-center gap-2">
-                              <Button
-                                variant={
-                                  isUserAttending(event.id)
-                                    ? "default"
-                                    : "outline"
-                                }
-                                size="sm"
-                                onClick={() =>
-                                  rsvpMutation.mutate({
-                                    eventId: event.id,
-                                    isAttending:
-                                      isUserAttending(event.id) || false,
-                                  })
-                                }
-                                disabled={rsvpMutation.isPending}
-                              >
-                                {isUserAttending(event.id) ? (
-                                  <>
-                                    <Check className="w-4 h-4 mr-1" />
-                                    Hadir
-                                  </>
-                                ) : (
-                                  "Ikut"
-                                )}
-                              </Button>
-                              {canManageContent() && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEdit(event)}
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setDeletingEvent(event)}
-                                  >
-                                    <Trash2 className="w-4 h-4 text-destructive" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
                           </div>
                         </div>
-                      </div>
-                    </Card>
+                      </Card>
+                    </Link>
                   </motion.div>
                 ))}
               </div>
