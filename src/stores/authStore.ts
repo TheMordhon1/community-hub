@@ -9,6 +9,7 @@ interface AuthState {
   profile: Profile | null;
   role: AppRole | null;
   pengurusTitle: PengurusTitle | null;
+  hasFinanceAccess: boolean;
   isLoading: boolean;
   isInitialized: boolean;
 
@@ -18,6 +19,7 @@ interface AuthState {
   setProfile: (profile: Profile | null) => void;
   setRole: (role: AppRole | null) => void;
   setPengurusTitle: (title: PengurusTitle | null) => void;
+  setHasFinanceAccess: (hasAccess: boolean) => void;
   setIsLoading: (loading: boolean) => void;
   setIsInitialized: (initialized: boolean) => void;
 
@@ -43,6 +45,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   profile: null,
   role: null,
   pengurusTitle: null,
+  hasFinanceAccess: false,
   isLoading: true,
   isInitialized: false,
 
@@ -51,6 +54,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setProfile: (profile) => set({ profile }),
   setRole: (role) => set({ role }),
   setPengurusTitle: (pengurusTitle) => set({ pengurusTitle }),
+  setHasFinanceAccess: (hasFinanceAccess) => set({ hasFinanceAccess }),
   setIsLoading: (isLoading) => set({ isLoading }),
   setIsInitialized: (isInitialized) => set({ isInitialized }),
 
@@ -92,6 +96,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       profile: null,
       role: null,
       pengurusTitle: null,
+      hasFinanceAccess: false,
       isLoading: false,
     });
   },
@@ -111,14 +116,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   fetchRole: async (userId) => {
     const { data, error } = await supabase
       .from('user_roles')
-      .select('role, title')
+      .select('role, title_id, pengurus_titles(name, has_finance_access)')
       .eq('user_id', userId)
       .single();
 
     if (!error && data) {
+      const titleData = data.pengurus_titles as { name: string; has_finance_access: boolean } | null;
       set({
         role: data.role as AppRole,
-        pengurusTitle: data.title as PengurusTitle | null
+        pengurusTitle: titleData?.name as PengurusTitle | null,
+        hasFinanceAccess: titleData?.has_finance_access ?? false
       });
     }
   },

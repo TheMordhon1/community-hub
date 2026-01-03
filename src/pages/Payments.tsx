@@ -107,7 +107,7 @@ const STATUS_LABELS = {
 };
 
 export default function Payments() {
-  const { user, isAdmin, pengurusTitle, isPengurus } = useAuth();
+  const { user, isAdmin, hasFinanceAccess } = useAuth();
   const queryClient = useQueryClient();
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
@@ -138,8 +138,8 @@ export default function Payments() {
   });
   const [bendaharaTab, setBendaharaTab] = useState<"all" | "mine">("all");
 
-  const isBendahara = pengurusTitle === "bendahara";
-  const canVerify = isAdmin() || isPengurus();
+  // Only admin or users with finance access (bendahara) can verify
+  const canVerify = isAdmin() || hasFinanceAccess;
 
   // Get user's house
   const { data: userHouse } = useQuery({
