@@ -148,15 +148,10 @@ export default function Finance() {
   // Mutation for adding finance records
   const addRecord = useAddFinanceRecord();
 
-  const totalIncome =
-    records
-      ?.filter((r) => r.type === "income")
-      .reduce((sum, r) => sum + r.amount, 0) || 0;
-  const totalOutcome =
-    records
-      ?.filter((r) => r.type === "outcome")
-      .reduce((sum, r) => sum + r.amount, 0) || 0;
-  const balance = totalIncome - totalOutcome;
+  const totalBalance =
+    records?.reduce((sum, r) => {
+      return r.type === "income" ? sum + r.amount : sum - r.amount;
+    }, 0) || 0;
 
   // Filter records based on tab and date for display only
   const filteredRecords = records?.filter((r) => {
@@ -167,6 +162,16 @@ export default function Finance() {
     const yearMatch = date.getFullYear().toString() === filterYear;
     return typeMatch && monthMatch && yearMatch;
   });
+
+  const filteredIncome =
+    filteredRecords
+      ?.filter((r) => r.type === "income")
+      .reduce((sum, r) => sum + r.amount, 0) || 0;
+  const filteredOutcome =
+    filteredRecords
+      ?.filter((r) => r.type === "outcome")
+      .reduce((sum, r) => sum + r.amount, 0) || 0;
+  // Filter records based on tab and date for display only
 
   const groupedRecords = (() => {
     if (!filteredRecords) return [];
@@ -222,16 +227,16 @@ export default function Finance() {
     // Summary
     doc.setFontSize(11);
     doc.text(
-      `Total Pemasukan: Rp ${totalIncome.toLocaleString("id-ID")}`,
+      `Total Pemasukan: Rp ${filteredIncome.toLocaleString("id-ID")}`,
       14,
       52
     );
     doc.text(
-      `Total Pengeluaran: Rp ${totalOutcome.toLocaleString("id-ID")}`,
+      `Total Pengeluaran: Rp ${filteredOutcome.toLocaleString("id-ID")}`,
       14,
       60
     );
-    doc.text(`Saldo: Rp ${balance.toLocaleString("id-ID")}`, 14, 68);
+    doc.text(`Saldo: Rp ${totalBalance.toLocaleString("id-ID")}`, 14, 68);
 
     // Table
     const tableData =
@@ -308,7 +313,7 @@ export default function Finance() {
       Jenis: "",
       Kategori: "",
       Deskripsi: "Total Pemasukan",
-      Jumlah: totalIncome,
+      Jumlah: filteredIncome,
       "Dicatat Oleh": "",
     });
     data.push({
@@ -316,7 +321,7 @@ export default function Finance() {
       Jenis: "",
       Kategori: "",
       Deskripsi: "Total Pengeluaran",
-      Jumlah: totalOutcome,
+      Jumlah: filteredOutcome,
       "Dicatat Oleh": "",
     });
     data.push({
@@ -324,7 +329,7 @@ export default function Finance() {
       Jenis: "",
       Kategori: "",
       Deskripsi: "Saldo",
-      Jumlah: balance,
+      Jumlah: totalBalance,
       "Dicatat Oleh": "",
     });
 
@@ -405,7 +410,7 @@ export default function Finance() {
               <SelectValue placeholder="Tahun" />
             </SelectTrigger>
             <SelectContent>
-              {[2024, 2025, 2026].map((y) => (
+              {[2025, 2026, 2027].map((y) => (
                 <SelectItem key={y} value={y.toString()}>
                   {y}
                 </SelectItem>
@@ -425,7 +430,7 @@ export default function Finance() {
             </CardHeader>
             <CardContent>
               <div className="text-lg sm:text-2xl font-bold text-green-600">
-                Rp {totalIncome.toLocaleString("id-ID")}
+                Rp {filteredIncome.toLocaleString("id-ID")}
               </div>
             </CardContent>
           </Card>
@@ -439,14 +444,14 @@ export default function Finance() {
             </CardHeader>
             <CardContent>
               <div className="text-lg sm:text-2xl font-bold text-red-600">
-                Rp {totalOutcome.toLocaleString("id-ID")}
+                Rp {filteredOutcome.toLocaleString("id-ID")}
               </div>
             </CardContent>
           </Card>
 
           <Card
             className={
-              balance >= 0
+              totalBalance >= 0
                 ? "border-primary/20 bg-primary/5"
                 : "border-orange-500/20 bg-orange-500/5"
             }
@@ -455,21 +460,22 @@ export default function Finance() {
               <CardTitle className="text-sm font-medium">Saldo</CardTitle>
               <Wallet
                 className={`h-4 w-4 ${
-                  balance >= 0 ? "text-primary" : "text-orange-600"
+                  totalBalance >= 0 ? "text-primary" : "text-orange-600"
                 }`}
               />
             </CardHeader>
             <CardContent>
               <div
                 className={`text-lg sm:text-2xl font-bold ${
-                  balance >= 0 ? "text-primary" : "text-orange-600"
+                  totalBalance >= 0 ? "text-primary" : "text-orange-600"
                 }`}
               >
-                Rp {balance.toLocaleString("id-ID")}
+                Rp {totalBalance.toLocaleString("id-ID")}
               </div>
             </CardContent>
           </Card>
         </div>
+
         {canManageFinance && (
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <div className="flex justify-end">
@@ -608,179 +614,173 @@ export default function Finance() {
                 <Loader2 className="w-6 h-6 animate-spin" />
               </div>
             ) : groupedRecords && groupedRecords.length > 0 ? (
-              <ScrollArea className="w-full">
-                <div className="min-w-[650px] px-6 pb-6">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[100px]">Tanggal</TableHead>
-                        <TableHead className="w-[90px]">Jenis</TableHead>
-                        <TableHead className="w-[110px]">Kategori</TableHead>
-                        <TableHead className="min-w-[180px]">
-                          Deskripsi
-                        </TableHead>
-                        <TableHead className="w-[130px]">Jumlah</TableHead>
-                        <TableHead className="min-w-[150px]">
-                          Dicatat Oleh
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {groupedRecords.map((record) => {
-                        if (record.isGroup) {
-                          return (
-                            <>
-                              <TableRow
-                                key={record.id}
-                                className="cursor-pointer hover:bg-muted/50"
-                                onClick={() =>
-                                  setIsIuranExpanded(!isIuranExpanded)
-                                }
-                              >
-                                <TableCell className="text-xs sm:text-sm font-medium whitespace-nowrap">
-                                  <div className="flex items-center gap-2">
-                                    {isIuranExpanded ? (
-                                      <ChevronDown className="w-4 h-4" />
-                                    ) : (
-                                      <ChevronRight className="w-4 h-4" />
-                                    )}
+              <ScrollArea>
+                <Table className="w-full">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[100px]">Tanggal</TableHead>
+                      <TableHead className="w-[90px]">Jenis</TableHead>
+                      <TableHead className="w-[110px]">Kategori</TableHead>
+                      <TableHead className="min-w-[180px]">Deskripsi</TableHead>
+                      <TableHead className="w-[130px]">Jumlah</TableHead>
+                      <TableHead className="min-w-[150px]">
+                        Dicatat Oleh
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {groupedRecords.map((record) => {
+                      if (record.isGroup) {
+                        return (
+                          <>
+                            <TableRow
+                              key={record.id}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() =>
+                                setIsIuranExpanded(!isIuranExpanded)
+                              }
+                            >
+                              <TableCell className="text-xs sm:text-sm font-medium whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  {isIuranExpanded ? (
+                                    <ChevronDown className="w-4 h-4" />
+                                  ) : (
+                                    <ChevronRight className="w-4 h-4" />
+                                  )}
+                                  {format(
+                                    new Date(record.transaction_date),
+                                    "dd/MM/yyyy"
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="default"
+                                  className="text-xs whitespace-nowrap bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20"
+                                >
+                                  <ArrowUpCircle className="w-3 h-3 mr-1" />
+                                  Masuk
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm capitalize font-semibold">
+                                {record.category}
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm font-medium">
+                                {record.description}
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm font-bold whitespace-nowrap text-green-600">
+                                + Rp {record.amount.toLocaleString("id-ID")}
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm text-muted-foreground">
+                                -
+                              </TableCell>
+                            </TableRow>
+                            {isIuranExpanded &&
+                              record?.groupRecords?.map((iuranRecord) => (
+                                <TableRow
+                                  key={iuranRecord.id}
+                                  className="bg-muted/30"
+                                >
+                                  <TableCell className="text-xs sm:text-sm font-medium whitespace-nowrap pl-10">
                                     {format(
-                                      new Date(record.transaction_date),
+                                      new Date(iuranRecord.transaction_date),
                                       "dd/MM/yyyy"
                                     )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant="default"
-                                    className="text-xs whitespace-nowrap bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20"
-                                  >
-                                    <ArrowUpCircle className="w-3 h-3 mr-1" />
-                                    Masuk
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-xs sm:text-sm capitalize font-semibold">
-                                  {record.category}
-                                </TableCell>
-                                <TableCell className="text-xs sm:text-sm font-medium">
-                                  {record.description}
-                                </TableCell>
-                                <TableCell className="text-xs sm:text-sm font-bold whitespace-nowrap text-green-600">
-                                  + Rp {record.amount.toLocaleString("id-ID")}
-                                </TableCell>
-                                <TableCell className="text-xs sm:text-sm text-muted-foreground">
-                                  -
-                                </TableCell>
-                              </TableRow>
-                              {isIuranExpanded &&
-                                record?.groupRecords?.map((iuranRecord) => (
-                                  <TableRow
-                                    key={iuranRecord.id}
-                                    className="bg-muted/30"
-                                  >
-                                    <TableCell className="text-xs sm:text-sm font-medium whitespace-nowrap pl-10">
-                                      {format(
-                                        new Date(iuranRecord.transaction_date),
-                                        "dd/MM/yyyy"
-                                      )}
-                                      ff
-                                    </TableCell>
-                                    <TableCell>
-                                      <Badge
-                                        variant="default"
-                                        className="text-xs whitespace-nowrap bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20"
-                                      >
-                                        <ArrowUpCircle className="w-3 h-3 mr-1" />
-                                        Masuk
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-xs sm:text-sm capitalize">
-                                      {iuranRecord.category}
-                                    </TableCell>
-                                    <TableCell className="text-xs sm:text-sm">
-                                      <div
-                                        className="max-w-[250px] truncate"
-                                        title={iuranRecord.description}
-                                      >
-                                        {iuranRecord.description}
-                                      </div>
-                                    </TableCell>
-                                    <TableCell className="text-xs sm:text-sm font-semibold whitespace-nowrap text-green-600">
-                                      + Rp{" "}
-                                      {iuranRecord.amount.toLocaleString(
-                                        "id-ID"
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="text-xs sm:text-sm text-muted-foreground">
-                                      {iuranRecord.recorder?.full_name ||
-                                        "Sistem"}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                            </>
-                          );
-                        }
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge
+                                      variant="default"
+                                      className="text-xs whitespace-nowrap bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20"
+                                    >
+                                      <ArrowUpCircle className="w-3 h-3 mr-1" />
+                                      Masuk
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-xs sm:text-sm capitalize">
+                                    {iuranRecord.category}
+                                  </TableCell>
+                                  <TableCell className="text-xs sm:text-sm">
+                                    <div
+                                      className="max-w-[250px] truncate"
+                                      title={iuranRecord.description}
+                                    >
+                                      {iuranRecord.description}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-xs sm:text-sm font-semibold whitespace-nowrap text-green-600">
+                                    + Rp{" "}
+                                    {iuranRecord.amount.toLocaleString("id-ID")}
+                                  </TableCell>
+                                  <TableCell className="text-xs sm:text-sm text-muted-foreground">
+                                    {iuranRecord.recorder?.full_name ||
+                                      "Sistem"}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                          </>
+                        );
+                      }
 
-                        // Regular record row (non-iuran)
-                        return (
-                          <TableRow key={record.id}>
-                            <TableCell className="text-xs sm:text-sm font-medium whitespace-nowrap">
-                              {format(
-                                new Date(record.transaction_date),
-                                "dd/MM/yyyy"
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  record.type === "income"
-                                    ? "default"
-                                    : "secondary"
-                                }
-                                className={`text-xs whitespace-nowrap ${
-                                  record.type === "income"
-                                    ? "bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20"
-                                    : "bg-red-500/10 text-red-700 dark:text-red-400 hover:bg-red-500/20"
-                                }`}
-                              >
-                                {record.type === "income" ? (
-                                  <ArrowUpCircle className="w-3 h-3 mr-1" />
-                                ) : (
-                                  <ArrowDownCircle className="w-3 h-3 mr-1" />
-                                )}
-                                {record.type === "income" ? "Masuk" : "Keluar"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-xs sm:text-sm capitalize">
-                              {record.category}
-                            </TableCell>
-                            <TableCell className="text-xs sm:text-sm">
-                              <div
-                                className="max-w-[250px] line-clamp-1 hover:line-clamp-none"
-                                title={record.description}
-                              >
-                                {record.description}
-                              </div>
-                            </TableCell>
-                            <TableCell
-                              className={`text-xs sm:text-sm font-semibold whitespace-nowrap ${
+                      // Regular record row (non-iuran)
+                      return (
+                        <TableRow key={record.id}>
+                          <TableCell className="text-xs sm:text-sm font-medium whitespace-nowrap">
+                            {format(
+                              new Date(record.transaction_date),
+                              "dd/MM/yyyy"
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
                                 record.type === "income"
-                                  ? "text-green-600"
-                                  : "text-red-600"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                              className={`text-xs whitespace-nowrap ${
+                                record.type === "income"
+                                  ? "bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20"
+                                  : "bg-red-500/10 text-red-700 dark:text-red-400 hover:bg-red-500/20"
                               }`}
                             >
-                              {record.type === "income" ? "+" : "-"} Rp{" "}
-                              {record.amount.toLocaleString("id-ID")}
-                            </TableCell>
-                            <TableCell className="text-xs sm:text-sm text-muted-foreground">
-                              {record.recorder?.full_name || "Sistem"}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
+                              {record.type === "income" ? (
+                                <ArrowUpCircle className="w-3 h-3 mr-1" />
+                              ) : (
+                                <ArrowDownCircle className="w-3 h-3 mr-1" />
+                              )}
+                              {record.type === "income" ? "Masuk" : "Keluar"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm capitalize">
+                            {record.category}
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm">
+                            <div
+                              className="max-w-[250px] line-clamp-1 hover:line-clamp-none"
+                              title={record.description}
+                            >
+                              {record.description}
+                            </div>
+                          </TableCell>
+                          <TableCell
+                            className={`text-xs sm:text-sm font-semibold whitespace-nowrap ${
+                              record.type === "income"
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {record.type === "income" ? "+" : "-"} Rp{" "}
+                            {record.amount.toLocaleString("id-ID")}
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm text-muted-foreground">
+                            {record.recorder?.full_name || "Sistem"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
             ) : (

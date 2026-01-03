@@ -231,7 +231,7 @@ export default function AdminUsers() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center gap-4"
+          className="flex flex-row items-center gap-4"
         >
           <Link to="/dashboard">
             <ArrowLeft className="w-5 h-5" />
@@ -325,12 +325,10 @@ export default function AdminUsers() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nama</TableHead>
-                      <TableHead className="hidden md:table-cell">
-                        Email
-                      </TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead className="hidden sm:table-cell">
+                      <TableHead className="min-w-[200px]">Nama</TableHead>
+                      <TableHead className="table-cell">Email</TableHead>
+                      <TableHead className="min-w-[200px]">Role</TableHead>
+                      <TableHead className="min-w-[150px] table-cell">
                         Terdaftar
                       </TableHead>
                       <TableHead className="text-right">Aksi</TableHead>
@@ -342,12 +340,9 @@ export default function AdminUsers() {
                         <TableCell className="font-medium">
                           <div>
                             <p>{user.full_name}</p>
-                            <p className="text-xs text-muted-foreground md:hidden">
-                              {user.email}
-                            </p>
                           </div>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
+                        <TableCell className="table-cell">
                           {user.email}
                         </TableCell>
                         <TableCell>
@@ -356,7 +351,7 @@ export default function AdminUsers() {
                             user.user_role?.pengurus_title
                           )}
                         </TableCell>
-                        <TableCell className="hidden sm:table-cell">
+                        <TableCell className="table-cell">
                           {new Date(user.created_at).toLocaleDateString(
                             "id-ID",
                             {
@@ -373,7 +368,7 @@ export default function AdminUsers() {
                             onClick={() => handleEditRole(user)}
                           >
                             <UserCog className="w-4 h-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Ubah Role</span>
+                            <span className="inline">Ubah Role</span>
                           </Button>
                         </TableCell>
                       </TableRow>

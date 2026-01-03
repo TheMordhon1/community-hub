@@ -3,9 +3,9 @@ import { User, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from "@/types/database";
 import {
-  useSidebarMainMenus,
-  useSidebarPengurusMenus,
   useSidebarAdminMenus,
+  usePengurusMenus,
+  useSidebarMainMenus,
 } from "@/hooks/useMenus";
 import { DynamicIcon } from "@/components/DynamicIcon";
 import {
@@ -30,10 +30,11 @@ export function AppSidebar() {
   const location = useLocation();
   const { profile, role, pengurusTitle, signOut, isAdmin, canManageContent } =
     useAuth();
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, isMobile } = useSidebar();
 
   const { data: mainMenus, isLoading: mainLoading } = useSidebarMainMenus();
-  const { data: pengurusMenus, isLoading: pengurusLoading } = useSidebarPengurusMenus();
+  const { data: pengurusMenus, isLoading: pengurusLoading } =
+    usePengurusMenus();
   const { data: adminMenus, isLoading: adminLoading } = useSidebarAdminMenus();
 
   const isActive = (path: string) => location.pathname === path;
@@ -44,6 +45,12 @@ export function AppSidebar() {
       return PENGURUS_TITLE_LABELS[pengurusTitle];
     }
     return ROLE_LABELS[role];
+  };
+
+  const closeSidebarOnMobile = () => {
+    if (isMobile) {
+      toggleSidebar();
+    }
   };
 
   return (
@@ -77,7 +84,7 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       asChild
                       isActive={isActive(item.url)}
-                      onClick={toggleSidebar}
+                      onClick={closeSidebarOnMobile}
                     >
                       <Link to={item.url}>
                         <DynamicIcon name={item.icon} className="w-4 h-4" />
@@ -106,7 +113,7 @@ export function AppSidebar() {
                         <SidebarMenuButton
                           asChild
                           isActive={isActive(item.url)}
-                          onClick={toggleSidebar}
+                          onClick={closeSidebarOnMobile}
                         >
                           <Link to={item.url}>
                             <DynamicIcon name={item.icon} className="w-4 h-4" />
@@ -139,7 +146,7 @@ export function AppSidebar() {
                         <SidebarMenuButton
                           asChild
                           isActive={isActive(item.url)}
-                          onClick={toggleSidebar}
+                          onClick={closeSidebarOnMobile}
                         >
                           <Link to={item.url}>
                             <DynamicIcon name={item.icon} className="w-4 h-4" />
@@ -185,7 +192,7 @@ export function AppSidebar() {
             size="sm"
             className="flex-1 justify-start text-sidebar-foreground hover:bg-sidebar-accent"
             asChild
-            onClick={toggleSidebar}
+            onClick={closeSidebarOnMobile}
           >
             <Link to="/profile">
               <User className="w-4 h-4 mr-2" />
