@@ -368,6 +368,63 @@ export type Database = {
         }
         Relationships: []
       }
+      menus: {
+        Row: {
+          color: string | null
+          created_at: string
+          icon: string
+          id: string
+          is_active: boolean
+          name: string
+          order_index: number
+          show_in_admin_menu: boolean
+          show_in_pengurus_menu: boolean
+          show_in_quick_menu: boolean
+          show_in_sidebar_admin: boolean
+          show_in_sidebar_main: boolean
+          show_in_sidebar_pengurus: boolean
+          title: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          icon: string
+          id?: string
+          is_active?: boolean
+          name: string
+          order_index?: number
+          show_in_admin_menu?: boolean
+          show_in_pengurus_menu?: boolean
+          show_in_quick_menu?: boolean
+          show_in_sidebar_admin?: boolean
+          show_in_sidebar_main?: boolean
+          show_in_sidebar_pengurus?: boolean
+          title: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          icon?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          order_index?: number
+          show_in_admin_menu?: boolean
+          show_in_pengurus_menu?: boolean
+          show_in_quick_menu?: boolean
+          show_in_sidebar_admin?: boolean
+          show_in_sidebar_main?: boolean
+          show_in_sidebar_pengurus?: boolean
+          title?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number

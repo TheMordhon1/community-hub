@@ -8,22 +8,20 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  FileText,
-  Calendar,
-  MessageSquare,
-  Vote,
-  Map,
-  CreditCard,
-  Users,
-  Settings,
-} from "lucide-react";
+import { FileText, Calendar, MessageSquare, Vote } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuickMenus, usePengurusMenus, useAdminMenus } from "@/hooks/useMenus";
+import { DynamicIcon } from "@/components/DynamicIcon";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Dashboard() {
   const { profile, isAdmin, canManageContent } = useAuth();
+
+  const { data: quickMenus, isLoading: quickLoading } = useQuickMenus();
+  const { data: pengurusMenus, isLoading: pengurusLoading } = usePengurusMenus();
+  const { data: adminMenus, isLoading: adminLoading } = useAdminMenus();
 
   const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ["dashboard", "stats"],
@@ -80,59 +78,6 @@ export default function Dashboard() {
     },
   ];
 
-  const quickActions = [
-    {
-      label: "Pengumuman",
-      icon: FileText,
-      color: "text-primary",
-      href: "/announcements",
-    },
-    { label: "Acara", icon: Calendar, color: "text-accent", href: "/events" },
-    {
-      label: "Pengaduan",
-      icon: MessageSquare,
-      color: "text-warning",
-      href: "/complaints",
-    },
-    { label: "Polling", icon: Vote, color: "text-info", href: "/polls" },
-    {
-      label: "Pembayaran",
-      icon: CreditCard,
-      color: "text-success",
-      href: "/payments",
-    },
-    {
-      label: "Peta Rumah",
-      icon: Map,
-      color: "text-success",
-      href: "/house-map",
-    },
-  ];
-
-  const adminActions = [
-    {
-      label: "Kelola Warga",
-      icon: Users,
-      color: "text-secondary",
-      href: "/admin/users",
-    },
-    {
-      label: "Pengaturan",
-      icon: Settings,
-      color: "text-muted-foreground",
-      href: "/admin/settings",
-    },
-  ];
-
-  const pengurusActions = [
-    {
-      label: "Kelola Iuran",
-      icon: CreditCard,
-      color: "text-success",
-      href: "/payments",
-    },
-  ];
-
   return (
     <div className="p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -185,19 +130,26 @@ export default function Dashboard() {
             <CardDescription>Akses fitur-fitur utama</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {quickActions.map((action) => (
-              <Button
-                key={action.label}
-                variant="outline"
-                className="h-auto py-4 flex-col gap-2 hover:bg-muted"
-                asChild
-              >
-                <Link to={action.href}>
-                  <action.icon className={`w-6 h-6 ${action.color}`} />
-                  <span>{action.label}</span>
-                </Link>
-              </Button>
-            ))}
+            {quickLoading ? (
+              <MenuButtonSkeleton count={6} />
+            ) : (
+              quickMenus?.map((action) => (
+                <Button
+                  key={action.id}
+                  variant="outline"
+                  className="h-auto py-4 flex-col gap-2 hover:bg-muted"
+                  asChild
+                >
+                  <Link to={action.url}>
+                    <DynamicIcon
+                      name={action.icon}
+                      className={`w-6 h-6 ${action.color}`}
+                    />
+                    <span>{action.title}</span>
+                  </Link>
+                </Button>
+              ))
+            )}
           </CardContent>
         </Card>
 
@@ -209,19 +161,26 @@ export default function Dashboard() {
               <CardDescription>Kelola fitur khusus pengurus</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {pengurusActions.map((action) => (
-                <Button
-                  key={action.label}
-                  variant="outline"
-                  className="h-auto py-4 flex-col gap-2 hover:bg-muted"
-                  asChild
-                >
-                  <Link to={action.href}>
-                    <action.icon className={`w-6 h-6 ${action.color}`} />
-                    <span>{action.label}</span>
-                  </Link>
-                </Button>
-              ))}
+              {pengurusLoading ? (
+                <MenuButtonSkeleton count={2} />
+              ) : (
+                pengurusMenus?.map((action) => (
+                  <Button
+                    key={action.id}
+                    variant="outline"
+                    className="h-auto py-4 flex-col gap-2 hover:bg-muted"
+                    asChild
+                  >
+                    <Link to={action.url}>
+                      <DynamicIcon
+                        name={action.icon}
+                        className={`w-6 h-6 ${action.color}`}
+                      />
+                      <span>{action.title}</span>
+                    </Link>
+                  </Button>
+                ))
+              )}
             </CardContent>
           </Card>
         )}
@@ -236,23 +195,40 @@ export default function Dashboard() {
               <CardDescription>Kelola sistem dan pengguna</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {adminActions.map((action) => (
-                <Button
-                  key={action.label}
-                  variant="outline"
-                  className="h-auto py-4 flex-col gap-2 hover:bg-muted"
-                  asChild
-                >
-                  <Link to={action.href}>
-                    <action.icon className={`w-6 h-6 ${action.color}`} />
-                    <span>{action.label}</span>
-                  </Link>
-                </Button>
-              ))}
+              {adminLoading ? (
+                <MenuButtonSkeleton count={2} />
+              ) : (
+                adminMenus?.map((action) => (
+                  <Button
+                    key={action.id}
+                    variant="outline"
+                    className="h-auto py-4 flex-col gap-2 hover:bg-muted"
+                    asChild
+                  >
+                    <Link to={action.url}>
+                      <DynamicIcon
+                        name={action.icon}
+                        className={`w-6 h-6 ${action.color}`}
+                      />
+                      <span>{action.title}</span>
+                    </Link>
+                  </Button>
+                ))
+              )}
             </CardContent>
           </Card>
         )}
       </div>
     </div>
+  );
+}
+
+function MenuButtonSkeleton({ count }: { count: number }) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <Skeleton key={i} className="h-20 w-full rounded-md" />
+      ))}
+    </>
   );
 }

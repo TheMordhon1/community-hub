@@ -1,22 +1,13 @@
 import { Link, useLocation } from "react-router-dom";
-import {
-  Home,
-  FileText,
-  Calendar,
-  MessageSquare,
-  Vote,
-  User,
-  Users,
-  Settings,
-  CreditCard,
-  Map,
-  LogOut,
-  Building2,
-  Wallet,
-  BadgeCheck,
-} from "lucide-react";
+import { User, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from "@/types/database";
+import {
+  useSidebarMainMenus,
+  useSidebarPengurusMenus,
+  useSidebarAdminMenus,
+} from "@/hooks/useMenus";
+import { DynamicIcon } from "@/components/DynamicIcon";
 import {
   Sidebar,
   SidebarContent,
@@ -33,34 +24,17 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-
-const mainMenuItems = [
-  { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "Pengumuman", url: "/announcements", icon: FileText },
-  { title: "Acara", url: "/events", icon: Calendar },
-  { title: "Pengaduan", url: "/complaints", icon: MessageSquare },
-  { title: "IPL", url: "/payments", icon: CreditCard },
-  { title: "Polling", url: "/polls", icon: Vote },
-  { title: "Struktur Organisasi", url: "/organization", icon: Users },
-  { title: "Peta Rumah", url: "/house-map", icon: Map },
-];
-
-const pengurusMenuItems = [
-  { title: "Kelola Rumah", url: "/admin/houses", icon: Building2 },
-  { title: "Keuangan", url: "/finance", icon: Wallet },
-];
-
-const adminMenuItems = [
-  { title: "Kelola Warga", url: "/admin/users", icon: Users },
-  { title: "Kelola Jabatan", url: "/admin/titles", icon: BadgeCheck },
-  { title: "Pengaturan", url: "/admin/settings", icon: Settings },
-];
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function AppSidebar() {
   const location = useLocation();
   const { profile, role, pengurusTitle, signOut, isAdmin, canManageContent } =
     useAuth();
   const { toggleSidebar } = useSidebar();
+
+  const { data: mainMenus, isLoading: mainLoading } = useSidebarMainMenus();
+  const { data: pengurusMenus, isLoading: pengurusLoading } = useSidebarPengurusMenus();
+  const { data: adminMenus, isLoading: adminLoading } = useSidebarAdminMenus();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -95,20 +69,24 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu Utama</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainMenuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.url)}
-                    onClick={toggleSidebar}
-                  >
-                    <Link to={item.url}>
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {mainLoading ? (
+                <MenuSkeleton />
+              ) : (
+                mainMenus?.map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(item.url)}
+                      onClick={toggleSidebar}
+                    >
+                      <Link to={item.url}>
+                        <DynamicIcon name={item.icon} className="w-4 h-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -120,20 +98,24 @@ export function AppSidebar() {
               <SidebarGroupLabel>Menu Pengurus</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {pengurusMenuItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isActive(item.url)}
-                        onClick={toggleSidebar}
-                      >
-                        <Link to={item.url}>
-                          <item.icon className="w-4 h-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {pengurusLoading ? (
+                    <MenuSkeleton count={2} />
+                  ) : (
+                    pengurusMenus?.map((item) => (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive(item.url)}
+                          onClick={toggleSidebar}
+                        >
+                          <Link to={item.url}>
+                            <DynamicIcon name={item.icon} className="w-4 h-4" />
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -149,20 +131,24 @@ export function AppSidebar() {
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {adminMenuItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isActive(item.url)}
-                        onClick={toggleSidebar}
-                      >
-                        <Link to={item.url}>
-                          <item.icon className="w-4 h-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {adminLoading ? (
+                    <MenuSkeleton count={3} />
+                  ) : (
+                    adminMenus?.map((item) => (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive(item.url)}
+                          onClick={toggleSidebar}
+                        >
+                          <Link to={item.url}>
+                            <DynamicIcon name={item.icon} className="w-4 h-4" />
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -217,5 +203,20 @@ export function AppSidebar() {
         </div>
       </SidebarFooter>
     </Sidebar>
+  );
+}
+
+function MenuSkeleton({ count = 4 }: { count?: number }) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <SidebarMenuItem key={i}>
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <Skeleton className="w-4 h-4 rounded" />
+            <Skeleton className="w-24 h-4 rounded" />
+          </div>
+        </SidebarMenuItem>
+      ))}
+    </>
   );
 }
