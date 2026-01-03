@@ -320,11 +320,10 @@ export default function Polls() {
           className="flex items-center justify-between"
         >
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/dashboard">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-            </Button>
+            <Link to="/dashboard">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+
             <div>
               <h1 className="font-display text-2xl font-bold">Polling</h1>
               <p className="text-muted-foreground">
@@ -342,9 +341,9 @@ export default function Polls() {
               }}
             >
               <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Buat Polling
+                <Button className="w-12 h-12 rounded-full fixed z-10 bottom-4 right-4 md:rounded-sm md:static flex md:w-auto md:h-auto justify-center items-center">
+                  <Plus className="w-8 md:w-4 md:h-4 md:mr-2 mx-auto" />
+                  <span className="hidden md:block">Buat Polling</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">

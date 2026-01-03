@@ -17,9 +17,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from "@/types/database";
-import { Loader2, Pencil, Save, X, Camera, Trash2 } from "lucide-react";
+import {
+  Loader2,
+  Pencil,
+  Save,
+  X,
+  Camera,
+  Trash2,
+  ArrowLeft,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "react-router-dom";
 
 const profileSchema = z.object({
   full_name: z
@@ -241,9 +250,20 @@ export default function Profile() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between"
         >
-          <h1 className="font-display text-2xl font-bold">Profil Saya</h1>
-          <p className="text-muted-foreground">Kelola informasi akun Anda</p>
+          <div className="flex items-center gap-4">
+            <Link to="/dashboard">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+
+            <div>
+              <h1 className="font-display text-2xl font-bold">Profil Saya</h1>
+              <p className="text-muted-foreground">
+                Kelola informasi akun Anda
+              </p>
+            </div>
+          </div>
         </motion.div>
 
         <motion.div

@@ -162,7 +162,7 @@ export default function Dashboard() {
               <Card className="hover:shadow-lg transition-shadow">
                 <CardContent className="p-4 flex items-center gap-4">
                   <div
-                    className={`w-10 h-10 rounded-lg bg-muted flex items-center justify-center ${stat.color}`}
+                    className={`w-10 h-10 rounded-lg sm:bg-muted flex items-center justify-center ${stat.color}`}
                   >
                     <stat.icon className="w-5 h-5" />
                   </div>

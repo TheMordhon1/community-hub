@@ -220,11 +220,10 @@ export default function Complaints() {
           className="flex items-center justify-between"
         >
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/dashboard">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-            </Button>
+            <Link to="/dashboard">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+
             <div>
               <h1 className="font-display text-2xl font-bold">Pengaduan</h1>
               <p className="text-muted-foreground">

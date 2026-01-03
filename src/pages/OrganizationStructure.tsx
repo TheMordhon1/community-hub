@@ -97,11 +97,10 @@ export default function OrganizationStructure() {
           className="space-y-1"
         >
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/dashboard">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-            </Button>
+            <Link to="/dashboard">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+
             <div>
               <h1 className="font-display text-xl md:text-2xl font-bold">
                 Struktur Organisasi

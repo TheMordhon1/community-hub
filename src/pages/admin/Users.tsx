@@ -233,14 +233,17 @@ export default function AdminUsers() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col sm:flex-row sm:items-center gap-4"
         >
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/dashboard">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-          </Button>
+          <Link to="/dashboard">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+
           <div>
-            <h1 className="font-display text-xl md:text-2xl font-bold">Kelola Pengguna</h1>
-            <p className="text-sm text-muted-foreground">Atur role dan jabatan warga</p>
+            <h1 className="font-display text-xl md:text-2xl font-bold">
+              Kelola Pengguna
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Atur role dan jabatan warga
+            </p>
           </div>
         </motion.div>
 
@@ -323,9 +326,13 @@ export default function AdminUsers() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nama</TableHead>
-                      <TableHead className="hidden md:table-cell">Email</TableHead>
+                      <TableHead className="hidden md:table-cell">
+                        Email
+                      </TableHead>
                       <TableHead>Role</TableHead>
-                      <TableHead className="hidden sm:table-cell">Terdaftar</TableHead>
+                      <TableHead className="hidden sm:table-cell">
+                        Terdaftar
+                      </TableHead>
                       <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -340,7 +347,9 @@ export default function AdminUsers() {
                             </p>
                           </div>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">{user.email}</TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {user.email}
+                        </TableCell>
                         <TableCell>
                           {getRoleBadge(
                             user.user_role?.role,
@@ -407,10 +416,7 @@ export default function AdminUsers() {
               {newRole === "pengurus" && (
                 <div className="space-y-2">
                   <Label>Jabatan Pengurus</Label>
-                  <Select
-                    value={newTitleId}
-                    onValueChange={setNewTitleId}
-                  >
+                  <Select value={newTitleId} onValueChange={setNewTitleId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih jabatan" />
                     </SelectTrigger>
@@ -427,7 +433,11 @@ export default function AdminUsers() {
             </div>
 
             <DialogFooter className="flex-col sm:flex-row gap-2">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
+              <Button
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+                className="w-full sm:w-auto"
+              >
                 Batal
               </Button>
               <Button

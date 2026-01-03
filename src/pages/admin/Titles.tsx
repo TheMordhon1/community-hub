@@ -286,11 +286,10 @@ export default function AdminTitles() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col sm:flex-row sm:items-center gap-4"
         >
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/dashboard">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-          </Button>
+          <Link to="/dashboard">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+
           <div className="flex-1">
             <h1 className="font-display text-xl md:text-2xl font-bold">
               Kelola Jabatan Pengurus

@@ -448,11 +448,10 @@ _Paguyuban Nijuuroku_`;
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/dashboard">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-            </Button>
+            <Link to="/dashboard">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+
             <div>
               <h1 className="text-xl sm:text-2xl font-display font-bold">
                 Pembayaran Iuran

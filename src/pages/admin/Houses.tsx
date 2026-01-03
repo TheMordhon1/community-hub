@@ -62,6 +62,7 @@ import {
 } from "lucide-react";
 import type { House } from "@/types/database";
 import { Link } from "react-router-dom";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface HouseResident {
   id: string;
@@ -95,7 +96,9 @@ export default function AdminHouses() {
     null
   );
   const [newHouseId, setNewHouseId] = useState("");
-  const [deletingHouse, setDeletingHouse] = useState<HouseWithResidents | null>(null);
+  const [deletingHouse, setDeletingHouse] = useState<HouseWithResidents | null>(
+    null
+  );
 
   const { data: housesData, isLoading } = useQuery({
     queryKey: ["houses-with-residents"],
@@ -121,7 +124,12 @@ export default function AdminHouses() {
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("id, full_name, email, phone, avatar_url")
-        .in("id", userIds.length > 0 ? userIds : ["00000000-0000-0000-0000-000000000000"]);
+        .in(
+          "id",
+          userIds.length > 0
+            ? userIds
+            : ["00000000-0000-0000-0000-000000000000"]
+        );
 
       if (profilesError) throw profilesError;
 
@@ -129,19 +137,21 @@ export default function AdminHouses() {
       const profilesMap = new Map(profiles?.map((p) => [p.id, p]) ?? []);
 
       // Map residents with their profiles
-      const residentsWithProfiles: HouseResident[] = (residents ?? []).map((r) => ({
-        id: r.id,
-        user_id: r.user_id,
-        house_id: r.house_id,
-        is_owner: r.is_owner ?? false,
-        profiles: profilesMap.get(r.user_id) ?? {
-          id: r.user_id,
-          full_name: "Unknown",
-          email: "",
-          phone: null,
-          avatar_url: null,
-        },
-      }));
+      const residentsWithProfiles: HouseResident[] = (residents ?? []).map(
+        (r) => ({
+          id: r.id,
+          user_id: r.user_id,
+          house_id: r.house_id,
+          is_owner: r.is_owner ?? false,
+          profiles: profilesMap.get(r.user_id) ?? {
+            id: r.user_id,
+            full_name: "Unknown",
+            email: "",
+            phone: null,
+            avatar_url: null,
+          },
+        })
+      );
 
       // Map residents to houses
       const housesWithResidents: HouseWithResidents[] = (houses as House[]).map(
@@ -347,11 +357,10 @@ export default function AdminHouses() {
           className="flex items-center justify-between"
         >
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/dashboard">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-            </Button>
+            <Link to="/dashboard">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+
             <div>
               <h1 className="font-display text-2xl font-bold">Kelola Rumah</h1>
               <p className="text-muted-foreground">
@@ -367,9 +376,9 @@ export default function AdminHouses() {
             }}
           >
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Tambah Rumah
+              <Button className="w-12 h-12 rounded-full fixed z-10 bottom-4 right-4 md:rounded-sm md:static flex md:w-auto md:h-auto justify-center items-center">
+                <Plus className="w-8 md:w-4 md:h-4 md:mr-2 mx-auto" />
+                <span className="hidden md:block">Tambah Rumah</span>
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -443,89 +452,94 @@ export default function AdminHouses() {
                 Belum ada data rumah. Klik "Tambah Rumah" untuk menambahkan.
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Blok</TableHead>
-                    <TableHead>Nomor</TableHead>
-                    <TableHead>Penghuni</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {houses.map((house) => (
-                    <TableRow key={house.id}>
-                      <TableCell className="font-medium">
-                        {house.block}
-                      </TableCell>
-                      <TableCell>{house.number}</TableCell>
-                      <TableCell>
-                        {house.residents.length === 0 ? (
-                          <span className="text-muted-foreground">-</span>
-                        ) : house.residents.length === 1 ? (
-                          <div className="flex items-center gap-2">
-                            <Avatar className="w-6 h-6">
-                              <AvatarImage
-                                src={
-                                  house.residents[0].profiles?.avatar_url ||
-                                  undefined
-                                }
-                              />
-                              <AvatarFallback className="text-xs">
-                                {getInitials(
-                                  house.residents[0].profiles?.full_name || "?"
-                                )}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm">
-                              {house.residents[0].profiles?.full_name}
-                            </span>
-                          </div>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedResidentsHouse(house)}
-                            className="gap-1"
-                          >
-                            <Users className="w-4 h-4" />
-                            {house.residents.length} penghuni
-                          </Button>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {house.is_occupied ? (
-                          <Badge className="bg-success/10 text-success">
-                            Dihuni
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">Kosong</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEdit(house)}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeletingHouse(house)}
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ScrollArea className="w-full">
+                <div className="min-w-[600px] px-6 pb-6">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Blok</TableHead>
+                        <TableHead>Nomor</TableHead>
+                        <TableHead>Penghuni</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {houses.map((house) => (
+                        <TableRow key={house.id}>
+                          <TableCell className="font-medium">
+                            {house.block}
+                          </TableCell>
+                          <TableCell>{house.number}</TableCell>
+                          <TableCell>
+                            {house.residents.length === 0 ? (
+                              <span className="text-muted-foreground">-</span>
+                            ) : house.residents.length === 1 ? (
+                              <div className="flex items-center gap-2">
+                                <Avatar className="w-6 h-6">
+                                  <AvatarImage
+                                    src={
+                                      house.residents[0].profiles?.avatar_url
+                                    }
+                                  />
+                                  <AvatarFallback className="text-xs">
+                                    {getInitials(
+                                      house.residents[0].profiles?.full_name ||
+                                        "?"
+                                    )}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="text-sm">
+                                  {house.residents[0].profiles?.full_name}
+                                </span>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedResidentsHouse(house)}
+                                className="gap-1"
+                              >
+                                <Users className="w-4 h-4" />
+                                {house.residents.length} penghuni
+                              </Button>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {house.is_occupied ? (
+                              <Badge className="bg-success/10 text-success">
+                                Dihuni
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">Kosong</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEdit(house)}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setDeletingHouse(house)}
+                                disabled={deleteMutation.isPending}
+                              >
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
             )}
           </CardContent>
         </Card>
@@ -646,17 +660,23 @@ export default function AdminHouses() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deletingHouse} onOpenChange={(open) => !open && setDeletingHouse(null)}>
+      <AlertDialog
+        open={!!deletingHouse}
+        onOpenChange={(open) => !open && setDeletingHouse(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Rumah?</AlertDialogTitle>
             <AlertDialogDescription>
-              Apakah Anda yakin ingin menghapus Blok {deletingHouse?.block} No. {deletingHouse?.number}?
-              {deletingHouse?.residents && deletingHouse.residents.length > 0 && (
-                <span className="block mt-2 text-destructive">
-                  Peringatan: Rumah ini masih memiliki {deletingHouse.residents.length} penghuni.
-                </span>
-              )}
+              Apakah Anda yakin ingin menghapus Blok {deletingHouse?.block} No.{" "}
+              {deletingHouse?.number}?
+              {deletingHouse?.residents &&
+                deletingHouse.residents.length > 0 && (
+                  <span className="block mt-2 text-destructive">
+                    Peringatan: Rumah ini masih memiliki{" "}
+                    {deletingHouse.residents.length} penghuni.
+                  </span>
+                )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -670,7 +690,9 @@ export default function AdminHouses() {
                 }
               }}
             >
-              {deleteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {deleteMutation.isPending && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
               Hapus
             </AlertDialogAction>
           </AlertDialogFooter>

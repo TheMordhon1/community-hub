@@ -29,6 +29,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { profile, role, pengurusTitle, signOut, isAdmin, canManageContent } =
     useAuth();
+  const { toggleSidebar } = useSidebar();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -95,7 +97,11 @@ export function AppSidebar() {
             <SidebarMenu>
               {mainMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive(item.url)}
+                    onClick={toggleSidebar}
+                  >
                     <Link to={item.url}>
                       <item.icon className="w-4 h-4" />
                       <span>{item.title}</span>
@@ -116,7 +122,11 @@ export function AppSidebar() {
                 <SidebarMenu>
                   {pengurusMenuItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive(item.url)}
+                        onClick={toggleSidebar}
+                      >
                         <Link to={item.url}>
                           <item.icon className="w-4 h-4" />
                           <span>{item.title}</span>
@@ -141,7 +151,11 @@ export function AppSidebar() {
                 <SidebarMenu>
                   {adminMenuItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive(item.url)}
+                        onClick={toggleSidebar}
+                      >
                         <Link to={item.url}>
                           <item.icon className="w-4 h-4" />
                           <span>{item.title}</span>
@@ -185,6 +199,7 @@ export function AppSidebar() {
             size="sm"
             className="flex-1 justify-start text-sidebar-foreground hover:bg-sidebar-accent"
             asChild
+            onClick={toggleSidebar}
           >
             <Link to="/profile">
               <User className="w-4 h-4 mr-2" />
