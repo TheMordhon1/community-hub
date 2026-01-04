@@ -76,12 +76,6 @@
     --house-paid: 142 72% 45%;
     --house-pending: 38 92% 50%;
     --house-overdue: 0 72% 51%;
-
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(142, 55%, 42%), hsl(142, 55%, 52%));
-    --gradient-secondary: linear-gradient(135deg, hsl(32, 95%, 68%), hsl(32, 95%, 78%));
-    --gradient-accent: linear-gradient(135deg, hsl(199, 80%, 65%), hsl(199, 80%, 75%));
-    --gradient-hero: linear-gradient(135deg, hsl(142, 30%, 25%), hsl(142, 40%, 35%));
   }
 
   .dark {
@@ -161,15 +155,15 @@
   }
 
   .gradient-primary {
-    background: var(--gradient-primary);
+    background: linear-gradient(135deg, hsl(142, 55%, 42%), hsl(142, 55%, 52%));
   }
 
   .gradient-secondary {
-    background: var(--gradient-secondary);
+    background: linear-gradient(135deg, hsl(32, 95%, 68%), hsl(32, 95%, 78%));
   }
 
   .gradient-hero {
-    background: var(--gradient-hero);
+    background: linear-gradient(135deg, hsl(142, 30%, 25%), hsl(142, 40%, 35%));
   }
 
   .status-paid {
