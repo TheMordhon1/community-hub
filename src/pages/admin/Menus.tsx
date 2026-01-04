@@ -226,7 +226,7 @@ export default function Menus() {
             <CardTitle>Menu Utama (Sidebar)</CardTitle>
             <CardDescription>Menu yang tampil di sidebar untuk semua user</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <MenuTable
               menus={mainMenus}
               onEdit={openEditDialog}
@@ -247,7 +247,7 @@ export default function Menus() {
             <CardTitle>Menu Pengurus (Sidebar)</CardTitle>
             <CardDescription>Menu khusus pengurus di sidebar</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <MenuTable
               menus={pengurusMenus}
               onEdit={openEditDialog}
@@ -268,7 +268,7 @@ export default function Menus() {
             <CardTitle>Menu Admin (Sidebar)</CardTitle>
             <CardDescription>Menu khusus admin di sidebar</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <MenuTable
               menus={adminMenus}
               onEdit={openEditDialog}
@@ -289,7 +289,7 @@ export default function Menus() {
             <CardTitle>Semua Menu</CardTitle>
             <CardDescription>Daftar lengkap semua menu</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             {isLoading ? (
               <p>Loading...</p>
             ) : (
@@ -634,47 +634,49 @@ function MenuTable({
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-12"></TableHead>
-          <TableHead>Icon</TableHead>
-          <TableHead>Judul</TableHead>
-          <TableHead>URL</TableHead>
-          <TableHead>Aktif</TableHead>
-          <TableHead>Aksi</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {menus.map((menu) => (
-          <TableRow key={menu.id} className={!menu.is_active ? "opacity-50" : ""}>
-            <TableCell>
-              <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
-            </TableCell>
-            <TableCell>
-              <DynamicIcon name={menu.icon} className={`w-5 h-5 ${menu.color}`} />
-            </TableCell>
-            <TableCell className="font-medium">{menu.title}</TableCell>
-            <TableCell className="font-mono text-xs">{menu.url}</TableCell>
-            <TableCell>
-              <Switch
-                checked={menu.is_active}
-                onCheckedChange={() => onToggleActive(menu)}
-              />
-            </TableCell>
-            <TableCell>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="icon" onClick={() => onEdit(menu)}>
-                  <Pencil className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => onDelete(menu)}>
-                  <Trash2 className="w-4 h-4 text-destructive" />
-                </Button>
-              </div>
-            </TableCell>
+    <div className="min-w-[500px]">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-12"></TableHead>
+            <TableHead>Icon</TableHead>
+            <TableHead>Judul</TableHead>
+            <TableHead className="hidden sm:table-cell">URL</TableHead>
+            <TableHead>Aktif</TableHead>
+            <TableHead>Aksi</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {menus.map((menu) => (
+            <TableRow key={menu.id} className={!menu.is_active ? "opacity-50" : ""}>
+              <TableCell>
+                <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
+              </TableCell>
+              <TableCell>
+                <DynamicIcon name={menu.icon} className={`w-5 h-5 ${menu.color}`} />
+              </TableCell>
+              <TableCell className="font-medium">{menu.title}</TableCell>
+              <TableCell className="font-mono text-xs hidden sm:table-cell">{menu.url}</TableCell>
+              <TableCell>
+                <Switch
+                  checked={menu.is_active}
+                  onCheckedChange={() => onToggleActive(menu)}
+                />
+              </TableCell>
+              <TableCell>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="icon" onClick={() => onEdit(menu)}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => onDelete(menu)}>
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
