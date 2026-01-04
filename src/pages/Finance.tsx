@@ -92,7 +92,7 @@ const MONTHS = [
 ];
 
 export default function Finance() {
-  const { isAdmin, isPengurus, pengurusTitle } = useAuth();
+  const { isAdmin, hasFinanceAccess } = useAuth();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [filterMonth, setFilterMonth] = useState<string>("all");
@@ -108,8 +108,7 @@ export default function Finance() {
     transaction_date: new Date().toISOString().split("T")[0],
   });
 
-  const isBendahara = pengurusTitle === "bendahara";
-  const canManageFinance = isAdmin() || isBendahara || isPengurus();
+  const canManageFinance = isAdmin() || hasFinanceAccess;
 
   // Fetch finance records
   const { data: records, isLoading } = useQuery({
