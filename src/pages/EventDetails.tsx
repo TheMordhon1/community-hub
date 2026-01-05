@@ -16,13 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
@@ -32,11 +25,9 @@ import {
   Loader2,
   Check,
   Share2,
-  Copy,
-  Mail,
-  MessageCircle,
 } from "lucide-react";
 import type { Event, Profile } from "@/types/database";
+import { ShareDialog } from "@/components/ShareDialog";
 
 interface AttendeeWithProfile {
   id: string;
@@ -149,38 +140,14 @@ export default function EventDetail() {
   const isUserAttending = attendees?.some((a) => a.user_id === user?.id);
   const isPastEvent = event ? new Date(event.event_date) < new Date() : false;
 
-  const handleShare = async (method: "copy" | "whatsapp" | "email") => {
-    const eventUrl = `${window.location.origin}/events/${id}`;
-    const shareText = `${event?.title}\n\n${event?.description || ""}\n\n📅 ${
-      event?.event_date
-        ? format(new Date(event.event_date), "d MMMM yyyy, HH:mm", {
-            locale: idLocale,
-          })
-        : ""
-    }\n📍 ${event?.location || "Lokasi belum ditentukan"}\n\n${eventUrl}`;
-
-    switch (method) {
-      case "copy":
-        await navigator.clipboard.writeText(shareText);
-        toast({
-          title: "Berhasil",
-          description: "Link acara disalin ke clipboard",
-        });
-        setIsShareOpen(false);
-        break;
-      case "whatsapp":
-        window.open(
-          `https://wa.me/?text=${encodeURIComponent(shareText)}`,
-          "_blank"
-        );
-        break;
-      case "email":
-        window.location.href = `mailto:?subject=${encodeURIComponent(
-          event?.title || ""
-        )}&body=${encodeURIComponent(shareText)}`;
-        break;
-    }
-  };
+  const shareText = `📅 ${event?.title}\n\n${event?.description || ""}\n\n📅 ${
+    event?.event_date
+      ? format(new Date(event.event_date), "d MMMM yyyy, HH:mm", {
+          locale: idLocale,
+        })
+      : ""
+  }\n📍 ${event?.location || "Lokasi belum ditentukan"}`;
+  const shareUrl = `${window.location.origin}/events/${id}`;
 
   if (isLoading) {
     return (
@@ -379,42 +346,14 @@ export default function EventDetail() {
       </div>
 
       {/* Share Dialog */}
-      <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Bagikan Acara</DialogTitle>
-            <DialogDescription>
-              Ajak warga lain untuk menghadiri acara ini
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-4">
-            <Button
-              variant="outline"
-              className="w-full justify-start bg-transparent"
-              onClick={() => handleShare("copy")}
-            >
-              <Copy className="w-4 h-4 mr-2" />
-              Salin Link
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start bg-transparent"
-              onClick={() => handleShare("whatsapp")}
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Bagikan via WhatsApp
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start bg-transparent"
-              onClick={() => handleShare("email")}
-            >
-              <Mail className="w-4 h-4 mr-2" />
-              Bagikan via Email
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ShareDialog
+        open={isShareOpen}
+        onOpenChange={setIsShareOpen}
+        title={event?.title || "Acara"}
+        description="Ajak warga lain untuk menghadiri acara ini"
+        url={shareUrl}
+        shareText={shareText}
+      />
     </section>
   );
 }

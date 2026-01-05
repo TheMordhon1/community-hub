@@ -161,7 +161,7 @@ export interface FinanceRecordWithDetails extends FinanceRecord {
   recorder?: Profile;
   payment?: Payment;
   isGroup?: boolean;
-  groupRecords?
+  groupRecords?: FinanceRecordWithDetails[];
 }
 
 export interface Complaint {

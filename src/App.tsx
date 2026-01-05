@@ -14,17 +14,19 @@ import AdminHouses from "./pages/admin/Houses";
 import AdminTitles from "./pages/admin/Titles";
 import AdminMenus from "./pages/admin/Menus";
 import Announcements from "./pages/Announcements";
+import AnnouncementDetail from "./pages/AnnouncementDetail";
 import Events from "./pages/Events";
+import EventDetails from "./pages/EventDetails";
 import Complaints from "./pages/Complaints";
 import Polls from "./pages/Polls";
 import PollsDetail from "./pages/PollsDetail";
 import Profile from "./pages/Profile";
 import Payments from "./pages/Payments";
+import PaymentDetail from "./pages/PaymentDetail";
 import Finance from "./pages/Finance";
 import OrganizationStructure from "./pages/OrganizationStructure";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
-import EventDetails from "./pages/EventDetails";
 
 const queryClient = new QueryClient();
 
@@ -70,12 +72,14 @@ function AppRoutes() {
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/announcements" element={<Announcements />} />
+          <Route path="/announcements/:id" element={<AnnouncementDetail />} />
           <Route path="/events" element={<Events />} />
           <Route path="/events/:id" element={<EventDetails />} />
           <Route path="/complaints" element={<Complaints />} />
           <Route path="/polls" element={<Polls />} />
           <Route path="/polls/:id" element={<PollsDetail />} />
           <Route path="/payments" element={<Payments />} />
+          <Route path="/payments/:id" element={<PaymentDetail />} />
           <Route path="/finance" element={<Finance />} />
           <Route path="/organization" element={<OrganizationStructure />} />
           <Route path="/profile" element={<Profile />} />
