@@ -18,7 +18,10 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -55,6 +58,8 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronRight,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import type { FinanceRecordWithDetails } from "@/types/database";
 import jsPDF from "jspdf";
@@ -63,10 +68,13 @@ import * as XLSX from "xlsx";
 import { Link } from "react-router-dom";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useAddFinanceRecord } from "@/hooks/finance/useAddFinanceRecord"; // Import the useAddFinanceRecord hook
+import { useUpdateFinanceRecord } from "@/hooks/finance/useEditFinanceRecord";
+import { useDeleteFinanceRecord } from "@/hooks/finance/useDeleteFinanceRecord";
 
 const CATEGORIES = {
   income: ["iuran", "donasi", "lainnya"],
   outcome: [
+    "kegiatan",
     "keamanan",
     "kebersihan",
     "perbaikan",
@@ -100,6 +108,11 @@ export default function Finance() {
     new Date().getFullYear().toString()
   );
   const [isIuranExpanded, setIsIuranExpanded] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingRecord, setEditingRecord] =
+    useState<FinanceRecordWithDetails | null>(null);
+  const [editType, setEditType] = useState<"income" | "outcome">("income");
+
   const [formData, setFormData] = useState({
     type: "income" as "income" | "outcome",
     amount: "",
@@ -146,6 +159,8 @@ export default function Finance() {
 
   // Mutation for adding finance records
   const addRecord = useAddFinanceRecord();
+  const updateRecord = useUpdateFinanceRecord();
+  const deleteRecord = useDeleteFinanceRecord();
 
   const totalBalance =
     records?.reduce((sum, r) => {
@@ -342,6 +357,42 @@ export default function Finance() {
       }.xlsx`
     );
     toast.success("Laporan Excel berhasil diunduh");
+  };
+
+  const handleEdit = (record: FinanceRecordWithDetails) => {
+    setEditingRecord(record);
+    setEditType(record.type);
+    setIsEditOpen(true);
+  };
+
+  const handleDelete = async (recordId: string) => {
+    if (window.confirm("Apakah Anda yakin ingin menghapus catatan ini?")) {
+      deleteRecord.mutate(recordId);
+    }
+  };
+
+  let formEditData = new FormData();
+  const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingRecord) return;
+
+    formEditData = new FormData(e.currentTarget);
+    updateRecord.mutate(
+      {
+        id: editingRecord.id,
+        type: formEditData.get("type") as "income" | "outcome",
+        amount: formEditData.get("amount") as string,
+        description: formEditData.get("description") as string,
+        category: formEditData.get("category") as string,
+        transaction_date: formEditData.get("transaction_date") as string,
+      },
+      {
+        onSuccess: () => {
+          setIsEditOpen(false);
+          setEditingRecord(null);
+        },
+      }
+    );
   };
 
   return (
@@ -617,14 +668,21 @@ export default function Finance() {
                 <Table className="w-full">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[100px]">Tanggal</TableHead>
-                      <TableHead className="w-[90px]">Jenis</TableHead>
-                      <TableHead className="w-[110px]">Kategori</TableHead>
-                      <TableHead className="min-w-[180px]">Deskripsi</TableHead>
-                      <TableHead className="w-[130px]">Jumlah</TableHead>
-                      <TableHead className="min-w-[150px]">
+                      <TableHead className="px-6 w-[100px]">Tanggal</TableHead>
+                      <TableHead className="px-6 w-[90px]">Jenis</TableHead>
+                      <TableHead className="px-6 w-[110px]">Kategori</TableHead>
+                      <TableHead className="px-6 min-w-[180px]">
+                        Deskripsi
+                      </TableHead>
+                      <TableHead className="px-6 w-[130px]">Jumlah</TableHead>
+                      <TableHead className="px-6 min-w-[150px]">
                         Dicatat Oleh
                       </TableHead>
+                      {canManageFinance && (
+                        <TableHead className="w-[100px] text-center">
+                          Aksi
+                        </TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -634,7 +692,7 @@ export default function Finance() {
                           <>
                             <TableRow
                               key={record.id}
-                              className="cursor-pointer hover:bg-muted/50"
+                              className="cursor-pointer hover:bg-muted/50 px-6"
                               onClick={() =>
                                 setIsIuranExpanded(!isIuranExpanded)
                               }
@@ -673,6 +731,7 @@ export default function Finance() {
                               <TableCell className="text-xs sm:text-sm text-muted-foreground">
                                 -
                               </TableCell>
+                              {canManageFinance && <TableCell />}
                             </TableRow>
                             {isIuranExpanded &&
                               record?.groupRecords?.map((iuranRecord) => (
@@ -714,6 +773,34 @@ export default function Finance() {
                                     {iuranRecord.recorder?.full_name ||
                                       "Sistem"}
                                   </TableCell>
+                                  {canManageFinance && (
+                                    <TableCell className="text-right">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEdit(iuranRecord);
+                                          }}
+                                          className="h-8 w-8 p-0"
+                                        >
+                                          <Pencil className="w-4 h-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDelete(iuranRecord.id);
+                                          }}
+                                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  )}
                                 </TableRow>
                               ))}
                           </>
@@ -774,6 +861,28 @@ export default function Finance() {
                           <TableCell className="text-xs sm:text-sm text-muted-foreground">
                             {record.recorder?.full_name || "Sistem"}
                           </TableCell>
+                          {canManageFinance && (
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(record)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(record.id)}
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}
@@ -806,6 +915,112 @@ export default function Finance() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Catatan Keuangan</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-type">Jenis Transaksi</Label>
+                <Select
+                  name="type"
+                  defaultValue={editingRecord?.type}
+                  value={editType}
+                  onValueChange={(value: "income" | "outcome") => {
+                    setEditType(value);
+                  }}
+                >
+                  <SelectTrigger id="edit-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="income">Pemasukan</SelectItem>
+                      <SelectItem value="outcome">Pengeluaran</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-amount">Jumlah (Rp)</Label>
+                <Input
+                  id="edit-amount"
+                  name="amount"
+                  type="number"
+                  defaultValue={editingRecord?.amount}
+                  required
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-category">Kategori</Label>
+                <Select name="category" defaultValue={editingRecord?.category}>
+                  <SelectTrigger id="edit-category">
+                    <SelectValue />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectGroup>
+                      {CATEGORIES[editType].map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-transaction_date">Tanggal</Label>
+                <Input
+                  id="edit-transaction_date"
+                  name="transaction_date"
+                  type="date"
+                  defaultValue={editingRecord?.transaction_date}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Deskripsi</Label>
+              <Textarea
+                id="edit-description"
+                name="description"
+                defaultValue={editingRecord?.description}
+                required
+                rows={3}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsEditOpen(false);
+                  setEditingRecord(null);
+                }}
+              >
+                Batal
+              </Button>
+              <Button type="submit" disabled={updateRecord.isPending}>
+                {updateRecord.isPending ? "Menyimpan..." : "Simpan Perubahan"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
