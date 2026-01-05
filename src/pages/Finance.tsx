@@ -201,7 +201,7 @@ export default function Finance() {
 
     // Create summary row for iuran
     const iuranTotal = iuranRecords.reduce((sum, r) => sum + r.amount, 0);
-    const iuranSummary = {
+    const iuranSummary: FinanceRecordWithDetails = {
       id: "iuran-summary",
       type: "income" as const,
       category: "iuran",
@@ -209,7 +209,9 @@ export default function Finance() {
       amount: iuranTotal,
       transaction_date: iuranRecords[0].transaction_date,
       recorded_by: null,
-      recorder: null,
+      recorder: undefined,
+      payment_id: null,
+      updated_at: iuranRecords[0].updated_at,
       created_at: iuranRecords[0].created_at,
       isGroup: true,
       groupRecords: iuranRecords,

@@ -54,12 +54,13 @@ import {
   Copy,
   Send,
   ArrowLeft,
+  ExternalLink,
 } from "lucide-react";
 import type { House, Profile } from "@/types/database";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface PaymentItem {
@@ -109,6 +110,7 @@ const STATUS_LABELS = {
 export default function Payments() {
   const { user, isAdmin, hasFinanceAccess } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentItem | null>(
@@ -870,7 +872,11 @@ _Paguyuban Nijuuroku_`;
                   </TableHeader>
                   <TableBody>
                     {displayPayments.map((payment) => (
-                      <TableRow key={payment.id}>
+                      <TableRow 
+                        key={payment.id}
+                        className="cursor-pointer hover:bg-accent/50"
+                        onClick={() => navigate(`/payments/${payment.id}`)}
+                      >
                         <TableCell className="font-medium text-xs sm:text-sm py-2">
                           {payment.house?.block}
                           {payment.house?.number}
@@ -897,7 +903,7 @@ _Paguyuban Nijuuroku_`;
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right py-2">
-                          <div className="flex justify-end gap-1">
+                          <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                             {payment.proof_url && (
                               <Button
                                 variant="outline"

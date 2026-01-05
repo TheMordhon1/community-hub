@@ -47,12 +47,14 @@ import {
   Trash2,
   Eye,
   EyeOff,
+  ExternalLink,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { Announcement } from "@/types/database";
 
 export default function Announcements() {
   const { user, canManageContent } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -398,7 +400,10 @@ export default function Announcements() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                   >
-                    <Card>
+                    <Card
+                      className="cursor-pointer hover:bg-accent/50 transition-colors"
+                      onClick={() => navigate(`/announcements/${announcement.id}`)}
+                    >
                       <CardHeader className="pb-2">
                         <div className="flex items-start justify-between">
                           <div>
@@ -421,7 +426,7 @@ export default function Announcements() {
                             </CardDescription>
                           </div>
                           {canManageContent() && (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -444,7 +449,7 @@ export default function Announcements() {
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-foreground whitespace-pre-wrap">
+                        <p className="text-foreground whitespace-pre-wrap line-clamp-3">
                           {announcement.content}
                         </p>
                       </CardContent>

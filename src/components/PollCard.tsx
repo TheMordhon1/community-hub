@@ -20,11 +20,12 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { Badge } from "./ui/badge";
-import { CheckCircle2, Loader2, Trash2, Home, User } from "lucide-react";
+import { CheckCircle2, Loader2, Trash2, Home, User, Share2 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
+import { ShareDialog } from "./ShareDialog";
 
 export const PollCard = ({
   poll,
@@ -50,9 +51,13 @@ export const PollCard = ({
   isVoting: boolean;
 }) => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const totalVotes = poll.votes.length;
   const hasVoted = !!poll?.userVote;
   const showResults = hasVoted || !poll.is_active || isPollExpired || poll.houseHasVoted;
+
+  const shareUrl = `${window.location.origin}/polls/${poll.id}`;
+  const shareText = `🗳️ ${poll.title}\n\n${poll.description || ""}\n\n📊 ${totalVotes} suara sudah masuk${poll.ends_at ? `\n⏰ Berakhir: ${format(new Date(poll.ends_at), "d MMMM yyyy", { locale: idLocale })}` : ""}`;
 
   const getVoteCount = (optionIndex: number) => {
     return poll.votes.filter((v) => v.option_index === optionIndex).length;
@@ -150,6 +155,9 @@ export const PollCard = ({
             </div>
             {canManage && (
               <div className="flex gap-2">
+                <Button variant="ghost" size="icon" onClick={() => setIsShareOpen(true)}>
+                  <Share2 className="w-4 h-4" />
+                </Button>
                 <Button variant="outline" size="sm" onClick={onToggleActive}>
                   {poll.is_active ? "Tutup" : "Buka"}
                 </Button>
@@ -157,6 +165,11 @@ export const PollCard = ({
                   <Trash2 className="w-4 h-4 text-destructive" />
                 </Button>
               </div>
+            )}
+            {!canManage && (
+              <Button variant="ghost" size="icon" onClick={() => setIsShareOpen(true)}>
+                <Share2 className="w-4 h-4" />
+              </Button>
             )}
           </div>
         </CardHeader>
@@ -264,6 +277,16 @@ export const PollCard = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Share Dialog */}
+      <ShareDialog
+        open={isShareOpen}
+        onOpenChange={setIsShareOpen}
+        title={poll.title}
+        description="Bagikan polling ini ke warga lain"
+        url={shareUrl}
+        shareText={shareText}
+      />
     </motion.div>
   );
 };
