@@ -76,33 +76,26 @@ export default function EventDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("event_rsvps")
-        .select(
-          `
-          id,
-          user_id,
-          status,
-          created_at,
-          profiles (
-            id,
-            full_name,
-            email,
-            avatar_url
-          )
-        `
-        )
+        .select("id, user_id, status, created_at")
         .eq("event_id", id)
         .eq("status", "going");
 
       if (error) throw error;
 
-      // Transform the data to match the expected structure
+      // Fetch profiles separately since there's no FK relationship
+      const userIds = data.map((item) => item.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, avatar_url")
+        .in("id", userIds);
+
+      const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+
       return data.map((item) => ({
         id: item.id,
         user_id: item.user_id,
         status: item.status,
-        profile: Array.isArray(item.profiles)
-          ? item.profiles[0]
-          : item.profiles,
+        profile: profileMap.get(item.user_id),
       })) as AttendeeWithProfile[];
     },
     enabled: !!id,
