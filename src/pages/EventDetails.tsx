@@ -262,6 +262,25 @@ export default function EventDetail() {
                 </div>
               )}
 
+              {event.author && (
+                <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/50">
+                  <Avatar>
+                    <AvatarImage src={event.author.avatar_url || ""} />
+                    <AvatarFallback>
+                      {event.author.full_name
+                        ?.split(" ")
+                        .map((n: string) => n[0])
+                        .join("")
+                        .toUpperCase() || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dibuat oleh</p>
+                    <p className="font-medium">{event.author.full_name}</p>
+                  </div>
+                </div>
+              )}
+
               {!isPastEvent && (
                 <Button
                   className="w-full"
