@@ -122,6 +122,8 @@ export default function Payments() {
   const [filterYear, setFilterYear] = useState<string>(
     new Date().getFullYear().toString()
   );
+  const [uploadMode, setUploadMode] = useState<"self" | "other">("self");
+  const [selectedHouseId, setSelectedHouseId] = useState<string>("");
   const [formData, setFormData] = useState({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
@@ -157,6 +159,21 @@ export default function Payments() {
       return data?.houses as House;
     },
     enabled: !!user?.id,
+  });
+
+  // Get all houses for finance users to upload for others
+  const { data: allHouses } = useQuery({
+    queryKey: ["all-houses"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("houses")
+        .select("id, block, number")
+        .order("block")
+        .order("number");
+      if (error) throw error;
+      return data;
+    },
+    enabled: canVerify,
   });
 
   // Fetch payments
@@ -216,7 +233,11 @@ export default function Payments() {
   // Submit payment mutation
   const submitPayment = useMutation({
     mutationFn: async () => {
-      if (!userHouse || !proofFile || !user) {
+      const targetHouseId = canVerify && uploadMode === "other" 
+        ? selectedHouseId 
+        : userHouse?.id;
+      
+      if (!targetHouseId || !proofFile || !user) {
         throw new Error("Data tidak lengkap");
       }
 
@@ -236,7 +257,7 @@ export default function Payments() {
         .getPublicUrl(fileName);
 
       const { error } = await supabase.from("payments").insert({
-        house_id: userHouse.id,
+        house_id: targetHouseId,
         amount: parseFloat(formData.amount),
         month: formData.month,
         year: formData.year,
@@ -253,6 +274,8 @@ export default function Payments() {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       setIsSubmitOpen(false);
       setProofFile(null);
+      setUploadMode("self");
+      setSelectedHouseId("");
       setFormData({
         month: new Date().getMonth() + 1,
         year: new Date().getFullYear(),
@@ -714,8 +737,14 @@ _Paguyuban Nijuuroku_`;
         </div>
 
         {/* Payments Table */}
-        {userHouse && (
-          <Dialog open={isSubmitOpen} onOpenChange={setIsSubmitOpen}>
+        {(userHouse || canVerify) && (
+          <Dialog open={isSubmitOpen} onOpenChange={(open) => {
+            setIsSubmitOpen(open);
+            if (!open) {
+              setUploadMode("self");
+              setSelectedHouseId("");
+            }
+          }}>
             <div className="flex justify-end">
               <DialogTrigger asChild>
                 <Button size="sm">
@@ -729,6 +758,38 @@ _Paguyuban Nijuuroku_`;
                 <DialogTitle>Upload Bukti Pembayaran</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
+                {/* Tab for finance users to choose self or other house */}
+                {canVerify && (
+                  <Tabs value={uploadMode} onValueChange={(v) => setUploadMode(v as "self" | "other")}>
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="self">Untuk Saya</TabsTrigger>
+                      <TabsTrigger value="other">Untuk Rumah Lain</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                )}
+
+                {/* House selector when uploading for others */}
+                {canVerify && uploadMode === "other" && (
+                  <div className="space-y-2">
+                    <Label>Pilih Rumah</Label>
+                    <Select
+                      value={selectedHouseId}
+                      onValueChange={setSelectedHouseId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih rumah..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allHouses?.map((house) => (
+                          <SelectItem key={house.id} value={house.id}>
+                            {house.block}{house.number}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Bulan</Label>
@@ -814,7 +875,13 @@ _Paguyuban Nijuuroku_`;
 
                 <Button
                   onClick={() => submitPayment.mutate()}
-                  disabled={!proofFile || !formData.amount || isUploading}
+                  disabled={
+                    !proofFile || 
+                    !formData.amount || 
+                    isUploading ||
+                    (uploadMode === "self" && !userHouse) ||
+                    (uploadMode === "other" && !selectedHouseId)
+                  }
                   className="w-full"
                 >
                   {isUploading ? (
