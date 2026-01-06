@@ -49,12 +49,24 @@ export default function EventDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("*, author:profiles!events_author_id_fkey(*)")
+        .select("*")
         .eq("id", id)
         .single();
 
       if (error) throw error;
-      return data;
+
+      // Fetch author profile separately since there's no FK relationship
+      let author = null;
+      if (data.author_id) {
+        const { data: authorData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", data.author_id)
+          .maybeSingle();
+        author = authorData;
+      }
+
+      return { ...data, author };
     },
     enabled: !!id,
   });
