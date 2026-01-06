@@ -78,7 +78,7 @@ export default function EventDetail() {
         .from("event_rsvps")
         .select("id, user_id, status, created_at")
         .eq("event_id", id)
-        .eq("status", "going");
+        .eq("status", "attending");
 
       if (error) throw error;
 
