@@ -233,10 +233,9 @@ export default function Payments() {
   // Submit payment mutation
   const submitPayment = useMutation({
     mutationFn: async () => {
-      const targetHouseId = canVerify && uploadMode === "other" 
-        ? selectedHouseId 
-        : userHouse?.id;
-      
+      const targetHouseId =
+        canVerify && uploadMode === "other" ? selectedHouseId : userHouse?.id;
+
       if (!targetHouseId || !proofFile || !user) {
         throw new Error("Data tidak lengkap");
       }
@@ -320,7 +319,7 @@ export default function Payments() {
             amount: payment.amount,
             description: `Iuran ${MONTHS[payment.month - 1]} ${
               payment.year
-            } - Rumah ${payment.house?.block}${payment.house?.number}`,
+            } - Rumah ${payment.house?.block} - ${payment.house?.number}`,
             category: "iuran",
             recorded_by: user?.id,
             payment_id: paymentId,
@@ -421,7 +420,7 @@ _Paguyuban Nijuuroku_`;
 
     const tableData =
       displayPayments?.map((p) => [
-        `${p.house?.block}${p.house?.number}`,
+        `${p.house?.block} - ${p.house?.number}`,
         `${MONTHS[p.month - 1]} ${p.year}`,
         `Rp ${p.amount.toLocaleString("id-ID")}`,
         STATUS_LABELS[p.status],
@@ -448,7 +447,7 @@ _Paguyuban Nijuuroku_`;
   const exportToExcel = () => {
     const data =
       displayPayments?.map((p) => ({
-        Rumah: `${p.house?.block}${p.house?.number}`,
+        Rumah: `${p.house?.block} - ${p.house?.number}`,
         Periode: `${MONTHS[p.month - 1]} ${p.year}`,
         Jumlah: p.amount,
         Status: STATUS_LABELS[p.status],
@@ -738,13 +737,16 @@ _Paguyuban Nijuuroku_`;
 
         {/* Payments Table */}
         {(userHouse || canVerify) && (
-          <Dialog open={isSubmitOpen} onOpenChange={(open) => {
-            setIsSubmitOpen(open);
-            if (!open) {
-              setUploadMode("self");
-              setSelectedHouseId("");
-            }
-          }}>
+          <Dialog
+            open={isSubmitOpen}
+            onOpenChange={(open) => {
+              setIsSubmitOpen(open);
+              if (!open) {
+                setUploadMode("self");
+                setSelectedHouseId("");
+              }
+            }}
+          >
             <div className="flex justify-end">
               <DialogTrigger asChild>
                 <Button size="sm">
@@ -760,7 +762,10 @@ _Paguyuban Nijuuroku_`;
               <div className="space-y-4">
                 {/* Tab for finance users to choose self or other house */}
                 {canVerify && (
-                  <Tabs value={uploadMode} onValueChange={(v) => setUploadMode(v as "self" | "other")}>
+                  <Tabs
+                    value={uploadMode}
+                    onValueChange={(v) => setUploadMode(v as "self" | "other")}
+                  >
                     <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger value="self">Untuk Saya</TabsTrigger>
                       <TabsTrigger value="other">Untuk Rumah Lain</TabsTrigger>
@@ -782,7 +787,7 @@ _Paguyuban Nijuuroku_`;
                       <SelectContent>
                         {allHouses?.map((house) => (
                           <SelectItem key={house.id} value={house.id}>
-                            {house.block}{house.number}
+                            {house.block} - {house.number}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -876,8 +881,8 @@ _Paguyuban Nijuuroku_`;
                 <Button
                   onClick={() => submitPayment.mutate()}
                   disabled={
-                    !proofFile || 
-                    !formData.amount || 
+                    !proofFile ||
+                    !formData.amount ||
                     isUploading ||
                     (uploadMode === "self" && !userHouse) ||
                     (uploadMode === "other" && !selectedHouseId)
@@ -939,14 +944,13 @@ _Paguyuban Nijuuroku_`;
                   </TableHeader>
                   <TableBody>
                     {displayPayments.map((payment) => (
-                      <TableRow 
+                      <TableRow
                         key={payment.id}
                         className="cursor-pointer hover:bg-accent/50"
                         onClick={() => navigate(`/payments/${payment.id}`)}
                       >
                         <TableCell className="font-medium text-xs sm:text-sm py-2">
-                          {payment.house?.block}
-                          {payment.house?.number}
+                          {payment.house?.block} - {payment.house?.number}
                         </TableCell>
                         <TableCell className="text-xs sm:text-sm py-2">
                           <span className="inline">
@@ -970,7 +974,10 @@ _Paguyuban Nijuuroku_`;
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right py-2">
-                          <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                          <div
+                            className="flex justify-end gap-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             {payment.proof_url && (
                               <Button
                                 variant="outline"
@@ -1049,7 +1056,7 @@ _Paguyuban Nijuuroku_`;
                       Rumah:
                     </span>{" "}
                     <span className="font-medium">
-                      {selectedPayment.house?.block}
+                      {selectedPayment.house?.block} -
                       {selectedPayment.house?.number}
                     </span>
                   </div>
