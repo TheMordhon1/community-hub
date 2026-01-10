@@ -69,7 +69,7 @@ import {
   Trash2,
   CalendarIcon,
 } from "lucide-react";
-import type { FinanceRecordWithDetails } from "@/types/database";
+import type { FinanceRecordWithDetails, Profile } from "@/types/database";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -120,7 +120,9 @@ export default function Finance() {
   const [editingRecord, setEditingRecord] =
     useState<FinanceRecordWithDetails | null>(null);
   const [editType, setEditType] = useState<"income" | "outcome">("income");
-  const [editTransactionDate, setEditTransactionDate] = useState<Date | undefined>(undefined);
+  const [editTransactionDate, setEditTransactionDate] = useState<
+    Date | undefined
+  >(undefined);
 
   const [formData, setFormData] = useState({
     type: "income" as "income" | "outcome",
@@ -148,7 +150,7 @@ export default function Finance() {
         if (r.recorded_by) userIds.add(r.recorded_by);
       });
 
-      const profiles: Record<string, any> = {};
+      const profiles: Record<string, Profile> = {};
       if (userIds.size > 0) {
         const { data: profileData } = await supabase
           .from("profiles")
@@ -373,7 +375,9 @@ export default function Finance() {
   const handleEdit = (record: FinanceRecordWithDetails) => {
     setEditingRecord(record);
     setEditType(record.type);
-    setEditTransactionDate(record.transaction_date ? new Date(record.transaction_date) : undefined);
+    setEditTransactionDate(
+      record.transaction_date ? new Date(record.transaction_date) : undefined
+    );
     setIsEditOpen(true);
   };
 
@@ -396,7 +400,9 @@ export default function Finance() {
         amount: formEditData.get("amount") as string,
         description: formEditData.get("description") as string,
         category: formEditData.get("category") as string,
-        transaction_date: editTransactionDate ? format(editTransactionDate, "yyyy-MM-dd") : "",
+        transaction_date: editTransactionDate
+          ? format(editTransactionDate, "yyyy-MM-dd")
+          : "",
       },
       {
         onSuccess: () => {
@@ -617,7 +623,11 @@ export default function Finance() {
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {formData.transaction_date ? (
-                          format(new Date(formData.transaction_date), "dd MMMM yyyy", { locale: localeId })
+                          format(
+                            new Date(formData.transaction_date),
+                            "dd MMMM yyyy",
+                            { locale: localeId }
+                          )
                         ) : (
                           <span>Pilih tanggal</span>
                         )}
@@ -626,11 +636,17 @@ export default function Finance() {
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={formData.transaction_date ? new Date(formData.transaction_date) : undefined}
+                        selected={
+                          formData.transaction_date
+                            ? new Date(formData.transaction_date)
+                            : undefined
+                        }
                         onSelect={(date) =>
                           setFormData({
                             ...formData,
-                            transaction_date: date ? format(date, "yyyy-MM-dd") : "",
+                            transaction_date: date
+                              ? format(date, "yyyy-MM-dd")
+                              : "",
                           })
                         }
                         initialFocus
@@ -1027,7 +1043,9 @@ export default function Finance() {
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {editTransactionDate ? (
-                        format(editTransactionDate, "dd MMMM yyyy", { locale: localeId })
+                        format(editTransactionDate, "dd MMMM yyyy", {
+                          locale: localeId,
+                        })
                       ) : (
                         <span>Pilih tanggal</span>
                       )}

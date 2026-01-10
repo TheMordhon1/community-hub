@@ -63,6 +63,7 @@ import {
 import type { House } from "@/types/database";
 import { Link } from "react-router-dom";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useNaturalSort } from "@/hooks/useNaturalSort";
 
 interface HouseResident {
   id: string;
@@ -85,6 +86,8 @@ interface HouseWithResidents extends House {
 export default function AdminHouses() {
   const { canManageContent } = useAuth();
   const { toast } = useToast();
+  const { naturalSort } = useNaturalSort();
+
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingHouse, setEditingHouse] = useState<House | null>(null);
@@ -167,7 +170,12 @@ export default function AdminHouses() {
     },
   });
 
-  const houses = housesData ?? [];
+  const houses =
+    housesData.sort((a, b) => {
+      const blockSort = naturalSort(a.block, b.block);
+      if (blockSort !== 0) return blockSort;
+      return naturalSort(a.number, b.number);
+    }) ?? [];
 
   const createMutation = useMutation({
     mutationFn: async (data: { block: string; number: string }) => {

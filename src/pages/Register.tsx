@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import type { House } from "@/types/database";
+import { useNaturalSort } from "@/hooks/useNaturalSort";
 
 const registerSchema = z
   .object({
@@ -55,6 +56,7 @@ type RegisterForm = z.infer<typeof registerSchema>;
 
 export default function Register() {
   const navigate = useNavigate();
+  const { naturalSort } = useNaturalSort();
   const { signUp } = useAuth();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
@@ -78,7 +80,12 @@ export default function Register() {
     },
   });
 
-  const availableHouses = houses ?? [];
+  const availableHouses =
+    houses.sort((a, b) => {
+      const blockSort = naturalSort(a.block, b.block);
+      if (blockSort !== 0) return blockSort;
+      return naturalSort(a.number, b.number);
+    }) ?? [];
 
   const form = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),

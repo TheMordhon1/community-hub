@@ -70,6 +70,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useNaturalSort } from "@/hooks/useNaturalSort";
 
 interface PaymentItem {
   id: string;
@@ -117,6 +118,8 @@ const STATUS_LABELS = {
 
 export default function Payments() {
   const { user, isAdmin, hasFinanceAccess } = useAuth();
+
+  const { naturalSort } = useNaturalSort();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
@@ -178,7 +181,13 @@ export default function Payments() {
         .order("block")
         .order("number");
       if (error) throw error;
-      return data;
+      return (
+        data.sort((a, b) => {
+          const blockSort = naturalSort(a.block, b.block);
+          if (blockSort !== 0) return blockSort;
+          return naturalSort(a.number, b.number);
+        }) ?? []
+      );
     },
     enabled: canVerify,
   });
@@ -205,7 +214,7 @@ export default function Payments() {
         if (p.verified_by) userIds.add(p.verified_by);
       });
 
-      const profiles: Record<string, any> = {};
+      const profiles: Record<string, Profile> = {};
       if (userIds.size > 0) {
         const { data: profileData } = await supabase
           .from("profiles")
@@ -814,7 +823,9 @@ _Paguyuban Nijuuroku_`;
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {formData.paymentDate ? (
-                          format(formData.paymentDate, "dd MMMM yyyy", { locale: localeId })
+                          format(formData.paymentDate, "dd MMMM yyyy", {
+                            locale: localeId,
+                          })
                         ) : (
                           <span>Pilih tanggal</span>
                         )}

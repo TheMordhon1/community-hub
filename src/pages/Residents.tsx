@@ -175,7 +175,7 @@ export default function Residents() {
 
   return (
     <div className="container mx-auto py-6 px-4 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex w-full flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link to="/dashboard">
             <ArrowLeft className="w-5 h-5" />
@@ -187,7 +187,7 @@ export default function Residents() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 justify-between">
           <div className="relative flex-1 w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -202,10 +202,10 @@ export default function Residents() {
               value={filterType}
               onValueChange={(value: HouseType) => setFilterType(value)}
             >
-              <SelectTrigger className="w-full md:w-48 text-left">
+              <SelectTrigger className="w-full text-left">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="w-full">
                 <SelectItem value="all">Semua Rumah</SelectItem>
                 <SelectItem value="registered">Penghuni Terdaftar</SelectItem>
                 <SelectItem value="unregistered">
