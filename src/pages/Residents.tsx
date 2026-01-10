@@ -6,7 +6,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Home, Search, User, Crown, Users, ArrowLeft } from "lucide-react";
+import {
+  Home,
+  Search,
+  User,
+  Crown,
+  Users,
+  ArrowLeft,
+  Filter,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +22,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface HouseResident {
   id: string;
@@ -37,11 +53,14 @@ interface HouseWithResidents {
   residents: HouseResident[];
 }
 
+type HouseType = "all" | "registered" | "unregistered";
+
 export default function Residents() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHouse, setSelectedHouse] = useState<HouseWithResidents | null>(
     null
   );
+  const [filterType, setFilterType] = useState<HouseType>("all");
 
   const { data: houses, isLoading } = useQuery({
     queryKey: ["houses-with-residents"],
@@ -96,14 +115,30 @@ export default function Residents() {
 
   const filteredHouses = houses?.filter((house) => {
     const searchLower = searchQuery.toLowerCase();
-    const houseLabel = `${house.block} - ${house.number}`.toLowerCase();
+    const houseLabel = `${house.block}${house.number}`.toLowerCase();
     const residentNames = house.residents
       .map((r) => r.profiles?.full_name?.toLowerCase() || "")
       .join(" ");
-    return (
-      houseLabel.includes(searchLower) || residentNames.includes(searchLower)
-    );
+
+    const matchesSearch =
+      houseLabel.includes(searchLower) || residentNames.includes(searchLower);
+
+    let matchesFilter = true;
+    if (filterType === "registered") {
+      matchesFilter = house.residents.length > 0;
+    } else if (filterType === "unregistered") {
+      matchesFilter = house.residents.length === 0;
+    }
+    // filterType === "all" matches everything
+
+    return matchesSearch && matchesFilter;
   });
+
+  const totalHouses = houses?.length || 0;
+  const registeredHouses =
+    houses?.filter((h) => h.residents.length > 0).length || 0;
+  const totalUsers =
+    houses?.reduce((sum, h) => sum + h.residents.length, 0) || 0;
 
   const getInitials = (name: string) => {
     return name
@@ -132,7 +167,7 @@ export default function Residents() {
 
   return (
     <div className="container mx-auto py-6 px-4 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link to="/dashboard">
             <ArrowLeft className="w-5 h-5" />
@@ -144,15 +179,80 @@ export default function Residents() {
             </p>
           </div>
         </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari rumah atau penghuni..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari rumah atau penghuni..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <div className="flex flex-1 items-center">
+            <Select
+              value={filterType}
+              onValueChange={(value: HouseType) => setFilterType(value)}
+            >
+              <SelectTrigger className="w-full md:w-48 text-left">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Rumah</SelectItem>
+                <SelectItem value="registered">Penghuni Terdaftar</SelectItem>
+                <SelectItem value="unregistered">
+                  Penghuni Belum Terdaftar
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Rumah</p>
+                <p className="text-3xl font-bold text-blue-600">
+                  {totalHouses}
+                </p>
+              </div>
+              <Home className="h-10 w-10 text-blue-200" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Rumah Sudah Berpenghuni
+                </p>
+                <p className="text-3xl font-bold text-green-600">
+                  {registeredHouses}
+                </p>
+              </div>
+              <Home className="h-10 w-10 text-green-200" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Penghuni</p>
+                <p className="text-3xl font-bold text-purple-600">
+                  {totalUsers}
+                </p>
+              </div>
+              <Users className="h-10 w-10 text-purple-200" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">

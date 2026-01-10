@@ -213,7 +213,7 @@ export function AppSidebar() {
   );
 }
 
-function MenuSkeleton({ count = 4 }: { count?: number }) {
+function MenuSkeleton({ count = 6 }: { count?: number }) {
   return (
     <>
       {Array.from({ length: count }).map((_, i) => (

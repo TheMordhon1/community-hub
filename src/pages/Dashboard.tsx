@@ -12,7 +12,11 @@ import { FileText, Calendar, MessageSquare, Vote } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuickMenus, usePengurusMenus, useAdminMenus } from "@/hooks/useMenus";
+import {
+  useQuickMenus,
+  usePengurusMenus,
+  useAdminMenus,
+} from "@/hooks/useMenus";
 import { DynamicIcon } from "@/components/DynamicIcon";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -20,7 +24,8 @@ export default function Dashboard() {
   const { profile, isAdmin, canManageContent } = useAuth();
 
   const { data: quickMenus, isLoading: quickLoading } = useQuickMenus();
-  const { data: pengurusMenus, isLoading: pengurusLoading } = usePengurusMenus();
+  const { data: pengurusMenus, isLoading: pengurusLoading } =
+    usePengurusMenus();
   const { data: adminMenus, isLoading: adminLoading } = useAdminMenus();
 
   const { data: statsData, isLoading: statsLoading } = useQuery({
@@ -137,7 +142,7 @@ export default function Dashboard() {
                 <Button
                   key={action.id}
                   variant="outline"
-                  className="h-auto py-4 flex-col gap-2 hover:bg-muted"
+                  className="h-auto py-4 flex-col gap-2 hover:bg-black"
                   asChild
                 >
                   <Link to={action.url}>
@@ -168,7 +173,7 @@ export default function Dashboard() {
                   <Button
                     key={action.id}
                     variant="outline"
-                    className="h-auto py-4 flex-col gap-2 hover:bg-muted"
+                    className="h-auto py-4 flex-col gap-2 hover:bg-black"
                     asChild
                   >
                     <Link to={action.url}>
@@ -202,7 +207,7 @@ export default function Dashboard() {
                   <Button
                     key={action.id}
                     variant="outline"
-                    className="h-auto py-4 flex-col gap-2 hover:bg-muted"
+                    className="h-auto py-4 flex-col gap-2 hover:bg-black"
                     asChild
                   >
                     <Link to={action.url}>
