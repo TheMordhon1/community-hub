@@ -23,6 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import {
   Table,
   TableBody,
   TableCell,
@@ -39,6 +45,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import {
   Upload,
   Check,
@@ -55,6 +62,7 @@ import {
   Send,
   ArrowLeft,
   ExternalLink,
+  CalendarIcon,
 } from "lucide-react";
 import type { House, Profile } from "@/types/database";
 import jsPDF from "jspdf";
@@ -125,8 +133,7 @@ export default function Payments() {
   const [uploadMode, setUploadMode] = useState<"self" | "other">("self");
   const [selectedHouseId, setSelectedHouseId] = useState<string>("");
   const [formData, setFormData] = useState({
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
+    paymentDate: new Date(),
     amount: "",
     description: "",
   });
@@ -258,8 +265,8 @@ export default function Payments() {
       const { error } = await supabase.from("payments").insert({
         house_id: targetHouseId,
         amount: parseFloat(formData.amount),
-        month: formData.month,
-        year: formData.year,
+        month: formData.paymentDate.getMonth() + 1,
+        year: formData.paymentDate.getFullYear(),
         description: formData.description,
         proof_url: urlData.publicUrl,
         submitted_by: user.id,
@@ -276,8 +283,7 @@ export default function Payments() {
       setUploadMode("self");
       setSelectedHouseId("");
       setFormData({
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
+        paymentDate: new Date(),
         amount: "",
         description: "",
       });
@@ -795,47 +801,40 @@ _Paguyuban Nijuuroku_`;
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Bulan</Label>
-                    <Select
-                      value={formData.month.toString()}
-                      onValueChange={(v) =>
-                        setFormData({ ...formData, month: parseInt(v) })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {MONTHS.map((m, i) => (
-                          <SelectItem key={i} value={(i + 1).toString()}>
-                            {m}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Tahun</Label>
-                    <Select
-                      value={formData.year.toString()}
-                      onValueChange={(v) =>
-                        setFormData({ ...formData, year: parseInt(v) })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[2024, 2025, 2026].map((y) => (
-                          <SelectItem key={y} value={y.toString()}>
-                            {y}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label>Tanggal Pembayaran</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.paymentDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.paymentDate ? (
+                          format(formData.paymentDate, "dd MMMM yyyy", { locale: localeId })
+                        ) : (
+                          <span>Pilih tanggal</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.paymentDate}
+                        onSelect={(date) =>
+                          setFormData({
+                            ...formData,
+                            paymentDate: date || new Date(),
+                          })
+                        }
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="space-y-2">

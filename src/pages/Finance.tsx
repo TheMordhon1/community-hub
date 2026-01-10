@@ -26,6 +26,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import {
   Table,
   TableBody,
   TableCell,
@@ -43,6 +49,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import {
   Plus,
   TrendingUp,
@@ -60,6 +67,7 @@ import {
   ChevronRight,
   Pencil,
   Trash2,
+  CalendarIcon,
 } from "lucide-react";
 import type { FinanceRecordWithDetails } from "@/types/database";
 import jsPDF from "jspdf";
@@ -112,6 +120,7 @@ export default function Finance() {
   const [editingRecord, setEditingRecord] =
     useState<FinanceRecordWithDetails | null>(null);
   const [editType, setEditType] = useState<"income" | "outcome">("income");
+  const [editTransactionDate, setEditTransactionDate] = useState<Date | undefined>(undefined);
 
   const [formData, setFormData] = useState({
     type: "income" as "income" | "outcome",
@@ -364,6 +373,7 @@ export default function Finance() {
   const handleEdit = (record: FinanceRecordWithDetails) => {
     setEditingRecord(record);
     setEditType(record.type);
+    setEditTransactionDate(record.transaction_date ? new Date(record.transaction_date) : undefined);
     setIsEditOpen(true);
   };
 
@@ -386,7 +396,7 @@ export default function Finance() {
         amount: formEditData.get("amount") as string,
         description: formEditData.get("description") as string,
         category: formEditData.get("category") as string,
-        transaction_date: formEditData.get("transaction_date") as string,
+        transaction_date: editTransactionDate ? format(editTransactionDate, "yyyy-MM-dd") : "",
       },
       {
         onSuccess: () => {
@@ -596,16 +606,38 @@ export default function Finance() {
 
                 <div className="space-y-2">
                   <Label>Tanggal Transaksi</Label>
-                  <Input
-                    type="date"
-                    value={formData.transaction_date}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        transaction_date: e.target.value,
-                      })
-                    }
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.transaction_date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.transaction_date ? (
+                          format(new Date(formData.transaction_date), "dd MMMM yyyy", { locale: localeId })
+                        ) : (
+                          <span>Pilih tanggal</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.transaction_date ? new Date(formData.transaction_date) : undefined}
+                        onSelect={(date) =>
+                          setFormData({
+                            ...formData,
+                            transaction_date: date ? format(date, "yyyy-MM-dd") : "",
+                          })
+                        }
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="space-y-2">
@@ -983,14 +1015,34 @@ export default function Finance() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-transaction_date">Tanggal</Label>
-                <Input
-                  id="edit-transaction_date"
-                  name="transaction_date"
-                  type="date"
-                  defaultValue={editingRecord?.transaction_date}
-                  required
-                />
+                <Label>Tanggal Transaksi</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !editTransactionDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {editTransactionDate ? (
+                        format(editTransactionDate, "dd MMMM yyyy", { locale: localeId })
+                      ) : (
+                        <span>Pilih tanggal</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={editTransactionDate}
+                      onSelect={setEditTransactionDate}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 

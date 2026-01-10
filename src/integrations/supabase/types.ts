@@ -55,6 +55,7 @@ export type Database = {
           created_at: string
           description: string
           id: string
+          is_public: boolean | null
           responded_at: string | null
           responded_by: string | null
           response: string | null
@@ -67,6 +68,7 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
+          is_public?: boolean | null
           responded_at?: string | null
           responded_by?: string | null
           response?: string | null
@@ -79,6 +81,7 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
+          is_public?: boolean | null
           responded_at?: string | null
           responded_by?: string | null
           response?: string | null
