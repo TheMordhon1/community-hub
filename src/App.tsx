@@ -83,6 +83,7 @@ function AppRoutes() {
           <Route path="/payments/:id" element={<PaymentDetail />} />
           <Route path="/finance" element={<Finance />} />
           <Route path="/organization" element={<OrganizationStructure />} />
+          <Route path="/residents" element={<Residents />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/houses" element={<AdminHouses />} />
