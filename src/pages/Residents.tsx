@@ -52,25 +52,25 @@ export default function Residents() {
 
       if (housesError) throw housesError;
 
-      // Fetch all residents with profiles
+      // Fetch all residents
       const { data: residentsData, error: residentsError } = await supabase
         .from("house_residents")
-        .select(`
-          id,
-          user_id,
-          house_id,
-          is_owner,
-          move_in_date,
-          profiles:user_id (
-            id,
-            full_name,
-            email,
-            phone,
-            avatar_url
-          )
-        `);
+        .select("id, user_id, house_id, is_owner, move_in_date");
 
       if (residentsError) throw residentsError;
+
+      // Fetch profiles for all residents
+      const userIds = [...new Set((residentsData || []).map((r) => r.user_id))];
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, phone, avatar_url")
+        .in("id", userIds);
+
+      if (profilesError) throw profilesError;
+
+      const profilesMap = new Map(
+        (profilesData || []).map((p) => [p.id, p])
+      );
 
       // Map residents to houses
       const housesWithResidents: HouseWithResidents[] = housesData.map((house) => ({
@@ -82,8 +82,9 @@ export default function Residents() {
             user_id: r.user_id,
             is_owner: r.is_owner || false,
             move_in_date: r.move_in_date,
-            profiles: r.profiles as HouseResident["profiles"],
-          })),
+            profiles: profilesMap.get(r.user_id) as HouseResident["profiles"],
+          }))
+          .filter((r) => r.profiles),
       }));
 
       return housesWithResidents;
