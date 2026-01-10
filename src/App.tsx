@@ -25,6 +25,7 @@ import Payments from "./pages/Payments";
 import PaymentDetail from "./pages/PaymentDetail";
 import Finance from "./pages/Finance";
 import OrganizationStructure from "./pages/OrganizationStructure";
+import Residents from "./pages/Residents";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
