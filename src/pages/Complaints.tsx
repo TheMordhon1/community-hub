@@ -44,6 +44,10 @@ import {
   CheckCircle,
   AlertCircle,
   Send,
+  Edit2,
+  Trash2,
+  Eye,
+  Lock,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Complaint, ComplaintStatus, Profile } from "@/types/database";
@@ -78,10 +82,14 @@ export default function Complaints() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedComplaint, setSelectedComplaint] =
+    useState<ComplaintWithProfile | null>(null);
+  const [editingComplaint, setEditingComplaint] =
     useState<ComplaintWithProfile | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [isPublic, setIsPublic] = useState(true);
   const [response, setResponse] = useState("");
   const [newStatus, setNewStatus] = useState<ComplaintStatus>("pending");
 
@@ -114,10 +122,15 @@ export default function Complaints() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: { title: string; description: string }) => {
+    mutationFn: async (data: {
+      title: string;
+      description: string;
+      is_public: boolean;
+    }) => {
       const { error } = await supabase.from("complaints").insert({
         title: data.title,
         description: data.description,
+        is_public: data.is_public, // Include is_public in creation
         user_id: user?.id,
         status: "pending",
       });
@@ -133,6 +146,82 @@ export default function Complaints() {
         variant: "destructive",
         title: "Gagal",
         description: "Gagal mengirim pengaduan",
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: {
+      id: string;
+      title: string;
+      description: string;
+      is_public: boolean;
+    }) => {
+      const { error } = await supabase
+        .from("complaints")
+        .update({
+          title: data.title,
+          description: data.description,
+          is_public: data.is_public, // Allow creators to update is_public
+        })
+        .eq("id", data.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["complaints"] });
+      toast({
+        title: "Berhasil",
+        description: "Pengaduan berhasil diperbarui",
+      });
+      resetEditForm();
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal memperbarui pengaduan",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("complaints").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["complaints"] });
+      toast({ title: "Berhasil", description: "Pengaduan berhasil dihapus" });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal menghapus pengaduan",
+      });
+    },
+  });
+
+  const togglePublicMutation = useMutation({
+    mutationFn: async (data: { id: string; is_public: boolean }) => {
+      const { error } = await supabase
+        .from("complaints")
+        .update({ is_public: data.is_public })
+        .eq("id", data.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["complaints"] });
+      toast({
+        title: "Berhasil",
+        description: "Status visibilitas pengaduan berhasil diubah",
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal mengubah status visibilitas",
       });
     },
   });
@@ -172,7 +261,16 @@ export default function Complaints() {
   const resetForm = () => {
     setTitle("");
     setDescription("");
+    setIsPublic(true);
     setIsCreateOpen(false);
+  };
+
+  const resetEditForm = () => {
+    setEditingComplaint(null);
+    setTitle("");
+    setDescription("");
+    setIsPublic(true);
+    setIsEditOpen(false);
   };
 
   const handleSubmit = () => {
@@ -184,7 +282,33 @@ export default function Complaints() {
       });
       return;
     }
-    createMutation.mutate({ title, description });
+    createMutation.mutate({ title, description, is_public: isPublic });
+  };
+
+  const handleEdit = (complaint: ComplaintWithProfile) => {
+    setEditingComplaint(complaint);
+    setTitle(complaint.title);
+    setDescription(complaint.description);
+    setIsPublic(complaint.is_public);
+    setIsEditOpen(true);
+  };
+
+  const handleUpdateComplaint = () => {
+    if (!title.trim() || !description.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Judul dan deskripsi wajib diisi",
+      });
+      return;
+    }
+    if (!editingComplaint) return;
+    updateMutation.mutate({
+      id: editingComplaint.id,
+      title,
+      description,
+      is_public: isPublic,
+    });
   };
 
   const handleRespond = () => {
@@ -266,6 +390,31 @@ export default function Complaints() {
                     onChange={(e) => setDescription(e.target.value)}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>Visibilitas</Label>
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <button
+                      onClick={() => setIsPublic(!isPublic)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md transition ${
+                        isPublic
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-secondary-foreground"
+                      }`}
+                    >
+                      {isPublic ? (
+                        <Eye className="w-4 h-4" />
+                      ) : (
+                        <Lock className="w-4 h-4" />
+                      )}
+                      {isPublic ? "Publik" : "Pribadi"}
+                    </button>
+                    <span className="text-sm text-muted-foreground">
+                      {isPublic
+                        ? "Dapat dilihat oleh semua warga"
+                        : "Hanya dilihat oleh Anda dan pengurus"}
+                    </span>
+                  </div>
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={resetForm}>
@@ -328,6 +477,10 @@ export default function Complaints() {
                     index={index}
                     showUser={false}
                     getStatusBadge={getStatusBadge}
+                    isCreator={complaint.user_id === user?.id}
+                    onEdit={handleEdit}
+                    onDelete={(id) => deleteMutation.mutate(id)}
+                    isDeleting={deleteMutation.isPending}
                   />
                 ))
               )}
@@ -355,6 +508,18 @@ export default function Complaints() {
                       index={index}
                       showUser={true}
                       getStatusBadge={getStatusBadge}
+                      isCreator={complaint.user_id === user?.id}
+                      onEdit={handleEdit}
+                      onDelete={(id) => deleteMutation.mutate(id)}
+                      isDeleting={deleteMutation.isPending}
+                      isAdmin={canManageContent()}
+                      onTogglePublic={(id, isPublic) =>
+                        togglePublicMutation.mutate({
+                          id,
+                          is_public: !isPublic,
+                        })
+                      }
+                      isTogglingPublic={togglePublicMutation.isPending}
                       onRespond={() => {
                         setSelectedComplaint(complaint);
                         setNewStatus(complaint.status);
@@ -367,6 +532,78 @@ export default function Complaints() {
             )}
           </Tabs>
         )}
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Pengaduan</DialogTitle>
+              <DialogDescription>
+                Ubah judul, deskripsi, atau visibilitas pengaduan Anda
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-title">Judul</Label>
+                <Input
+                  id="edit-title"
+                  placeholder="Ringkasan pengaduan"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">Deskripsi</Label>
+                <Textarea
+                  id="edit-description"
+                  placeholder="Jelaskan pengaduan Anda secara detail..."
+                  rows={5}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Visibilitas</Label>
+                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                  <button
+                    onClick={() => setIsPublic(!isPublic)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-md transition ${
+                      isPublic
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-secondary-foreground"
+                    }`}
+                  >
+                    {isPublic ? (
+                      <Eye className="w-4 h-4" />
+                    ) : (
+                      <Lock className="w-4 h-4" />
+                    )}
+                    {isPublic ? "Publik" : "Pribadi"}
+                  </button>
+                  <span className="text-sm text-muted-foreground">
+                    {isPublic
+                      ? "Dapat dilihat oleh semua warga"
+                      : "Hanya dilihat oleh Anda dan pengurus"}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={resetEditForm}>
+                Batal
+              </Button>
+              <Button
+                onClick={handleUpdateComplaint}
+                disabled={updateMutation.isPending}
+              >
+                {updateMutation.isPending && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
+                Simpan Perubahan
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Respond Dialog */}
         <Dialog
@@ -443,12 +680,26 @@ function ComplaintCard({
   index,
   showUser,
   getStatusBadge,
+  isCreator,
+  onEdit,
+  onDelete,
+  isDeleting,
+  isAdmin,
+  onTogglePublic,
+  isTogglingPublic,
   onRespond,
 }: {
   complaint: ComplaintWithProfile;
   index: number;
   showUser: boolean;
   getStatusBadge: (status: ComplaintStatus) => React.ReactNode;
+  isCreator: boolean;
+  onEdit: (complaint: ComplaintWithProfile) => void;
+  onDelete: (id: string) => void;
+  isDeleting: boolean;
+  isAdmin?: boolean;
+  onTogglePublic?: (id: string, isPublic: boolean) => void;
+  isTogglingPublic?: boolean;
   onRespond?: () => void;
 }) {
   return (
@@ -460,8 +711,25 @@ function ComplaintCard({
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
-            <div>
-              {getStatusBadge(complaint.status)}
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                {getStatusBadge(complaint.status)}
+                <Badge
+                  variant="outline"
+                  className={
+                    complaint.is_public
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                  }
+                >
+                  {complaint.is_public ? (
+                    <Eye className="w-3 h-3 mr-1" />
+                  ) : (
+                    <Lock className="w-3 h-3 mr-1" />
+                  )}
+                  {complaint.is_public ? "Publik" : "Pribadi"}
+                </Badge>
+              </div>
               <CardTitle className="text-lg mt-2">{complaint.title}</CardTitle>
               <CardDescription>
                 {showUser &&
@@ -472,11 +740,59 @@ function ComplaintCard({
                 })}
               </CardDescription>
             </div>
-            {onRespond && (
-              <Button variant="outline" size="sm" onClick={onRespond}>
-                Tanggapi
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {isCreator && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEdit(complaint)}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDelete(complaint.id)}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    )}
+                  </Button>
+                </>
+              )}
+              {isAdmin && !isCreator && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      onTogglePublic?.(complaint.id, complaint.is_public)
+                    }
+                    disabled={isTogglingPublic}
+                  >
+                    {isTogglingPublic ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : complaint.is_public ? (
+                      <Eye className="w-4 h-4" />
+                    ) : (
+                      <Lock className="w-4 h-4" />
+                    )}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={onRespond}>
+                    Tanggapi
+                  </Button>
+                </>
+              )}
+              {isAdmin && isCreator && (
+                <Button variant="outline" size="sm" onClick={onRespond}>
+                  Tanggapi
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">

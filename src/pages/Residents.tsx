@@ -38,7 +38,9 @@ interface HouseWithResidents {
 
 export default function Residents() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedHouse, setSelectedHouse] = useState<HouseWithResidents | null>(null);
+  const [selectedHouse, setSelectedHouse] = useState<HouseWithResidents | null>(
+    null
+  );
 
   const { data: houses, isLoading } = useQuery({
     queryKey: ["houses-with-residents"],
@@ -68,24 +70,24 @@ export default function Residents() {
 
       if (profilesError) throw profilesError;
 
-      const profilesMap = new Map(
-        (profilesData || []).map((p) => [p.id, p])
-      );
+      const profilesMap = new Map((profilesData || []).map((p) => [p.id, p]));
 
       // Map residents to houses
-      const housesWithResidents: HouseWithResidents[] = housesData.map((house) => ({
-        ...house,
-        residents: (residentsData || [])
-          .filter((r) => r.house_id === house.id)
-          .map((r) => ({
-            id: r.id,
-            user_id: r.user_id,
-            is_owner: r.is_owner || false,
-            move_in_date: r.move_in_date,
-            profiles: profilesMap.get(r.user_id) as HouseResident["profiles"],
-          }))
-          .filter((r) => r.profiles),
-      }));
+      const housesWithResidents: HouseWithResidents[] = housesData.map(
+        (house) => ({
+          ...house,
+          residents: (residentsData || [])
+            .filter((r) => r.house_id === house.id)
+            .map((r) => ({
+              id: r.id,
+              user_id: r.user_id,
+              is_owner: r.is_owner || false,
+              move_in_date: r.move_in_date,
+              profiles: profilesMap.get(r.user_id) as HouseResident["profiles"],
+            }))
+            .filter((r) => r.profiles),
+        })
+      );
 
       return housesWithResidents;
     },
@@ -93,11 +95,13 @@ export default function Residents() {
 
   const filteredHouses = houses?.filter((house) => {
     const searchLower = searchQuery.toLowerCase();
-    const houseLabel = `${house.block}${house.number}`.toLowerCase();
+    const houseLabel = `${house.block} - ${house.number}`.toLowerCase();
     const residentNames = house.residents
       .map((r) => r.profiles?.full_name?.toLowerCase() || "")
       .join(" ");
-    return houseLabel.includes(searchLower) || residentNames.includes(searchLower);
+    return (
+      houseLabel.includes(searchLower) || residentNames.includes(searchLower)
+    );
   });
 
   const getInitials = (name: string) => {
@@ -156,7 +160,7 @@ export default function Residents() {
           >
             <CardContent className="p-4 text-center">
               <div className="text-lg font-bold text-primary">
-                {house.block}{house.number}
+                {house.block} - {house.number}
               </div>
               <div className="flex items-center justify-center gap-1 mt-2 text-sm text-muted-foreground">
                 <Users className="h-3 w-3" />
@@ -172,12 +176,15 @@ export default function Residents() {
       </div>
 
       {/* House Detail Dialog */}
-      <Dialog open={!!selectedHouse} onOpenChange={() => setSelectedHouse(null)}>
+      <Dialog
+        open={!!selectedHouse}
+        onOpenChange={() => setSelectedHouse(null)}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Home className="h-5 w-5 text-primary" />
-              Rumah {selectedHouse?.block}{selectedHouse?.number}
+              Rumah {selectedHouse?.block} - {selectedHouse?.number}
             </DialogTitle>
           </DialogHeader>
 

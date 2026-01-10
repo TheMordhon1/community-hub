@@ -171,6 +171,7 @@ export interface Complaint {
   description: string;
   status: ComplaintStatus;
   response: string | null;
+  is_public: boolean;
   responded_by: string | null;
   responded_at: string | null;
   created_at: string;
