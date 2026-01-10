@@ -6,13 +6,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Home, Search, User, Crown, Users } from "lucide-react";
+import { Home, Search, User, Crown, Users, ArrowLeft } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Link } from "react-router-dom";
 
 interface HouseResident {
   id: string;
@@ -132,9 +133,16 @@ export default function Residents() {
   return (
     <div className="container mx-auto py-6 px-4 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Home className="h-8 w-8 text-primary" />
-          <h1 className="text-2xl font-bold">Daftar Rumah & Penghuni</h1>
+        <div className="flex items-center gap-4">
+          <Link to="/dashboard">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold">Daftar Rumah & Penghuni</h1>
+            <p className="text-muted-foreground">
+              Lihat nomer rumah dan penghuni PKT
+            </p>
+          </div>
         </div>
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

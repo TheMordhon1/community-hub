@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { Eye, EyeOff, Home, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -143,7 +143,7 @@ export default function Register() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-primary lg:bg-pkt-logo">
-      <div className="absolute top-0 bottom-0 left-0 right-0 bg-black/60 z-[1]" />
+      <div className="fixed top-0 bottom-0 left-0 right-0 bg-black/60 z-[1]" />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -201,8 +201,7 @@ export default function Register() {
                     ) : (
                       availableHouses.map((house) => (
                         <SelectItem key={house.id} value={house.id}>
-                          Blok {house.block} No. {house.number}
-                          {house.is_occupied && " (sudah ada penghuni)"}
+                          Blok {house.block} - {house.number}
                         </SelectItem>
                       ))
                     )}
