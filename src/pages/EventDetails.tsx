@@ -230,13 +230,9 @@ export default function EventDetail() {
                   <CardDescription className="flex items-center gap-4 text-base">
                     <span className="flex items-center gap-1">
                       <CalendarIcon className="w-4 h-4" />
-                      {format(
-                        new Date(event.event_date),
-                        "d MMMM yyyy, HH:mm",
-                        {
-                          locale: idLocale,
-                        }
-                      )}
+                      {format(new Date(event.event_date), "d MMMM yyyy", {
+                        locale: idLocale,
+                      })}
                     </span>
                   </CardDescription>
                 </div>
@@ -332,7 +328,7 @@ export default function EventDetail() {
                   {attendees.map((attendee) => (
                     <div
                       key={attendee.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-mute transition-colors"
                     >
                       <Avatar>
                         <AvatarImage src={attendee.profile?.avatar_url || ""} />

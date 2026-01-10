@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useNaturalSort } from "@/hooks/useNaturalSort";
 
 interface HouseResident {
   id: string;
@@ -56,6 +57,7 @@ interface HouseWithResidents {
 type HouseType = "all" | "registered" | "unregistered";
 
 export default function Residents() {
+  const { naturalSort } = useNaturalSort();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHouse, setSelectedHouse] = useState<HouseWithResidents | null>(
     null
@@ -113,26 +115,32 @@ export default function Residents() {
     },
   });
 
-  const filteredHouses = houses?.filter((house) => {
-    const searchLower = searchQuery.toLowerCase();
-    const houseLabel = `${house.block}${house.number}`.toLowerCase();
-    const residentNames = house.residents
-      .map((r) => r.profiles?.full_name?.toLowerCase() || "")
-      .join(" ");
+  const filteredHouses = houses
+    ?.filter((house) => {
+      const searchLower = searchQuery.toLowerCase();
+      const houseLabel = `${house.block}${house.number}`.toLowerCase();
+      const residentNames = house.residents
+        .map((r) => r.profiles?.full_name?.toLowerCase() || "")
+        .join(" ");
 
-    const matchesSearch =
-      houseLabel.includes(searchLower) || residentNames.includes(searchLower);
+      const matchesSearch =
+        houseLabel.includes(searchLower) || residentNames.includes(searchLower);
 
-    let matchesFilter = true;
-    if (filterType === "registered") {
-      matchesFilter = house.residents.length > 0;
-    } else if (filterType === "unregistered") {
-      matchesFilter = house.residents.length === 0;
-    }
-    // filterType === "all" matches everything
+      let matchesFilter = true;
+      if (filterType === "registered") {
+        matchesFilter = house.residents.length > 0;
+      } else if (filterType === "unregistered") {
+        matchesFilter = house.residents.length === 0;
+      }
+      // filterType === "all" matches everything
 
-    return matchesSearch && matchesFilter;
-  });
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => {
+      const blockSort = naturalSort(a.block, b.block);
+      if (blockSort !== 0) return blockSort;
+      return naturalSort(a.number, b.number);
+    });
 
   const totalHouses = houses?.length || 0;
   const registeredHouses =
