@@ -484,9 +484,10 @@ export default function Payments() {
     },
   });
 
-  // Check if user can edit/delete a payment (only their own pending payments)
+  // Check if user can edit/delete a payment (own pending payments or admin for any pending)
   const canEditPayment = (payment: PaymentItem) => {
-    return payment.status === "pending" && payment.submitted_by === user?.id;
+    if (payment.status !== "pending") return false;
+    return payment.submitted_by === user?.id || isAdmin();
   };
 
   // Open edit dialog with payment data
