@@ -61,7 +61,6 @@ import {
   Copy,
   Send,
   ArrowLeft,
-  ExternalLink,
   CalendarIcon,
 } from "lucide-react";
 import type { House, Profile } from "@/types/database";
@@ -70,7 +69,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useNaturalSort } from "@/hooks/useNaturalSort";
+import { SortingFinance } from "@/types/finance";
 
 interface PaymentItem {
   id: string;
@@ -118,8 +117,6 @@ const STATUS_LABELS = {
 
 export default function Payments() {
   const { user, isAdmin, hasFinanceAccess } = useAuth();
-
-  const { naturalSort } = useNaturalSort();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
@@ -133,6 +130,10 @@ export default function Payments() {
   const [filterYear, setFilterYear] = useState<string>(
     new Date().getFullYear().toString()
   );
+  const [sortBy, setSortBy] = useState<
+    "date-newest" | "date-oldest" | "amount-asc" | "amount-desc"
+  >("date-newest");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [uploadMode, setUploadMode] = useState<"self" | "other">("self");
   const [selectedHouseId, setSelectedHouseId] = useState<string>("");
   const [formData, setFormData] = useState({
@@ -181,13 +182,7 @@ export default function Payments() {
         .order("block")
         .order("number");
       if (error) throw error;
-      return (
-        data.sort((a, b) => {
-          const blockSort = naturalSort(a.block, b.block);
-          if (blockSort !== 0) return blockSort;
-          return naturalSort(a.number, b.number);
-        }) ?? []
-      );
+      return data;
     },
     enabled: canVerify,
   });
@@ -239,13 +234,45 @@ export default function Payments() {
     const monthMatch =
       filterMonth === "all" || p.month.toString() === filterMonth;
     const yearMatch = p.year.toString() === filterYear;
-    return monthMatch && yearMatch;
+    const statusMatch = filterStatus === "all" || p.status === filterStatus;
+    return monthMatch && yearMatch && statusMatch;
   });
+
+  // Add sorting logic
+  const sortedPayments = (() => {
+    if (!filteredPayments) return [];
+
+    const sorted = [...filteredPayments];
+
+    switch (sortBy) {
+      case "date-newest":
+        sorted.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        break;
+      case "date-oldest":
+        sorted.sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        break;
+      case "amount-asc":
+        sorted.sort((a, b) => a.amount - b.amount);
+        break;
+      case "amount-desc":
+        sorted.sort((a, b) => b.amount - a.amount);
+        break;
+    }
+
+    return sorted;
+  })();
 
   const displayPayments =
     canVerify && bendaharaTab === "mine"
-      ? filteredPayments?.filter((p) => p.house_id === userHouse?.id)
-      : filteredPayments;
+      ? sortedPayments?.filter((p) => p.house_id === userHouse?.id)
+      : sortedPayments;
+
   // Submit payment mutation
   const submitPayment = useMutation({
     mutationFn: async () => {
@@ -273,7 +300,7 @@ export default function Payments() {
 
       const { error } = await supabase.from("payments").insert({
         house_id: targetHouseId,
-        amount: parseFloat(formData.amount),
+        amount: Number.parseFloat(formData.amount),
         month: formData.paymentDate.getMonth() + 1,
         year: formData.paymentDate.getFullYear(),
         description: formData.description,
@@ -373,7 +400,7 @@ Dengan hormat, kami ingatkan untuk pembayaran *Iuran Bulanan* periode *${
     } ${reminderData.year}*.
 
 📋 *Detail Pembayaran:*
-💰 Nominal: *Rp ${parseInt(reminderData.amount).toLocaleString("id-ID")}*
+💰 Nominal: *Rp ${Number.parseInt(reminderData.amount).toLocaleString("id-ID")}*
 📅 Batas Waktu: *${deadlineFormatted}*
 🏦 Transfer ke: *${reminderData.bankAccount}*
 
@@ -408,7 +435,7 @@ _Paguyuban Nijuuroku_`;
     const periodText =
       filterMonth === "all"
         ? `Tahun ${filterYear}`
-        : `${MONTHS[parseInt(filterMonth) - 1]} ${filterYear}`;
+        : `${MONTHS[Number.parseInt(filterMonth) - 1]} ${filterYear}`;
 
     doc.setFontSize(18);
     doc.text("Laporan Pembayaran Iuran", 14, 22);
@@ -543,7 +570,7 @@ _Paguyuban Nijuuroku_`;
                             onValueChange={(v) =>
                               setReminderData({
                                 ...reminderData,
-                                month: parseInt(v),
+                                month: Number.parseInt(v),
                               })
                             }
                           >
@@ -566,7 +593,7 @@ _Paguyuban Nijuuroku_`;
                             onValueChange={(v) =>
                               setReminderData({
                                 ...reminderData,
-                                year: parseInt(v),
+                                year: Number.parseInt(v),
                               })
                             }
                           >
@@ -642,7 +669,7 @@ _Paguyuban Nijuuroku_`;
                         <Button
                           variant="outline"
                           onClick={copyToClipboard}
-                          className="flex-1"
+                          className="flex-1 bg-transparent"
                           size="sm"
                         >
                           <Copy className="w-4 h-4 mr-2" />
@@ -666,33 +693,64 @@ _Paguyuban Nijuuroku_`;
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-2">
-          <Select value={filterMonth} onValueChange={setFilterMonth}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Bulan" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Bulan</SelectItem>
-              {MONTHS.map((m, i) => (
-                <SelectItem key={i} value={(i + 1).toString()}>
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap gap-2">
+            <Select value={filterMonth} onValueChange={setFilterMonth}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Bulan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Bulan</SelectItem>
+                {MONTHS.map((m, i) => (
+                  <SelectItem key={i} value={(i + 1).toString()}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={filterYear} onValueChange={setFilterYear}>
-            <SelectTrigger className="w-[100px]">
-              <SelectValue placeholder="Tahun" />
-            </SelectTrigger>
-            <SelectContent>
-              {[2024, 2025, 2026].map((y) => (
-                <SelectItem key={y} value={y.toString()}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger className="w-[100px]">
+                <SelectValue placeholder="Tahun" />
+              </SelectTrigger>
+              <SelectContent>
+                {[2024, 2025, 2026].map((y) => (
+                  <SelectItem key={y} value={y.toString()}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Status Filter */}
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="pending">Menunggu Verifikasi</SelectItem>
+                <SelectItem value="paid">Terverifikasi</SelectItem>
+                <SelectItem value="overdue">Belum Bayar</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Sorting Dropdown */}
+            <Select
+              value={sortBy}
+              onValueChange={(v: SortingFinance) => setSortBy(v)}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Urutkan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date-newest">Tanggal (Terbaru)</SelectItem>
+                <SelectItem value="date-oldest">Tanggal (Terlama)</SelectItem>
+                <SelectItem value="amount-desc">Jumlah (Terbesar)</SelectItem>
+                <SelectItem value="amount-asc">Jumlah (Terkecil)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -956,7 +1014,7 @@ _Paguyuban Nijuuroku_`;
                     {displayPayments.map((payment) => (
                       <TableRow
                         key={payment.id}
-                        className="cursor-pointer hover:bg-accent/50"
+                        className="cursor-pointer hover:bg-gray-100"
                         onClick={() => navigate(`/payments/${payment.id}`)}
                       >
                         <TableCell className="font-medium text-xs sm:text-sm py-2">
@@ -992,7 +1050,7 @@ _Paguyuban Nijuuroku_`;
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-7 w-7 p-0"
+                                className="h-7 w-7 p-0 bg-transparent"
                                 onClick={() => setSelectedPayment(payment)}
                               >
                                 <Eye className="w-3 h-3" />
@@ -1003,7 +1061,7 @@ _Paguyuban Nijuuroku_`;
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="h-7 w-7 p-0 text-green-600 hover:bg-green-50"
+                                  className="h-7 w-7 p-0 text-green-600 hover:bg-green-50 bg-transparent"
                                   onClick={() =>
                                     verifyPayment.mutate({
                                       paymentId: payment.id,
@@ -1016,7 +1074,7 @@ _Paguyuban Nijuuroku_`;
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="h-7 w-7 p-0 text-red-600 hover:bg-red-50"
+                                  className="h-7 w-7 p-0 text-red-600 hover:bg-red-50 bg-transparent"
                                   onClick={() =>
                                     verifyPayment.mutate({
                                       paymentId: payment.id,

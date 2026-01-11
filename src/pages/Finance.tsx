@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,6 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
-  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -78,6 +76,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useAddFinanceRecord } from "@/hooks/finance/useAddFinanceRecord"; // Import the useAddFinanceRecord hook
 import { useUpdateFinanceRecord } from "@/hooks/finance/useEditFinanceRecord";
 import { useDeleteFinanceRecord } from "@/hooks/finance/useDeleteFinanceRecord";
+import { SortingFinance } from "@/types/finance";
 
 const CATEGORIES = {
   income: ["iuran", "donasi", "lainnya"],
@@ -115,6 +114,10 @@ export default function Finance() {
   const [filterYear, setFilterYear] = useState<string>(
     new Date().getFullYear().toString()
   );
+  const [sortBy, setSortBy] = useState<
+    "date-newest" | "date-oldest" | "amount-asc" | "amount-desc"
+  >("date-newest");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
   const [isIuranExpanded, setIsIuranExpanded] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingRecord, setEditingRecord] =
@@ -185,30 +188,55 @@ export default function Finance() {
     const monthMatch =
       filterMonth === "all" || (date.getMonth() + 1).toString() === filterMonth;
     const yearMatch = date.getFullYear().toString() === filterYear;
-    return typeMatch && monthMatch && yearMatch;
+    const categoryMatch =
+      filterCategory === "all" || r.category === filterCategory;
+    return typeMatch && monthMatch && yearMatch && categoryMatch;
   });
 
-  const filteredIncome =
-    filteredRecords
-      ?.filter((r) => r.type === "income")
-      .reduce((sum, r) => sum + r.amount, 0) || 0;
-  const filteredOutcome =
-    filteredRecords
-      ?.filter((r) => r.type === "outcome")
-      .reduce((sum, r) => sum + r.amount, 0) || 0;
-  // Filter records based on tab and date for display only
-
-  const groupedRecords = (() => {
+  // Grouping and sorting logic
+  const sortedFilteredRecords = (() => {
     if (!filteredRecords) return [];
 
-    const iuranRecords = filteredRecords.filter(
+    const sorted = [...filteredRecords];
+
+    // Apply sorting
+    switch (sortBy) {
+      case "date-newest":
+        sorted.sort(
+          (a, b) =>
+            new Date(b.transaction_date).getTime() -
+            new Date(a.transaction_date).getTime()
+        );
+        break;
+      case "date-oldest":
+        sorted.sort(
+          (a, b) =>
+            new Date(a.transaction_date).getTime() -
+            new Date(b.transaction_date).getTime()
+        );
+        break;
+      case "amount-asc":
+        sorted.sort((a, b) => a.amount - b.amount);
+        break;
+      case "amount-desc":
+        sorted.sort((a, b) => b.amount - a.amount);
+        break;
+    }
+
+    return sorted;
+  })();
+
+  const groupedRecords = (() => {
+    if (!sortedFilteredRecords) return [];
+
+    const iuranRecords = sortedFilteredRecords.filter(
       (r) => r.category?.toLowerCase() === "iuran"
     );
-    const otherRecords = filteredRecords.filter(
+    const otherRecords = sortedFilteredRecords.filter(
       (r) => r.category?.toLowerCase() !== "iuran"
     );
 
-    if (iuranRecords.length === 0) return filteredRecords;
+    if (iuranRecords.length === 0) return sortedFilteredRecords;
 
     // Create summary row for iuran
     const iuranTotal = iuranRecords.reduce((sum, r) => sum + r.amount, 0);
@@ -254,12 +282,18 @@ export default function Finance() {
     // Summary
     doc.setFontSize(11);
     doc.text(
-      `Total Pemasukan: Rp ${filteredIncome.toLocaleString("id-ID")}`,
+      `Total Pemasukan: Rp ${sortedFilteredRecords
+        .filter((r) => r.type === "income")
+        .reduce((sum, r) => sum + r.amount, 0)
+        .toLocaleString("id-ID")}`,
       14,
       52
     );
     doc.text(
-      `Total Pengeluaran: Rp ${filteredOutcome.toLocaleString("id-ID")}`,
+      `Total Pengeluaran: Rp ${sortedFilteredRecords
+        .filter((r) => r.type === "outcome")
+        .reduce((sum, r) => sum + r.amount, 0)
+        .toLocaleString("id-ID")}`,
       14,
       60
     );
@@ -267,7 +301,7 @@ export default function Finance() {
 
     // Table
     const tableData =
-      filteredRecords?.map((r) => {
+      sortedFilteredRecords?.map((r) => {
         return [
           format(new Date(r.transaction_date), "dd/MM/yyyy"),
           r.type === "income" ? "Masuk" : "Keluar",
@@ -340,7 +374,9 @@ export default function Finance() {
       Jenis: "",
       Kategori: "",
       Deskripsi: "Total Pemasukan",
-      Jumlah: filteredIncome,
+      Jumlah: sortedFilteredRecords
+        .filter((r) => r.type === "income")
+        .reduce((sum, r) => sum + r.amount, 0),
       "Dicatat Oleh": "",
     });
     data.push({
@@ -348,7 +384,9 @@ export default function Finance() {
       Jenis: "",
       Kategori: "",
       Deskripsi: "Total Pengeluaran",
-      Jumlah: filteredOutcome,
+      Jumlah: sortedFilteredRecords
+        .filter((r) => r.type === "outcome")
+        .reduce((sum, r) => sum + r.amount, 0),
       "Dicatat Oleh": "",
     });
     data.push({
@@ -458,33 +496,68 @@ export default function Finance() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-2">
-          <Select value={filterMonth} onValueChange={setFilterMonth}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Bulan" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Bulan</SelectItem>
-              {MONTHS.map((m, i) => (
-                <SelectItem key={i} value={(i + 1).toString()}>
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap gap-2">
+            <Select value={filterMonth} onValueChange={setFilterMonth}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Bulan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Bulan</SelectItem>
+                {MONTHS.map((m, i) => (
+                  <SelectItem key={i} value={(i + 1).toString()}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={filterYear} onValueChange={setFilterYear}>
-            <SelectTrigger className="w-[100px]">
-              <SelectValue placeholder="Tahun" />
-            </SelectTrigger>
-            <SelectContent>
-              {[2025, 2026, 2027].map((y) => (
-                <SelectItem key={y} value={y.toString()}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger className="w-[100px]">
+                <SelectValue placeholder="Tahun" />
+              </SelectTrigger>
+              <SelectContent>
+                {[2025, 2026, 2027].map((y) => (
+                  <SelectItem key={y} value={y.toString()}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Category Filter */}
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Kategori" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Kategori</SelectItem>
+                {Object.values(CATEGORIES)
+                  .flat()
+                  .map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+
+            {/* Sorting Dropdown */}
+            <Select
+              value={sortBy}
+              onValueChange={(v: SortingFinance) => setSortBy(v)}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Urutkan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date-newest">Tanggal (Terbaru)</SelectItem>
+                <SelectItem value="date-oldest">Tanggal (Terlama)</SelectItem>
+                <SelectItem value="amount-desc">Jumlah (Terbesar)</SelectItem>
+                <SelectItem value="amount-asc">Jumlah (Terkecil)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -498,7 +571,11 @@ export default function Finance() {
             </CardHeader>
             <CardContent>
               <div className="text-lg sm:text-2xl font-bold text-green-600">
-                Rp {filteredIncome.toLocaleString("id-ID")}
+                Rp{" "}
+                {sortedFilteredRecords
+                  .filter((r) => r.type === "income")
+                  .reduce((sum, r) => sum + r.amount, 0)
+                  .toLocaleString("id-ID")}
               </div>
             </CardContent>
           </Card>
@@ -512,7 +589,11 @@ export default function Finance() {
             </CardHeader>
             <CardContent>
               <div className="text-lg sm:text-2xl font-bold text-red-600">
-                Rp {filteredOutcome.toLocaleString("id-ID")}
+                Rp{" "}
+                {sortedFilteredRecords
+                  .filter((r) => r.type === "outcome")
+                  .reduce((sum, r) => sum + r.amount, 0)
+                  .toLocaleString("id-ID")}
               </div>
             </CardContent>
           </Card>

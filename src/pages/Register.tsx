@@ -81,7 +81,7 @@ export default function Register() {
   });
 
   const availableHouses =
-    houses.sort((a, b) => {
+    houses?.sort((a, b) => {
       const blockSort = naturalSort(a.block, b.block);
       if (blockSort !== 0) return blockSort;
       return naturalSort(a.number, b.number);

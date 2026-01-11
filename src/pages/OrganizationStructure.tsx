@@ -103,7 +103,7 @@ export default function OrganizationStructure() {
 
             <div>
               <h1 className="font-display text-xl md:text-2xl font-bold">
-                Struktur Organisasi
+                Pengurus Paguyuban
               </h1>
               <p className="text-sm text-muted-foreground">
                 Susunan pengurus Paguyuban Nijuuroku

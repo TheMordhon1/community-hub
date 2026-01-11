@@ -1,0 +1,1 @@
+export type SortingFinance = "date-newest" | "date-oldest" | "amount-asc" | "amount-desc"

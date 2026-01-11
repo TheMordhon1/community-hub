@@ -10,7 +10,6 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import AdminUsers from "./pages/admin/Users";
-import AdminHouses from "./pages/admin/Houses";
 import AdminTitles from "./pages/admin/Titles";
 import AdminMenus from "./pages/admin/Menus";
 import Announcements from "./pages/Announcements";
@@ -28,6 +27,7 @@ import OrganizationStructure from "./pages/OrganizationStructure";
 import Residents from "./pages/Residents";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
+import Houses from "./pages/Houses";
 
 const queryClient = new QueryClient();
 
@@ -86,7 +86,7 @@ function AppRoutes() {
           <Route path="/residents" element={<Residents />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin/users" element={<AdminUsers />} />
-          <Route path="/admin/houses" element={<AdminHouses />} />
+          <Route path="/houses" element={<Houses />} />
           <Route path="/admin/titles" element={<AdminTitles />} />
           <Route path="/admin/menus" element={<AdminMenus />} />
         </Route>

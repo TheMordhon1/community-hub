@@ -270,7 +270,7 @@ export default function Residents() {
             className={`cursor-pointer transition-all hover:shadow-md hover:scale-105 ${
               house.residents.length > 0
                 ? "border-primary/50 bg-primary/5"
-                : "border-muted bg-muted/30"
+                : "border-muted bg-muted/30 opacity-50 hover:opacity-100"
             }`}
             onClick={() => setSelectedHouse(house)}
           >

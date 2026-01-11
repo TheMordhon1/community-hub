@@ -83,7 +83,7 @@ interface HouseWithResidents extends House {
   residents: HouseResident[];
 }
 
-export default function AdminHouses() {
+export default function Houses() {
   const { canManageContent } = useAuth();
   const { toast } = useToast();
   const { naturalSort } = useNaturalSort();
@@ -171,7 +171,7 @@ export default function AdminHouses() {
   });
 
   const houses =
-    housesData.sort((a, b) => {
+    housesData?.sort((a, b) => {
       const blockSort = naturalSort(a.block, b.block);
       if (blockSort !== 0) return blockSort;
       return naturalSort(a.number, b.number);

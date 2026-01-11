@@ -74,6 +74,7 @@ export default function AdminUsers() {
   const [newRole, setNewRole] = useState<AppRole>("warga");
   const [newTitleId, setNewTitleId] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<AppRole | "all">("all");
 
   useEffect(() => {
     if (!isAdmin()) {
@@ -181,11 +182,16 @@ export default function AdminUsers() {
     },
   });
 
-  const filteredUsers = users?.filter(
-    (user) =>
+  const filteredUsers = users?.filter((user) => {
+    const matchesSearch =
       user.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      user.email.toLowerCase().includes(search.toLowerCase())
-  );
+      user.email.toLowerCase().includes(search.toLowerCase());
+
+    const matchesRole =
+      roleFilter === "all" || user.user_role?.role === roleFilter;
+
+    return matchesSearch && matchesRole;
+  });
 
   const handleEditRole = (user: UserWithRole) => {
     setSelectedUser(user);
@@ -304,14 +310,32 @@ export default function AdminUsers() {
                   Total {users?.length || 0} pengguna terdaftar
                 </CardDescription>
               </div>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Cari nama atau email..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9"
-                />
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <Select
+                  value={roleFilter}
+                  onValueChange={(value) =>
+                    setRoleFilter(value as AppRole | "all")
+                  }
+                >
+                  <SelectTrigger className="w-full sm:w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Role</SelectItem>
+                    <SelectItem value="admin">Super Admin</SelectItem>
+                    <SelectItem value="pengurus">Pengurus</SelectItem>
+                    <SelectItem value="warga">Warga</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Cari nama atau email..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
               </div>
             </div>
           </CardHeader>
