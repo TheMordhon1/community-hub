@@ -13,14 +13,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -54,6 +46,7 @@ import {
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { DataTable } from "@/components/ui/data-table";
 
 interface PengurusTitleRow {
   id: string;
@@ -277,6 +270,85 @@ export default function AdminTitles() {
     }
   };
 
+  const columns: Array<{
+    key: keyof PengurusTitleRow;
+    label: string;
+    render?: (value: unknown, row: PengurusTitleRow) => React.ReactNode;
+    className?: string;
+  }> = [
+    {
+      key: "order_index",
+      label: "#",
+    },
+    {
+      key: "display_name",
+      label: "Nama Tampilan",
+      className: "min-w-[160px] whitespace-nowrap",
+      render: (value: string, row: PengurusTitleRow) => (
+        <div className="">
+          <p className="font-medium">{value}</p>
+          {row.description && (
+            <p className="text-xs text-muted-foreground line-clamp-1">
+              {row.description}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "name",
+      label: "Kode",
+      className: "min-w-[160px] whitespace-nowrap",
+      render: (value: string) => (
+        <code className="text-xs bg-muted px-2 py-1 rounded">{value}</code>
+      ),
+    },
+    {
+      key: "has_finance_access",
+      label: "Akses Keuangan",
+      className: "min-w-[160px] whitespace-nowrap",
+      render: (value: boolean) =>
+        value ? (
+          <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+            Ya
+          </Badge>
+        ) : (
+          <Badge variant="secondary">Tidak</Badge>
+        ),
+    },
+    {
+      key: "id",
+      label: "Pengguna",
+      className: "min-w-[160px] whitespace-nowrap",
+      render: (value: string) => (
+        <Badge variant="outline">{titleUsage?.[value] || 0} orang</Badge>
+      ),
+    },
+    {
+      key: "id",
+      label: "Aksi",
+      render: (_value: string, row: PengurusTitleRow) => (
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleOpenEdit(row)}
+          >
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-destructive hover:text-destructive"
+            onClick={() => handleDeleteClick(row)}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <section className="min-h-screen bg-background p-4 md:p-6">
       <div className="mx-auto space-y-6">
@@ -284,19 +356,21 @@ export default function AdminTitles() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center gap-4"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
         >
-          <Link to="/dashboard">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/dashboard">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
 
-          <div className="flex-1">
-            <h1 className="font-display text-xl md:text-2xl font-bold">
-              Kelola Jabatan Pengurus
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Tambah, ubah, atau hapus jabatan pengurus paguyuban
-            </p>
+            <div className="flex-1">
+              <h1 className="font-display text-xl md:text-2xl font-bold">
+                Kelola Jabatan Pengurus
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Tambah, ubah, atau hapus jabatan pengurus paguyuban
+              </p>
+            </div>
           </div>
           <Button onClick={handleOpenCreate} className="w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" />
@@ -340,100 +414,14 @@ export default function AdminTitles() {
               Kelola jabatan pengurus paguyuban yang tersedia
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">#</TableHead>
-                      <TableHead>Nama Tampilan</TableHead>
-                      <TableHead className="hidden md:table-cell">
-                        Kode
-                      </TableHead>
-                      <TableHead>Akses Keuangan</TableHead>
-                      <TableHead className="hidden sm:table-cell">
-                        Pengguna
-                      </TableHead>
-                      <TableHead className="text-right">Aksi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {titles?.map((title) => (
-                      <TableRow key={title.id}>
-                        <TableCell className="font-medium">
-                          {title.order_index}
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{title.display_name}</p>
-                            {title.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-1">
-                                {title.description}
-                              </p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          <code className="text-xs bg-muted px-2 py-1 rounded">
-                            {title.name}
-                          </code>
-                        </TableCell>
-                        <TableCell>
-                          {title.has_finance_access ? (
-                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                              Ya
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary">Tidak</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <Badge variant="outline">
-                            {titleUsage?.[title.id] || 0} orang
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenEdit(title)}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => handleDeleteClick(title)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {(!titles || titles.length === 0) && (
-                      <TableRow>
-                        <TableCell
-                          colSpan={6}
-                          className="text-center py-8 text-muted-foreground"
-                        >
-                          Belum ada jabatan. Klik "Tambah Jabatan" untuk
-                          membuat.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
+
+          <DataTable
+            columns={columns}
+            data={titles || []}
+            isLoading={isLoading}
+            pageSize={10}
+            emptyMessage="Belum ada jabatan. Klik 'Tambah Jabatan' untuk membuat."
+          />
         </Card>
 
         {/* Form Dialog */}
@@ -501,7 +489,7 @@ export default function AdminTitles() {
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      order_index: parseInt(e.target.value) || 1,
+                      order_index: Number.parseInt(e.target.value) || 1,
                     })
                   }
                 />
@@ -528,7 +516,7 @@ export default function AdminTitles() {
               <Button
                 variant="outline"
                 onClick={handleCloseForm}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto bg-transparent"
               >
                 Batal
               </Button>

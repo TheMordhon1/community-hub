@@ -249,8 +249,8 @@ export default function Events() {
     return rsvps?.some((r) => r.event_id === eventId && r.user_id === user?.id);
   };
 
-  const getAttendeeCount = (eventId: string) => {
-    return rsvps?.filter((r) => r.event_id === eventId).length || 0;
+  const getAttendeeCount = () => {
+    return rsvps?.filter((r) => r.status === "attending").length || 0;
   };
 
   const upcomingEvents =
@@ -506,7 +506,7 @@ export default function Events() {
                                   )}
                                   <span className="flex items-center gap-1 shrink-0">
                                     <Users className="w-3 h-3" />
-                                    {getAttendeeCount(event.id)} warga
+                                    {getAttendeeCount()} warga
                                   </span>
                                 </div>
                               </div>

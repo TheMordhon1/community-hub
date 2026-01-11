@@ -115,7 +115,7 @@ export interface EventRsvp {
   id: string
   event_id: string
   user_id: string
-  status: "going" | "maybe" | "not_going"
+  status: "maybe" | "not_going" | "attending"
   created_at: string
   updated_at?: string
 }

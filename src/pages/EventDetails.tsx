@@ -193,11 +193,15 @@ export default function EventDetail() {
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center justify-between"
         >
-          <Button variant="ghost" size="icon" asChild>
+          <div className="flex items-center gap-2">
             <Link to="/events">
               <ArrowLeft className="w-5 h-5" />
             </Link>
-          </Button>
+
+            <h1 className="font-display text-xl md:text-2xl font-bold">
+              Detail Acara
+            </h1>
+          </div>
           <Button
             variant="outline"
             size="icon"

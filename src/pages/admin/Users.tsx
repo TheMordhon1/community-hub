@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -20,14 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -49,12 +41,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { AppRole, Profile, PengurusTitleRecord } from "@/types/database";
-
-const ROLE_LABELS_MAP: Record<AppRole, string> = {
-  admin: "Super Admin",
-  pengurus: "Pengurus",
-  warga: "Warga",
-};
+import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 
 interface UserWithRole extends Profile {
   user_role?: {
@@ -62,6 +49,7 @@ interface UserWithRole extends Profile {
     title_id: string | null;
     pengurus_title?: PengurusTitleRecord;
   };
+  actions?: ReactNode;
 }
 
 export default function AdminUsers() {
@@ -226,6 +214,43 @@ export default function AdminUsers() {
     return <Badge variant="secondary">Warga</Badge>;
   };
 
+  const columns: DataTableColumn<UserWithRole>[] = [
+    {
+      key: "full_name",
+      label: "Nama",
+      className: "min-w-[160px] whitespace-nowrap",
+    },
+    { key: "email", label: "Email" },
+    {
+      key: "user_role",
+      label: "Role",
+      className: "min-w-[160px] whitespace-nowrap",
+      render: (value, row: UserWithRole) =>
+        getRoleBadge(row.user_role?.role, row.user_role?.pengurus_title),
+    },
+    {
+      key: "created_at",
+      label: "Terdaftar",
+      className: "min-w-[160px] whitespace-nowrap",
+      render: (value: string) =>
+        new Date(value).toLocaleDateString("id-ID", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        }),
+    },
+    {
+      key: "actions",
+      label: "Aksi",
+      render: (_, row: UserWithRole) => (
+        <Button variant="outline" size="sm" onClick={() => handleEditRole(row)}>
+          <UserCog className="w-4 h-4 sm:mr-2" />
+          <span className="hidden sm:inline">Ubah Role</span>
+        </Button>
+      ),
+    },
+  ];
+
   if (!isAdmin()) {
     return null;
   }
@@ -339,69 +364,13 @@ export default function AdminUsers() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-[200px]">Nama</TableHead>
-                      <TableHead className="table-cell">Email</TableHead>
-                      <TableHead className="min-w-[200px]">Role</TableHead>
-                      <TableHead className="min-w-[150px] table-cell">
-                        Terdaftar
-                      </TableHead>
-                      <TableHead className="text-right">Aksi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredUsers?.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">
-                          <div>
-                            <p>{user.full_name}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="table-cell">
-                          {user.email}
-                        </TableCell>
-                        <TableCell>
-                          {getRoleBadge(
-                            user.user_role?.role,
-                            user.user_role?.pengurus_title
-                          )}
-                        </TableCell>
-                        <TableCell className="table-cell">
-                          {new Date(user.created_at).toLocaleDateString(
-                            "id-ID",
-                            {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            }
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditRole(user)}
-                          >
-                            <UserCog className="w-4 h-4 sm:mr-2" />
-                            <span className="inline">Ubah Role</span>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
+
+          <DataTable
+            columns={columns}
+            data={filteredUsers || []}
+            isLoading={isLoading}
+            pageSize={10}
+          />
         </Card>
 
         {/* Edit Role Dialog */}

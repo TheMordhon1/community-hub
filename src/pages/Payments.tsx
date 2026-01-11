@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,14 +31,6 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -59,7 +53,6 @@ import {
 import {
   Upload,
   Check,
-  X,
   Eye,
   Loader2,
   Receipt,
@@ -81,7 +74,8 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Link, useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SortingFinance } from "@/types/finance";
+import type { SortingFinance } from "@/types/finance";
+import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 
 interface PaymentItem {
   id: string;
@@ -629,6 +623,93 @@ _Paguyuban Nijuuroku_`;
     toast.success("Laporan Excel berhasil diunduh");
   };
 
+  const columns: DataTableColumn<PaymentItem>[] = [
+    {
+      key: "house",
+      label: "Rumah",
+      className: "min-w-[160px] whitespace-nowrap",
+      render: (_, row) => `${row.house?.block} - ${row.house?.number}`,
+    },
+    {
+      key: "month",
+      label: "Periode",
+      className: "min-w-[160px] whitespace-nowrap",
+      render: (value, row) => `${MONTHS[(value as number) - 1]} ${row.year}`,
+    },
+    {
+      key: "amount",
+      label: "Jumlah",
+      className: "min-w-[160px] whitespace-nowrap",
+      render: (value) => `Rp ${(value as number).toLocaleString("id-ID")}`,
+    },
+    {
+      key: "status",
+      label: "Status",
+      className: "min-w-[160px] whitespace-nowrap",
+      render: (value) => (
+        <Badge
+          className={cn(
+            "border-none",
+            STATUS_COLORS[value as keyof typeof STATUS_COLORS]
+          )}
+        >
+          {STATUS_LABELS[value as keyof typeof STATUS_LABELS]}
+        </Badge>
+      ),
+    },
+    {
+      key: "created_at",
+      label: "Tanggal",
+      className: "min-w-[160px] whitespace-nowrap",
+      render: (value) => format(new Date(value as string), "dd/MM/yyyy"),
+    },
+    {
+      key: "id",
+      label: "Aksi",
+      className: "text-right",
+      render: (_, row) => (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => navigate(`/payments/${row.id}`)}
+            title="Lihat Detail & Verifikasi"
+          >
+            <Eye className="w-4 h-4 text-muted-foreground" />
+          </Button>
+
+          {/* EDIT & DELETE: Visible only for owner/admin if status is pending */}
+          {canEditPayment(row) && (
+            <div className="flex gap-1 border-l pl-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEditDialog(row);
+                }}
+              >
+                <Pencil className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-destructive hover:bg-red-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeletePaymentId(row.id);
+                }}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      ),
+    },
+  ];
   return (
     <section className="min-h-screen bg-background p-6">
       <div className="space-y-4 sm:space-y-6">
@@ -929,7 +1010,6 @@ _Paguyuban Nijuuroku_`;
           </Card>
         </div>
 
-        {/* Payments Table */}
         {(userHouse || canVerify) && (
           <Dialog
             open={isSubmitOpen}
@@ -1094,302 +1174,37 @@ _Paguyuban Nijuuroku_`;
             </DialogContent>
           </Dialog>
         )}
-        <Card>
-          <CardHeader className="pb-3 flex md:flex-row items-center justify-between">
-            <CardTitle className="text-base sm:text-lg">
-              Daftar Pembayaran
-            </CardTitle>
 
-            {canVerify && (
-              <Tabs
-                value={bendaharaTab}
-                onValueChange={(v) => setBendaharaTab(v as "all" | "mine")}
-              >
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="all">Kelola Semua IPL</TabsTrigger>
-                  <TabsTrigger value="mine">IPL Saya</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            )}
-          </CardHeader>
-          <CardContent className="p-0 -mx-4 sm:mx-0 px-4 sm:px-6">
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin" />
-              </div>
-            ) : displayPayments && displayPayments.length > 0 ? (
-              <div className="w-screen -mx-4 sm:w-auto sm:mx-0 overflow-x-auto">
-                <div className="w-full inline-block min-w-full px-4 sm:px-0">
-                  <Table className="w-full">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs">Rumah</TableHead>
-                        <TableHead className="text-xs">Periode</TableHead>
-                        <TableHead className="text-xs table-cell">
-                          Jumlah
-                        </TableHead>
-                        <TableHead className="text-xs">Status</TableHead>
-                        <TableHead className="text-xs text-right">
-                          Aksi
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {displayPayments.map((payment) => (
-                        <TableRow
-                          key={payment.id}
-                          className="cursor-pointer hover:bg-gray-100"
-                          onClick={() => navigate(`/payments/${payment.id}`)}
-                        >
-                          <TableCell className="font-medium text-xs sm:text-sm py-2">
-                            {payment.house?.block} - {payment.house?.number}
-                          </TableCell>
-                          <TableCell className="text-xs sm:text-sm py-2">
-                            <span className="inline">
-                              {MONTHS[payment.month - 1]}{" "}
-                            </span>
+        {/* Payments Table */}
+        {(userHouse || canVerify) && (
+          <Card>
+            <CardHeader className="pb-3 flex md:flex-row items-center justify-between">
+              <CardTitle className="text-base sm:text-lg">
+                Daftar Pembayaran
+              </CardTitle>
 
-                            {payment.year}
-                          </TableCell>
-                          <TableCell className="table-cell text-sm">
-                            Rp {payment.amount.toLocaleString("id-ID")}
-                          </TableCell>
-                          <TableCell className="py-2">
-                            <Badge
-                              className={`${
-                                STATUS_COLORS[payment.status]
-                              } text-xs`}
-                            >
-                              <span className="inline">
-                                {STATUS_LABELS[payment.status]}
-                              </span>
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right py-2">
-                            <div
-                              className="flex justify-end gap-1"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {payment.proof_url && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 bg-transparent"
-                                  onClick={() => setSelectedPayment(payment)}
-                                >
-                                  <Eye className="w-3 h-3" />
-                                </Button>
-                              )}
-                              {canEditPayment(payment) && (
-                                <>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-50 bg-transparent"
-                                    onClick={() => openEditDialog(payment)}
-                                  >
-                                    <Pencil className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 text-red-600 hover:bg-red-50 bg-transparent"
-                                    onClick={() =>
-                                      setDeletePaymentId(payment.id)
-                                    }
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </>
-                              )}
-                              {canVerify && payment.status === "pending" && (
-                                <>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 text-green-600 hover:bg-green-50 bg-transparent"
-                                    onClick={() =>
-                                      verifyPayment.mutate({
-                                        paymentId: payment.id,
-                                        approved: true,
-                                      })
-                                    }
-                                  >
-                                    <Check className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 text-red-600 hover:bg-red-50 bg-transparent"
-                                    onClick={() =>
-                                      verifyPayment.mutate({
-                                        paymentId: payment.id,
-                                        approved: false,
-                                      })
-                                    }
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            ) : (
-              <CardContent className="flex flex-col items-center justify-center text-center">
-                <CreditCard className="w-12 h-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
-                  Belum Ada Pembayaran
-                </h3>
-                <p className="text-muted-foreground">
-                  Belum ada data pembayaran
-                </p>
-              </CardContent>
-            )}
-          </CardContent>
-        </Card>
+              {canVerify && (
+                <Tabs
+                  value={bendaharaTab}
+                  onValueChange={(v) => setBendaharaTab(v as "all" | "mine")}
+                >
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="all">Kelola Semua IPL</TabsTrigger>
+                    <TabsTrigger value="mine">IPL Saya</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
+            </CardHeader>{" "}
+            <DataTable
+              columns={columns}
+              data={displayPayments || []}
+              pageSize={10}
+              isLoading={isLoading}
+            />
+          </Card>
+        )}
 
-        {/* Proof Preview Dialog */}
-        <Dialog
-          open={!!selectedPayment}
-          onOpenChange={() => setSelectedPayment(null)}
-        >
-          <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Detail Pembayaran</DialogTitle>
-            </DialogHeader>
-            {selectedPayment && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-muted-foreground text-xs">
-                      Rumah:
-                    </span>{" "}
-                    <span className="font-medium">
-                      {selectedPayment.house?.block} -
-                      {selectedPayment.house?.number}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">
-                      Periode:
-                    </span>{" "}
-                    <span className="font-medium">
-                      {MONTHS[selectedPayment.month - 1]} {selectedPayment.year}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">
-                      Jumlah:
-                    </span>{" "}
-                    <span className="font-medium">
-                      Rp {selectedPayment.amount.toLocaleString("id-ID")}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">
-                      Status:
-                    </span>{" "}
-                    <Badge className={STATUS_COLORS[selectedPayment.status]}>
-                      {STATUS_LABELS[selectedPayment.status]}
-                    </Badge>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">
-                      Tanggal Upload:
-                    </span>{" "}
-                    <span className="text-sm">
-                      {format(
-                        new Date(selectedPayment.created_at),
-                        "dd MMMM yyyy HH:mm",
-                        { locale: localeId }
-                      )}
-                    </span>
-                  </div>
-                  {selectedPayment.submitter && (
-                    <div>
-                      <span className="text-muted-foreground text-xs">
-                        Diupload oleh:
-                      </span>{" "}
-                      <span className="text-sm">
-                        {selectedPayment.submitter.full_name ||
-                          "Tidak diketahui"}
-                      </span>
-                    </div>
-                  )}
-                  {selectedPayment.verifier && (
-                    <div>
-                      <span className="text-muted-foreground text-xs">
-                        Diverifikasi oleh:
-                      </span>{" "}
-                      <span className="text-sm font-medium text-green-600">
-                        {selectedPayment.verifier.full_name ||
-                          "Tidak diketahui"}
-                      </span>
-                    </div>
-                  )}
-                  {selectedPayment.description && (
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground text-xs">
-                        Keterangan:
-                      </span>{" "}
-                      <span className="text-sm">
-                        {selectedPayment.description}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {selectedPayment.proof_url && (
-                  <div className="border rounded-lg overflow-hidden">
-                    <img
-                      src={selectedPayment.proof_url || "/placeholder.svg"}
-                      alt="Bukti Pembayaran"
-                      className="w-full max-h-80 object-contain bg-muted"
-                    />
-                  </div>
-                )}
-
-                {canVerify && selectedPayment.status === "pending" && (
-                  <div className="flex gap-2 justify-end">
-                    <Button
-                      variant="outline"
-                      className="text-red-600 bg-transparent"
-                      size="sm"
-                      onClick={() =>
-                        verifyPayment.mutate({
-                          paymentId: selectedPayment.id,
-                          approved: false,
-                        })
-                      }
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      Tolak
-                    </Button>
-                    <Button
-                      className="bg-green-600 hover:bg-green-700"
-                      size="sm"
-                      onClick={() =>
-                        verifyPayment.mutate({
-                          paymentId: selectedPayment.id,
-                          approved: true,
-                        })
-                      }
-                    >
-                      <Check className="w-4 h-4 mr-2" />
-                      Verifikasi
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        {/* Proof Preview Dialog - Removed as it's now handled in DataTable */}
 
         {/* Edit Payment Dialog */}
         <Dialog

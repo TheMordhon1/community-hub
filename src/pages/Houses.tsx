@@ -1,22 +1,14 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -39,14 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
@@ -57,13 +41,12 @@ import {
   Home,
   Pencil,
   Users,
-  X,
   ArrowLeft,
 } from "lucide-react";
 import type { House } from "@/types/database";
 import { Link } from "react-router-dom";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useNaturalSort } from "@/hooks/useNaturalSort";
+import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 
 interface HouseResident {
   id: string;
@@ -87,8 +70,9 @@ export default function Houses() {
   const { canManageContent } = useAuth();
   const { toast } = useToast();
   const { naturalSort } = useNaturalSort();
-
   const queryClient = useQueryClient();
+
+  // State Management
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingHouse, setEditingHouse] = useState<House | null>(null);
   const [block, setBlock] = useState("");
@@ -103,10 +87,10 @@ export default function Houses() {
     null
   );
 
-  const { data: housesData, isLoading } = useQuery({
+  // Data Fetching
+  const { data: houses = [], isLoading } = useQuery({
     queryKey: ["houses-with-residents"],
     queryFn: async () => {
-      // Fetch houses
       const { data: houses, error: housesError } = await supabase
         .from("houses")
         .select("*")
@@ -115,38 +99,30 @@ export default function Houses() {
 
       if (housesError) throw housesError;
 
-      // Fetch all house residents
       const { data: residents, error: residentsError } = await supabase
         .from("house_residents")
         .select("id, user_id, house_id, is_owner");
 
       if (residentsError) throw residentsError;
 
-      // Fetch all profiles for the resident user_ids
-      const userIds = residents?.map((r) => r.user_id) ?? [];
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, phone, avatar_url")
-        .in(
-          "id",
-          userIds.length > 0
-            ? userIds
-            : ["00000000-0000-0000-0000-000000000000"]
-        );
+      const userIds = residents?.map((r) => r.user_id) || [];
+      let profilesMap = new Map();
 
-      if (profilesError) throw profilesError;
+      if (userIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, full_name, email, phone, avatar_url")
+          .in("id", userIds);
 
-      // Create a map of profiles by id
-      const profilesMap = new Map(profiles?.map((p) => [p.id, p]) ?? []);
+        if (profilesError) throw profilesError;
+        profilesMap = new Map(profiles?.map((p) => [p.id, p]));
+      }
 
-      // Map residents with their profiles
-      const residentsWithProfiles: HouseResident[] = (residents ?? []).map(
+      const residentsWithProfiles: HouseResident[] = (residents || []).map(
         (r) => ({
-          id: r.id,
-          user_id: r.user_id,
-          house_id: r.house_id,
+          ...r,
           is_owner: r.is_owner ?? false,
-          profiles: profilesMap.get(r.user_id) ?? {
+          profiles: profilesMap.get(r.user_id) || {
             id: r.user_id,
             full_name: "Unknown",
             email: "",
@@ -156,27 +132,21 @@ export default function Houses() {
         })
       );
 
-      // Map residents to houses
-      const housesWithResidents: HouseWithResidents[] = (houses as House[]).map(
-        (house) => ({
-          ...house,
-          residents: residentsWithProfiles.filter(
-            (r) => r.house_id === house.id
-          ),
-        })
-      );
+      const combined = (houses as House[]).map((house) => ({
+        ...house,
+        residents: residentsWithProfiles.filter((r) => r.house_id === house.id),
+      }));
 
-      return housesWithResidents;
+      // Apply Natural Sort
+      return combined.sort((a, b) => {
+        const blockSort = naturalSort(a.block, b.block);
+        if (blockSort !== 0) return blockSort;
+        return naturalSort(a.number, b.number);
+      });
     },
   });
 
-  const houses =
-    housesData?.sort((a, b) => {
-      const blockSort = naturalSort(a.block, b.block);
-      if (blockSort !== 0) return blockSort;
-      return naturalSort(a.number, b.number);
-    }) ?? [];
-
+  // Mutations
   const createMutation = useMutation({
     mutationFn: async (data: { block: string; number: string }) => {
       const { error } = await supabase.from("houses").insert({
@@ -189,14 +159,18 @@ export default function Houses() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["houses-with-residents"] });
-      toast({ title: "Berhasil", description: "Rumah berhasil ditambahkan" });
+      toast({
+        title: "Berhasil",
+        description: "Rumah berhasil ditambahkan",
+        duration: 3000,
+      });
       resetForm();
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Gagal",
-        description: error.message.includes("duplicate")
+        description: error.message?.includes("duplicate")
           ? "Nomor rumah sudah ada"
           : "Gagal menambah rumah",
       });
@@ -213,16 +187,19 @@ export default function Houses() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["houses-with-residents"] });
-      toast({ title: "Berhasil", description: "Rumah berhasil diperbarui" });
+      toast({
+        title: "Berhasil",
+        description: "Rumah berhasil diperbarui",
+        duration: 3000,
+      });
       resetForm();
     },
-    onError: () => {
+    onError: () =>
       toast({
         variant: "destructive",
         title: "Gagal",
         description: "Gagal memperbarui rumah",
-      });
-    },
+      }),
   });
 
   const deleteMutation = useMutation({
@@ -233,12 +210,16 @@ export default function Houses() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["houses-with-residents"] });
       toast({ title: "Berhasil", description: "Rumah berhasil dihapus" });
+      setDeletingHouse(null);
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Gagal",
-        description: "Gagal menghapus rumah",
+        description: error.message?.includes("foreign key")
+          ? "Tidak dapat menghapus rumah yang masih memiliki penghuni"
+          : "Gagal menghapus rumah",
+        duration: 3000,
       });
     },
   });
@@ -249,27 +230,22 @@ export default function Houses() {
       newHouseId: string;
       oldHouseId: string;
     }) => {
-      // Update the house_residents record
       const { error } = await supabase
         .from("house_residents")
         .update({ house_id: data.newHouseId })
         .eq("id", data.residentId);
       if (error) throw error;
 
-      // Mark new house as occupied
       await supabase
         .from("houses")
         .update({ is_occupied: true })
         .eq("id", data.newHouseId);
 
-      // Check if old house still has residents
-      const { data: remainingResidents } = await supabase
+      const { data: remaining } = await supabase
         .from("house_residents")
         .select("id")
         .eq("house_id", data.oldHouseId);
-
-      // If no residents left, mark old house as unoccupied
-      if (!remainingResidents || remainingResidents.length === 0) {
+      if (!remaining || remaining.length === 0) {
         await supabase
           .from("houses")
           .update({ is_occupied: false })
@@ -280,21 +256,14 @@ export default function Houses() {
       queryClient.invalidateQueries({ queryKey: ["houses-with-residents"] });
       toast({
         title: "Berhasil",
-        description: "Rumah penghuni berhasil diperbarui",
+        description: "Lokasi penghuni berhasil dipindahkan",
+        duration: 3000,
       });
       setEditingResident(null);
-      setNewHouseId("");
-      setSelectedResidentsHouse(null);
-    },
-    onError: () => {
-      toast({
-        variant: "destructive",
-        title: "Gagal",
-        description: "Gagal memperbarui rumah penghuni",
-      });
     },
   });
 
+  // Helpers
   const resetForm = () => {
     setBlock("");
     setNumber("");
@@ -303,15 +272,7 @@ export default function Houses() {
   };
 
   const handleSubmit = () => {
-    if (!block.trim() || !number.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Blok dan nomor rumah wajib diisi",
-      });
-      return;
-    }
-
+    if (!block.trim() || !number.trim()) return;
     if (editingHouse) {
       updateMutation.mutate({ id: editingHouse.id, block, number });
     } else {
@@ -319,37 +280,123 @@ export default function Houses() {
     }
   };
 
-  const openEdit = (house: House) => {
-    setEditingHouse(house);
-    setBlock(house.block);
-    setNumber(house.number);
-    setIsCreateOpen(true);
-  };
-
-  const handleUpdateResidentHouse = () => {
-    if (!editingResident || !newHouseId) return;
-    updateResidentHouseMutation.mutate({
-      residentId: editingResident.id,
-      newHouseId,
-      oldHouseId: editingResident.house_id,
-    });
-  };
-
-  const getInitials = (name: string) => {
-    return name
+  const getInitials = (name: string) =>
+    name
       .split(" ")
       .map((n) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
-  };
+
+  // Table Columns
+  const columns: DataTableColumn<HouseWithResidents>[] = [
+    {
+      key: "number",
+      label: "Alamat",
+      render: (_, row) => (
+        <span className="font-medium">
+          Blok {row.block} No. {row.number}
+        </span>
+      ),
+      className: "min-w-[120px]",
+    },
+    {
+      key: "residents",
+      label: "Penghuni",
+      className: "min-w-[200px]",
+
+      render: (residents: HouseResident[], row: HouseWithResidents) => {
+        if (!residents || residents.length === 0) {
+          return (
+            <span className="text-muted-foreground text-xs italic">Kosong</span>
+          );
+        }
+
+        if (residents.length === 1) {
+          const firstResident = residents[0];
+          return (
+            <div className="flex items-center gap-2">
+              <Avatar className="w-6 h-6">
+                <AvatarImage
+                  src={firstResident.profiles.avatar_url ?? undefined}
+                />
+                <AvatarFallback className="text-[10px]">
+                  {getInitials(firstResident.profiles.full_name)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm truncate max-w-[150px]">
+                {firstResident.profiles.full_name}
+              </span>
+            </div>
+          );
+        }
+
+        return (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedResidentsHouse(row)}
+            className="h-7 gap-1 text-xs"
+          >
+            <Users className="w-3 h-3" /> {residents.length} Orang
+          </Button>
+        );
+      },
+    },
+    {
+      key: "is_occupied",
+      label: "Status",
+      render: (val) => (
+        <Badge
+          variant={val ? "default" : "secondary"}
+          className={
+            val
+              ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10"
+              : ""
+          }
+        >
+          {val ? "Dihuni" : "Tersedia"}
+        </Badge>
+      ),
+    },
+    {
+      key: "id",
+      label: "Aksi",
+      className: "text-right",
+      render: (_, row) => (
+        <div className="flex justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => {
+              setEditingHouse(row);
+              setBlock(row.block);
+              setNumber(row.number);
+              setIsCreateOpen(true);
+            }}
+          >
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive"
+            onClick={() => setDeletingHouse(row)}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   if (!canManageContent()) {
     return (
       <div className="p-6">
-        <Card className="py-12">
-          <CardContent className="text-center text-muted-foreground">
-            Anda tidak memiliki akses ke halaman ini
+        <Card>
+          <CardContent className="py-10 text-center text-muted-foreground">
+            Akses Ditolak
           </CardContent>
         </Card>
       </div>
@@ -357,260 +404,133 @@ export default function Houses() {
   }
 
   return (
-    <section className="p-6">
-      <div className="space-y-6">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
-        >
-          <div className="flex items-center gap-4">
-            <Link to="/dashboard">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-
-            <div>
-              <h1 className="font-display text-2xl font-bold">Kelola Rumah</h1>
-              <p className="text-muted-foreground">
-                Daftar nomor rumah di perumahan
-              </p>
-            </div>
-          </div>
-          <Dialog
-            open={isCreateOpen}
-            onOpenChange={(open) => {
-              setIsCreateOpen(open);
-              if (!open) resetForm();
-            }}
+    <section className="p-4 md:p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link
+            to="/dashboard"
+            className="p-2 hover:bg-accent rounded-full transition-colors"
           >
-            <DialogTrigger asChild>
-              <Button className="w-12 h-12 rounded-full fixed z-10 bottom-4 right-4 md:rounded-sm md:static flex md:w-auto md:h-auto justify-center items-center">
-                <Plus className="w-8 md:w-4 md:h-4 md:mr-2 mx-auto" />
-                <span className="hidden md:block">Tambah Rumah</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {editingHouse ? "Edit Rumah" : "Tambah Rumah Baru"}
-                </DialogTitle>
-                <DialogDescription>
-                  {editingHouse
-                    ? "Perbarui informasi rumah"
-                    : "Tambahkan nomor rumah baru ke daftar"}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="block">Blok</Label>
-                  <Input
-                    id="block"
-                    placeholder="Contoh: A, B, C"
-                    value={block}
-                    onChange={(e) => setBlock(e.target.value.toUpperCase())}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="number">Nomor Rumah</Label>
-                  <Input
-                    id="number"
-                    placeholder="Contoh: 1, 2, 3"
-                    value={number}
-                    onChange={(e) => setNumber(e.target.value)}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={resetForm}>
-                  Batal
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={
-                    createMutation.isPending || updateMutation.isPending
-                  }
-                >
-                  {(createMutation.isPending || updateMutation.isPending) && (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  )}
-                  {editingHouse ? "Simpan" : "Tambah"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </motion.div>
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Kelola Rumah</h1>
+            <p className="text-sm text-muted-foreground text-wrap">
+              Manajemen kavling dan penghuni
+            </p>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Home className="w-5 h-5" />
-              Daftar Rumah ({houses.length})
-            </CardTitle>
-            <CardDescription>
-              Kelola daftar rumah untuk registrasi warga
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0 -mx-4 sm:mx-0 px-4 sm:px-6">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <Dialog
+          open={isCreateOpen}
+          onOpenChange={(open) => {
+            setIsCreateOpen(open);
+            if (!open) resetForm();
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button className="fixed bottom-6 right-6 shadow-lg md:static rounded-full md:rounded-md h-14 w-14 md:h-10 md:w-auto">
+              <Plus className="w-6 h-6 md:w-4 md:h-4 md:mr-2" />
+              <span className="hidden md:inline">Tambah Rumah</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {editingHouse ? "Edit Rumah" : "Tambah Rumah"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label>Blok</Label>
+                <Input
+                  value={block}
+                  onChange={(e) => setBlock(e.target.value.toUpperCase())}
+                  placeholder="A"
+                />
               </div>
-            ) : houses.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Belum ada data rumah. Klik "Tambah Rumah" untuk menambahkan.
+              <div className="space-y-2">
+                <Label>Nomor</Label>
+                <Input
+                  value={number}
+                  onChange={(e) => setNumber(e.target.value)}
+                  placeholder="01"
+                />
               </div>
-            ) : (
-              <div className="w-screen -mx-4 sm:w-auto sm:mx-0 overflow-x-auto">
-                <div className="w-full inline-block min-w-full px-4 sm:px-0">
-                  <Table className="w-full">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Blok</TableHead>
-                        <TableHead>Nomor</TableHead>
-                        <TableHead>Penghuni</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Aksi</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {houses.map((house) => (
-                        <TableRow key={house.id}>
-                          <TableCell className="font-medium">
-                            {house.block}
-                          </TableCell>
-                          <TableCell>{house.number}</TableCell>
-                          <TableCell>
-                            {house.residents.length === 0 ? (
-                              <span className="text-muted-foreground">-</span>
-                            ) : house.residents.length === 1 ? (
-                              <div className="flex items-center gap-2">
-                                <Avatar className="w-6 h-6">
-                                  <AvatarImage
-                                    src={
-                                      house.residents[0].profiles?.avatar_url
-                                    }
-                                  />
-                                  <AvatarFallback className="text-xs">
-                                    {getInitials(
-                                      house.residents[0].profiles?.full_name ||
-                                        "?"
-                                    )}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="text-sm">
-                                  {house.residents[0].profiles?.full_name}
-                                </span>
-                              </div>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setSelectedResidentsHouse(house)}
-                                className="gap-1"
-                              >
-                                <Users className="w-4 h-4" />
-                                {house.residents.length} penghuni
-                              </Button>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {house.is_occupied ? (
-                              <Badge className="bg-success/10 text-success">
-                                Dihuni
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary">Kosong</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openEdit(house)}
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setDeletingHouse(house)}
-                                disabled={deleteMutation.isPending}
-                              >
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={resetForm}>
+                Batal
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={createMutation.isPending || updateMutation.isPending}
+              >
+                {(createMutation.isPending || updateMutation.isPending) && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Simpan
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {/* Residents Popup Dialog */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Home className="w-5 h-5 text-primary" />
+            Total {houses.length} Unit
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DataTable columns={columns} data={houses} isLoading={isLoading} />
+        </CardContent>
+      </Card>
+
+      {/* View Residents Dialog */}
       <Dialog
         open={!!selectedResidentsHouse}
         onOpenChange={(open) => !open && setSelectedResidentsHouse(null)}
       >
-        <DialogContent className="max-w-lg pb-0">
-          <DialogHeader className="flex flex-col gap-2">
-            <div className="flex gap-2">
-              <Home className="w-5 h-5" />
-              <div className="">
-                <DialogTitle className="text-left">
-                  Penghuni Blok {selectedResidentsHouse?.block} No.{" "}
-                  {selectedResidentsHouse?.number}
-                </DialogTitle>
-                <DialogDescription>
-                  Daftar semua penghuni di rumah ini
-                </DialogDescription>
-              </div>
-            </div>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Penghuni Blok {selectedResidentsHouse?.block}-
+              {selectedResidentsHouse?.number}
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-4 max-h-96 overflow-y-auto">
-            {selectedResidentsHouse?.residents.map((resident) => (
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+            {selectedResidentsHouse?.residents.map((res) => (
               <div
-                key={resident.id}
-                className="flex flex-col md:flex-row justify-between p-3 gap-2 rounded-lg border bg-muted/30"
+                key={res.id}
+                className="flex items-center justify-between p-3 border rounded-lg bg-muted/20"
               >
                 <div className="flex items-center gap-3">
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage
-                      src={resident.profiles?.avatar_url || undefined}
-                    />
+                  <Avatar>
+                    <AvatarImage src={res.profiles.avatar_url || ""} />
                     <AvatarFallback>
-                      {getInitials(resident.profiles?.full_name || "?")}
+                      {getInitials(res.profiles.full_name)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-medium">
-                      {resident.profiles?.full_name}
+                    <p className="text-sm font-semibold">
+                      {res.profiles.full_name}
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      {resident.profiles?.email}
+                    <p className="text-xs text-muted-foreground">
+                      {res.profiles.phone || "No Phone"}
                     </p>
-                    {resident.profiles?.phone && (
-                      <p className="text-sm text-muted-foreground">
-                        {resident.profiles?.phone}
-                      </p>
-                    )}
                   </div>
                 </div>
                 <Button
-                  variant="outline"
                   size="sm"
+                  variant="ghost"
                   onClick={() => {
-                    setEditingResident(resident);
-                    setNewHouseId(resident.house_id);
+                    setEditingResident(res);
+                    setNewHouseId(res.house_id);
                   }}
                 >
-                  <Pencil className="w-3 h-3 mr-1" />
-                  Ubah Rumah
+                  Pindah
                 </Button>
               </div>
             ))}
@@ -618,92 +538,78 @@ export default function Houses() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Resident House Dialog */}
+      {/* Move Resident Dialog */}
       <Dialog
         open={!!editingResident}
         onOpenChange={(open) => !open && setEditingResident(null)}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Ubah Rumah Penghuni</DialogTitle>
-            <DialogDescription>
-              Pindahkan {editingResident?.profiles?.full_name} ke rumah lain
-            </DialogDescription>
+            <DialogTitle>Pindahkan Penghuni</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Pilih Rumah Baru</Label>
-              <Select value={newHouseId} onValueChange={setNewHouseId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih rumah" />
-                </SelectTrigger>
-                <SelectContent>
-                  {houses.map((house) => (
-                    <SelectItem key={house.id} value={house.id}>
-                      Blok {house.block} No. {house.number}
-                      {house.residents.length > 0 &&
-                        ` (${house.residents.length} penghuni)`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="py-4 space-y-4">
+            <p className="text-sm">
+              Pindahkan <b>{editingResident?.profiles.full_name}</b> ke:
+            </p>
+            <Select value={newHouseId} onValueChange={setNewHouseId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih rumah baru" />
+              </SelectTrigger>
+              <SelectContent>
+                {houses.map((h) => (
+                  <SelectItem key={h.id} value={h.id}>
+                    Blok {h.block} No. {h.number} ({h.residents.length} orang)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingResident(null)}>
+            <Button variant="ghost" onClick={() => setEditingResident(null)}>
               Batal
             </Button>
             <Button
-              onClick={handleUpdateResidentHouse}
+              onClick={() =>
+                editingResident &&
+                updateResidentHouseMutation.mutate({
+                  residentId: editingResident.id,
+                  newHouseId,
+                  oldHouseId: editingResident.house_id,
+                })
+              }
               disabled={
                 updateResidentHouseMutation.isPending ||
-                !newHouseId ||
                 newHouseId === editingResident?.house_id
               }
             >
-              {updateResidentHouseMutation.isPending && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
-              Simpan
+              Konfirmasi Pindah
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Alert */}
       <AlertDialog
         open={!!deletingHouse}
         onOpenChange={(open) => !open && setDeletingHouse(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus Rumah?</AlertDialogTitle>
+            <AlertDialogTitle>Hapus Data Rumah?</AlertDialogTitle>
             <AlertDialogDescription>
-              Apakah Anda yakin ingin menghapus Blok {deletingHouse?.block} No.{" "}
-              {deletingHouse?.number}?
-              {deletingHouse?.residents &&
-                deletingHouse.residents.length > 0 && (
-                  <span className="block mt-2 text-destructive">
-                    Peringatan: Rumah ini masih memiliki{" "}
-                    {deletingHouse.residents.length} penghuni.
-                  </span>
-                )}
+              Tindakan ini tidak dapat dibatalkan. Rumah Blok{" "}
+              {deletingHouse?.block} No. {deletingHouse?.number} akan dihapus
+              secara permanen.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (deletingHouse) {
-                  deleteMutation.mutate(deletingHouse.id);
-                  setDeletingHouse(null);
-                }
-              }}
+              onClick={() =>
+                deletingHouse && deleteMutation.mutate(deletingHouse.id)
+              }
+              className="bg-destructive hover:bg-destructive/90"
             >
-              {deleteMutation.isPending && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
               Hapus
             </AlertDialogAction>
           </AlertDialogFooter>
