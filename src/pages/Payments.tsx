@@ -47,6 +47,16 @@ import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Upload,
   Check,
   X,
@@ -62,6 +72,8 @@ import {
   Send,
   ArrowLeft,
   CalendarIcon,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import type { House, Profile } from "@/types/database";
 import jsPDF from "jspdf";
@@ -152,6 +164,15 @@ export default function Payments() {
     bankAccount: "BSI 7263306915 a/n Bendahara",
   });
   const [bendaharaTab, setBendaharaTab] = useState<"all" | "mine">("all");
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<PaymentItem | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    paymentDate: new Date(),
+    amount: "",
+    description: "",
+  });
+  const [editProofFile, setEditProofFile] = useState<File | null>(null);
+  const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
 
   // Only admin or users with finance access (bendahara) can verify
   const canVerify = isAdmin() || hasFinanceAccess;
@@ -381,6 +402,103 @@ export default function Payments() {
       toast.error("Gagal memperbarui status pembayaran");
     },
   });
+
+  // Edit payment mutation
+  const editPayment = useMutation({
+    mutationFn: async () => {
+      if (!editingPayment || !user) {
+        throw new Error("Data tidak lengkap");
+      }
+
+      let proofUrl = editingPayment.proof_url;
+
+      // Upload new proof if provided
+      if (editProofFile) {
+        setIsUploading(true);
+        const fileExt = editProofFile.name.split(".").pop();
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("payment-proofs")
+          .upload(fileName, editProofFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from("payment-proofs")
+          .getPublicUrl(fileName);
+
+        proofUrl = urlData.publicUrl;
+      }
+
+      const { error } = await supabase
+        .from("payments")
+        .update({
+          amount: Number.parseFloat(editFormData.amount),
+          month: editFormData.paymentDate.getMonth() + 1,
+          year: editFormData.paymentDate.getFullYear(),
+          description: editFormData.description,
+          proof_url: proofUrl,
+        })
+        .eq("id", editingPayment.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Pembayaran berhasil diperbarui");
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      setIsEditOpen(false);
+      setEditingPayment(null);
+      setEditProofFile(null);
+      setEditFormData({
+        paymentDate: new Date(),
+        amount: "",
+        description: "",
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Gagal memperbarui pembayaran");
+    },
+    onSettled: () => {
+      setIsUploading(false);
+    },
+  });
+
+  // Delete payment mutation
+  const deletePayment = useMutation({
+    mutationFn: async (paymentId: string) => {
+      const { error } = await supabase
+        .from("payments")
+        .delete()
+        .eq("id", paymentId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Pembayaran berhasil dihapus");
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      setDeletePaymentId(null);
+    },
+    onError: () => {
+      toast.error("Gagal menghapus pembayaran");
+    },
+  });
+
+  // Check if user can edit/delete a payment (only their own pending payments)
+  const canEditPayment = (payment: PaymentItem) => {
+    return payment.status === "pending" && payment.submitted_by === user?.id;
+  };
+
+  // Open edit dialog with payment data
+  const openEditDialog = (payment: PaymentItem) => {
+    setEditingPayment(payment);
+    setEditFormData({
+      paymentDate: new Date(payment.year, payment.month - 1, 1),
+      amount: payment.amount.toString(),
+      description: payment.description || "",
+    });
+    setIsEditOpen(true);
+  };
 
   // Generate reminder message
   const generateReminderMessage = () => {
@@ -1056,6 +1174,26 @@ _Paguyuban Nijuuroku_`;
                                 <Eye className="w-3 h-3" />
                               </Button>
                             )}
+                            {canEditPayment(payment) && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-50 bg-transparent"
+                                  onClick={() => openEditDialog(payment)}
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-red-600 hover:bg-red-50 bg-transparent"
+                                  onClick={() => setDeletePaymentId(payment.id)}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </>
+                            )}
                             {canVerify && payment.status === "pending" && (
                               <>
                                 <Button
@@ -1243,6 +1381,149 @@ _Paguyuban Nijuuroku_`;
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Edit Payment Dialog */}
+        <Dialog
+          open={isEditOpen}
+          onOpenChange={(open) => {
+            setIsEditOpen(open);
+            if (!open) {
+              setEditingPayment(null);
+              setEditProofFile(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-[95vw] sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Pembayaran</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Tanggal Pembayaran</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !editFormData.paymentDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {editFormData.paymentDate ? (
+                        format(editFormData.paymentDate, "dd MMMM yyyy", {
+                          locale: localeId,
+                        })
+                      ) : (
+                        <span>Pilih tanggal</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={editFormData.paymentDate}
+                      onSelect={(date) =>
+                        setEditFormData({
+                          ...editFormData,
+                          paymentDate: date || new Date(),
+                        })
+                      }
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Jumlah (Rp)</Label>
+                <Input
+                  type="number"
+                  value={editFormData.amount}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, amount: e.target.value })
+                  }
+                  placeholder="Contoh: 100000"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Keterangan</Label>
+                <Textarea
+                  value={editFormData.description}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      description: e.target.value,
+                    })
+                  }
+                  placeholder="Keterangan pembayaran (opsional)"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Bukti Pembayaran (Opsional)</Label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) =>
+                    setEditProofFile(e.target.files?.[0] || null)
+                  }
+                />
+                {editingPayment?.proof_url && !editProofFile && (
+                  <p className="text-xs text-muted-foreground">
+                    Biarkan kosong jika tidak ingin mengubah bukti pembayaran
+                  </p>
+                )}
+              </div>
+
+              <Button
+                onClick={() => editPayment.mutate()}
+                disabled={!editFormData.amount || isUploading}
+                className="w-full"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Mengupload...
+                  </>
+                ) : (
+                  "Simpan Perubahan"
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog
+          open={!!deletePaymentId}
+          onOpenChange={() => setDeletePaymentId(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Hapus Pembayaran</AlertDialogTitle>
+              <AlertDialogDescription>
+                Apakah Anda yakin ingin menghapus pembayaran ini? Tindakan ini
+                tidak dapat dibatalkan.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-red-600 hover:bg-red-700"
+                onClick={() => {
+                  if (deletePaymentId) {
+                    deletePayment.mutate(deletePaymentId);
+                  }
+                }}
+              >
+                Hapus
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </section>
   );
