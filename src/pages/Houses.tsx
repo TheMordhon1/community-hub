@@ -450,7 +450,7 @@ export default function Houses() {
               Kelola daftar rumah untuk registrasi warga
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0 -mx-4 sm:mx-0 px-4 sm:px-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -460,9 +460,9 @@ export default function Houses() {
                 Belum ada data rumah. Klik "Tambah Rumah" untuk menambahkan.
               </div>
             ) : (
-              <ScrollArea className="w-full">
-                <div className="min-w-[600px] px-6 pb-6">
-                  <Table>
+              <div className="w-screen -mx-4 sm:w-auto sm:mx-0 overflow-x-auto">
+                <div className="w-full inline-block min-w-full px-4 sm:px-0">
+                  <Table className="w-full">
                     <TableHeader>
                       <TableRow>
                         <TableHead>Blok</TableHead>
@@ -546,8 +546,7 @@ export default function Houses() {
                     </TableBody>
                   </Table>
                 </div>
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
+              </div>
             )}
           </CardContent>
         </Card>

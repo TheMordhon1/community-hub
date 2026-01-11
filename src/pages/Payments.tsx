@@ -165,7 +165,9 @@ export default function Payments() {
   });
   const [bendaharaTab, setBendaharaTab] = useState<"all" | "mine">("all");
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editingPayment, setEditingPayment] = useState<PaymentItem | null>(null);
+  const [editingPayment, setEditingPayment] = useState<PaymentItem | null>(
+    null
+  );
   const [editFormData, setEditFormData] = useState({
     paymentDate: new Date(),
     amount: "",
@@ -1110,127 +1112,133 @@ _Paguyuban Nijuuroku_`;
               </Tabs>
             )}
           </CardHeader>
-          <CardContent className="p-0 sm:p-6 sm:pt-0">
+          <CardContent className="p-0 -mx-4 sm:mx-0 px-4 sm:px-6">
             {isLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin" />
               </div>
             ) : displayPayments && displayPayments.length > 0 ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">Rumah</TableHead>
-                      <TableHead className="text-xs">Periode</TableHead>
-                      <TableHead className="text-xs table-cell">
-                        Jumlah
-                      </TableHead>
-                      <TableHead className="text-xs">Status</TableHead>
-                      <TableHead className="text-xs text-right">Aksi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {displayPayments.map((payment) => (
-                      <TableRow
-                        key={payment.id}
-                        className="cursor-pointer hover:bg-gray-100"
-                        onClick={() => navigate(`/payments/${payment.id}`)}
-                      >
-                        <TableCell className="font-medium text-xs sm:text-sm py-2">
-                          {payment.house?.block} - {payment.house?.number}
-                        </TableCell>
-                        <TableCell className="text-xs sm:text-sm py-2">
-                          <span className="inline">
-                            {MONTHS[payment.month - 1]}{" "}
-                          </span>
-
-                          {payment.year}
-                        </TableCell>
-                        <TableCell className="table-cell text-sm">
-                          Rp {payment.amount.toLocaleString("id-ID")}
-                        </TableCell>
-                        <TableCell className="py-2">
-                          <Badge
-                            className={`${
-                              STATUS_COLORS[payment.status]
-                            } text-xs`}
-                          >
-                            <span className="inline">
-                              {STATUS_LABELS[payment.status]}
-                            </span>
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right py-2">
-                          <div
-                            className="flex justify-end gap-1"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {payment.proof_url && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 w-7 p-0 bg-transparent"
-                                onClick={() => setSelectedPayment(payment)}
-                              >
-                                <Eye className="w-3 h-3" />
-                              </Button>
-                            )}
-                            {canEditPayment(payment) && (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-50 bg-transparent"
-                                  onClick={() => openEditDialog(payment)}
-                                >
-                                  <Pencil className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 text-red-600 hover:bg-red-50 bg-transparent"
-                                  onClick={() => setDeletePaymentId(payment.id)}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            {canVerify && payment.status === "pending" && (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 text-green-600 hover:bg-green-50 bg-transparent"
-                                  onClick={() =>
-                                    verifyPayment.mutate({
-                                      paymentId: payment.id,
-                                      approved: true,
-                                    })
-                                  }
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 text-red-600 hover:bg-red-50 bg-transparent"
-                                  onClick={() =>
-                                    verifyPayment.mutate({
-                                      paymentId: payment.id,
-                                      approved: false,
-                                    })
-                                  }
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
+              <div className="w-screen -mx-4 sm:w-auto sm:mx-0 overflow-x-auto">
+                <div className="w-full inline-block min-w-full px-4 sm:px-0">
+                  <Table className="w-full">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Rumah</TableHead>
+                        <TableHead className="text-xs">Periode</TableHead>
+                        <TableHead className="text-xs table-cell">
+                          Jumlah
+                        </TableHead>
+                        <TableHead className="text-xs">Status</TableHead>
+                        <TableHead className="text-xs text-right">
+                          Aksi
+                        </TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {displayPayments.map((payment) => (
+                        <TableRow
+                          key={payment.id}
+                          className="cursor-pointer hover:bg-gray-100"
+                          onClick={() => navigate(`/payments/${payment.id}`)}
+                        >
+                          <TableCell className="font-medium text-xs sm:text-sm py-2">
+                            {payment.house?.block} - {payment.house?.number}
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm py-2">
+                            <span className="inline">
+                              {MONTHS[payment.month - 1]}{" "}
+                            </span>
+
+                            {payment.year}
+                          </TableCell>
+                          <TableCell className="table-cell text-sm">
+                            Rp {payment.amount.toLocaleString("id-ID")}
+                          </TableCell>
+                          <TableCell className="py-2">
+                            <Badge
+                              className={`${
+                                STATUS_COLORS[payment.status]
+                              } text-xs`}
+                            >
+                              <span className="inline">
+                                {STATUS_LABELS[payment.status]}
+                              </span>
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right py-2">
+                            <div
+                              className="flex justify-end gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {payment.proof_url && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 bg-transparent"
+                                  onClick={() => setSelectedPayment(payment)}
+                                >
+                                  <Eye className="w-3 h-3" />
+                                </Button>
+                              )}
+                              {canEditPayment(payment) && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-50 bg-transparent"
+                                    onClick={() => openEditDialog(payment)}
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-red-600 hover:bg-red-50 bg-transparent"
+                                    onClick={() =>
+                                      setDeletePaymentId(payment.id)
+                                    }
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              )}
+                              {canVerify && payment.status === "pending" && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-green-600 hover:bg-green-50 bg-transparent"
+                                    onClick={() =>
+                                      verifyPayment.mutate({
+                                        paymentId: payment.id,
+                                        approved: true,
+                                      })
+                                    }
+                                  >
+                                    <Check className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-red-600 hover:bg-red-50 bg-transparent"
+                                    onClick={() =>
+                                      verifyPayment.mutate({
+                                        paymentId: payment.id,
+                                        approved: false,
+                                      })
+                                    }
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             ) : (
               <CardContent className="flex flex-col items-center justify-center text-center">

@@ -506,7 +506,7 @@ export default function Events() {
                                   )}
                                   <span className="flex items-center gap-1 shrink-0">
                                     <Users className="w-3 h-3" />
-                                    {getAttendeeCount(event.id)} peserta
+                                    {getAttendeeCount(event.id)} warga
                                   </span>
                                 </div>
                               </div>
