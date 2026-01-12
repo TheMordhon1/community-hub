@@ -344,8 +344,8 @@ export default function Events() {
             isPast && "opacity-60"
           )}
         >
-          <div className="flex">
-            <div className="w-20 bg-primary/10 flex flex-col items-center justify-center p-3 text-center shrink-0">
+          <div className="flex flex-col md:flex-row">
+            <div className="w-full md:w-20 bg-primary/10 flex flex-col items-center justify-center p-3 text-center shrink-0">
               <span className="text-2xl font-bold text-primary">
                 {format(new Date(event.event_date), "d")}
               </span>
@@ -354,11 +354,6 @@ export default function Events() {
                   locale: idLocale,
                 })}
               </span>
-              {event.event_time && (
-                <span className="text-xs text-primary mt-1">
-                  {formatEventTime(event.event_time)}
-                </span>
-              )}
             </div>
             <div className="flex-1 p-4 min-w-0">
               <div className="flex flex-col justify-between gap-4">
@@ -431,7 +426,7 @@ export default function Events() {
                       {event.description}
                     </p>
                   )}
-                  <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mt-2 text-sm text-muted-foreground">
                     {event.event_time && (
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
@@ -439,9 +434,11 @@ export default function Events() {
                       </span>
                     )}
                     {event.location && (
-                      <span className="flex items-center gap-1 truncate">
+                      <span className="flex items-center gap-1 max-w-52">
                         <MapPin className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{event.location}</span>
+                        <span className="line-clamp-1 w-full">
+                          {event.location}
+                        </span>
                       </span>
                     )}
                     <span className="flex items-center gap-1 shrink-0">
