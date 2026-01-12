@@ -573,7 +573,7 @@ export default function Events() {
                     <Textarea
                       id="description"
                       placeholder="Deskripsi acara..."
-                      rows={3}
+                      rows={10}
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                     />
