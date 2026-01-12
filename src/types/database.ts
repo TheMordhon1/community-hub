@@ -105,6 +105,7 @@ export interface Event {
   description: string | null;
   location: string | null;
   event_date: string;
+  event_time: string | null;
   image_url: string | null;
   author_id: string | null;
   created_at: string;
