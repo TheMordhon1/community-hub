@@ -68,9 +68,10 @@ const MONTHS = [
 ];
 
 const STATUS_COLORS = {
-  pending: "bg-yellow-500/20 text-yellow-700 border-yellow-500/30",
-  paid: "bg-green-500/20 text-green-700 border-green-500/30",
-  overdue: "bg-red-500/20 text-red-700 border-red-500/30",
+  pending:
+    "bg-yellow-500/20 hover:bg-yellow-500/20 text-yellow-700 border-yellow-500/30",
+  paid: "bg-green-500/20 hover:bg-green-500/20 text-green-700 border-green-500/30",
+  overdue: "bg-red-500/20 hover:bg-red-500/20 text-red-700 border-red-500/30",
 };
 
 const STATUS_LABELS = {
@@ -146,7 +147,9 @@ export default function PaymentDetail() {
         await supabase.from("finance_records").insert({
           type: "income",
           amount: payment.amount,
-          description: `Iuran ${MONTHS[payment.month - 1]} ${payment.year} - Rumah ${payment.house?.block}${payment.house?.number}`,
+          description: `Iuran ${MONTHS[payment.month - 1]} ${
+            payment.year
+          } - Rumah ${payment.house?.block}${payment.house?.number}`,
           category: "iuran",
           recorded_by: user?.id,
           payment_id: id,
@@ -196,23 +199,33 @@ export default function PaymentDetail() {
     );
   }
 
-  const shareText = `💰 Pembayaran Iuran\n\n🏠 Rumah: ${payment.house?.block}${payment.house?.number}\n📅 Periode: ${MONTHS[payment.month - 1]} ${payment.year}\n💵 Jumlah: Rp ${payment.amount.toLocaleString("id-ID")}\n📊 Status: ${STATUS_LABELS[payment.status]}`;
+  const shareText = `💰 Pembayaran Iuran\n\n🏠 Rumah: ${payment.house?.block}${
+    payment.house?.number
+  }\n📅 Periode: ${MONTHS[payment.month - 1]} ${
+    payment.year
+  }\n💵 Jumlah: Rp ${payment.amount.toLocaleString("id-ID")}\n📊 Status: ${
+    STATUS_LABELS[payment.status]
+  }`;
   const shareUrl = `${window.location.origin}/payments/${id}`;
 
   return (
     <section className="min-h-screen bg-background p-6">
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="space-y-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center justify-between"
         >
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/payments">
+          <div className="flex items-center gap-2">
+            <Link to="/events">
               <ArrowLeft className="w-5 h-5" />
             </Link>
-          </Button>
+
+            <h1 className="font-display text-xl md:text-2xl font-bold">
+              Detail IPL
+            </h1>
+          </div>
           <Button
             variant="outline"
             size="icon"
@@ -261,9 +274,13 @@ export default function PaymentDetail() {
                 <div>
                   <p className="font-medium">Tanggal Pengajuan</p>
                   <p className="text-muted-foreground">
-                    {format(new Date(payment.created_at), "d MMMM yyyy, HH:mm", {
-                      locale: idLocale,
-                    })}
+                    {format(
+                      new Date(payment.created_at),
+                      "d MMMM yyyy, HH:mm",
+                      {
+                        locale: idLocale,
+                      }
+                    )}
                   </p>
                 </div>
               </div>
