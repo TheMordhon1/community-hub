@@ -5,20 +5,20 @@ import { format, isToday, isBefore, startOfDay } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Popover,
   PopoverContent,
@@ -44,7 +44,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, formatEventTime } from "@/lib/utils";
 import {
   ArrowLeft,
   Plus,
@@ -270,8 +270,11 @@ export default function Events() {
     return canManageContent() || event.author_id === user?.id;
   };
 
-  const getAttendeeCount = () => {
-    return rsvps?.filter((r) => r.status === "attending").length || 0;
+  const getAttendeeCount = (evenId: string) => {
+    return (
+      rsvps?.filter((r) => evenId === r.event_id && r.status === "attending")
+        .length || 0
+    );
   };
 
   // Categorize events
@@ -325,12 +328,6 @@ export default function Events() {
       default:
         return [];
     }
-  };
-
-  const formatEventTime = (time: string | null) => {
-    if (!time) return null;
-    // Format HH:mm:ss to HH:mm
-    return time.substring(0, 5);
   };
 
   const renderEventCard = (event: Event, index: number, isPast = false) => (
@@ -449,7 +446,7 @@ export default function Events() {
                     )}
                     <span className="flex items-center gap-1 shrink-0">
                       <Users className="w-3 h-3" />
-                      {getAttendeeCount()} warga
+                      {getAttendeeCount(event.id)} warga
                     </span>
                   </div>
                 </div>
@@ -657,46 +654,60 @@ export default function Events() {
           )}
         </motion.div>
 
-        {/* Tabs */}
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as EventTab)}
-        >
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="upcoming" className="flex items-center gap-2">
-              Mendatang
-              {upcomingEvents.length > 0 && (
-                <Badge variant="secondary" className="ml-1">
-                  {upcomingEvents.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="now" className="flex items-center gap-2">
-              Hari Ini
-              {nowEvents.length > 0 && (
-                <Badge variant="default" className="ml-1">
-                  {nowEvents.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="past" className="flex items-center gap-2">
-              Selesai
-              {pastEvents.length > 0 && (
-                <Badge variant="outline" className="ml-1">
-                  {pastEvents.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
+        {/* Select Dropdown */}
+        <div className="flex items-center gap-4">
+          <Select
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as EventTab)}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Pilih kategori" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="upcoming">
+                <div className="flex items-center gap-2">
+                  Mendatang
+                  {upcomingEvents.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">
+                      {upcomingEvents.length}
+                    </Badge>
+                  )}
+                </div>
+              </SelectItem>
+              <SelectItem value="now">
+                <div className="flex items-center gap-2">
+                  Hari Ini
+                  {nowEvents.length > 0 && (
+                    <Badge variant="default" className="ml-1">
+                      {nowEvents.length}
+                    </Badge>
+                  )}
+                </div>
+              </SelectItem>
+              <SelectItem value="past">
+                <div className="flex items-center gap-2">
+                  Selesai
+                  {pastEvents.length > 0 && (
+                    <Badge variant="outline" className="ml-1">
+                      {pastEvents.length}
+                    </Badge>
+                  )}
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-          {/* Events List */}
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <>
-              <TabsContent value="upcoming" className="space-y-3 mt-4">
+        {/* Events List */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="space-y-3 mt-4">
+            {/* Conditional Rendering */}
+            {activeTab === "upcoming" && (
+              <>
                 {upcomingEvents.length === 0 ? (
                   <Card className="py-12">
                     <CardContent className="flex flex-col items-center justify-center text-center">
@@ -714,9 +725,11 @@ export default function Events() {
                     renderEventCard(event, index)
                   )
                 )}
-              </TabsContent>
+              </>
+            )}
 
-              <TabsContent value="now" className="space-y-3 mt-4">
+            {activeTab === "now" && (
+              <>
                 {nowEvents.length === 0 ? (
                   <Card className="py-12">
                     <CardContent className="flex flex-col items-center justify-center text-center">
@@ -732,9 +745,11 @@ export default function Events() {
                 ) : (
                   nowEvents.map((event, index) => renderEventCard(event, index))
                 )}
-              </TabsContent>
+              </>
+            )}
 
-              <TabsContent value="past" className="space-y-3 mt-4">
+            {activeTab === "past" && (
+              <>
                 {pastEvents.length === 0 ? (
                   <Card className="py-12">
                     <CardContent className="flex flex-col items-center justify-center text-center">
@@ -752,10 +767,10 @@ export default function Events() {
                     renderEventCard(event, index, true)
                   )
                 )}
-              </TabsContent>
-            </>
-          )}
-        </Tabs>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}

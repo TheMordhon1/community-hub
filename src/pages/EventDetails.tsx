@@ -26,8 +26,9 @@ import {
   Check,
   Share2,
 } from "lucide-react";
-import type { Event, Profile } from "@/types/database";
+import type { Profile } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
+import { formatEventTime } from "@/lib/utils";
 
 interface AttendeeWithProfile {
   id: string;
@@ -147,7 +148,7 @@ export default function EventDetail() {
 
   const shareText = `📅 ${event?.title}\n\n${event?.description || ""}\n\n📅 ${
     event?.event_date
-      ? format(new Date(event.event_date), "d MMMM yyyy, HH:mm", {
+      ? format(new Date(event.event_date), "dd MMMM yyyy, HH:mm", {
           locale: idLocale,
         })
       : ""
@@ -234,9 +235,10 @@ export default function EventDetail() {
                   <CardDescription className="flex items-center gap-4 text-base">
                     <span className="flex items-center gap-1">
                       <CalendarIcon className="w-4 h-4" />
-                      {format(new Date(event.event_date), "d MMMM yyyy", {
+                      {format(new Date(event.event_date), "dd MMMM yyyy", {
                         locale: idLocale,
                       })}
+                      , {formatEventTime(event.event_time)} WIB
                     </span>
                   </CardDescription>
                 </div>
