@@ -249,6 +249,15 @@ export default function Events() {
     return rsvps?.some((r) => r.event_id === eventId && r.user_id === user?.id);
   };
 
+  const canEditEvent = (event: Event) => {
+    return canManageContent() || event.author_id === user?.id;
+  };
+
+  const canDeleteEvent = (event: Event) => {
+    // Admins can delete any, authors can delete their own
+    return canManageContent() || event.author_id === user?.id;
+  };
+
   const getAttendeeCount = () => {
     return rsvps?.filter((r) => r.status === "attending").length || 0;
   };
@@ -462,29 +471,29 @@ export default function Events() {
                                       "Ikut"
                                     )}
                                   </Button>
-                                  {canManageContent() && (
-                                    <>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          handleEdit(event);
-                                        }}
-                                      >
-                                        <Edit className="w-4 h-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          setDeletingEvent(event);
-                                        }}
-                                      >
-                                        <Trash2 className="w-4 h-4 text-destructive" />
-                                      </Button>
-                                    </>
+                                  {canEditEvent(event) && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        handleEdit(event);
+                                      }}
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                  {canDeleteEvent(event) && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        setDeletingEvent(event);
+                                      }}
+                                    >
+                                      <Trash2 className="w-4 h-4 text-destructive" />
+                                    </Button>
                                   )}
                                 </div>
                               </div>
@@ -537,29 +546,29 @@ export default function Events() {
                                     "Ikut"
                                   )}
                                 </Button>
-                                {canManageContent() && (
-                                  <>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        handleEdit(event);
-                                      }}
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        setDeletingEvent(event);
-                                      }}
-                                    >
-                                      <Trash2 className="w-4 h-4 text-destructive" />
-                                    </Button>
-                                  </>
+                                {canEditEvent(event) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      handleEdit(event);
+                                    }}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                {canDeleteEvent(event) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      setDeletingEvent(event);
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </Button>
                                 )}
                               </div>
                             </div>
@@ -601,7 +610,7 @@ export default function Events() {
                               )}
                             </CardDescription>
                           </div>
-                          {canManageContent() && (
+                          {canDeleteEvent(event) && (
                             <Button
                               variant="ghost"
                               size="icon"
