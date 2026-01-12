@@ -17,6 +17,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
@@ -25,6 +26,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useUpcomingEventsCount } from "@/hooks/useUpcomingEventsCount";
 
 export function AppSidebar() {
   const location = useLocation();
@@ -36,6 +38,7 @@ export function AppSidebar() {
   const { data: pengurusMenus, isLoading: pengurusLoading } =
     usePengurusMenus();
   const { data: adminMenus, isLoading: adminLoading } = useSidebarAdminMenus();
+  const { data: upcomingCount = 0 } = useUpcomingEventsCount();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -91,6 +94,11 @@ export function AppSidebar() {
                         <span>{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
+                    {item.title === "Acara" && upcomingCount > 0 && (
+                      <SidebarMenuBadge className="w-4 h-4 bg-white/30">
+                        {upcomingCount}
+                      </SidebarMenuBadge>
+                    )}
                   </SidebarMenuItem>
                 ))
               )}
