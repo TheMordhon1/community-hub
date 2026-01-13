@@ -87,7 +87,7 @@ export default function EventDetail() {
       const userIds = data.map((item) => item.user_id);
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, full_name, email, avatar_url")
+        .select("id, full_name, email, phone, avatar_url ")
         .in("id", userIds);
 
       const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
@@ -351,7 +351,7 @@ export default function EventDetail() {
                           {attendee.profile?.full_name || "Unknown"}
                         </p>
                         <p className="text-sm text-muted-foreground truncate">
-                          {attendee.profile?.email}
+                          {attendee.profile.phone}
                         </p>
                       </div>
                       <Badge variant="outline" className="shrink-0">

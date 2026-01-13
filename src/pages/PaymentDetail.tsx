@@ -218,7 +218,7 @@ export default function PaymentDetail() {
           className="flex items-center justify-between"
         >
           <div className="flex items-center gap-2">
-            <Link to="/events">
+            <Link to="/payments">
               <ArrowLeft className="w-5 h-5" />
             </Link>
 

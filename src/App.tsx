@@ -28,6 +28,7 @@ import Residents from "./pages/Residents";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 import Houses from "./pages/Houses";
+import Home from "./pages/Index";
 
 const queryClient = new QueryClient();
 
@@ -52,7 +53,7 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Home />} />
       <Route
         path="/login"
         element={
