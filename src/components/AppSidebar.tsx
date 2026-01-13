@@ -27,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUpcomingEventsCount } from "@/hooks/useUpcomingEventsCount";
+import { useAnnouncementCount } from "@/hooks/useAnnouncementCount";
 
 export function AppSidebar() {
   const location = useLocation();
@@ -38,6 +39,7 @@ export function AppSidebar() {
   const { data: pengurusMenus, isLoading: pengurusLoading } =
     usePengurusMenus();
   const { data: adminMenus, isLoading: adminLoading } = useSidebarAdminMenus();
+  const { data: announcementsCount = 0 } = useAnnouncementCount();
   const { data: upcomingCount = 0 } = useUpcomingEventsCount();
 
   const isActive = (path: string) => location.pathname === path;
@@ -97,6 +99,11 @@ export function AppSidebar() {
                     {item.title === "Acara" && upcomingCount > 0 && (
                       <SidebarMenuBadge className="w-4 h-4 bg-white/30">
                         {upcomingCount}
+                      </SidebarMenuBadge>
+                    )}
+                    {item.title === "Pengumuman" && announcementsCount > 0 && (
+                      <SidebarMenuBadge className="w-4 h-4 bg-white/30">
+                        {announcementsCount}
                       </SidebarMenuBadge>
                     )}
                   </SidebarMenuItem>

@@ -219,42 +219,67 @@ export default function EventDetail() {
         >
           <Card>
             {event.image_url && (
-              <div className="w-full h-64 overflow-hidden rounded-t-lg">
+              <div className="w-full h-96 overflow-hidden rounded-t-lg">
                 <img
                   src={event.image_url || "/placeholder.svg"}
                   alt={event.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-fill sm:object-cover"
                 />
               </div>
             )}
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
+            <CardHeader className="px-4 md:p-6">
+              <div className="flex items-start justify-between w-full flex-1">
+                <div className="space-y-2 w-full">
                   {isPastEvent && <Badge variant="secondary">Selesai</Badge>}
-                  <CardTitle className="text-3xl">{event.title}</CardTitle>
-                  <CardDescription className="flex items-center gap-4 text-base">
-                    <span className="flex items-center gap-1">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-2xl md:text-3xl w-full">
+                      {event.title}
+                    </CardTitle>
+                    {!isPastEvent && (
+                      <Button
+                        className="hover:bg-success rounded-full"
+                        size="lg"
+                        variant={isUserAttending ? "default" : "outline"}
+                        onClick={() =>
+                          rsvpMutation.mutate(isUserAttending || false)
+                        }
+                        disabled={rsvpMutation.isPending}
+                      >
+                        {rsvpMutation.isPending && (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        )}
+                        {isUserAttending ? (
+                          <>
+                            <Check className="w-4 h-4 mr-2" />
+                            Saya Akan Hadir
+                          </>
+                        ) : (
+                          "Ikut Acara"
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                  <CardDescription className="flex flex-col  gap-4 text-base">
+                    <span className="flex items-center gap-2">
                       <CalendarIcon className="w-4 h-4" />
                       {format(new Date(event.event_date), "dd MMMM yyyy", {
                         locale: idLocale,
                       })}
                       , {formatEventTime(event.event_time)} WIB
                     </span>
+                    {event.location && (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-5 h-5 text-muted-foreground mt-0.5" />
+                        <p className="text-muted-foreground">
+                          {event.location}
+                        </p>
+                      </div>
+                    )}
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {event.location && (
-                <div className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="font-medium">Lokasi</p>
-                    <p className="text-muted-foreground">{event.location}</p>
-                  </div>
-                </div>
-              )}
-
+            <CardContent className="space-y-6 px-4 md:p-6">
               {event.description && (
                 <div className="space-y-2">
                   <p className="font-medium">Deskripsi</p>
@@ -282,28 +307,6 @@ export default function EventDetail() {
                   </div>
                 </div>
               )}
-
-              {!isPastEvent && (
-                <Button
-                  className="w-full"
-                  size="lg"
-                  variant={isUserAttending ? "default" : "outline"}
-                  onClick={() => rsvpMutation.mutate(isUserAttending || false)}
-                  disabled={rsvpMutation.isPending}
-                >
-                  {rsvpMutation.isPending && (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  )}
-                  {isUserAttending ? (
-                    <>
-                      <Check className="w-4 h-4 mr-2" />
-                      Saya Akan Hadir
-                    </>
-                  ) : (
-                    "Ikut Acara"
-                  )}
-                </Button>
-              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -315,7 +318,7 @@ export default function EventDetail() {
           transition={{ delay: 0.1 }}
         >
           <Card>
-            <CardHeader>
+            <CardHeader className="px-4 md:p-6">
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
                 Daftar warga ({attendees?.length || 0})
@@ -324,7 +327,7 @@ export default function EventDetail() {
                 Warga yang akan menghadiri acara ini
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 md:p-6">
               {isLoadingAttendees ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />

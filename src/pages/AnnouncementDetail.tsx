@@ -67,19 +67,17 @@ export default function AnnouncementDetail() {
   if (!announcement) {
     return (
       <section className="min-h-screen bg-background p-6">
-        <div className="mx-auto max-w-4xl">
-          <Card className="py-12">
-            <CardContent className="flex flex-col items-center justify-center text-center">
-              <Megaphone className="w-12 h-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">
-                Pengumuman Tidak Ditemukan
-              </h3>
-              <Button asChild className="mt-4">
-                <Link to="/announcements">Kembali ke Pengumuman</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="py-12">
+          <CardContent className="flex flex-col items-center justify-center text-center">
+            <Megaphone className="w-12 h-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">
+              Pengumuman Tidak Ditemukan
+            </h3>
+            <Button asChild className="mt-4">
+              <Link to="/announcements">Kembali ke Pengumuman</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </section>
     );
   }
@@ -89,18 +87,22 @@ export default function AnnouncementDetail() {
 
   return (
     <section className="min-h-screen bg-background p-6">
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="space-y-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center justify-between"
         >
-          <Button variant="ghost" size="icon" asChild>
+          <div className="flex items-center gap-2">
             <Link to="/announcements">
               <ArrowLeft className="w-5 h-5" />
             </Link>
-          </Button>
+
+            <h1 className="font-display text-xl md:text-2xl font-bold">
+              Detail Pengumuman
+            </h1>
+          </div>
           <Button
             variant="outline"
             size="icon"

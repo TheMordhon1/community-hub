@@ -401,8 +401,10 @@ export default function Announcements() {
                     transition={{ delay: index * 0.05 }}
                   >
                     <Card
-                      className="cursor-pointer hover:bg-accent/50 transition-colors"
-                      onClick={() => navigate(`/announcements/${announcement.id}`)}
+                      className="cursor-pointer hover:shadow-md hover:scale-[1.01] transition"
+                      onClick={() =>
+                        navigate(`/announcements/${announcement.id}`)
+                      }
                     >
                       <CardHeader className="pb-2">
                         <div className="flex items-start justify-between">
@@ -426,7 +428,10 @@ export default function Announcements() {
                             </CardDescription>
                           </div>
                           {canManageContent() && (
-                            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                            <div
+                              className="flex gap-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <Button
                                 variant="ghost"
                                 size="icon"

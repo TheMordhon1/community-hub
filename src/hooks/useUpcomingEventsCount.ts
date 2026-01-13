@@ -17,6 +17,6 @@ export function useUpcomingEventsCount() {
       if (error) throw error
       return count ?? 0
     },
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   })
 }

@@ -421,56 +421,55 @@ export default function Events() {
       <Link to={`/events/${event.id}`}>
         <Card
           className={cn(
-            "overflow-hidden hover:shadow-lg transition-all cursor-pointer group",
+            "overflow-hidden hover:shadow-lg transition-all cursor-pointer group h-full flex flex-col",
             isPast && "opacity-60"
           )}
         >
-          <div className="flex flex-col md:flex-row">
-            {/* Image or Date Section */}
-            {event.image_url ? (
-              <div className="relative w-full md:w-40 h-32 md:h-auto shrink-0 overflow-hidden">
-                <img
-                  src={event.image_url}
-                  alt={event.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent md:bg-gradient-to-r" />
-                <div className="absolute bottom-2 left-2 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:left-1/2 md:-translate-x-1/2 text-center">
-                  <span className="text-2xl font-bold text-white drop-shadow-lg">
-                    {format(new Date(event.event_date), "d")}
-                  </span>
-                  <span className="block text-xs text-white uppercase drop-shadow-lg">
-                    {format(new Date(event.event_date), "MMM", {
-                      locale: idLocale,
-                    })}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="w-full md:w-20 bg-primary/10 flex flex-col items-center justify-center p-3 text-center shrink-0">
-                <span className="text-2xl font-bold text-primary">
+          {/* Image or Date Section */}
+          {event.image_url ? (
+            <div className="relative w-full h-60 shrink-0 overflow-hidden">
+              <img
+                src={event.image_url}
+                alt={event.title}
+                className="w-full h-full object-fill group-hover:scale-105 transition-transform duration-300"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent md:bg-gradient-to-r" />
+              <div className="absolute bottom-2 left-2 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:left-1/2 md:-translate-x-1/2 text-center">
+                <span className="text-2xl font-bold text-white drop-shadow-lg">
                   {format(new Date(event.event_date), "d")}
                 </span>
-                <span className="text-xs text-primary uppercase">
-                  {format(new Date(event.event_date), "MMM", {
+                <span className="block text-xs text-white uppercase drop-shadow-lg">
+                  {format(new Date(event.event_date), "MMMM", {
                     locale: idLocale,
                   })}
                 </span>
               </div>
-            )}
-            <div className="flex-1 p-4 min-w-0">
-              <div className="flex flex-col justify-between gap-4">
-                <div className="flex justify-between items-start gap-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-lg truncate">
-                      {event.title}
-                    </h3>
-                    {isPast && <Badge variant="secondary">Selesai</Badge>}
-                    {isToday(new Date(event.event_date)) && !isPast && (
-                      <Badge variant="default">Hari ini</Badge>
-                    )}
-                  </div>
-                  <div className="hidden md:flex items-center gap-2 shrink-0">
+            </div>
+          ) : (
+            <div className="w-full h-60 bg-primary/10 flex flex-col items-center justify-center p-3 text-center shrink-0">
+              <span className="text-2xl font-bold text-primary">
+                {format(new Date(event.event_date), "d")}
+              </span>
+              <span className="text-xs text-primary uppercase">
+                {format(new Date(event.event_date), "MMMM", {
+                  locale: idLocale,
+                })}
+              </span>
+            </div>
+          )}
+
+          <div className="flex flex-col justify-between gap-4 flex-1 p-4">
+            <div className="flex justify-between items-start gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-semibold text-lg truncate">
+                  {event.title}
+                </h3>
+                {isPast && <Badge variant="secondary">Selesai</Badge>}
+                {isToday(new Date(event.event_date)) && !isPast && (
+                  <Badge variant="default">Hari ini</Badge>
+                )}
+              </div>
+              {/* <div className="hidden md:flex items-center gap-2 shrink-0">
                     {!isPast && (
                       <Button
                         variant={
@@ -520,88 +519,87 @@ export default function Events() {
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
                     )}
-                  </div>
-                </div>
+                  </div> */}
+            </div>
 
-                <div>
-                  {event.description && (
-                    <p className="text-muted-foreground text-sm mt-1 line-clamp-2">
-                      {event.description}
-                    </p>
-                  )}
-                  <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mt-2 text-sm text-muted-foreground">
-                    {event.event_time && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {formatEventTime(event.event_time)}
-                      </span>
-                    )}
-                    {event.location && (
-                      <span className="flex items-center gap-1 max-w-52">
-                        <MapPin className="w-3 h-3 shrink-0" />
-                        <span className="line-clamp-1 w-full">
-                          {event.location}
-                        </span>
-                      </span>
-                    )}
-                    <span className="flex items-center gap-1 shrink-0">
-                      <Users className="w-3 h-3" />
-                      {getAttendeeCount(event.id)} warga
+            <div className="flex-1 flex flex-col gap-2">
+              {event.description && (
+                <p className="text-muted-foreground text-sm mt-1 line-clamp-2">
+                  {event.description}
+                </p>
+              )}
+              <div className="flex flex-col md:flex-row mt-auto md:items-center gap-2 md:gap-4  text-sm text-muted-foreground">
+                {event.event_time && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {formatEventTime(event.event_time)}
+                  </span>
+                )}
+                {event.location && (
+                  <span className="flex items-center gap-1 max-w-52">
+                    <MapPin className="w-3 h-3 shrink-0" />
+                    <span className="line-clamp-1 w-full">
+                      {event.location}
                     </span>
-                  </div>
-                </div>
-                <div className="flex md:hidden items-center gap-2">
-                  {!isPast && (
-                    <Button
-                      variant={
-                        isUserAttending(event.id) ? "default" : "outline"
-                      }
-                      size="sm"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        rsvpMutation.mutate({
-                          eventId: event.id,
-                          isAttending: isUserAttending(event.id) || false,
-                        });
-                      }}
-                      disabled={rsvpMutation.isPending}
-                    >
-                      {isUserAttending(event.id) ? (
-                        <>
-                          <Check className="w-4 h-4 mr-1" />
-                          Hadir
-                        </>
-                      ) : (
-                        "Ikut"
-                      )}
-                    </Button>
-                  )}
-                  {canEditEvent(event) && !isPast && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleEdit(event);
-                      }}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                  )}
-                  {canDeleteEvent(event) && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setDeletingEvent(event);
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  )}
-                </div>
+                  </span>
+                )}
+                <span className="flex items-center gap-1 shrink-0">
+                  <Users className="w-3 h-3" />
+                  {getAttendeeCount(event.id)} warga
+                </span>
               </div>
+            </div>
+            <div className="flex items-center gap-2 mt-auto">
+              {!isPast && (
+                <Button
+                  variant={isUserAttending(event.id) ? "default" : "outline"}
+                  size="sm"
+                  className="w-full hover:bg-success"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    rsvpMutation.mutate({
+                      eventId: event.id,
+                      isAttending: isUserAttending(event.id) || false,
+                    });
+                  }}
+                  disabled={rsvpMutation.isPending}
+                >
+                  {isUserAttending(event.id) ? (
+                    <>
+                      <Check className="w-4 h-4 mr-1" />
+                      Hadir
+                    </>
+                  ) : (
+                    "Ikuti Acara"
+                  )}
+                </Button>
+              )}
+              {canEditEvent(event) && !isPast && (
+                <Button
+                  variant="ghost"
+                  className="hover:bg-white transition hover:scale-125"
+                  size="icon"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleEdit(event);
+                  }}
+                >
+                  <Edit className="w-4 h-4" color="black" />
+                </Button>
+              )}
+              {canDeleteEvent(event) && (
+                <Button
+                  variant="ghost"
+                  className="hover:bg-white transition hover:scale-125"
+                  size="icon"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setDeletingEvent(event);
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </Button>
+              )}
             </div>
           </div>
         </Card>
@@ -732,7 +730,7 @@ export default function Events() {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Image Upload */}
                   <div className="space-y-2">
                     <Label>Gambar (opsional)</Label>
@@ -780,10 +778,14 @@ export default function Events() {
                   <Button
                     onClick={handleSubmit}
                     disabled={
-                      createMutation.isPending || updateMutation.isPending || isUploading
+                      createMutation.isPending ||
+                      updateMutation.isPending ||
+                      isUploading
                     }
                   >
-                    {(createMutation.isPending || updateMutation.isPending || isUploading) && (
+                    {(createMutation.isPending ||
+                      updateMutation.isPending ||
+                      isUploading) && (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     )}
                     {editingEvent ? "Simpan" : "Buat"}
@@ -861,9 +863,11 @@ export default function Events() {
                     </CardContent>
                   </Card>
                 ) : (
-                  upcomingEvents.map((event, index) =>
-                    renderEventCard(event, index)
-                  )
+                  <div className="grid grid-cols-[repeat(300px, 1fr)] sm:grid-cols-[repeat(auto-fill,300px)] gap-4">
+                    {upcomingEvents.map((event, index) =>
+                      renderEventCard(event, index)
+                    )}
+                  </div>
                 )}
               </>
             )}
@@ -883,7 +887,11 @@ export default function Events() {
                     </CardContent>
                   </Card>
                 ) : (
-                  nowEvents.map((event, index) => renderEventCard(event, index))
+                  <div className="grid grid-cols-[repeat(300px, 1fr)] md:grid-cols-[repeat(auto-fill,300px)] gap-4">
+                    {nowEvents.map((event, index) =>
+                      renderEventCard(event, index)
+                    )}
+                  </div>
                 )}
               </>
             )}
@@ -903,9 +911,11 @@ export default function Events() {
                     </CardContent>
                   </Card>
                 ) : (
-                  pastEvents.map((event, index) =>
-                    renderEventCard(event, index, true)
-                  )
+                  <div className="grid grid-cols-[repeat(300px, 1fr)] md:grid-cols-[repeat(auto-fill,300px)] gap-4">
+                    {pastEvents.map((event, index) =>
+                      renderEventCard(event, index, true)
+                    )}
+                  </div>
                 )}
               </>
             )}
