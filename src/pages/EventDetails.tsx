@@ -232,12 +232,12 @@ export default function EventDetail() {
                 <div className="space-y-2 w-full">
                   {isPastEvent && <Badge variant="secondary">Selesai</Badge>}
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-2xl md:text-3xl w-full">
+                    <CardTitle className="text-2xl md:text-3xl w-full flex-1">
                       {event.title}
                     </CardTitle>
                     {!isPastEvent && (
                       <Button
-                        className="hover:bg-success rounded-full"
+                        className="hover:bg-success rounded-full p-3"
                         size="lg"
                         variant={isUserAttending ? "default" : "outline"}
                         onClick={() =>
@@ -246,11 +246,11 @@ export default function EventDetail() {
                         disabled={rsvpMutation.isPending}
                       >
                         {rsvpMutation.isPending && (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin" />
                         )}
                         {isUserAttending ? (
                           <>
-                            <Check className="w-4 h-4 mr-2" />
+                            <Check className="w-4 h-4" />
                             Saya Akan Hadir
                           </>
                         ) : (

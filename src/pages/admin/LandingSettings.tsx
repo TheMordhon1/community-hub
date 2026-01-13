@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +17,9 @@ import {
   ImagePlus,
   X,
   ExternalLink,
+  ImageIcon,
+  Home,
+  Phone,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -175,251 +177,286 @@ export default function LandingSettings() {
 
   return (
     <section className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
+      <div className="space-y-6">
+        {/* Header - CHANGE: Enhanced header with better visual hierarchy */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
+          className="space-y-2"
         >
-          <div className="flex items-center gap-4">
-            <Link to="/dashboard">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <h1 className="font-display text-2xl font-bold">
-                Pengaturan Landing Page
-              </h1>
-              <p className="text-muted-foreground">
-                Kelola konten halaman utama
-              </p>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <Link to="/dashboard">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <div>
+                <h1 className="font-bold text-3xl">Pengaturan Landing Page</h1>
+                <p className="text-muted-foreground mt-1">
+                  Kelola dan kustomisasi tampilan halaman utama komunitas
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <Link to="/" target="_blank">
-              <Button variant="outline" size="sm">
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Preview
+            <div className="flex gap-2">
+              <Link to="/" target="_blank">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 bg-transparent"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Preview
+                </Button>
+              </Link>
+              <Button
+                onClick={handleSave}
+                disabled={saveMutation.isPending || isUploading}
+                className="gap-2 shadow-lg"
+              >
+                {(saveMutation.isPending || isUploading) && (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                )}
+                <Save className="w-4 h-4" />
+                Simpan
               </Button>
-            </Link>
-            <Button
-              onClick={handleSave}
-              disabled={saveMutation.isPending || isUploading}
-            >
-              {(saveMutation.isPending || isUploading) && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
-              <Save className="w-4 h-4 mr-2" />
-              Simpan
-            </Button>
+            </div>
           </div>
         </motion.div>
 
-        {/* Hero Section Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Hero Section</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Gambar Hero (opsional)</Label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleHeroImageChange}
-                className="hidden"
-              />
-              {heroImagePreview ? (
-                <div className="relative rounded-lg overflow-hidden">
-                  <img
-                    src={heroImagePreview}
-                    alt="Hero Preview"
-                    className="w-full h-48 object-cover"
+        {/* Main Content Grid - CHANGE: Better organization with sections */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Left Column - Hero and About */}
+          <div className="md:col-span-2 space-y-6">
+            {/* Hero Section */}
+            <Card className="overflow-hidden border-2 border-primary/10 hover:border-primary/30 transition-colors">
+              <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5 text-primary" />
+                  Hero Section
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6 pt-6">
+                <div className="space-y-2">
+                  <Label>Gambar Hero (opsional)</Label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleHeroImageChange}
+                    className="hidden"
                   />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2"
-                    onClick={removeHeroImage}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
+                  {heroImagePreview ? (
+                    <div className="relative rounded-xl overflow-hidden border border-border">
+                      <img
+                        src={heroImagePreview || "/placeholder.svg"}
+                        alt="Hero Preview"
+                        className="w-full h-48 object-cover"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-3 right-3 rounded-lg"
+                        onClick={removeHeroImage}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-40 border-dashed border-2 rounded-xl hover:bg-primary/5 transition-colors bg-transparent"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <ImagePlus className="w-8 h-8 text-muted-foreground" />
+                        <span className="text-sm">
+                          Klik untuk menambah gambar hero
+                        </span>
+                      </div>
+                    </Button>
+                  )}
                 </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full h-32 border-dashed"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <ImagePlus className="w-6 h-6 mr-2" />
-                  Tambah Gambar Hero
-                </Button>
-              )}
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="hero_title">Judul Hero</Label>
-              <Input
-                id="hero_title"
-                value={settings.hero_title || ""}
-                onChange={(e) => updateSetting("hero_title", e.target.value)}
-                placeholder="Selamat Datang di Perumahan Kami"
-              />
-            </div>
+                <Separator />
 
-            <div className="space-y-2">
-              <Label htmlFor="hero_subtitle">Subjudul Hero</Label>
-              <Textarea
-                id="hero_subtitle"
-                value={settings.hero_subtitle || ""}
-                onChange={(e) => updateSetting("hero_subtitle", e.target.value)}
-                placeholder="Komunitas yang nyaman, aman, dan asri..."
-                rows={2}
-              />
-            </div>
-          </CardContent>
-        </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="hero_title" className="font-semibold">
+                    Judul Hero
+                  </Label>
+                  <Input
+                    id="hero_title"
+                    value={settings.hero_title || ""}
+                    onChange={(e) =>
+                      updateSetting("hero_title", e.target.value)
+                    }
+                    placeholder="Selamat Datang di Perumahan Kami"
+                    className="text-lg"
+                  />
+                </div>
 
-        {/* Community Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Informasi Perumahan</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="community_name">Nama Perumahan</Label>
-              <Input
-                id="community_name"
-                value={settings.community_name || ""}
-                onChange={(e) => updateSetting("community_name", e.target.value)}
-                placeholder="Perumahan Harmoni Indah"
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="hero_subtitle" className="font-semibold">
+                    Subjudul Hero
+                  </Label>
+                  <Textarea
+                    id="hero_subtitle"
+                    value={settings.hero_subtitle || ""}
+                    onChange={(e) =>
+                      updateSetting("hero_subtitle", e.target.value)
+                    }
+                    placeholder="Komunitas yang nyaman, aman, dan asri..."
+                    rows={3}
+                    className="resize-none"
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-            <div className="space-y-2">
-              <Label htmlFor="about_text">Tentang Perumahan</Label>
-              <Textarea
-                id="about_text"
-                value={settings.about_text || ""}
-                onChange={(e) => updateSetting("about_text", e.target.value)}
-                placeholder="Deskripsi tentang perumahan..."
-                rows={4}
-              />
-            </div>
+            {/* Community Info */}
+            <Card className="overflow-hidden border-2 border-primary/10 hover:border-primary/30 transition-colors">
+              <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
+                <CardTitle className="flex items-center gap-2">
+                  <Home className="w-5 h-5 text-primary" />
+                  Informasi Perumahan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6 pt-6">
+                <div className="space-y-2">
+                  <Label htmlFor="community_name" className="font-semibold">
+                    Nama Perumahan
+                  </Label>
+                  <Input
+                    id="community_name"
+                    value={settings.community_name || ""}
+                    onChange={(e) =>
+                      updateSetting("community_name", e.target.value)
+                    }
+                    placeholder="Perumahan Harmoni Indah"
+                  />
+                </div>
 
-            <Separator />
+                <div className="space-y-2">
+                  <Label htmlFor="about_text" className="font-semibold">
+                    Tentang Perumahan
+                  </Label>
+                  <Textarea
+                    id="about_text"
+                    value={settings.about_text || ""}
+                    onChange={(e) =>
+                      updateSetting("about_text", e.target.value)
+                    }
+                    placeholder="Deskripsi tentang perumahan..."
+                    rows={4}
+                    className="resize-none"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="address">Alamat</Label>
-                <Input
-                  id="address"
-                  value={settings.address || ""}
-                  onChange={(e) => updateSetting("address", e.target.value)}
-                  placeholder="Jl. Harmoni Indah No. 1"
-                />
-              </div>
+          {/* Right Column - Contact and Visibility */}
+          <div className="space-y-6">
+            {/* Contact Information */}
+            <Card className="overflow-hidden border-2 border-primary/10 hover:border-primary/30 transition-colors">
+              <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
+                <CardTitle className="flex items-center gap-2">
+                  <Phone className="w-5 h-5 text-primary" />
+                  Kontak
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="font-semibold text-sm">
+                    Alamat
+                  </Label>
+                  <Input
+                    id="address"
+                    value={settings.address || ""}
+                    onChange={(e) => updateSetting("address", e.target.value)}
+                    placeholder="Jl. Harmoni Indah No. 1"
+                    className="text-sm"
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">Telepon</Label>
-                <Input
-                  id="phone"
-                  value={settings.phone || ""}
-                  onChange={(e) => updateSetting("phone", e.target.value)}
-                  placeholder="021-1234567"
-                />
-              </div>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="font-semibold text-sm">
+                    Telepon
+                  </Label>
+                  <Input
+                    id="phone"
+                    value={settings.phone || ""}
+                    onChange={(e) => updateSetting("phone", e.target.value)}
+                    placeholder="021-1234567"
+                    className="text-sm"
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={settings.email || ""}
-                onChange={(e) => updateSetting("email", e.target.value)}
-                placeholder="info@perumahan.com"
-              />
-            </div>
-          </CardContent>
-        </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="font-semibold text-sm">
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={settings.email || ""}
+                    onChange={(e) => updateSetting("email", e.target.value)}
+                    placeholder="info@perumahan.com"
+                    className="text-sm"
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Section Visibility */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Tampilkan Section</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Statistik</Label>
-                <p className="text-sm text-muted-foreground">
-                  Total rumah, warga, dan acara
-                </p>
-              </div>
-              <Switch
-                checked={settings.show_stats !== "false"}
-                onCheckedChange={(checked) =>
-                  updateSetting("show_stats", checked ? "true" : "false")
-                }
-              />
-            </div>
-
-            <Separator />
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Galeri</Label>
-                <p className="text-sm text-muted-foreground">
-                  Foto-foto perumahan dari tabel galeri
-                </p>
-              </div>
-              <Switch
-                checked={settings.show_gallery !== "false"}
-                onCheckedChange={(checked) =>
-                  updateSetting("show_gallery", checked ? "true" : "false")
-                }
-              />
-            </div>
-
-            <Separator />
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Acara Mendatang</Label>
-                <p className="text-sm text-muted-foreground">
-                  3 acara terdekat yang akan datang
-                </p>
-              </div>
-              <Switch
-                checked={settings.show_events !== "false"}
-                onCheckedChange={(checked) =>
-                  updateSetting("show_events", checked ? "true" : "false")
-                }
-              />
-            </div>
-
-            <Separator />
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Pengumuman</Label>
-                <p className="text-sm text-muted-foreground">
-                  3 pengumuman terbaru yang dipublikasi
-                </p>
-              </div>
-              <Switch
-                checked={settings.show_announcements !== "false"}
-                onCheckedChange={(checked) =>
-                  updateSetting("show_announcements", checked ? "true" : "false")
-                }
-              />
-            </div>
-          </CardContent>
-        </Card>
+            {/* Section Visibility */}
+            <Card className="overflow-hidden border-2 border-primary/10 hover:border-primary/30 transition-colors">
+              <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
+                <CardTitle className="text-base">Tampilkan Section</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 pt-6">
+                {[
+                  {
+                    key: "show_stats",
+                    label: "Statistik",
+                    desc: "Rumah, warga, acara",
+                  },
+                  {
+                    key: "show_gallery",
+                    label: "Galeri",
+                    desc: "Foto perumahan",
+                  },
+                  {
+                    key: "show_events",
+                    label: "Acara",
+                    desc: "Acara mendatang",
+                  },
+                  {
+                    key: "show_announcements",
+                    label: "Pengumuman",
+                    desc: "Pengumuman terbaru",
+                  },
+                ].map((section) => (
+                  <div key={section.key}>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50 hover:bg-background transition-colors">
+                      <div>
+                        <p className="font-medium text-sm">{section.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {section.desc}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={settings[section.key] !== "false"}
+                        onCheckedChange={(checked) =>
+                          updateSetting(section.key, checked ? "true" : "false")
+                        }
+                      />
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </section>
   );
