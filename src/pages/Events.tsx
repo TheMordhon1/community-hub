@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { format, isToday, isBefore, startOfDay } from "date-fns";
@@ -56,6 +56,8 @@ import {
   Trash2,
   Check,
   Clock,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Event, EventRsvp } from "@/types/database";
@@ -75,6 +77,10 @@ export default function Events() {
   const [eventDate, setEventDate] = useState<Date>();
   const [eventTime, setEventTime] = useState("");
   const [activeTab, setActiveTab] = useState<EventTab>("upcoming");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: events, isLoading } = useQuery({
     queryKey: ["events"],
@@ -99,6 +105,27 @@ export default function Events() {
     },
   });
 
+  const uploadImage = async (file: File): Promise<string | null> => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${crypto.randomUUID()}.${fileExt}`;
+    const filePath = `events/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("event-images")
+      .upload(filePath, file);
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      return null;
+    }
+
+    const { data } = supabase.storage
+      .from("event-images")
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: {
       title: string;
@@ -106,6 +133,7 @@ export default function Events() {
       location: string;
       event_date: string;
       event_time: string | null;
+      image_url: string | null;
     }) => {
       const { error } = await supabase.from("events").insert({
         title: data.title,
@@ -113,6 +141,7 @@ export default function Events() {
         location: data.location,
         event_date: data.event_date,
         event_time: data.event_time,
+        image_url: data.image_url,
         author_id: user?.id,
       });
       if (error) throw error;
@@ -139,6 +168,7 @@ export default function Events() {
       location: string;
       event_date: string;
       event_time: string | null;
+      image_url: string | null;
     }) => {
       const { error } = await supabase
         .from("events")
@@ -148,6 +178,7 @@ export default function Events() {
           location: data.location,
           event_date: data.event_date,
           event_time: data.event_time,
+          image_url: data.image_url,
         })
         .eq("id", data.id);
       if (error) throw error;
@@ -219,8 +250,30 @@ export default function Events() {
     setLocation("");
     setEventDate(undefined);
     setEventTime("");
+    setImageFile(null);
+    setImagePreview(null);
     setIsCreateOpen(false);
     setEditingEvent(null);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleEdit = (event: Event) => {
@@ -230,10 +283,12 @@ export default function Events() {
     setLocation(event.location || "");
     setEventDate(new Date(event.event_date));
     setEventTime(event.event_time || "");
+    setImagePreview(event.image_url || null);
+    setImageFile(null);
     setIsCreateOpen(true);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim() || !eventDate) {
       toast({
         variant: "destructive",
@@ -243,13 +298,39 @@ export default function Events() {
       return;
     }
 
+    setIsUploading(true);
+
+    let imageUrl: string | null = editingEvent?.image_url || null;
+
+    // Upload new image if selected
+    if (imageFile) {
+      const uploadedUrl = await uploadImage(imageFile);
+      if (uploadedUrl) {
+        imageUrl = uploadedUrl;
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Gagal",
+          description: "Gagal mengupload gambar",
+        });
+        setIsUploading(false);
+        return;
+      }
+    } else if (!imagePreview) {
+      // Image was removed
+      imageUrl = null;
+    }
+
     const data = {
       title,
       description,
       location,
       event_date: eventDate.toISOString(),
       event_time: eventTime || null,
+      image_url: imageUrl,
     };
+
+    setIsUploading(false);
 
     if (editingEvent) {
       updateMutation.mutate({ id: editingEvent.id, ...data });
@@ -340,25 +421,47 @@ export default function Events() {
       <Link to={`/events/${event.id}`}>
         <Card
           className={cn(
-            "overflow-hidden hover:shadow-lg transition-shadow cursor-pointer",
+            "overflow-hidden hover:shadow-lg transition-all cursor-pointer group",
             isPast && "opacity-60"
           )}
         >
           <div className="flex flex-col md:flex-row">
-            <div className="w-full md:w-20 bg-primary/10 flex flex-col items-center justify-center p-3 text-center shrink-0">
-              <span className="text-2xl font-bold text-primary">
-                {format(new Date(event.event_date), "d")}
-              </span>
-              <span className="text-xs text-primary uppercase">
-                {format(new Date(event.event_date), "MMM", {
-                  locale: idLocale,
-                })}
-              </span>
-            </div>
+            {/* Image or Date Section */}
+            {event.image_url ? (
+              <div className="relative w-full md:w-40 h-32 md:h-auto shrink-0 overflow-hidden">
+                <img
+                  src={event.image_url}
+                  alt={event.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent md:bg-gradient-to-r" />
+                <div className="absolute bottom-2 left-2 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:left-1/2 md:-translate-x-1/2 text-center">
+                  <span className="text-2xl font-bold text-white drop-shadow-lg">
+                    {format(new Date(event.event_date), "d")}
+                  </span>
+                  <span className="block text-xs text-white uppercase drop-shadow-lg">
+                    {format(new Date(event.event_date), "MMM", {
+                      locale: idLocale,
+                    })}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full md:w-20 bg-primary/10 flex flex-col items-center justify-center p-3 text-center shrink-0">
+                <span className="text-2xl font-bold text-primary">
+                  {format(new Date(event.event_date), "d")}
+                </span>
+                <span className="text-xs text-primary uppercase">
+                  {format(new Date(event.event_date), "MMM", {
+                    locale: idLocale,
+                  })}
+                </span>
+              </div>
+            )}
             <div className="flex-1 p-4 min-w-0">
               <div className="flex flex-col justify-between gap-4">
                 <div className="flex justify-between items-start gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold text-lg truncate">
                       {event.title}
                     </h3>
@@ -629,6 +732,46 @@ export default function Events() {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Image Upload */}
+                  <div className="space-y-2">
+                    <Label>Gambar (opsional)</Label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                    {imagePreview ? (
+                      <div className="relative rounded-lg overflow-hidden">
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          className="w-full h-40 object-cover"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 right-2"
+                          onClick={removeImage}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-24 border-dashed"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <ImagePlus className="w-6 h-6 mr-2" />
+                        Tambah Gambar
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={resetForm}>
@@ -637,10 +780,10 @@ export default function Events() {
                   <Button
                     onClick={handleSubmit}
                     disabled={
-                      createMutation.isPending || updateMutation.isPending
+                      createMutation.isPending || updateMutation.isPending || isUploading
                     }
                   >
-                    {(createMutation.isPending || updateMutation.isPending) && (
+                    {(createMutation.isPending || updateMutation.isPending || isUploading) && (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     )}
                     {editingEvent ? "Simpan" : "Buat"}
