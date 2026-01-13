@@ -1,106 +1,124 @@
+import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Calendar, Bell, Users, ArrowRight } from "lucide-react";
-import { useEffect, useState } from "react";
+  Calendar,
+  Bell,
+  Users,
+  Home,
+  MapPin,
+  Phone,
+  Mail,
+  ArrowRight,
+  Image as ImageIcon,
+} from "lucide-react";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 
-interface Event {
-  id: string;
-  title: string;
-  event_date: string;
-  event_time: string | null;
-  location: string | null;
-  image_url: string | null;
-}
+type LandingSettings = Record<string, string | null>;
 
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  image_url: string | null;
-  published_at: string | null;
-}
+export default function Index() {
+  // Fetch landing settings
+  const { data: settingsData } = useQuery({
+    queryKey: ["landing-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("landing_settings")
+        .select("key, value");
+      if (error) throw error;
+      const settings: LandingSettings = {};
+      data?.forEach((item) => {
+        settings[item.key] = item.value;
+      });
+      return settings;
+    },
+  });
 
-async function getUpcomingEvents() {
-  try {
-    const response = await fetch(
-      `${
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5173"
-      }/api/events?limit=3&status=upcoming`,
-      { cache: "no-store" }
-    );
-    if (!response.ok) return [];
-    return await response.json();
-  } catch {
-    return [];
-  }
-}
+  // Fetch stats
+  const { data: stats } = useQuery({
+    queryKey: ["landing-stats"],
+    queryFn: async () => {
+      const [housesRes, residentsRes, eventsRes] = await Promise.all([
+        supabase.from("houses").select("id", { count: "exact" }),
+        supabase.from("profiles").select("id", { count: "exact" }),
+        supabase
+          .from("events")
+          .select("id", { count: "exact" })
+          .gte("event_date", new Date().toISOString()),
+      ]);
+      return {
+        totalHouses: housesRes.count || 0,
+        totalResidents: residentsRes.count || 0,
+        upcomingEvents: eventsRes.count || 0,
+      };
+    },
+  });
 
-async function getLatestAnnouncements() {
-  try {
-    const response = await fetch(
-      `${
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5173"
-      }/api/announcements?limit=3&published=true`,
-      { cache: "no-store" }
-    );
-    if (!response.ok) return [];
-    return await response.json();
-  } catch {
-    return [];
-  }
-}
+  // Fetch gallery images
+  const { data: galleryImages } = useQuery({
+    queryKey: ["landing-gallery"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("gallery")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(6);
+      if (error) throw error;
+      return data;
+    },
+  });
 
-function formatDate(dateString: string) {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
+  // Fetch upcoming events
+  const { data: upcomingEvents } = useQuery({
+    queryKey: ["landing-events"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("*")
+        .gte("event_date", new Date().toISOString())
+        .order("event_date", { ascending: true })
+        .limit(3);
+      if (error) throw error;
+      return data;
+    },
+  });
 
-export default function Home() {
-  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Fetch latest announcements
+  const { data: announcements } = useQuery({
+    queryKey: ["landing-announcements"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("announcements")
+        .select("*")
+        .eq("is_published", true)
+        .order("published_at", { ascending: false })
+        .limit(3);
+      if (error) throw error;
+      return data;
+    },
+  });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [events, news] = await Promise.all([
-          getUpcomingEvents(),
-          getLatestAnnouncements(),
-        ]);
-        setUpcomingEvents(events);
-        setAnnouncements(news);
-      } catch (error) {
-        console.error("Failed to fetch landing data", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+  const settings = settingsData || {};
+  const showStats = settings.show_stats !== "false";
+  const showGallery = settings.show_gallery !== "false";
+  const showEvents = settings.show_events !== "false";
+  const showAnnouncements = settings.show_announcements !== "false";
 
   return (
     <main className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="border-b border-border bg-card sticky top-0 z-50">
+      <nav className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">
-                W
-              </span>
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+              <Home className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-lg">Warga</span>
+            <span className="font-bold text-lg">
+              {settings.community_name || "Perumahan"}
+            </span>
           </div>
           <div className="flex gap-2">
             <Link to="/login">
@@ -114,194 +132,404 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="border-b border-border bg-gradient-to-b from-card to-background">
-        <div className="container mx-auto px-4 py-20 md:py-32 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 text-balance">
-            Komunitas Sehat, Warga Bahagia
-          </h1>
-          <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto text-balance">
-            Platform manajemen komunitas yang memudahkan komunikasi, koordinasi
-            acara, dan transparansi finansial di lingkungan Anda.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/login">
-              <Button size="lg">Mulai Sekarang</Button>
-            </Link>
-            <Button variant="outline" size="lg">
-              Pelajari Lebih Lanjut
-            </Button>
+      <section className="relative overflow-hidden">
+        {settings.hero_image ? (
+          <div className="absolute inset-0">
+            <img
+              src={settings.hero_image}
+              alt="Hero"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background" />
           </div>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10" />
+        )}
+        <div className="relative container mx-auto px-4 py-24 md:py-40 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-balance">
+              {settings.hero_title || "Selamat Datang di Perumahan Kami"}
+            </h1>
+            <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto text-balance">
+              {settings.hero_subtitle ||
+                "Komunitas yang nyaman, aman, dan asri untuk keluarga Anda"}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link to="/login">
+                <Button size="lg" className="px-8">
+                  Masuk Portal
+                </Button>
+              </Link>
+              <Link to="/register">
+                <Button variant="outline" size="lg" className="px-8">
+                  Daftar Sekarang
+                </Button>
+              </Link>
+            </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Upcoming Events Section */}
-      <section className="border-b border-border py-16">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h2 className="text-3xl font-bold flex items-center gap-2">
-                <Calendar className="w-8 h-8 text-primary" />
-                Acara Mendatang
-              </h2>
-              <p className="text-muted-foreground mt-1">
-                Jangan lewatkan acara komunitas terbaru
-              </p>
+      {/* Stats Section */}
+      {showStats && stats && (
+        <section className="py-12 bg-card border-y border-border">
+          <div className="container mx-auto px-4">
+            <div className="grid grid-cols-3 gap-4 md:gap-8">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="text-center"
+              >
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <Home className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+                </div>
+                <div className="text-2xl md:text-4xl font-bold text-primary">
+                  {stats.totalHouses}
+                </div>
+                <div className="text-sm md:text-base text-muted-foreground">
+                  Unit Rumah
+                </div>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 }}
+                className="text-center"
+              >
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <Users className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+                </div>
+                <div className="text-2xl md:text-4xl font-bold text-primary">
+                  {stats.totalResidents}
+                </div>
+                <div className="text-sm md:text-base text-muted-foreground">
+                  Warga Terdaftar
+                </div>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+                className="text-center"
+              >
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <Calendar className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+                </div>
+                <div className="text-2xl md:text-4xl font-bold text-primary">
+                  {stats.upcomingEvents}
+                </div>
+                <div className="text-sm md:text-base text-muted-foreground">
+                  Acara Mendatang
+                </div>
+              </motion.div>
             </div>
-            <Link
-              to="#events"
-              className="text-primary font-semibold flex items-center gap-1 hover:gap-2 transition-all"
-            >
-              Lihat Semua <ArrowRight className="w-4 h-4" />
-            </Link>
           </div>
+        </section>
+      )}
 
-          {upcomingEvents.length > 0 ? (
-            <div className="grid md:grid-cols-3 gap-6">
-              {upcomingEvents.slice(0, 3).map((event: Event) => (
-                <Card
-                  key={event.id}
-                  className="overflow-hidden hover:shadow-lg transition-shadow"
+      {/* About Section */}
+      {settings.about_text && (
+        <section className="py-16">
+          <div className="container mx-auto px-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="max-w-3xl mx-auto text-center"
+            >
+              <h2 className="text-2xl md:text-3xl font-bold mb-6">
+                Tentang Kami
+              </h2>
+              <p className="text-muted-foreground text-lg leading-relaxed">
+                {settings.about_text}
+              </p>
+            </motion.div>
+          </div>
+        </section>
+      )}
+
+      {/* Gallery Section */}
+      {showGallery && galleryImages && galleryImages.length > 0 && (
+        <section className="py-16 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-10"
+            >
+              <h2 className="text-2xl md:text-3xl font-bold mb-2">
+                Galeri Perumahan
+              </h2>
+              <p className="text-muted-foreground">
+                Suasana dan kegiatan di lingkungan kami
+              </p>
+            </motion.div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {galleryImages.map((image, index) => (
+                <motion.div
+                  key={image.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="relative aspect-square rounded-xl overflow-hidden group"
                 >
-                  {event.image_url && (
-                    <div className="h-40 bg-muted overflow-hidden">
-                      <img
-                        src={event.image_url || "/placeholder.svg"}
-                        alt={event.title}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform"
-                      />
+                  <img
+                    src={image.image_url}
+                    alt={image.title}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute bottom-0 left-0 right-0 p-4">
+                      <p className="text-white font-medium">{image.title}</p>
                     </div>
-                  )}
-                  <CardHeader>
-                    <CardTitle className="line-clamp-2">
-                      {event.title}
-                    </CardTitle>
-                    <CardDescription>
-                      {formatDate(event.event_date)}
-                      {event.location && ` • ${event.location}`}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Link to={`/events/${event.id}`}>
-                      <Button
-                        variant="outline"
-                        className="w-full bg-transparent"
-                      >
-                        Lihat Detail
-                      </Button>
-                    </Link>
-                  </CardContent>
-                </Card>
+                  </div>
+                </motion.div>
               ))}
             </div>
-          ) : (
-            <Card className="text-center py-12">
-              <CardContent>
-                <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">
-                  Belum ada acara mendatang
+          </div>
+        </section>
+      )}
+
+      {/* Events Section */}
+      {showEvents && upcomingEvents && upcomingEvents.length > 0 && (
+        <section className="py-16">
+          <div className="container mx-auto px-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="flex justify-between items-center mb-8"
+            >
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
+                  <Calendar className="w-8 h-8 text-primary" />
+                  Acara Mendatang
+                </h2>
+                <p className="text-muted-foreground mt-1">
+                  Jangan lewatkan kegiatan komunitas
                 </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </section>
+              </div>
+              <Link
+                to="/login"
+                className="text-primary font-semibold flex items-center gap-1 hover:gap-2 transition-all"
+              >
+                Lihat Semua <ArrowRight className="w-4 h-4" />
+              </Link>
+            </motion.div>
+            <div className="grid md:grid-cols-3 gap-6">
+              {upcomingEvents.map((event, index) => (
+                <motion.div
+                  key={event.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full">
+                    {event.image_url ? (
+                      <div className="h-40 overflow-hidden relative">
+                        <img
+                          src={event.image_url}
+                          alt={event.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute top-3 left-3 bg-primary text-primary-foreground rounded-lg px-3 py-1 text-sm font-semibold">
+                          {format(new Date(event.event_date), "d MMM", {
+                            locale: idLocale,
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="h-24 bg-primary/10 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-primary">
+                            {format(new Date(event.event_date), "d")}
+                          </div>
+                          <div className="text-xs text-primary uppercase">
+                            {format(new Date(event.event_date), "MMM", {
+                              locale: idLocale,
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <CardContent className="p-4">
+                      <h3 className="font-semibold text-lg mb-2 line-clamp-1">
+                        {event.title}
+                      </h3>
+                      {event.description && (
+                        <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
+                          {event.description}
+                        </p>
+                      )}
+                      {event.location && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <MapPin className="w-4 h-4" />
+                          <span className="line-clamp-1">{event.location}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Announcements Section */}
-      <section className="border-b border-border py-16">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h2 className="text-3xl font-bold flex items-center gap-2">
-                <Bell className="w-8 h-8 text-primary" />
-                Pengumuman Terbaru
-              </h2>
-              <p className="text-muted-foreground mt-1">
-                Informasi penting dari pengurus komunitas
-              </p>
-            </div>
-            <Link
-              to="#announcements"
-              className="text-primary font-semibold flex items-center gap-1 hover:gap-2 transition-all"
+      {showAnnouncements && announcements && announcements.length > 0 && (
+        <section className="py-16 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="flex justify-between items-center mb-8"
             >
-              Lihat Semua <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          {announcements.length > 0 ? (
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
+                  <Bell className="w-8 h-8 text-primary" />
+                  Pengumuman Terbaru
+                </h2>
+                <p className="text-muted-foreground mt-1">
+                  Informasi penting dari pengurus
+                </p>
+              </div>
+              <Link
+                to="/login"
+                className="text-primary font-semibold flex items-center gap-1 hover:gap-2 transition-all"
+              >
+                Lihat Semua <ArrowRight className="w-4 h-4" />
+              </Link>
+            </motion.div>
             <div className="space-y-4">
-              {announcements.slice(0, 3).map((announcement: Announcement) => (
-                <Card
+              {announcements.map((announcement, index) => (
+                <motion.div
                   key={announcement.id}
-                  className="hover:shadow-md transition-shadow overflow-hidden"
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
                 >
-                  <CardHeader>
-                    <CardTitle className="line-clamp-2">
-                      {announcement.title}
-                    </CardTitle>
-                    {announcement.published_at && (
-                      <CardDescription>
-                        {formatDate(announcement.published_at)}
-                      </CardDescription>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-foreground line-clamp-2 mb-4">
-                      {announcement.content}
-                    </p>
-                    <Link to={`/announcements/${announcement.id}`}>
-                      <Button variant="outline" size="sm">
-                        Baca Selengkapnya
-                      </Button>
-                    </Link>
-                  </CardContent>
-                </Card>
+                  <Card className="overflow-hidden hover:shadow-md transition-shadow">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex gap-4">
+                        {announcement.image_url && (
+                          <div className="hidden md:block w-24 h-24 rounded-lg overflow-hidden shrink-0">
+                            <img
+                              src={announcement.image_url}
+                              alt={announcement.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-lg mb-1 line-clamp-1">
+                            {announcement.title}
+                          </h3>
+                          {announcement.published_at && (
+                            <p className="text-sm text-muted-foreground mb-2">
+                              {format(
+                                new Date(announcement.published_at),
+                                "d MMMM yyyy",
+                                { locale: idLocale }
+                              )}
+                            </p>
+                          )}
+                          <p className="text-muted-foreground line-clamp-2">
+                            {announcement.content}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               ))}
             </div>
-          ) : (
-            <Card className="text-center py-12">
-              <CardContent>
-                <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Belum ada pengumuman</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
-      {/* Features Section */}
-      <section className="py-16 bg-card">
+      {/* Contact Section */}
+      <section className="py-16">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">Fitur Utama</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card>
-              <CardHeader>
-                <Calendar className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Manajemen Acara</CardTitle>
-              </CardHeader>
-              <CardContent className="text-muted-foreground">
-                Kelola acara komunitas, undang peserta, dan pantau kehadiran
-                dengan mudah.
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <Bell className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Pengumuman Terpusat</CardTitle>
-              </CardHeader>
-              <CardContent className="text-muted-foreground">
-                Bagikan informasi penting kepada seluruh warga dengan pengumuman
-                yang terstruktur.
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <Users className="w-8 h-8 text-primary mb-2" />
-                <CardTitle>Direktori Warga</CardTitle>
-              </CardHeader>
-              <CardContent className="text-muted-foreground">
-                Kelola data warga, unit hunian, dan hubungan dalam komunitas.
-              </CardContent>
-            </Card>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-10"
+          >
+            <h2 className="text-2xl md:text-3xl font-bold mb-2">
+              Hubungi Kami
+            </h2>
+            <p className="text-muted-foreground">
+              Informasi kontak perumahan
+            </p>
+          </motion.div>
+          <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto">
+            {settings.address && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <Card className="text-center p-6 h-full">
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                    <MapPin className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="font-semibold mb-2">Alamat</h3>
+                  <p className="text-muted-foreground text-sm">
+                    {settings.address}
+                  </p>
+                </Card>
+              </motion.div>
+            )}
+            {settings.phone && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 }}
+              >
+                <Card className="text-center p-6 h-full">
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                    <Phone className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="font-semibold mb-2">Telepon</h3>
+                  <p className="text-muted-foreground text-sm">
+                    {settings.phone}
+                  </p>
+                </Card>
+              </motion.div>
+            )}
+            {settings.email && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+              >
+                <Card className="text-center p-6 h-full">
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                    <Mail className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="font-semibold mb-2">Email</h3>
+                  <p className="text-muted-foreground text-sm">
+                    {settings.email}
+                  </p>
+                </Card>
+              </motion.div>
+            )}
           </div>
         </div>
       </section>
@@ -309,24 +537,33 @@ export default function Home() {
       {/* CTA Section */}
       <section className="py-16 bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">
-            Bergabunglah dengan Komunitas Kami
-          </h2>
-          <p className="text-lg mb-8 opacity-90">
-            Tingkatkan kualitas komunikasi dan koordinasi di lingkungan Anda
-          </p>
-          <Link to="/register">
-            <Button size="lg" variant="secondary">
-              Daftar Sekarang
-            </Button>
-          </Link>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-2xl md:text-3xl font-bold mb-4">
+              Bergabung dengan Komunitas Kami
+            </h2>
+            <p className="text-lg mb-8 opacity-90 max-w-xl mx-auto">
+              Daftar sekarang untuk mengakses semua fitur dan informasi komunitas
+            </p>
+            <Link to="/register">
+              <Button size="lg" variant="secondary" className="px-8">
+                Daftar Sekarang
+              </Button>
+            </Link>
+          </motion.div>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="bg-card border-t border-border py-8">
         <div className="container mx-auto px-4 text-center text-muted-foreground text-sm">
-          <p>&copy; 2026 Warga. Semua hak dilindungi.</p>
+          <p>
+            &copy; {new Date().getFullYear()}{" "}
+            {settings.community_name || "Perumahan"}. Semua hak dilindungi.
+          </p>
         </div>
       </footer>
     </main>

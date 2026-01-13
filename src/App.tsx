@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import AdminUsers from "./pages/admin/Users";
 import AdminTitles from "./pages/admin/Titles";
 import AdminMenus from "./pages/admin/Menus";
+import LandingSettings from "./pages/admin/LandingSettings";
 import Announcements from "./pages/Announcements";
 import AnnouncementDetail from "./pages/AnnouncementDetail";
 import Events from "./pages/Events";
@@ -90,6 +91,7 @@ function AppRoutes() {
           <Route path="/houses" element={<Houses />} />
           <Route path="/admin/titles" element={<AdminTitles />} />
           <Route path="/admin/menus" element={<AdminMenus />} />
+          <Route path="/admin/landing" element={<LandingSettings />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFound />} />
