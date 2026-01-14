@@ -116,7 +116,7 @@ export default function EventDetail() {
           {
             event_id: id,
             user_id: user?.id,
-            status: "going",
+            status: "attending",
           },
           {
             onConflict: "event_id,user_id",
@@ -127,6 +127,7 @@ export default function EventDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["event-attendees", id] });
+      queryClient.invalidateQueries({ queryKey: ["event-rsvps"] });
       toast({
         title: "Berhasil",
         description: isUserAttending
