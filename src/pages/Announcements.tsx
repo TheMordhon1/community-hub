@@ -47,10 +47,21 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  ExternalLink,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import type { Announcement } from "@/types/database";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50];
+const DEFAULT_ITEMS_PER_PAGE = 10;
 
 export default function Announcements() {
   const { user, canManageContent } = useAuth();
@@ -65,17 +76,29 @@ export default function Announcements() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [isPublished, setIsPublished] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
 
-  const { data: announcements, isLoading } = useQuery({
-    queryKey: ["announcements"],
+  const { data: announcementData, isLoading } = useQuery({
+    queryKey: ["announcements", currentPage, itemsPerPage],
     queryFn: async () => {
+      const offset = (currentPage - 1) * itemsPerPage;
+
+      const { count: totalCount } = await supabase
+        .from("announcements")
+        .select("*", { count: "exact", head: true });
+
       const { data, error } = await supabase
         .from("announcements")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(offset, offset + itemsPerPage - 1);
 
       if (error) throw error;
-      return data as Announcement[];
+      return {
+        data: data as Announcement[],
+        totalCount: totalCount || 0,
+      };
     },
   });
 
@@ -180,6 +203,12 @@ export default function Announcements() {
     setIsCreateOpen(true);
   };
 
+  const handleLimitChange = (newLimit: string) => {
+    const limit = Number.parseInt(newLimit);
+    setItemsPerPage(limit);
+    setCurrentPage(1);
+  };
+
   const handleSubmit = () => {
     if (!title.trim() || !content.trim()) {
       toast({
@@ -202,15 +231,17 @@ export default function Announcements() {
     }
   };
 
+  const announcements = announcementData?.data || [];
+  const totalCount = announcementData?.totalCount || 0;
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+
   const publishedAnnouncements =
-    announcements?.filter((a) => a.is_published) || [];
-  const draftAnnouncements =
-    announcements?.filter((a) => !a.is_published) || [];
+    announcements.filter((a) => a.is_published) || [];
+  const draftAnnouncements = announcements.filter((a) => !a.is_published) || [];
 
   return (
     <section className="min-h-screen bg-background p-6">
       <div className="mx-auto space-y-6">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -308,7 +339,6 @@ export default function Announcements() {
           )}
         </motion.div>
 
-        {/* Announcements List */}
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -327,8 +357,7 @@ export default function Announcements() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {/* Drafts (only for managers) */}
+          <div className="space-y-8 mb-10">
             {canManageContent() && draftAnnouncements.length > 0 && (
               <div className="space-y-3">
                 <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
@@ -385,7 +414,6 @@ export default function Announcements() {
               </div>
             )}
 
-            {/* Published */}
             {publishedAnnouncements.length > 0 && (
               <div className="space-y-3">
                 {canManageContent() && draftAnnouncements.length > 0 && (
@@ -463,11 +491,65 @@ export default function Announcements() {
                 ))}
               </div>
             )}
+
+            {totalPages > 0 && (
+              <div className="flex flex-col md:flex-row items-center justify-end">
+                <div className="flex items-center  gap-2">
+                  <Select
+                    defaultValue={String(DEFAULT_ITEMS_PER_PAGE)}
+                    value={String(itemsPerPage)}
+                    onValueChange={handleLimitChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="limit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ITEMS_PER_PAGE_OPTIONS.map((m) => (
+                        <SelectItem key={m} value={String(m)}>
+                          {m}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <div className="flex flex-1 items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant={"default"}
+                        size="sm"
+                        className="w-8 h-8 p-0"
+                      >
+                        {currentPage}
+                      </Button>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() =>
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      }
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog
         open={!!deletingAnnouncement}
         onOpenChange={(open) => !open && setDeletingAnnouncement(null)}

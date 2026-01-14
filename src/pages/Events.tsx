@@ -61,6 +61,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Event, EventRsvp } from "@/types/database";
+import { TimePickerField } from "@/components/TimePickerDialog";
 
 type EventTab = "upcoming" | "now" | "past";
 
@@ -653,7 +654,7 @@ export default function Events() {
                     Isi detail acara di bawah ini
                   </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
+                <div className="space-y-4 py-4 max-h-[70vh] overflow-auto px-1">
                   <div className="space-y-2">
                     <Label htmlFor="title">Judul Acara</Label>
                     <Input
@@ -682,54 +683,47 @@ export default function Events() {
                       onChange={(e) => setLocation(e.target.value)}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Tanggal</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !eventDate && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {eventDate
-                              ? format(eventDate, "d MMM yyyy", {
-                                  locale: idLocale,
-                                })
-                              : "Pilih tanggal"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          className="w-auto p-0 bg-popover"
-                          align="start"
+                  <div className="space-y-2">
+                    <Label>Tanggal</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !eventDate && "text-muted-foreground"
+                          )}
                         >
-                          <Calendar
-                            mode="single"
-                            selected={eventDate}
-                            onSelect={setEventDate}
-                            initialFocus
-                            className={cn("p-3 pointer-events-auto")}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="time">Jam (opsional)</Label>
-                      <div className="relative">
-                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="time"
-                          type="time"
-                          value={eventTime}
-                          onChange={(e) => setEventTime(e.target.value)}
-                          className="pl-10"
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {eventDate
+                            ? format(eventDate, "d MMM yyyy", {
+                                locale: idLocale,
+                              })
+                            : "Pilih tanggal"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-auto p-0 bg-popover"
+                        align="start"
+                      >
+                        <Calendar
+                          mode="single"
+                          selected={eventDate}
+                          onSelect={setEventDate}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
                         />
-                      </div>
-                    </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
+
+                  <TimePickerField
+                    id="time"
+                    label="Jam"
+                    optional
+                    value={eventTime}
+                    onChange={setEventTime}
+                  />
 
                   {/* Image Upload */}
                   <div className="space-y-2">
@@ -771,8 +765,12 @@ export default function Events() {
                     )}
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={resetForm}>
+                <div className="flex flex-col-reverse md:flex-row gap-4 items-center md:justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={resetForm}
+                    className="w-full hover:bg-secondary"
+                  >
                     Batal
                   </Button>
                   <Button
@@ -782,6 +780,7 @@ export default function Events() {
                       updateMutation.isPending ||
                       isUploading
                     }
+                    className="w-full"
                   >
                     {(createMutation.isPending ||
                       updateMutation.isPending ||
@@ -790,7 +789,7 @@ export default function Events() {
                     )}
                     {editingEvent ? "Simpan" : "Buat"}
                   </Button>
-                </DialogFooter>
+                </div>
               </DialogContent>
             </Dialog>
           )}
