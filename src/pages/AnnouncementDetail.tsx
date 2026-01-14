@@ -21,6 +21,7 @@ import { ShareDialog } from "@/components/ShareDialog";
 
 interface AnnouncementWithAuthor extends Announcement {
   author?: Profile;
+  title_display_name?: string;
 }
 
 export default function AnnouncementDetail() {
@@ -46,7 +47,32 @@ export default function AnnouncementDetail() {
           .eq("id", data.author_id)
           .single();
 
-        return { ...data, author: authorData } as AnnouncementWithAuthor;
+        let titleDisplayName: string | undefined;
+        if (authorData) {
+          const { data: userRole } = await supabase
+            .from("user_roles")
+            .select("title_id")
+            .eq("user_id", data.author_id)
+            .single();
+
+          if (userRole?.title_id) {
+            const { data: titleData } = await supabase
+              .from("pengurus_titles")
+              .select("display_name")
+              .eq("id", userRole.title_id)
+              .single();
+
+            if (titleData) {
+              titleDisplayName = titleData.display_name;
+            }
+          }
+        }
+
+        return {
+          ...data,
+          author: authorData,
+          title_display_name: titleDisplayName,
+        } as AnnouncementWithAuthor;
       }
 
       return data as AnnouncementWithAuthor;
@@ -121,7 +147,7 @@ export default function AnnouncementDetail() {
             {announcement.image_url && (
               <div className="w-full h-64 overflow-hidden rounded-t-lg">
                 <img
-                  src={announcement.image_url}
+                  src={announcement.image_url || "/placeholder.svg"}
                   alt={announcement.title}
                   className="w-full h-full object-cover"
                 />
@@ -173,7 +199,9 @@ export default function AnnouncementDetail() {
                     <p className="font-medium">
                       {announcement.author.full_name}
                     </p>
-                    <p className="text-sm text-muted-foreground">Penulis</p>
+                    <p className="text-sm text-muted-foreground">
+                      {announcement.title_display_name || "Penulis"}
+                    </p>
                   </div>
                 </div>
               )}
