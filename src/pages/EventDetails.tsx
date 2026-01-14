@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import type { Profile } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
-import { formatEventTime } from "@/lib/utils";
+import { formatEventTime, getValidDate } from "@/lib/utils";
 
 interface AttendeeWithProfile {
   id: string;
@@ -147,13 +147,11 @@ export default function EventDetail() {
   const isUserAttending = attendees?.some((a) => a.user_id === user?.id);
   const isPastEvent = event ? new Date(event.event_date) < new Date() : false;
 
-  const shareText = `📅 ${event?.title}\n\n${event?.description || ""}\n\n📅 ${
-    event?.event_date
-      ? format(new Date(event.event_date), "dd MMMM yyyy, HH:mm", {
-          locale: idLocale,
-        })
-      : ""
-  }\n📍 ${event?.location || "Lokasi belum ditentukan"}`;
+  const shareText = `${event?.title}\n\n${event?.description || ""}\n\n 
+  📅 ${
+    event?.event_date ? getValidDate(event.event_date, event.event_time) : ""
+  }\n
+  📍 ${event?.location || "Lokasi belum ditentukan"}`;
   const shareUrl = `${window.location.origin}/events/${id}`;
 
   if (isLoading) {
