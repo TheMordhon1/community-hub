@@ -196,7 +196,6 @@ export default function Index() {
             </button>
           </div>
 
-          {/* Mobile Navigation Menu */}
           {mobileMenuOpen && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
