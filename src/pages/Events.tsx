@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { format, isToday, isBefore, startOfDay } from "date-fns";
@@ -105,6 +105,18 @@ export default function Events() {
       return data as EventRsvp[];
     },
   });
+
+  useEffect(() => {
+    if (!isLoading && events) {
+      if (nowEvents.length > 0) {
+        setActiveTab("now");
+      } else if (upcomingEvents.length > 0) {
+        setActiveTab("upcoming");
+      } else if (pastEvents.length > 0) {
+        setActiveTab("past");
+      }
+    }
+  }, [isLoading, events]);
 
   const uploadImage = async (file: File): Promise<string | null> => {
     const fileExt = file.name.split(".").pop();
@@ -459,68 +471,15 @@ export default function Events() {
             </div>
           )}
 
-          <div className="flex flex-col justify-between gap-4 flex-1 p-4">
+          <div className="flex flex-col justify-between gap-2 flex-1 p-4">
             <div className="flex justify-between items-start gap-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-semibold text-lg truncate">
-                  {event.title}
-                </h3>
+                <h3 className="font-semibold line-clamp-1">{event.title}</h3>
                 {isPast && <Badge variant="secondary">Selesai</Badge>}
                 {isToday(new Date(event.event_date)) && !isPast && (
                   <Badge variant="default">Hari ini</Badge>
                 )}
               </div>
-              {/* <div className="hidden md:flex items-center gap-2 shrink-0">
-                    {!isPast && (
-                      <Button
-                        variant={
-                          isUserAttending(event.id) ? "default" : "outline"
-                        }
-                        size="sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          rsvpMutation.mutate({
-                            eventId: event.id,
-                            isAttending: isUserAttending(event.id) || false,
-                          });
-                        }}
-                        disabled={rsvpMutation.isPending}
-                      >
-                        {isUserAttending(event.id) ? (
-                          <>
-                            <Check className="w-4 h-4 mr-1" />
-                            Hadir
-                          </>
-                        ) : (
-                          "Ikut"
-                        )}
-                      </Button>
-                    )}
-                    {canEditEvent(event) && !isPast && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleEdit(event);
-                        }}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    )}
-                    {canDeleteEvent(event) && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setDeletingEvent(event);
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
-                    )}
-                  </div> */}
             </div>
 
             <div className="flex-1 flex flex-col gap-2">

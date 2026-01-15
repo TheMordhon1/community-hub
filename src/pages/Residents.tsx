@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useNaturalSort } from "@/hooks/useNaturalSort";
+import { getInitials } from "@/lib/utils";
 
 interface HouseResident {
   id: string;
@@ -147,15 +148,6 @@ export default function Residents() {
     houses?.filter((h) => h.residents.length > 0).length || 0;
   const totalUsers =
     houses?.reduce((sum, h) => sum + h.residents.length, 0) || 0;
-
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   if (isLoading) {
     return (

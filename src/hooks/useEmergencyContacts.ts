@@ -119,8 +119,10 @@ export function getContactLink(platform: string, contact: string): string {
   switch (platform) {
     case "whatsapp":
       // Remove non-numeric chars except +
-      const waNumber = contact.replace(/[^\d+]/g, "");
-      return `https://wa.me/${waNumber.startsWith("+") ? waNumber.substring(1) : waNumber}`;
+
+      return `https://wa.me/${contact
+        .replace(/\D/g, "")
+        .replace(/^0/, "+62")}`;
     case "telegram":
       return `https://t.me/${contact.replace("@", "")}`;
     case "email":

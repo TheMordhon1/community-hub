@@ -21,3 +21,13 @@ export const getValidDate = (date?: string, time?: string) => {
   const parsedDate = new Date(dateString);
   return isNaN(parsedDate.getTime()) ? null : parsedDate;
 };
+
+
+export const getInitials = (name: string) => {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+};

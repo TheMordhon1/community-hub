@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import type { Profile } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
-import { formatEventTime, getValidDate } from "@/lib/utils";
+import { formatEventTime, getInitials, getValidDate } from "@/lib/utils";
 
 interface AttendeeWithProfile {
   id: string;
@@ -341,11 +341,7 @@ export default function EventDetail() {
                       <Avatar>
                         <AvatarImage src={attendee.profile?.avatar_url || ""} />
                         <AvatarFallback>
-                          {attendee.profile?.full_name
-                            ?.split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase() || "?"}
+                          {getInitials(attendee.profile?.full_name)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">

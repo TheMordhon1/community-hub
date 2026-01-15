@@ -1,12 +1,26 @@
+import { useState } from "react"; // Added for copy feedback
 import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Phone, MessageCircle, Send, Mail, AlertTriangle, ExternalLink } from "lucide-react";
+import {
+  Phone,
+  MessageCircle,
+  Send,
+  Mail,
+  AlertTriangle,
+  Copy,
+  Check,
+} from "lucide-react";
 import {
   useActiveEmergencyContacts,
   getContactLink,
-  EmergencyContact,
 } from "@/hooks/useEmergencyContacts";
 
 interface EmergencyContactsCardProps {
@@ -19,6 +33,13 @@ export function EmergencyContactsCard({
   className = "",
 }: EmergencyContactsCardProps) {
   const { data: contacts, isLoading } = useActiveEmergencyContacts();
+  const [copiedId, setCopiedId] = useState<string | null>(null); // State for feedback
+
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000); // Reset icon after 2 seconds
+  };
 
   const getPlatformIcon = (platform: string) => {
     switch (platform) {
@@ -28,7 +49,6 @@ export function EmergencyContactsCard({
         return <Send className="w-4 h-4" />;
       case "email":
         return <Mail className="w-4 h-4" />;
-      case "phone":
       default:
         return <Phone className="w-4 h-4" />;
     }
@@ -42,7 +62,6 @@ export function EmergencyContactsCard({
         return "bg-blue-500 hover:bg-blue-600 text-white";
       case "email":
         return "bg-orange-500 hover:bg-orange-600 text-white";
-      case "phone":
       default:
         return "bg-primary hover:bg-primary/90 text-primary-foreground";
     }
@@ -56,7 +75,6 @@ export function EmergencyContactsCard({
         return "Telegram";
       case "email":
         return "Email";
-      case "phone":
       default:
         return "Telepon";
     }
@@ -80,9 +98,7 @@ export function EmergencyContactsCard({
     );
   }
 
-  if (!contacts || contacts.length === 0) {
-    return null;
-  }
+  if (!contacts || contacts.length === 0) return null;
 
   if (variant === "landing") {
     return (
@@ -101,9 +117,6 @@ export function EmergencyContactsCard({
             <h2 className="text-3xl md:text-4xl font-black text-emerald-900 mb-2">
               Nomor Darurat
             </h2>
-            <p className="text-muted-foreground text-lg">
-              Hubungi nomor di bawah ini dalam keadaan darurat
-            </p>
           </motion.div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {contacts.map((contact, index) => (
@@ -114,20 +127,28 @@ export function EmergencyContactsCard({
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className="h-full border-red-200/50 hover:border-red-300 hover:shadow-xl transition-all bg-gradient-to-br from-white to-red-50/20">
+                <Card className="h-full border-red-200/50 hover:border-red-300 hover:shadow-xl transition-all">
                   <CardContent className="p-6 flex flex-col items-center text-center">
-                    <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center mb-4 shadow-lg">
+                    <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center mb-4 shadow-lg text-white">
                       {getPlatformIcon(contact.platform)}
-                      <span className="sr-only">{getPlatformLabel(contact.platform)}</span>
                     </div>
-                    <h3 className="font-bold text-lg mb-1 text-foreground">
-                      {contact.name}
-                    </h3>
-                    {contact.description && (
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {contact.description}
-                      </p>
-                    )}
+                    <h3 className="font-bold text-lg mb-1">{contact.name}</h3>
+
+                    {/* Copyable Number Row */}
+                    <div
+                      className="flex items-center gap-2 mb-4 group cursor-pointer"
+                      onClick={() => handleCopy(contact.phone, contact.id)}
+                    >
+                      <span className="font-mono font-bold text-red-600">
+                        {contact.phone}
+                      </span>
+                      {copiedId === contact.id ? (
+                        <Check className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Copy className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                      )}
+                    </div>
+
                     <a
                       href={getContactLink(contact.platform, contact.phone)}
                       target="_blank"
@@ -135,11 +156,11 @@ export function EmergencyContactsCard({
                       className="w-full"
                     >
                       <Button
-                        className={`w-full ${getPlatformColor(contact.platform)}`}
+                        className={`w-full ${getPlatformColor(
+                          contact.platform
+                        )}`}
                       >
-                        {getPlatformIcon(contact.platform)}
-                        <span className="ml-2">{contact.phone}</span>
-                        <ExternalLink className="w-3 h-3 ml-2" />
+                        Hubungi {getPlatformLabel(contact.platform)}
                       </Button>
                     </a>
                   </CardContent>
@@ -161,7 +182,9 @@ export function EmergencyContactsCard({
             <AlertTriangle className="w-4 h-4 text-red-600" />
           </div>
           <div>
-            <CardTitle className="text-lg font-display">Kontak Darurat</CardTitle>
+            <CardTitle className="text-lg font-display">
+              Kontak Darurat
+            </CardTitle>
             <CardDescription>Hubungi dalam keadaan darurat</CardDescription>
           </div>
         </div>
@@ -178,18 +201,26 @@ export function EmergencyContactsCard({
                   className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                     contact.platform === "whatsapp"
                       ? "bg-green-100 text-green-600"
-                      : contact.platform === "telegram"
-                      ? "bg-blue-100 text-blue-500"
-                      : contact.platform === "email"
-                      ? "bg-orange-100 text-orange-500"
                       : "bg-primary/10 text-primary"
                   }`}
                 >
                   {getPlatformIcon(contact.platform)}
                 </div>
-                <div>
+                <div className="grid gap-0.5">
                   <p className="font-medium text-sm">{contact.name}</p>
-                  <p className="text-xs text-muted-foreground">{contact.phone}</p>
+                  <div
+                    className="flex items-center gap-2 cursor-pointer group"
+                    onClick={() => handleCopy(contact.phone, contact.id)}
+                  >
+                    <span className="font-bold text-sm text-black">
+                      {contact.phone}
+                    </span>
+                    {copiedId === contact.id ? (
+                      <Check className="w-3 h-3 text-green-600" />
+                    ) : (
+                      <Copy className="w-3 h-3 text-muted-foreground group-hover:text-foreground opacity-0 group-hover:opacity-100 transition-all" />
+                    )}
+                  </div>
                 </div>
               </div>
               <a
