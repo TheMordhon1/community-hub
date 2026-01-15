@@ -196,11 +196,11 @@ export function EmergencyContactsCard({
           {contacts.map((contact) => (
             <div
               key={contact.id}
-              className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+              className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  className={`w-10 h-10 rounded-lg hidden sm:flex items-center justify-center ${
                     contact.platform === "whatsapp"
                       ? "bg-green-100 text-green-600"
                       : "bg-primary/10 text-primary"
@@ -208,8 +208,13 @@ export function EmergencyContactsCard({
                 >
                   {getPlatformIcon(contact.platform)}
                 </div>
-                <div className="grid gap-0.5">
-                  <p className="font-medium text-sm">{contact.name}</p>
+                <div className="grid gap-2">
+                  <div>
+                    <p className="font-medium text-sm">{contact.name}</p>
+                    <p className="font-medium text-xs text-gray-400">
+                      {contact.description}
+                    </p>
+                  </div>
                   <div
                     className="flex items-center gap-2 cursor-pointer group"
                     onClick={() => handleCopy(contact.phone, contact.id)}
@@ -232,10 +237,10 @@ export function EmergencyContactsCard({
               >
                 <Button
                   size="sm"
-                  className={getPlatformColor(contact.platform)}
+                  className={`${getPlatformColor(contact.platform)} w-full`}
                 >
                   {getPlatformIcon(contact.platform)}
-                  <span className="ml-1 hidden sm:inline">
+                  <span className="inline">
                     {getPlatformLabel(contact.platform)}
                   </span>
                 </Button>
