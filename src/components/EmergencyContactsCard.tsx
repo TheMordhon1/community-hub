@@ -185,7 +185,9 @@ export function EmergencyContactsCard({
             <CardTitle className="text-lg font-display">
               Kontak Darurat
             </CardTitle>
-            <CardDescription>Hubungi dalam keadaan darurat</CardDescription>
+            <CardDescription>
+              Daftar kontak jika dalam keadaan darurat
+            </CardDescription>
           </div>
         </div>
       </CardHeader>
