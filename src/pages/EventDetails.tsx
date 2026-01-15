@@ -229,14 +229,15 @@ export default function EventDetail() {
             <CardHeader className="px-4 md:p-6">
               <div className="flex items-start justify-between w-full flex-1">
                 <div className="space-y-2 w-full">
-                  {isPastEvent && <Badge variant="secondary">Selesai</Badge>}
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-2xl md:text-3xl w-full flex-1">
-                      {event.title}
-                    </CardTitle>
+                  <div
+                    className={`flex w-full ${
+                      isPastEvent ? "justify-between" : "justify-end"
+                    }`}
+                  >
+                    {isPastEvent && <Badge variant="secondary">Selesai</Badge>}
                     {!isPastEvent && (
                       <Button
-                        className="hover:bg-success rounded-full p-3"
+                        className="flex md:hidden hover:bg-success rounded-full px-4 h-8"
                         size="lg"
                         variant={isUserAttending ? "default" : "outline"}
                         onClick={() =>
@@ -249,8 +250,42 @@ export default function EventDetail() {
                         )}
                         {isUserAttending ? (
                           <>
-                            <Check className="w-4 h-4" />
-                            Saya Akan Hadir
+                            <Check className="w-4" />
+                            <span className="flex sm:hidden">Akan Hadir</span>
+                            <span className="hidden sm:flex">
+                              Saya Akan Hadir
+                            </span>
+                          </>
+                        ) : (
+                          "Ikut Acara"
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-2xl md:text-3xl w-full flex-1">
+                      {event.title}
+                    </CardTitle>
+                    {!isPastEvent && (
+                      <Button
+                        className="hidden md:flex hover:bg-success rounded-full px-4 h-8"
+                        size="lg"
+                        variant={isUserAttending ? "default" : "outline"}
+                        onClick={() =>
+                          rsvpMutation.mutate(isUserAttending || false)
+                        }
+                        disabled={rsvpMutation.isPending}
+                      >
+                        {rsvpMutation.isPending && (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        )}
+                        {isUserAttending ? (
+                          <>
+                            <Check className="w-4" />
+                            <span className="flex sm:hidden">Akan Hadir</span>
+                            <span className="hidden sm:flex">
+                              Saya Akan Hadir
+                            </span>
                           </>
                         ) : (
                           "Ikut Acara"
