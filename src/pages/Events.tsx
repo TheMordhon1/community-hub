@@ -434,8 +434,7 @@ export default function Events() {
       <Link to={`/events/${event.id}`}>
         <Card
           className={cn(
-            "overflow-hidden hover:shadow-lg transition-all cursor-pointer group h-full flex flex-col",
-            isPast && "opacity-60"
+            "overflow-hidden hover:shadow-lg transition-all cursor-pointer group h-full flex flex-col"
           )}
         >
           {/* Image or Date Section */}
@@ -475,7 +474,7 @@ export default function Events() {
             <div className="flex justify-between items-start gap-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-semibold line-clamp-1">{event.title}</h3>
-                {isPast && <Badge variant="secondary">Selesai</Badge>}
+                {isPast && <Badge variant="destructive">Selesai</Badge>}
                 {isToday(new Date(event.event_date)) && !isPast && (
                   <Badge variant="default">Hari ini</Badge>
                 )}
@@ -788,7 +787,7 @@ export default function Events() {
                 <div className="flex items-center gap-2">
                   Selesai
                   {pastEvents.length > 0 && (
-                    <Badge variant="outline" className="ml-1">
+                    <Badge variant="destructive" className="ml-1">
                       {pastEvents.length}
                     </Badge>
                   )}

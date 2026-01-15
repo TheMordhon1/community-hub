@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { format } from "date-fns";
+import { format, isBefore, startOfDay, isToday } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -145,7 +145,11 @@ export default function EventDetail() {
   });
 
   const isUserAttending = attendees?.some((a) => a.user_id === user?.id);
-  const isPastEvent = event ? new Date(event.event_date) < new Date() : false;
+  const isEventToday = event ? isToday(new Date(event.event_date)) : false;
+
+  const isPastEvent = event
+    ? isBefore(startOfDay(new Date(event.event_date)), startOfDay(new Date()))
+    : false;
 
   const shareText = `${event?.title}\n\n${event?.description || ""}\n\n 
   📅 ${
@@ -217,13 +221,24 @@ export default function EventDetail() {
           animate={{ opacity: 1, y: 0 }}
         >
           <Card>
-            {event.image_url && (
+            {event.image_url ? (
               <div className="h-96 overflow-hidden rounded-t-lg">
                 <img
                   src={event.image_url || "/placeholder.svg"}
                   alt={event.title}
                   className="w-full h-full object-fill sm:object-cover"
                 />
+              </div>
+            ) : (
+              <div className="w-full h-60 bg-primary/10 flex flex-col items-center justify-center p-3 text-center shrink-0">
+                <span className="text-2xl font-bold text-primary">
+                  {format(new Date(event.event_date), "d")}
+                </span>
+                <span className="text-xs text-primary uppercase">
+                  {format(new Date(event.event_date), "MMMM", {
+                    locale: idLocale,
+                  })}
+                </span>
               </div>
             )}
             <CardHeader className="px-4 md:p-6">
@@ -262,8 +277,13 @@ export default function EventDetail() {
                       <CardTitle className="text-2xl md:text-3xl w-full flex-1">
                         {event.title}
                       </CardTitle>
-                      {isPastEvent && (
-                        <Badge variant="secondary">Selesai</Badge>
+
+                      {isEventToday ? (
+                        <Badge variant="default">Hari ini</Badge>
+                      ) : (
+                        isPastEvent && (
+                          <Badge variant="destructive">Selesai</Badge>
+                        )
                       )}
                     </div>
                     {!isPastEvent && (
