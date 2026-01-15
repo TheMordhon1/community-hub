@@ -218,7 +218,7 @@ export default function EventDetail() {
         >
           <Card>
             {event.image_url && (
-              <div className="w-full h-96 overflow-hidden rounded-t-lg">
+              <div className="h-96 overflow-hidden rounded-t-lg">
                 <img
                   src={event.image_url || "/placeholder.svg"}
                   alt={event.title}
@@ -229,12 +229,7 @@ export default function EventDetail() {
             <CardHeader className="px-4 md:p-6">
               <div className="flex items-start justify-between w-full flex-1">
                 <div className="space-y-2 w-full">
-                  <div
-                    className={`flex w-full ${
-                      isPastEvent ? "justify-between" : "justify-end"
-                    }`}
-                  >
-                    {isPastEvent && <Badge variant="secondary">Selesai</Badge>}
+                  <div className="flex w-full justify-end">
                     {!isPastEvent && (
                       <Button
                         className="flex md:hidden hover:bg-success rounded-full px-4 h-8"
@@ -263,9 +258,14 @@ export default function EventDetail() {
                     )}
                   </div>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-2xl md:text-3xl w-full flex-1">
-                      {event.title}
-                    </CardTitle>
+                    <div>
+                      <CardTitle className="text-2xl md:text-3xl w-full flex-1">
+                        {event.title}
+                      </CardTitle>
+                      {isPastEvent && (
+                        <Badge variant="secondary">Selesai</Badge>
+                      )}
+                    </div>
                     {!isPastEvent && (
                       <Button
                         className="hidden md:flex hover:bg-success rounded-full px-4 h-8"
@@ -387,9 +387,6 @@ export default function EventDetail() {
                           {attendee.profile.phone}
                         </p>
                       </div>
-                      <Badge variant="outline" className="shrink-0">
-                        Hadir
-                      </Badge>
                     </div>
                   ))}
                 </div>
