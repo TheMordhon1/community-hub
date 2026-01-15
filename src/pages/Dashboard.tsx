@@ -19,6 +19,7 @@ import {
 } from "@/hooks/useMenus";
 import { DynamicIcon } from "@/components/DynamicIcon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmergencyContactsCard } from "@/components/EmergencyContactsCard";
 
 export default function Dashboard() {
   const { profile, isAdmin, canManageContent } = useAuth();
@@ -223,6 +224,9 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         )}
+
+        {/* Emergency Contacts */}
+        <EmergencyContactsCard variant="dashboard" />
       </div>
     </div>
   );
