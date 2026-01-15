@@ -300,7 +300,7 @@ export default function Announcements() {
                     <Textarea
                       id="content"
                       placeholder="Tulis isi pengumuman..."
-                      rows={5}
+                      rows={10}
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
                     />
