@@ -33,12 +33,12 @@ export function EmergencyContactsCard({
   className = "",
 }: EmergencyContactsCardProps) {
   const { data: contacts, isLoading } = useActiveEmergencyContacts();
-  const [copiedId, setCopiedId] = useState<string | null>(null); // State for feedback
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000); // Reset icon after 2 seconds
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const getPlatformIcon = (platform: string) => {
@@ -225,7 +225,7 @@ export function EmergencyContactsCard({
                     {copiedId === contact.id ? (
                       <Check className="w-3 h-3 text-green-600" />
                     ) : (
-                      <Copy className="w-3 h-3 text-muted-foreground group-hover:text-foreground opacity-0 group-hover:opacity-100 transition-all" />
+                      <Copy className="w-3 h-3 text-muted-foreground transition-all" />
                     )}
                   </div>
                 </div>
