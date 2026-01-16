@@ -582,7 +582,7 @@ export default function Finance() {
     {
       key: "id",
       label: "Aksi",
-      className: "text-right",
+      className: !canManageFinance ? "hidden" : "text-right",
       render: (_, row) => {
         // Logic: Summary rows (isGroup) CANNOT be edited/deleted (they are calculated)
         // Regular rows and Child rows CAN be edited/deleted
