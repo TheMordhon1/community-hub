@@ -50,6 +50,211 @@ export type Database = {
         }
         Relationships: []
       }
+      competition_matches: {
+        Row: {
+          competition_id: string
+          created_at: string
+          group_name: string | null
+          id: string
+          location: string | null
+          match_datetime: string | null
+          match_number: number
+          next_match_id: string | null
+          notes: string | null
+          round_number: number
+          score1: string | null
+          score2: string | null
+          status: string
+          team1_id: string | null
+          team2_id: string | null
+          updated_at: string
+          winner_id: string | null
+        }
+        Insert: {
+          competition_id: string
+          created_at?: string
+          group_name?: string | null
+          id?: string
+          location?: string | null
+          match_datetime?: string | null
+          match_number?: number
+          next_match_id?: string | null
+          notes?: string | null
+          round_number?: number
+          score1?: string | null
+          score2?: string | null
+          status?: string
+          team1_id?: string | null
+          team2_id?: string | null
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Update: {
+          competition_id?: string
+          created_at?: string
+          group_name?: string | null
+          id?: string
+          location?: string | null
+          match_datetime?: string | null
+          match_number?: number
+          next_match_id?: string | null
+          notes?: string | null
+          round_number?: number
+          score1?: string | null
+          score2?: string | null
+          status?: string
+          team1_id?: string | null
+          team2_id?: string | null
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_matches_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "event_competitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_matches_next_match_id_fkey"
+            columns: ["next_match_id"]
+            isOneToOne: false
+            referencedRelation: "competition_matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_matches_team1_id_fkey"
+            columns: ["team1_id"]
+            isOneToOne: false
+            referencedRelation: "competition_teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_matches_team2_id_fkey"
+            columns: ["team2_id"]
+            isOneToOne: false
+            referencedRelation: "competition_teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_matches_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "competition_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      competition_referees: {
+        Row: {
+          competition_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          competition_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          competition_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_referees_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "event_competitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      competition_team_members: {
+        Row: {
+          created_at: string
+          id: string
+          is_captain: boolean | null
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_captain?: boolean | null
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_captain?: boolean | null
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "competition_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      competition_teams: {
+        Row: {
+          competition_id: string
+          created_at: string
+          house_id: string | null
+          id: string
+          is_eliminated: boolean | null
+          logo_url: string | null
+          name: string
+          seed_number: number | null
+        }
+        Insert: {
+          competition_id: string
+          created_at?: string
+          house_id?: string | null
+          id?: string
+          is_eliminated?: boolean | null
+          logo_url?: string | null
+          name: string
+          seed_number?: number | null
+        }
+        Update: {
+          competition_id?: string
+          created_at?: string
+          house_id?: string | null
+          id?: string
+          is_eliminated?: boolean | null
+          logo_url?: string | null
+          name?: string
+          seed_number?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_teams_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "event_competitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_teams_house_id_fkey"
+            columns: ["house_id"]
+            isOneToOne: false
+            referencedRelation: "houses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       complaints: {
         Row: {
           created_at: string
@@ -157,6 +362,59 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      event_competitions: {
+        Row: {
+          created_at: string
+          event_id: string
+          format: string
+          id: string
+          match_type: string
+          max_participants: number | null
+          participant_type: string
+          registration_deadline: string | null
+          rules: string | null
+          sport_name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          format?: string
+          id?: string
+          match_type?: string
+          max_participants?: number | null
+          participant_type?: string
+          registration_deadline?: string | null
+          rules?: string | null
+          sport_name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          format?: string
+          id?: string
+          match_type?: string
+          max_participants?: number | null
+          participant_type?: string
+          registration_deadline?: string | null
+          rules?: string | null
+          sport_name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_competitions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_rsvps: {
         Row: {
@@ -727,6 +985,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_manage_competition: {
+        Args: { _competition_id: string; _user_id: string }
+        Returns: boolean
+      }
       get_user_house_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
@@ -742,6 +1004,14 @@ export type Database = {
       }
       house_has_voted: {
         Args: { _house_id: string; _poll_id: string }
+        Returns: boolean
+      }
+      is_competition_referee: {
+        Args: { _competition_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_event_author: {
+        Args: { _event_id: string; _user_id: string }
         Returns: boolean
       }
     }
