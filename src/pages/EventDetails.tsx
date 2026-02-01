@@ -29,6 +29,7 @@ import {
 import type { Profile } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
 import { formatEventTime, getValidDate } from "@/lib/utils";
+import { CompetitionList } from "@/components/competitions/CompetitionList";
 
 interface AttendeeWithProfile {
   id: string;
@@ -39,11 +40,13 @@ interface AttendeeWithProfile {
 
 export default function EventDetail() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, canManageContent, isAdmin } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isShareOpen, setIsShareOpen] = useState(false);
+
+  const canManage = canManageContent() || isAdmin();
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event", id],
@@ -306,6 +309,19 @@ export default function EventDetail() {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Competitions Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          <Card>
+            <CardContent className="p-4 md:p-6">
+              <CompetitionList eventId={id!} canManage={canManage} />
             </CardContent>
           </Card>
         </motion.div>

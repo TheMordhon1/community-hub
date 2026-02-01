@@ -18,6 +18,7 @@ import Announcements from "./pages/Announcements";
 import AnnouncementDetail from "./pages/AnnouncementDetail";
 import Events from "./pages/Events";
 import EventDetails from "./pages/EventDetails";
+import CompetitionDetail from "./pages/CompetitionDetail";
 import Complaints from "./pages/Complaints";
 import Polls from "./pages/Polls";
 import PollsDetail from "./pages/PollsDetail";
@@ -79,6 +80,7 @@ function AppRoutes() {
           <Route path="/announcements/:id" element={<AnnouncementDetail />} />
           <Route path="/events" element={<Events />} />
           <Route path="/events/:id" element={<EventDetails />} />
+          <Route path="/events/:id/competitions/:competitionId" element={<CompetitionDetail />} />
           <Route path="/complaints" element={<Complaints />} />
           <Route path="/polls" element={<Polls />} />
           <Route path="/polls/:id" element={<PollsDetail />} />
