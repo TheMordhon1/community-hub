@@ -45,6 +45,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatEventTime } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { GlobalCompetitionList } from "@/components/competitions/GlobalCompetitionList";
 import {
   ArrowLeft,
   Plus,
@@ -608,352 +610,353 @@ export default function Events() {
     </motion.div>
   );
 
-  const currentTabEvents = getTabEvents();
-
   return (
     <section className="min-h-screen bg-background p-6">
       <div className="mx-auto space-y-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
-        >
-          <div className="flex items-center gap-4">
-            <Link to="/dashboard">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <h1 className="font-display text-2xl font-bold">Acara</h1>
-              <p className="text-muted-foreground">
-                Kegiatan dan acara paguyuban
-              </p>
+        <Tabs defaultValue="events" className="w-full">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <Link to="/dashboard">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <div>
+                <h1 className="font-display text-2xl font-bold">Acara & Kompetisi</h1>
+                <p className="text-muted-foreground">
+                  Kegiatan dan perlombaan warga PKT
+                </p>
+              </div>
             </div>
+            
+            <TabsList className="grid w-full md:w-[400px] grid-cols-2">
+              <TabsTrigger value="events">Acara</TabsTrigger>
+              <TabsTrigger value="competitions">Kompetisi</TabsTrigger>
+            </TabsList>
           </div>
 
-          {canManageContent() && (
-            <Dialog
-              open={isCreateOpen}
-              onOpenChange={(open) => {
-                setIsCreateOpen(open);
-                if (!open) resetForm();
-              }}
-            >
-              <DialogTrigger asChild>
-                <Button className="w-12 h-12 rounded-full fixed bottom-4 right-4 md:rounded-sm md:static flex md:w-auto md:h-auto justify-center items-center">
-                  <Plus className="w-8 md:w-4 md:h-4 md:mr-2 mx-auto" />
-                  <span className="hidden md:block">Buat Acara</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingEvent ? "Edit Acara" : "Buat Acara Baru"}
-                  </DialogTitle>
-                  <DialogDescription>
-                    Isi detail acara di bawah ini
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4 max-h-[70vh] overflow-auto px-1">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Judul Acara</Label>
-                    <Input
-                      id="title"
-                      placeholder="Judul acara"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Deskripsi</Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Deskripsi acara..."
-                      rows={10}
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Lokasi</Label>
-                    <Input
-                      id="location"
-                      placeholder="Lokasi acara"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Tanggal</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !eventDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {eventDate
-                            ? format(eventDate, "d MMM yyyy", {
-                                locale: idLocale,
-                              })
-                            : "Pilih tanggal"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-auto p-0 bg-popover"
-                        align="start"
-                      >
-                        <Calendar
-                          mode="single"
-                          selected={eventDate}
-                          onSelect={setEventDate}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
+          <TabsContent value="events" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1" />
+              {canManageContent() && (
+                <Dialog
+                  open={isCreateOpen}
+                  onOpenChange={(open) => {
+                    setIsCreateOpen(open);
+                    if (!open) resetForm();
+                  }}
+                >
+                  <DialogTrigger asChild>
+                    <Button className="w-12 h-12 rounded-full fixed bottom-4 right-4 md:rounded-sm md:static flex md:w-auto md:h-auto justify-center items-center z-50">
+                      <Plus className="w-8 md:w-4 md:h-4 md:mr-2 mx-auto" />
+                      <span className="hidden md:block">Buat Acara</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {editingEvent ? "Edit Acara" : "Buat Acara Baru"}
+                      </DialogTitle>
+                      <DialogDescription>
+                        Isi detail acara di bawah ini
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4 max-h-[70vh] overflow-auto px-1">
+                      <div className="space-y-2">
+                        <Label htmlFor="title">Judul Acara</Label>
+                        <Input
+                          id="title"
+                          placeholder="Judul acara"
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
                         />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <TimePickerField
-                    id="time"
-                    label="Jam"
-                    optional
-                    value={eventTime}
-                    onChange={setEventTime}
-                  />
-
-                  {/* Image Upload */}
-                  <div className="space-y-2">
-                    <Label>Gambar (opsional)</Label>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                    {imagePreview ? (
-                      <div className="relative rounded-lg overflow-hidden">
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
-                          className="w-full h-40 object-cover"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-2 right-2"
-                          onClick={removeImage}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
                       </div>
-                    ) : (
+                      <div className="space-y-2">
+                        <Label htmlFor="description">Deskripsi</Label>
+                        <Textarea
+                          id="description"
+                          placeholder="Deskripsi acara..."
+                          rows={10}
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="location">Lokasi</Label>
+                        <Input
+                          id="location"
+                          placeholder="Lokasi acara"
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Tanggal</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !eventDate && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {eventDate
+                                ? format(eventDate, "d MMM yyyy", {
+                                    locale: idLocale,
+                                  })
+                                : "Pilih tanggal"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="w-auto p-0 bg-popover"
+                            align="start"
+                          >
+                            <Calendar
+                              mode="single"
+                              selected={eventDate}
+                              onSelect={setEventDate}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      <TimePickerField
+                        id="time"
+                        label="Jam"
+                        optional
+                        value={eventTime}
+                        onChange={setEventTime}
+                      />
+
+                      <div className="space-y-2">
+                        <Label>Gambar (opsional)</Label>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          className="hidden"
+                        />
+                        {imagePreview ? (
+                          <div className="relative rounded-lg overflow-hidden">
+                            <img
+                              src={imagePreview}
+                              alt="Preview"
+                              className="w-full h-40 object-cover"
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="absolute top-2 right-2"
+                              onClick={removeImage}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full h-24 border-dashed"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <ImagePlus className="w-6 h-6 mr-2" />
+                            Tambah Gambar
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col-reverse md:flex-row gap-4 items-center md:justify-end">
                       <Button
-                        type="button"
                         variant="outline"
-                        className="w-full h-24 border-dashed"
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={resetForm}
+                        className="w-full hover:bg-secondary"
                       >
-                        <ImagePlus className="w-6 h-6 mr-2" />
-                        Tambah Gambar
+                        Batal
                       </Button>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-col-reverse md:flex-row gap-4 items-center md:justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={resetForm}
-                    className="w-full hover:bg-secondary"
-                  >
-                    Batal
-                  </Button>
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={
-                      createMutation.isPending ||
-                      updateMutation.isPending ||
-                      isUploading
-                    }
-                    className="w-full"
-                  >
-                    {(createMutation.isPending ||
-                      updateMutation.isPending ||
-                      isUploading) && (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    )}
-                    {editingEvent ? "Simpan" : "Buat"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-        </motion.div>
-
-        {/* Select Dropdown */}
-        <div className="flex items-center gap-4">
-          <Select
-            value={activeTab}
-            onValueChange={(v) => setActiveTab(v as EventTab)}
-          >
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Pilih kategori" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="upcoming">
-                <div className="flex items-center gap-2">
-                  Mendatang
-                  {upcomingEvents.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">
-                      {upcomingEvents.length}
-                    </Badge>
-                  )}
-                </div>
-              </SelectItem>
-              <SelectItem value="now">
-                <div className="flex items-center gap-2">
-                  Hari Ini
-                  {nowEvents.length > 0 && (
-                    <Badge variant="default" className="ml-1">
-                      {nowEvents.length}
-                    </Badge>
-                  )}
-                </div>
-              </SelectItem>
-              <SelectItem value="past">
-                <div className="flex items-center gap-2">
-                  Selesai
-                  {pastEvents.length > 0 && (
-                    <Badge variant="outline" className="ml-1">
-                      {pastEvents.length}
-                    </Badge>
-                  )}
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Events List */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <div className="space-y-3 mt-4">
-            {/* Conditional Rendering */}
-            {activeTab === "upcoming" && (
-              <>
-                {upcomingEvents.length === 0 ? (
-                  <Card className="py-12">
-                    <CardContent className="flex flex-col items-center justify-center text-center">
-                      <CalendarIcon className="w-12 h-12 text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">
-                        Tidak Ada Acara Mendatang
-                      </h3>
-                      <p className="text-muted-foreground">
-                        Belum ada acara yang dijadwalkan
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid grid-cols-[repeat(300px, 1fr)] sm:grid-cols-[repeat(auto-fill,300px)] gap-4">
-                    {upcomingEvents.map((event, index) =>
-                      renderEventCard(event, index)
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-
-            {activeTab === "now" && (
-              <>
-                {nowEvents.length === 0 ? (
-                  <Card className="py-12">
-                    <CardContent className="flex flex-col items-center justify-center text-center">
-                      <CalendarIcon className="w-12 h-12 text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">
-                        Tidak Ada Acara Hari Ini
-                      </h3>
-                      <p className="text-muted-foreground">
-                        Tidak ada acara yang berlangsung hari ini
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid grid-cols-[repeat(300px, 1fr)] md:grid-cols-[repeat(auto-fill,300px)] gap-4">
-                    {nowEvents.map((event, index) =>
-                      renderEventCard(event, index)
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-
-            {activeTab === "past" && (
-              <>
-                {pastEvents.length === 0 ? (
-                  <Card className="py-12">
-                    <CardContent className="flex flex-col items-center justify-center text-center">
-                      <CalendarIcon className="w-12 h-12 text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">
-                        Tidak Ada Acara Selesai
-                      </h3>
-                      <p className="text-muted-foreground">
-                        Belum ada acara yang sudah berlalu
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid grid-cols-[repeat(300px, 1fr)] md:grid-cols-[repeat(auto-fill,300px)] gap-4">
-                    {pastEvents.map((event, index) =>
-                      renderEventCard(event, index, true)
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        open={!!deletingEvent}
-        onOpenChange={(open) => !open && setDeletingEvent(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus Acara?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Apakah Anda yakin ingin menghapus acara "{deletingEvent?.title}"?
-              Tindakan ini tidak dapat dibatalkan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (deletingEvent) {
-                  deleteMutation.mutate(deletingEvent.id);
-                  setDeletingEvent(null);
-                }
-              }}
-            >
-              {deleteMutation.isPending && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Button
+                        onClick={handleSubmit}
+                        disabled={
+                          createMutation.isPending ||
+                          updateMutation.isPending ||
+                          isUploading
+                        }
+                        className="w-full"
+                      >
+                        {(createMutation.isPending ||
+                          updateMutation.isPending ||
+                          isUploading) && (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        )}
+                        {editingEvent ? "Simpan" : "Buat"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               )}
-              Hapus
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <Select
+                value={activeTab}
+                onValueChange={(v) => setActiveTab(v as EventTab)}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Pilih kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="upcoming">
+                    <div className="flex items-center gap-2">
+                      Mendatang
+                      {upcomingEvents.length > 0 && (
+                        <Badge variant="secondary" className="ml-1">
+                          {upcomingEvents.length}
+                        </Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="now">
+                    <div className="flex items-center gap-2">
+                      Hari Ini
+                      {nowEvents.length > 0 && (
+                        <Badge variant="default" className="ml-1">
+                          {nowEvents.length}
+                        </Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="past">
+                    <div className="flex items-center gap-2">
+                      Selesai
+                      {pastEvents.length > 0 && (
+                        <Badge variant="outline" className="ml-1">
+                          {pastEvents.length}
+                        </Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-3 mt-4">
+                {activeTab === "upcoming" && (
+                  <>
+                    {upcomingEvents.length === 0 ? (
+                      <Card className="py-12">
+                        <CardContent className="flex flex-col items-center justify-center text-center">
+                          <CalendarIcon className="w-12 h-12 text-muted-foreground mb-4" />
+                          <h3 className="text-lg font-semibold mb-2">
+                            Tidak Ada Acara Mendatang
+                          </h3>
+                          <p className="text-muted-foreground">
+                            Belum ada acara yang dijadwalkan
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {upcomingEvents.map((event, index) =>
+                          renderEventCard(event, index)
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {activeTab === "now" && (
+                  <>
+                    {nowEvents.length === 0 ? (
+                      <Card className="py-12">
+                        <CardContent className="flex flex-col items-center justify-center text-center">
+                          <CalendarIcon className="w-12 h-12 text-muted-foreground mb-4" />
+                          <h3 className="text-lg font-semibold mb-2">
+                            Tidak Ada Acara Hari Ini
+                          </h3>
+                          <p className="text-muted-foreground">
+                            Tidak ada acara yang berlangsung hari ini
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {nowEvents.map((event, index) =>
+                          renderEventCard(event, index)
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {activeTab === "past" && (
+                  <>
+                    {pastEvents.length === 0 ? (
+                      <Card className="py-12">
+                        <CardContent className="flex flex-col items-center justify-center text-center">
+                          <CalendarIcon className="w-12 h-12 text-muted-foreground mb-4" />
+                          <h3 className="text-lg font-semibold mb-2">
+                            Tidak Ada Acara Selesai
+                          </h3>
+                          <p className="text-muted-foreground">
+                            Belum ada acara yang sudah berlalu
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {pastEvents.map((event, index) =>
+                          renderEventCard(event, index, true)
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="competitions" className="space-y-6">
+            <GlobalCompetitionList canManage={canManageContent()} />
+          </TabsContent>
+        </Tabs>
+
+        <AlertDialog
+          open={!!deletingEvent}
+          onOpenChange={(open) => !open && setDeletingEvent(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Hapus Acara</AlertDialogTitle>
+              <AlertDialogDescription>
+                Apakah Anda yakin ingin menghapus acara ini? Tindakan ini tidak
+                dapat dibatalkan.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (deletingEvent) {
+                    deleteMutation.mutate(deletingEvent.id);
+                    setDeletingEvent(null);
+                  }
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Hapus
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </section>
   );
 }

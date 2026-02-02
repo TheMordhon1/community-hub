@@ -1138,7 +1138,19 @@ _Paguyuban Nijuuroku_`;
                   <Input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                    multiple={false}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (!file.type.startsWith("image/")) {
+                          toast.error("Hanya file gambar yang diperbolehkan");
+                          e.target.value = "";
+                          setProofFile(null);
+                          return;
+                        }
+                        setProofFile(file);
+                      }
+                    }}
                   />
                   {proofFile && (
                     <p className="text-sm text-muted-foreground">
@@ -1291,9 +1303,19 @@ _Paguyuban Nijuuroku_`;
                 <Input
                   type="file"
                   accept="image/*"
-                  onChange={(e) =>
-                    setEditProofFile(e.target.files?.[0] || null)
-                  }
+                  multiple={false}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (!file.type.startsWith("image/")) {
+                        toast.error("Hanya file gambar yang diperbolehkan");
+                        e.target.value = "";
+                        setEditProofFile(null);
+                        return;
+                      }
+                      setEditProofFile(file);
+                    }
+                  }}
                 />
                 {editingPayment?.proof_url && !editProofFile && (
                   <p className="text-xs text-muted-foreground">

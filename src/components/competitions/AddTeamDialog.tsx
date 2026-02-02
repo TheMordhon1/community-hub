@@ -124,6 +124,12 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
 
   const isPending = createTeamMutation.isPending || addMemberMutation.isPending;
 
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredProfiles = profiles?.filter((profile) =>
+    profile.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -168,39 +174,51 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           {/* Member Selection */}
           <div className="space-y-2">
             <Label>Anggota Tim</Label>
+            <Input
+              placeholder="Cari nama anggota..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="mb-2"
+            />
             <div className="border rounded-md max-h-60 overflow-y-auto">
-              {profiles?.map((profile) => (
-                <div
-                  key={profile.id}
-                  className="flex items-center gap-3 p-2 hover:bg-muted/50 border-b last:border-b-0"
-                >
-                  <Checkbox
-                    checked={selectedMembers.includes(profile.id)}
-                    onCheckedChange={() => toggleMember(profile.id)}
-                  />
-                  <Avatar className="w-8 h-8">
-                    <AvatarImage src={profile.avatar_url || ""} />
-                    <AvatarFallback>
-                      {profile.full_name?.[0] || "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="flex-1 text-sm truncate">
-                    {profile.full_name}
-                  </span>
-                  {selectedMembers.includes(profile.id) && (
-                    <Button
-                      variant={captainId === profile.id ? "default" : "outline"}
-                      size="sm"
-                      className="text-xs h-6"
-                      onClick={() => setCaptainId(captainId === profile.id ? "" : profile.id)}
-                    >
-                      Kapten
-                    </Button>
-                  )}
+              {filteredProfiles?.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  Tidak ada anggota ditemukan
                 </div>
-              ))}
+              ) : (
+                filteredProfiles?.map((profile) => (
+                  <div
+                    key={profile.id}
+                    className="flex items-center gap-3 p-2 hover:bg-muted/50 border-b last:border-b-0"
+                  >
+                    <Checkbox
+                      checked={selectedMembers.includes(profile.id)}
+                      onCheckedChange={() => toggleMember(profile.id)}
+                    />
+                    <Avatar className="w-8 h-8">
+                      <AvatarImage src={profile.avatar_url || ""} />
+                      <AvatarFallback>
+                        {profile.full_name?.[0] || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="flex-1 text-sm truncate">
+                      {profile.full_name}
+                    </span>
+                    {selectedMembers.includes(profile.id) && (
+                      <Button
+                        variant={captainId === profile.id ? "default" : "outline"}
+                        size="sm"
+                        className="text-xs h-6"
+                        onClick={() => setCaptainId(captainId === profile.id ? "" : profile.id)}
+                      >
+                        Kapten
+                      </Button>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-2">
               {selectedMembers.length} anggota dipilih
             </p>
           </div>

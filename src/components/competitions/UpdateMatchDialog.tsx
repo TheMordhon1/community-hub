@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { useUpdateMatch } from "@/hooks/useCompetitions";
 import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, MatchStatus } from "@/types/competition";
@@ -132,20 +133,35 @@ export function UpdateMatchDialog({
           </div>
 
           {/* Status */}
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as MatchStatus)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(MATCH_STATUS_LABELS).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-4 rounded-lg border p-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="status-completed" className="text-base">
+                Pertandingan Selesai
+              </Label>
+              <Switch
+                id="status-completed"
+                checked={status === "completed"}
+                onCheckedChange={(checked) => {
+                  setStatus(checked ? "completed" : "scheduled");
+                }}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Status Detail</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as MatchStatus)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(MATCH_STATUS_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Location */}

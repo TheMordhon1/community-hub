@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +37,7 @@ import {
 interface CreateCompetitionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  eventId: string;
+  eventId?: string;
   editingCompetition?: EventCompetition | null;
 }
 
@@ -51,12 +53,37 @@ export function CreateCompetitionDialog({
   const [participantType, setParticipantType] = useState<ParticipantType>("user");
   const [rules, setRules] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
+  const [selectedEventId, setSelectedEventId] = useState<string | undefined>(eventId);
+
+  const { data: events, isLoading: isLoadingEvents } = useQuery({
+    queryKey: ["all-events-for-selection"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("id, title")
+        .order("event_date", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !eventId && open,
+  });
 
   const createMutation = useCreateCompetition();
   const updateMutation = useUpdateCompetition();
 
   const isEditing = !!editingCompetition;
   const isPending = createMutation.isPending || updateMutation.isPending;
+
+  const resetForm = useCallback(() => {
+    setSportName("");
+    setFormat("knockout");
+    setMatchType("1v1");
+    setParticipantType("user");
+    setRules("");
+    setMaxParticipants("");
+    setSelectedEventId(eventId);
+  }, [eventId]);
 
   useEffect(() => {
     if (editingCompetition) {
@@ -66,22 +93,14 @@ export function CreateCompetitionDialog({
       setParticipantType(editingCompetition.participant_type);
       setRules(editingCompetition.rules || "");
       setMaxParticipants(editingCompetition.max_participants?.toString() || "");
+      setSelectedEventId(editingCompetition.event_id);
     } else {
       resetForm();
     }
-  }, [editingCompetition, open]);
-
-  const resetForm = () => {
-    setSportName("");
-    setFormat("knockout");
-    setMatchType("1v1");
-    setParticipantType("user");
-    setRules("");
-    setMaxParticipants("");
-  };
+  }, [editingCompetition, open, eventId, resetForm]);
 
   const handleSubmit = () => {
-    if (!sportName.trim()) return;
+    if (!sportName.trim() || (!selectedEventId && !eventId)) return;
 
     const data = {
       sport_name: sportName,
@@ -92,14 +111,17 @@ export function CreateCompetitionDialog({
       max_participants: maxParticipants ? parseInt(maxParticipants) : undefined,
     };
 
+    const finalEventId = eventId || selectedEventId;
+    if (!finalEventId) return;
+
     if (isEditing) {
       updateMutation.mutate(
-        { id: editingCompetition.id, event_id: eventId, ...data },
+        { id: editingCompetition.id, event_id: finalEventId, ...data },
         { onSuccess: () => onOpenChange(false) }
       );
     } else {
       createMutation.mutate(
-        { event_id: eventId, ...data },
+        { event_id: finalEventId, ...data },
         { onSuccess: () => onOpenChange(false) }
       );
     }
@@ -120,6 +142,35 @@ export function CreateCompetitionDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {!eventId && !isEditing && (
+            <div className="space-y-2">
+              <Label>Pilih Acara *</Label>
+              <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoadingEvents ? "Memuat acara..." : "Pilih acara terkait"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {isLoadingEvents ? (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      <span className="text-sm">Memuat acara...</span>
+                    </div>
+                  ) : events && events.length > 0 ? (
+                    events.map((event) => (
+                      <SelectItem key={event.id} value={event.id}>
+                        {event.title}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Belum ada acara. Buat acara terlebih dahulu di tab Acara.
+                    </div>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="sport-name">Nama Olahraga/Permainan *</Label>
             <Input
@@ -207,7 +258,14 @@ export function CreateCompetitionDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Batal
           </Button>
-          <Button onClick={handleSubmit} disabled={!sportName.trim() || isPending}>
+          <Button
+            onClick={handleSubmit}
+            disabled={
+              !sportName.trim() ||
+              (!eventId && !selectedEventId) ||
+              isPending
+            }
+          >
             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {isEditing ? "Simpan" : "Buat Kompetisi"}
           </Button>

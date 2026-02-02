@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { 
-  EventCompetition, 
-  CompetitionTeam, 
-  CompetitionTeamMember, 
-  CompetitionMatch, 
+import type {
+  EventCompetition,
+  CompetitionTeam,
+  CompetitionTeamMember,
+  CompetitionMatch,
   CompetitionReferee,
   EventCompetitionWithDetails,
   CompetitionMatchWithTeams,
@@ -34,6 +34,30 @@ export function useEventCompetitions(eventId: string | undefined) {
     enabled: !!eventId,
   });
 }
+// Fetch all competitions
+export function useAllCompetitions() {
+  return useQuery({
+    queryKey: ["all-competitions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("event_competitions")
+        .select(
+          `
+          *,
+          events (
+            title
+          )
+        `,
+        )
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data as (EventCompetition & {
+        events: { title: string } | null;
+      })[];
+    },
+  });
+}
 
 // Fetch single competition with all details
 export function useCompetitionDetails(competitionId: string | undefined) {
@@ -61,7 +85,7 @@ export function useCompetitionDetails(competitionId: string | undefined) {
       if (teamsError) throw teamsError;
 
       // Fetch team members
-      const teamIds = teams?.map(t => t.id) || [];
+      const teamIds = teams?.map((t) => t.id) || [];
       let members: CompetitionTeamMember[] = [];
       if (teamIds.length > 0) {
         const { data: membersData, error: membersError } = await supabase
@@ -70,20 +94,21 @@ export function useCompetitionDetails(competitionId: string | undefined) {
           .in("team_id", teamIds);
 
         if (membersError) throw membersError;
-        
+
         // Fetch member profiles
-        const userIds = membersData?.map(m => m.user_id) || [];
+        const userIds = membersData?.map((m) => m.user_id) || [];
         if (userIds.length > 0) {
           const { data: profiles } = await supabase
             .from("profiles")
             .select("*")
             .in("id", userIds);
 
-          const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-          members = membersData?.map(m => ({
-            ...m,
-            profile: profileMap.get(m.user_id),
-          })) || [];
+          const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+          members =
+            membersData?.map((m) => ({
+              ...m,
+              profile: profileMap.get(m.user_id),
+            })) || [];
         }
       }
 
@@ -106,7 +131,7 @@ export function useCompetitionDetails(competitionId: string | undefined) {
       if (refError) throw refError;
 
       // Fetch referee profiles
-      const refUserIds = referees?.map(r => r.user_id) || [];
+      const refUserIds = referees?.map((r) => r.user_id) || [];
       let refereesWithProfiles: CompetitionReferee[] = [];
       if (refUserIds.length > 0) {
         const { data: refProfiles } = await supabase
@@ -114,28 +139,31 @@ export function useCompetitionDetails(competitionId: string | undefined) {
           .select("*")
           .in("id", refUserIds);
 
-        const refProfileMap = new Map(refProfiles?.map(p => [p.id, p]) || []);
-        refereesWithProfiles = referees?.map(r => ({
-          ...r,
-          profile: refProfileMap.get(r.user_id),
-        })) || [];
+        const refProfileMap = new Map(refProfiles?.map((p) => [p.id, p]) || []);
+        refereesWithProfiles =
+          referees?.map((r) => ({
+            ...r,
+            profile: refProfileMap.get(r.user_id),
+          })) || [];
       }
 
       // Map members to teams
-      const teamsWithMembers = teams?.map(team => ({
-        ...team,
-        members: members.filter(m => m.team_id === team.id),
-      })) || [];
+      const teamsWithMembers =
+        teams?.map((team) => ({
+          ...team,
+          members: members.filter((m) => m.team_id === team.id),
+        })) || [];
 
       // Map teams to matches
-      const teamMap = new Map(teamsWithMembers.map(t => [t.id, t]));
-      const matchesWithTeams: CompetitionMatchWithTeams[] = matches?.map(match => ({
-        ...match,
-        status: match.status as MatchStatus,
-        team1: match.team1_id ? teamMap.get(match.team1_id) : undefined,
-        team2: match.team2_id ? teamMap.get(match.team2_id) : undefined,
-        winner: match.winner_id ? teamMap.get(match.winner_id) : undefined,
-      })) || [];
+      const teamMap = new Map(teamsWithMembers.map((t) => [t.id, t]));
+      const matchesWithTeams: CompetitionMatchWithTeams[] =
+        matches?.map((match) => ({
+          ...match,
+          status: match.status as MatchStatus,
+          team1: match.team1_id ? teamMap.get(match.team1_id) : undefined,
+          team2: match.team2_id ? teamMap.get(match.team2_id) : undefined,
+          winner: match.winner_id ? teamMap.get(match.winner_id) : undefined,
+        })) || [];
 
       return {
         ...competition,
@@ -164,18 +192,22 @@ export function useCreateCompetition() {
       max_participants?: number;
       registration_deadline?: string;
     }) => {
-      const { error } = await supabase
-        .from("event_competitions")
-        .insert(data);
+      const { error } = await supabase.from("event_competitions").insert(data);
 
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["event-competitions", variables.event_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["event-competitions", variables.event_id],
+      });
       toast({ title: "Berhasil", description: "Kompetisi berhasil dibuat" });
     },
     onError: () => {
-      toast({ variant: "destructive", title: "Gagal", description: "Gagal membuat kompetisi" });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal membuat kompetisi",
+      });
     },
   });
 }
@@ -208,12 +240,21 @@ export function useUpdateCompetition() {
       return { event_id };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["event-competitions", result.event_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["event-competitions", result.event_id],
+      });
       queryClient.invalidateQueries({ queryKey: ["competition-details"] });
-      toast({ title: "Berhasil", description: "Kompetisi berhasil diperbarui" });
+      toast({
+        title: "Berhasil",
+        description: "Kompetisi berhasil diperbarui",
+      });
     },
     onError: () => {
-      toast({ variant: "destructive", title: "Gagal", description: "Gagal memperbarui kompetisi" });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal memperbarui kompetisi",
+      });
     },
   });
 }
@@ -234,11 +275,17 @@ export function useDeleteCompetition() {
       return { event_id: data.event_id };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["event-competitions", result.event_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["event-competitions", result.event_id],
+      });
       toast({ title: "Berhasil", description: "Kompetisi berhasil dihapus" });
     },
     onError: () => {
-      toast({ variant: "destructive", title: "Gagal", description: "Gagal menghapus kompetisi" });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal menghapus kompetisi",
+      });
     },
   });
 }
@@ -266,11 +313,17 @@ export function useCreateTeam() {
       return team;
     },
     onSuccess: (team) => {
-      queryClient.invalidateQueries({ queryKey: ["competition-details", team.competition_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", team.competition_id],
+      });
       toast({ title: "Berhasil", description: "Tim berhasil ditambahkan" });
     },
     onError: () => {
-      toast({ variant: "destructive", title: "Gagal", description: "Gagal menambahkan tim" });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal menambahkan tim",
+      });
     },
   });
 }
@@ -291,11 +344,17 @@ export function useDeleteTeam() {
       return { competition_id: data.competition_id };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["competition-details", result.competition_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
       toast({ title: "Berhasil", description: "Tim berhasil dihapus" });
     },
     onError: () => {
-      toast({ variant: "destructive", title: "Gagal", description: "Gagal menghapus tim" });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal menghapus tim",
+      });
     },
   });
 }
@@ -321,11 +380,17 @@ export function useAddTeamMember() {
       return { competition_id };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["competition-details", result.competition_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
       toast({ title: "Berhasil", description: "Anggota berhasil ditambahkan" });
     },
     onError: () => {
-      toast({ variant: "destructive", title: "Gagal", description: "Gagal menambahkan anggota" });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal menambahkan anggota",
+      });
     },
   });
 }
@@ -346,11 +411,17 @@ export function useRemoveTeamMember() {
       return { competition_id: data.competition_id };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["competition-details", result.competition_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
       toast({ title: "Berhasil", description: "Anggota berhasil dihapus" });
     },
     onError: () => {
-      toast({ variant: "destructive", title: "Gagal", description: "Gagal menghapus anggota" });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal menghapus anggota",
+      });
     },
   });
 }
@@ -371,19 +442,23 @@ export function useCreateMatch() {
       match_datetime?: string;
       location?: string;
     }) => {
-      const { error } = await supabase
-        .from("competition_matches")
-        .insert(data);
+      const { error } = await supabase.from("competition_matches").insert(data);
 
       if (error) throw error;
       return { competition_id: data.competition_id };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["competition-details", result.competition_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
       toast({ title: "Berhasil", description: "Pertandingan berhasil dibuat" });
     },
     onError: () => {
-      toast({ variant: "destructive", title: "Gagal", description: "Gagal membuat pertandingan" });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal membuat pertandingan",
+      });
     },
   });
 }
@@ -414,12 +489,59 @@ export function useUpdateMatch() {
       if (error) throw error;
       return { competition_id };
     },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["competition-details", result.competition_id] });
-      toast({ title: "Berhasil", description: "Pertandingan berhasil diperbarui" });
+    onSuccess: async (data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", variables.competition_id],
+      });
+      
+      // Handle progression if match is completed with a winner
+      if (variables.status === "completed" && variables.winner_id && variables.id) {
+        try {
+          // Fetch current match to get next_match_id
+          const { data: match, error } = await supabase
+            .from("competition_matches")
+            .select("next_match_id, match_number")
+            .eq("id", variables.id)
+            .single();
+            
+          if (error) throw error;
+          
+          if (match?.next_match_id) {
+            // Determine if team1 or team2 in the next match
+            // Match M goes to match ceil(M/2) in the next round.
+            // If M is odd, it's team1. If M is even, it's team2.
+            const isTeam1 = match.match_number % 2 !== 0;
+            const updateData = isTeam1 
+              ? { team1_id: variables.winner_id } 
+              : { team2_id: variables.winner_id };
+              
+            const { error: nextError } = await supabase
+              .from("competition_matches")
+              .update(updateData)
+              .eq("id", match.next_match_id);
+              
+            if (nextError) throw nextError;
+            
+            queryClient.invalidateQueries({
+              queryKey: ["competition-details", variables.competition_id],
+            });
+          }
+        } catch (err) {
+          console.error("Error progressing winner:", err);
+        }
+      }
+      
+      toast({
+        title: "Berhasil",
+        description: "Pertandingan berhasil diperbarui",
+      });
     },
     onError: () => {
-      toast({ variant: "destructive", title: "Gagal", description: "Gagal memperbarui pertandingan" });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal memperbarui pertandingan",
+      });
     },
   });
 }
@@ -440,11 +562,20 @@ export function useDeleteMatch() {
       return { competition_id: data.competition_id };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["competition-details", result.competition_id] });
-      toast({ title: "Berhasil", description: "Pertandingan berhasil dihapus" });
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
+      toast({
+        title: "Berhasil",
+        description: "Pertandingan berhasil dihapus",
+      });
     },
     onError: () => {
-      toast({ variant: "destructive", title: "Gagal", description: "Gagal menghapus pertandingan" });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal menghapus pertandingan",
+      });
     },
   });
 }
@@ -455,13 +586,18 @@ export function useGenerateBracket() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { competition_id: string; teams: CompetitionTeam[] }) => {
+    mutationFn: async (data: {
+      competition_id: string;
+      teams: CompetitionTeam[];
+    }) => {
       const { competition_id, teams } = data;
-      
+
       // Sort teams by seed number
-      const sortedTeams = [...teams].sort((a, b) => (a.seed_number || 999) - (b.seed_number || 999));
+      const sortedTeams = [...teams].sort(
+        (a, b) => (a.seed_number || 999) - (b.seed_number || 999),
+      );
       const teamCount = sortedTeams.length;
-      
+
       if (teamCount < 2) {
         throw new Error("Minimal 2 tim diperlukan");
       }
@@ -469,65 +605,139 @@ export function useGenerateBracket() {
       // Calculate rounds needed
       const rounds = Math.ceil(Math.log2(teamCount));
       const totalSlots = Math.pow(2, rounds);
-      
-      // Create matches for each round
-      const matches: Array<{
-        competition_id: string;
-        round_number: number;
-        match_number: number;
-        team1_id: string | null;
-        team2_id: string | null;
-      }> = [];
 
-      // First round matches
-      const firstRoundMatches = totalSlots / 2;
-      for (let i = 0; i < firstRoundMatches; i++) {
-        const team1Index = i;
-        const team2Index = totalSlots - 1 - i;
-        
-        matches.push({
-          competition_id,
-          round_number: 1,
-          match_number: i + 1,
-          team1_id: sortedTeams[team1Index]?.id || null,
-          team2_id: sortedTeams[team2Index]?.id || null,
-        });
+      // Create matches for each round with pre-generated IDs for linking
+      const matchMap = new Map<string, string>(); // key: "round-matchNum", value: id
+      const matches: Partial<CompetitionMatch>[] = [];
+
+      // Generate all match records with IDs
+      for (let round = 1; round <= rounds; round++) {
+        const matchesInRound = Math.pow(2, rounds - round);
+        for (let m = 1; m <= matchesInRound; m++) {
+          const id = crypto.randomUUID();
+          matchMap.set(`${round}-${m}`, id);
+        }
       }
 
-      // Create empty matches for subsequent rounds
-      for (let round = 2; round <= rounds; round++) {
+      // Link matches and set initial teams
+      for (let round = 1; round <= rounds; round++) {
         const matchesInRound = Math.pow(2, rounds - round);
-        for (let i = 0; i < matchesInRound; i++) {
+        for (let m = 1; m <= matchesInRound; m++) {
+          const id = matchMap.get(`${round}-${m}`)!;
+          const nextMatchId = round < rounds ? matchMap.get(`${round + 1}-${Math.ceil(m / 2)}`) : null;
+          
+          let team1_id = null;
+          let team2_id = null;
+
+          if (round === 1) {
+            // Standard tournament seeding (1 vs 8, 4 vs 5, etc.)
+            // But we'll use a simpler one for now: 1 vs 2, 3 vs 4...
+            // or we can use the serpentine one the user had partially
+            const t1Idx = (m - 1) * 2;
+            const t2Idx = (m - 1) * 2 + 1;
+            
+            team1_id = sortedTeams[t1Idx]?.id || null;
+            team2_id = sortedTeams[t2Idx]?.id || null;
+          }
+
           matches.push({
+            id,
             competition_id,
             round_number: round,
-            match_number: i + 1,
-            team1_id: null,
-            team2_id: null,
+            match_number: m,
+            next_match_id: nextMatchId,
+            team1_id,
+            team2_id,
+            status: "scheduled",
           });
         }
       }
 
       // Delete existing matches first
-      await supabase
+      const { error: delError } = await supabase
         .from("competition_matches")
         .delete()
         .eq("competition_id", competition_id);
 
+      if (delError) throw delError;
+
       // Insert new matches
       const { error } = await supabase
         .from("competition_matches")
-        .insert(matches);
+        .insert(matches as any[]);
 
       if (error) throw error;
       return { competition_id };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["competition-details", result.competition_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
       toast({ title: "Berhasil", description: "Bracket berhasil dibuat" });
     },
     onError: (error: Error) => {
-      toast({ variant: "destructive", title: "Gagal", description: error.message || "Gagal membuat bracket" });
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: error.message || "Gagal membuat bracket",
+      });
+    },
+  });
+}
+
+// Assign referee to competition
+export function useAssignReferee() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { competition_id: string; user_id: string }) => {
+      const { error } = await supabase.from("competition_referees").insert(data);
+      if (error) throw error;
+      return { competition_id: data.competition_id };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
+      toast({ title: "Berhasil", description: "Wasit berhasil ditambahkan" });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal menambahkan wasit",
+      });
+    },
+  });
+}
+
+// Remove referee from competition
+export function useRemoveReferee() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { id: string; competition_id: string }) => {
+      const { error } = await supabase
+        .from("competition_referees")
+        .delete()
+        .eq("id", data.id);
+      if (error) throw error;
+      return { competition_id: data.competition_id };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
+      toast({ title: "Berhasil", description: "Wasit berhasil dihapus" });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal menghapus wasit",
+      });
     },
   });
 }

@@ -30,6 +30,7 @@ import type { Profile } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
 import { formatEventTime, getValidDate } from "@/lib/utils";
 import { CompetitionList } from "@/components/competitions/CompetitionList";
+import { useEventCompetitions } from "@/hooks/useCompetitions";
 
 interface AttendeeWithProfile {
   id: string;
@@ -47,6 +48,7 @@ export default function EventDetail() {
   const [isShareOpen, setIsShareOpen] = useState(false);
 
   const canManage = canManageContent() || isAdmin();
+  const { data: competitions } = useEventCompetitions(id);
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event", id],
@@ -314,17 +316,19 @@ export default function EventDetail() {
         </motion.div>
 
         {/* Competitions Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-        >
-          <Card>
-            <CardContent className="p-4 md:p-6">
-              <CompetitionList eventId={id!} canManage={canManage} />
-            </CardContent>
-          </Card>
-        </motion.div>
+        {(competitions && competitions.length > 0 || canManage) && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <Card>
+              <CardContent className="p-4 md:p-6">
+                <CompetitionList eventId={id!} canManage={canManage} />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Attendees List */}
         <motion.div

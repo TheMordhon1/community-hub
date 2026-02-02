@@ -23,10 +23,13 @@ import {
   PARTICIPANT_TYPE_LABELS,
   STATUS_LABELS,
   CompetitionStatus,
+  CompetitionReferee,
 } from "@/types/competition";
 import { TeamList } from "@/components/competitions/TeamList";
 import { MatchList } from "@/components/competitions/MatchList";
+import { RefereeList } from "@/components/competitions/RefereeList";
 import { AddTeamDialog } from "@/components/competitions/AddTeamDialog";
+import { BadgeCheck } from "lucide-react";
 
 export default function CompetitionDetail() {
   const { id: eventId, competitionId } = useParams();
@@ -41,7 +44,9 @@ export default function CompetitionDetail() {
   const [activeTab, setActiveTab] = useState("teams");
 
   // Check if user can manage this competition
+  const isReferee = competition?.referees?.some((ref: CompetitionReferee) => ref.user_id === user?.id);
   const canManage = canManageContent() || isAdmin();
+  const canModifyMatches = canManage || isReferee;
 
   const handleGenerateBracket = () => {
     if (!competition?.teams || competition.teams.length < 2) return;
@@ -200,7 +205,7 @@ export default function CompetitionDetail() {
           transition={{ delay: 0.1 }}
         >
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="teams" className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
                 Tim ({competition.teams?.length || 0})
@@ -208,6 +213,10 @@ export default function CompetitionDetail() {
               <TabsTrigger value="matches" className="flex items-center gap-2">
                 <Swords className="w-4 h-4" />
                 Pertandingan ({competition.matches?.length || 0})
+              </TabsTrigger>
+              <TabsTrigger value="referees" className="flex items-center gap-2">
+                <BadgeCheck className="w-4 h-4" />
+                Wasit ({competition.referees?.length || 0})
               </TabsTrigger>
             </TabsList>
 
@@ -238,6 +247,13 @@ export default function CompetitionDetail() {
                 </div>
               )}
               <MatchList
+                competition={competition}
+                canManage={canModifyMatches}
+              />
+            </TabsContent>
+
+            <TabsContent value="referees" className="mt-4">
+              <RefereeList
                 competition={competition}
                 canManage={canManage}
               />
