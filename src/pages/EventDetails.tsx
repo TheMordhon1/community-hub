@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
@@ -25,6 +26,9 @@ import {
   Loader2,
   Check,
   Share2,
+  Clock,
+  Trophy,
+  User,
 } from "lucide-react";
 import type { Profile } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
@@ -151,6 +155,7 @@ export default function EventDetail() {
 
   const isUserAttending = attendees?.some((a) => a.user_id === user?.id);
   const isPastEvent = event ? new Date(event.event_date) < new Date() : false;
+  const hasCompetitions = competitions && competitions.length > 0;
 
   const shareText = `${event?.title}\n\n${event?.description || ""}\n\n 
   📅 ${
@@ -190,140 +195,194 @@ export default function EventDetail() {
   }
 
   return (
-    <section className="min-h-screen bg-background p-6">
-      <div className="space-y-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
-        >
-          <div className="flex items-center gap-2">
-            <Link to="/events">
-              <ArrowLeft className="w-5 h-5" />
+    <section className="min-h-screen bg-background">
+      {/* Hero Image Section */}
+      {event.image_url && (
+        <div className="relative w-full h-64 md:h-80 lg:h-96 overflow-hidden">
+          <img
+            src={event.image_url}
+            alt={event.title}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
+          
+          {/* Floating back button */}
+          <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
+            <Link
+              to="/events"
+              className="flex items-center gap-2 px-3 py-2 bg-background/80 backdrop-blur rounded-lg text-sm hover:bg-background transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Kembali
             </Link>
-
-            <h1 className="font-display text-xl md:text-2xl font-bold">
-              Detail Acara
-            </h1>
+            <Button
+              variant="outline"
+              size="icon"
+              className="bg-background/80 backdrop-blur"
+              onClick={() => setIsShareOpen(true)}
+            >
+              <Share2 className="w-4 h-4" />
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setIsShareOpen(true)}
-          >
-            <Share2 className="w-5 h-5" />
-          </Button>
-        </motion.div>
+        </div>
+      )}
 
-        {/* Event Details */}
+      <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
+        {/* Header without image */}
+        {!event.image_url && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <Link to="/events">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <h1 className="font-display text-xl md:text-2xl font-bold">
+                Detail Acara
+              </h1>
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setIsShareOpen(true)}
+            >
+              <Share2 className="w-5 h-5" />
+            </Button>
+          </motion.div>
+        )}
+
+        {/* Event Info Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
+          className={event.image_url ? "-mt-20 relative z-10" : ""}
         >
           <Card>
-            {event.image_url && (
-              <div className="w-full h-96 overflow-hidden rounded-t-lg">
-                <img
-                  src={event.image_url || "/placeholder.svg"}
-                  alt={event.title}
-                  className="w-full h-full object-fill sm:object-cover"
-                />
-              </div>
-            )}
-            <CardHeader className="px-4 md:p-6">
-              <div className="flex items-start justify-between w-full flex-1">
-                <div className="space-y-2 w-full">
+            <CardHeader className="space-y-4">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                <div className="space-y-2">
                   {isPastEvent && <Badge variant="secondary">Selesai</Badge>}
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-2xl md:text-3xl w-full flex-1">
-                      {event.title}
-                    </CardTitle>
-                    {!isPastEvent && (
-                      <Button
-                        className="hover:bg-success rounded-full p-3"
-                        size="lg"
-                        variant={isUserAttending ? "default" : "outline"}
-                        onClick={() =>
-                          rsvpMutation.mutate(isUserAttending || false)
-                        }
-                        disabled={rsvpMutation.isPending}
-                      >
-                        {rsvpMutation.isPending && (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        )}
-                        {isUserAttending ? (
-                          <>
-                            <Check className="w-4 h-4" />
-                            Saya Akan Hadir
-                          </>
-                        ) : (
-                          "Ikut Acara"
-                        )}
-                      </Button>
+                  {hasCompetitions && (
+                    <Badge variant="outline" className="gap-1">
+                      <Trophy className="w-3 h-3" />
+                      {competitions.length} Kompetisi
+                    </Badge>
+                  )}
+                  <h1 className="text-2xl md:text-3xl font-bold">
+                    {event.title}
+                  </h1>
+                </div>
+
+                {!isPastEvent && (
+                  <Button
+                    size="lg"
+                    variant={isUserAttending ? "default" : "outline"}
+                    onClick={() => rsvpMutation.mutate(isUserAttending || false)}
+                    disabled={rsvpMutation.isPending}
+                    className="shrink-0"
+                  >
+                    {rsvpMutation.isPending && (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     )}
+                    {isUserAttending ? (
+                      <>
+                        <Check className="w-4 h-4 mr-2" />
+                        Saya Akan Hadir
+                      </>
+                    ) : (
+                      "Ikut Acara"
+                    )}
+                  </Button>
+                )}
+              </div>
+
+              {/* Event Meta */}
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4 text-primary" />
+                  <span>
+                    {format(new Date(event.event_date), "EEEE, dd MMMM yyyy", {
+                      locale: idLocale,
+                    })}
+                  </span>
+                </div>
+                {event.event_time && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-primary" />
+                    <span>{formatEventTime(event.event_time)} WIB</span>
                   </div>
-                  <CardDescription className="flex flex-col  gap-4 text-base">
-                    <span className="flex items-center gap-2">
-                      <CalendarIcon className="w-4 h-4" />
-                      {format(new Date(event.event_date), "dd MMMM yyyy", {
-                        locale: idLocale,
-                      })}
-                      , {formatEventTime(event.event_time)} WIB
-                    </span>
-                    {event.location && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-5 h-5 text-muted-foreground mt-0.5" />
-                        <p className="text-muted-foreground">
-                          {event.location}
-                        </p>
-                      </div>
-                    )}
-                  </CardDescription>
+                )}
+                {event.location && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    <span>{event.location}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-primary" />
+                  <span>{attendees?.length || 0} peserta</span>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-6 px-4 md:p-6">
-              {event.description && (
-                <div className="space-y-2">
-                  <p className="font-medium">Deskripsi</p>
-                  <p className="text-muted-foreground whitespace-pre-wrap">
-                    {event.description}
-                  </p>
-                </div>
-              )}
 
-              {event.author && (
-                <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/50">
-                  <Avatar>
-                    <AvatarImage src={event.author.avatar_url || ""} />
-                    <AvatarFallback>
-                      {event.author.full_name
-                        ?.split(" ")
-                        .map((n: string) => n[0])
-                        .join("")
-                        .toUpperCase() || "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Dibuat oleh</p>
-                    <p className="font-medium">{event.author.full_name}</p>
+            {(event.description || event.author) && (
+              <CardContent className="space-y-6">
+                <Separator />
+
+                {event.description && (
+                  <div className="space-y-2">
+                    <p className="font-medium text-sm text-muted-foreground">
+                      Deskripsi
+                    </p>
+                    <p className="text-foreground whitespace-pre-wrap">
+                      {event.description}
+                    </p>
                   </div>
-                </div>
-              )}
-            </CardContent>
+                )}
+
+                {event.author && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                    <Avatar>
+                      <AvatarImage src={event.author.avatar_url || ""} />
+                      <AvatarFallback>
+                        {event.author.full_name
+                          ?.split(" ")
+                          .map((n: string) => n[0])
+                          .join("")
+                          .toUpperCase() || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Dibuat oleh</p>
+                      <p className="font-medium">{event.author.full_name}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            )}
           </Card>
         </motion.div>
 
         {/* Competitions Section */}
-        {(competitions && competitions.length > 0 || canManage) && (
+        {(hasCompetitions || canManage) && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
+            transition={{ delay: 0.1 }}
           >
             <Card>
-              <CardContent className="p-4 md:p-6">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-primary" />
+                  Kompetisi
+                </CardTitle>
+                <CardDescription>
+                  Daftar kompetisi dalam acara ini
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <CompetitionList eventId={id!} canManage={canManage} />
               </CardContent>
             </Card>
@@ -334,29 +393,29 @@ export default function EventDetail() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.15 }}
         >
           <Card>
-            <CardHeader className="px-4 md:p-6">
+            <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Daftar warga ({attendees?.length || 0})
+                <Users className="w-5 h-5 text-primary" />
+                Peserta ({attendees?.length || 0})
               </CardTitle>
               <CardDescription>
                 Warga yang akan menghadiri acara ini
               </CardDescription>
             </CardHeader>
-            <CardContent className="px-4 md:p-6">
+            <CardContent>
               {isLoadingAttendees ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
                 </div>
               ) : attendees && attendees.length > 0 ? (
-                <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   {attendees.map((attendee) => (
                     <div
                       key={attendee.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-mute transition-colors"
+                      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
                     >
                       <Avatar>
                         <AvatarImage src={attendee.profile?.avatar_url || ""} />
@@ -372,11 +431,14 @@ export default function EventDetail() {
                         <p className="font-medium truncate">
                           {attendee.profile?.full_name || "Unknown"}
                         </p>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {attendee.profile.phone}
-                        </p>
+                        {attendee.profile?.phone && (
+                          <p className="text-sm text-muted-foreground truncate">
+                            {attendee.profile.phone}
+                          </p>
+                        )}
                       </div>
-                      <Badge variant="outline" className="shrink-0">
+                      <Badge variant="outline" className="shrink-0 text-xs">
+                        <Check className="w-3 h-3 mr-1" />
                         Hadir
                       </Badge>
                     </div>
@@ -384,7 +446,9 @@ export default function EventDetail() {
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <div className="p-4 rounded-full bg-muted w-fit mx-auto mb-3">
+                    <Users className="w-8 h-8 opacity-50" />
+                  </div>
                   <p>Belum ada warga terdaftar</p>
                 </div>
               )}
