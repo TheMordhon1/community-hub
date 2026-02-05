@@ -846,6 +846,7 @@ export type Database = {
       }
       poll_votes: {
         Row: {
+          change_count: number
           created_at: string
           id: string
           option_index: number
@@ -853,6 +854,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          change_count?: number
           created_at?: string
           id?: string
           option_index: number
@@ -860,6 +862,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          change_count?: number
           created_at?: string
           id?: string
           option_index?: number
@@ -884,6 +887,7 @@ export type Database = {
           ends_at: string | null
           id: string
           is_active: boolean | null
+          max_vote_changes: number | null
           options: Json
           title: string
           updated_at: string
@@ -896,6 +900,7 @@ export type Database = {
           ends_at?: string | null
           id?: string
           is_active?: boolean | null
+          max_vote_changes?: number | null
           options?: Json
           title: string
           updated_at?: string
@@ -908,6 +913,7 @@ export type Database = {
           ends_at?: string | null
           id?: string
           is_active?: boolean | null
+          max_vote_changes?: number | null
           options?: Json
           title?: string
           updated_at?: string
@@ -985,9 +991,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_change_vote: {
+        Args: { _poll_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_manage_competition: {
         Args: { _competition_id: string; _user_id: string }
         Returns: boolean
+      }
+      get_remaining_vote_changes: {
+        Args: { _poll_id: string; _user_id: string }
+        Returns: number
       }
       get_user_house_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {

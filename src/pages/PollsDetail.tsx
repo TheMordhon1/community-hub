@@ -13,6 +13,7 @@ import { PollCard } from "@/components/PollCard";
 interface PollsWithVotes extends Poll {
   votes: PollVote[];
   userVote?: PollVote;
+   remainingChanges?: number;
 }
 
 export default function PollsDetail() {
@@ -54,6 +55,9 @@ export default function PollsDetail() {
         options: pollData.options as string[],
         votes: votesData || [],
         userVote,
+         remainingChanges: pollData.max_vote_changes !== null && userVote 
+           ? Math.max(0, pollData.max_vote_changes - (userVote.change_count || 0))
+           : pollData.max_vote_changes !== null ? pollData.max_vote_changes : -1,
       } as PollsWithVotes;
     },
     enabled: !!id && !!user,
@@ -65,7 +69,13 @@ export default function PollsDetail() {
   };
 
   const canVote = (poll: PollWithVotesProps) => {
-    return poll.is_active && !poll.userVote && !isPollExpired(poll);
+     return poll.is_active && !poll.userVote && !isPollExpired(poll);
+   };
+
+   const canChangeVote = (poll: PollWithVotesProps) => {
+     if (!poll.is_active || isPollExpired(poll) || !poll.userVote) return false;
+     if (poll.remainingChanges === 0) return false;
+     return true;
   };
 
   const voteMutation = useMutation({
@@ -104,6 +114,41 @@ export default function PollsDetail() {
       }
     },
   });
+
+   const changeVoteMutation = useMutation({
+     mutationFn: async ({
+       pollId,
+       optionIndex,
+       voteId,
+       currentChangeCount,
+     }: {
+       pollId: string;
+       optionIndex: number;
+       voteId: string;
+       currentChangeCount: number;
+     }) => {
+       const { error } = await supabase
+         .from("poll_votes")
+         .update({
+           option_index: optionIndex,
+           change_count: currentChangeCount + 1,
+         })
+         .eq("id", voteId);
+       if (error) throw error;
+     },
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ["polls"] });
+       toast({ title: "Berhasil", description: "Suara Anda berhasil diubah" });
+       refetch();
+     },
+     onError: () => {
+       toast({
+         variant: "destructive",
+         title: "Gagal",
+         description: "Gagal mengubah suara",
+       });
+     },
+   });
 
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
@@ -174,17 +219,29 @@ export default function PollsDetail() {
           canVote={canVote(poll)}
           isPollExpired={isPollExpired(poll)}
           canManage={canManageContent()}
+           canChangeVote={canChangeVote(poll)}
           onVote={(optionIndex) =>
             voteMutation.mutate({ pollId: poll.id, optionIndex })
           }
+           onChangeVote={(optionIndex) => {
+             if (poll.userVote) {
+               changeVoteMutation.mutate({
+                 pollId: poll.id,
+                 optionIndex,
+                 voteId: poll.userVote.id,
+                 currentChangeCount: poll.userVote.change_count || 0,
+               });
+             }
+           }}
           onToggleActive={() =>
             toggleActiveMutation.mutate({
               id: poll.id,
-              isActive: false,
+               isActive: !poll.is_active,
             })
           }
           onDelete={() => deleteMutation.mutate(poll.id)}
           isVoting={voteMutation.isPending}
+           isChangingVote={changeVoteMutation.isPending}
         />
       </div>
     </section>
