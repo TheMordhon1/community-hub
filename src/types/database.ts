@@ -190,6 +190,7 @@ export interface Poll {
   author_id: string | null;
   created_at: string;
   updated_at: string;
+   max_vote_changes: number | null;
 }
 
 export interface PollVote {
@@ -198,6 +199,7 @@ export interface PollVote {
   user_id: string;
   option_index: number;
   created_at: string;
+   change_count: number;
 }
 
 export interface Document {

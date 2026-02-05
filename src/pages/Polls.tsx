@@ -36,6 +36,7 @@ import {
   Loader2,
   Calendar as CalendarIcon,
   X,
+   Info,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Poll, PollVote, PollVoteType } from "@/types/database";
@@ -45,6 +46,7 @@ export interface PollWithVotesProps extends Poll {
   votes: PollVote[];
   userVote?: PollVote;
   houseHasVoted?: boolean;
+   remainingChanges?: number;
 }
 
 export default function Polls() {
@@ -58,6 +60,7 @@ export default function Polls() {
   const [endsAt, setEndsAt] = useState<Date>();
   const [isActive, setIsActive] = useState(true);
   const [voteType, setVoteType] = useState<PollVoteType>("per_account");
+   const [maxVoteChanges, setMaxVoteChanges] = useState<number | null>(null);
 
   // Get user's house
   const { data: userHouse } = useQuery({
@@ -97,7 +100,7 @@ export default function Polls() {
         .from("house_residents")
         .select("user_id, house_id");
 
-      const pollsWithVotes: PollWithVotesProps[] = pollsData.map((poll) => {
+       const pollsWithVotes: PollWithVotesProps[] = pollsData.map((poll: any) => {
         const pollVotes = votesData?.filter((v) => v.poll_id === poll.id) || [];
         const userVote = pollVotes.find((v) => v.user_id === user?.id);
 
@@ -113,6 +116,14 @@ export default function Polls() {
           );
         }
 
+         // Calculate remaining changes
+         let remainingChanges = -1; // -1 means unlimited
+         if (poll.max_vote_changes !== null && userVote) {
+           remainingChanges = Math.max(0, poll.max_vote_changes - (userVote.change_count || 0));
+         } else if (poll.max_vote_changes !== null && !userVote) {
+           remainingChanges = poll.max_vote_changes;
+         }
+
         return {
           ...poll,
           options: poll.options as string[],
@@ -120,6 +131,7 @@ export default function Polls() {
           votes: pollVotes,
           userVote,
           houseHasVoted,
+           remainingChanges,
         };
       });
 
@@ -135,6 +147,7 @@ export default function Polls() {
       ends_at: string | null;
       is_active: boolean;
       vote_type: PollVoteType;
+       max_vote_changes: number | null;
     }) => {
       const { error } = await supabase.from("polls").insert({
         title: data.title,
@@ -144,6 +157,7 @@ export default function Polls() {
         is_active: data.is_active,
         vote_type: data.vote_type,
         author_id: user?.id,
+         max_vote_changes: data.max_vote_changes,
       });
       if (error) throw error;
     },
@@ -228,6 +242,40 @@ export default function Polls() {
     },
   });
 
+   const changeVoteMutation = useMutation({
+     mutationFn: async ({
+       pollId,
+       optionIndex,
+       voteId,
+       currentChangeCount,
+     }: {
+       pollId: string;
+       optionIndex: number;
+       voteId: string;
+       currentChangeCount: number;
+     }) => {
+       const { error } = await supabase
+         .from("poll_votes")
+         .update({
+           option_index: optionIndex,
+           change_count: currentChangeCount + 1,
+         })
+         .eq("id", voteId);
+       if (error) throw error;
+     },
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ["polls"] });
+       toast({ title: "Berhasil", description: "Suara Anda berhasil diubah" });
+     },
+     onError: () => {
+       toast({
+         variant: "destructive",
+         title: "Gagal",
+         description: "Gagal mengubah suara. Anda mungkin sudah mencapai batas perubahan.",
+       });
+     },
+   });
+
   const resetForm = () => {
     setTitle("");
     setDescription("");
@@ -235,6 +283,7 @@ export default function Polls() {
     setEndsAt(undefined);
     setIsActive(true);
     setVoteType("per_account");
+     setMaxVoteChanges(null);
     setIsCreateOpen(false);
   };
 
@@ -273,6 +322,7 @@ export default function Polls() {
       ends_at: endsAt?.toISOString() || null,
       is_active: isActive,
       vote_type: voteType,
+       max_vote_changes: maxVoteChanges,
     });
   };
 
@@ -284,25 +334,42 @@ export default function Polls() {
     return new Date(poll.ends_at) < new Date();
   };
 
-  const canVote = (poll: PollWithVotesProps) => {
-    if (!poll.is_active || poll.userVote || isPollExpired(poll)) return false;
+   const canVote = (poll: PollWithVotesProps) => {
+     if (!poll.is_active || isPollExpired(poll)) return false;
+     
+     // If user already voted, they can only vote again if they can change
+     if (poll.userVote) return false;
 
-    // For per_house voting, check if user's house has voted
-    if (poll.vote_type === "per_house") {
-      if (!userHouse) {
-        // User has no house assigned, cannot vote
-        return false;
-      }
-      if (poll.houseHasVoted) {
-        return false;
-      }
-    }
+     // For per_house voting, check if user's house has voted
+     if (poll.vote_type === "per_house") {
+       if (!userHouse) {
+         return false;
+       }
+       if (poll.houseHasVoted) {
+         return false;
+       }
+     }
 
-    return true;
-  };
+     return true;
+   };
+
+   const canChangeVote = (poll: PollWithVotesProps) => {
+     if (!poll.is_active || isPollExpired(poll) || !poll.userVote) return false;
+     
+     // Check remaining changes
+     if (poll.remainingChanges === 0) return false;
+     
+     // For per_house, only the person who voted can change
+     if (poll.vote_type === "per_house" && poll.userVote.user_id !== user?.id) {
+       return false;
+     }
+     
+     return true;
+   };
 
   const getVoteBlockReason = (poll: PollWithVotesProps) => {
-    if (poll.userVote) return "Anda sudah voting";
+     if (poll.userVote && poll.remainingChanges === 0) return "Anda sudah voting dan tidak dapat mengubah";
+     if (poll.userVote && !canChangeVote(poll)) return "Anda sudah voting";
     if (poll.vote_type === "per_house" && poll.houseHasVoted)
       return "Rumah Anda sudah voting";
     if (poll.vote_type === "per_house" && !userHouse)
@@ -481,6 +548,51 @@ export default function Polls() {
                       </PopoverContent>
                     </Popover>
                   </div>
+                   <div className="space-y-3">
+                     <Label>Batasan Perubahan Suara</Label>
+                     <RadioGroup
+                       value={maxVoteChanges === null ? "unlimited" : maxVoteChanges.toString()}
+                       onValueChange={(v) => setMaxVoteChanges(v === "unlimited" ? null : parseInt(v))}
+                       className="grid grid-cols-2 gap-2"
+                     >
+                       <div>
+                         <RadioGroupItem value="unlimited" id="unlimited" className="peer sr-only" />
+                         <Label
+                           htmlFor="unlimited"
+                           className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer text-sm"
+                         >
+                           Tidak Terbatas
+                         </Label>
+                       </div>
+                       <div>
+                         <RadioGroupItem value="0" id="no-change" className="peer sr-only" />
+                         <Label
+                           htmlFor="no-change"
+                           className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer text-sm"
+                         >
+                           Tidak Boleh Ubah
+                         </Label>
+                       </div>
+                       <div>
+                         <RadioGroupItem value="1" id="one-change" className="peer sr-only" />
+                         <Label
+                           htmlFor="one-change"
+                           className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer text-sm"
+                         >
+                           Boleh Ubah 1x
+                         </Label>
+                       </div>
+                       <div>
+                         <RadioGroupItem value="2" id="two-change" className="peer sr-only" />
+                         <Label
+                           htmlFor="two-change"
+                           className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer text-sm"
+                         >
+                           Boleh Ubah 2x
+                         </Label>
+                       </div>
+                     </RadioGroup>
+                   </div>
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label>Aktifkan Sekarang</Label>
@@ -542,9 +654,20 @@ export default function Polls() {
                     isPollExpired={isPollExpired(poll)}
                     canManage={canManageContent()}
                     voteBlockReason={getVoteBlockReason(poll)}
+                     canChangeVote={canChangeVote(poll)}
                     onVote={(optionIndex) =>
                       voteMutation.mutate({ pollId: poll.id, optionIndex })
                     }
+                     onChangeVote={(optionIndex) => {
+                       if (poll.userVote) {
+                         changeVoteMutation.mutate({
+                           pollId: poll.id,
+                           optionIndex,
+                           voteId: poll.userVote.id,
+                           currentChangeCount: poll.userVote.change_count || 0,
+                         });
+                       }
+                     }}
                     onToggleActive={() =>
                       toggleActiveMutation.mutate({
                         id: poll.id,
@@ -553,6 +676,7 @@ export default function Polls() {
                     }
                     onDelete={() => deleteMutation.mutate(poll.id)}
                     isVoting={voteMutation.isPending}
+                     isChangingVote={changeVoteMutation.isPending}
                   />
                 ))}
               </div>
@@ -572,7 +696,9 @@ export default function Polls() {
                     canVote={false}
                     isPollExpired={true}
                     canManage={canManageContent()}
+                     canChangeVote={false}
                     onVote={() => {}}
+                     onChangeVote={() => {}}
                     onToggleActive={() =>
                       toggleActiveMutation.mutate({
                         id: poll.id,
@@ -581,6 +707,7 @@ export default function Polls() {
                     }
                     onDelete={() => deleteMutation.mutate(poll.id)}
                     isVoting={false}
+                     isChangingVote={false}
                   />
                 ))}
               </div>
