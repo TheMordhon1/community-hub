@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { Badge } from "./ui/badge";
-import { CheckCircle2, Loader2, Trash2, Home, User, Share2, Info, RefreshCw } from "lucide-react";
+import { CheckCircle2, Loader2, Trash2, Home, User, Share2, Info } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Button } from "./ui/button";
@@ -35,13 +35,13 @@ export const PollCard = ({
   isPollExpired,
   canManage,
   voteBlockReason,
-   canChangeVote,
+  canChangeVote,
   onVote,
-   onChangeVote,
+  onChangeVote,
   onToggleActive,
   onDelete,
   isVoting,
-   isChangingVote,
+  isChangingVote,
 }: {
   poll: PollWithVotesProps;
   index?: number;
@@ -49,20 +49,20 @@ export const PollCard = ({
   isPollExpired: boolean;
   canManage: boolean;
   voteBlockReason?: string | null;
-   canChangeVote?: boolean;
+  canChangeVote?: boolean;
   onVote: (optionIndex: number) => void;
-   onChangeVote?: (optionIndex: number) => void;
+  onChangeVote?: (optionIndex: number) => void;
   onToggleActive: () => void;
   onDelete: () => void;
   isVoting: boolean;
-   isChangingVote?: boolean;
+  isChangingVote?: boolean;
 }) => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
-   const [isChangingMode, setIsChangingMode] = useState(false);
   const totalVotes = poll.votes.length;
   const hasVoted = !!poll?.userVote;
-   const showResults = (hasVoted && !isChangingMode) || !poll.is_active || isPollExpired || poll.houseHasVoted;
+  const showResults = hasVoted || !poll.is_active || isPollExpired || poll.houseHasVoted;
+  const canInteract = canVote || (hasVoted && canChangeVote && poll.is_active && !isPollExpired);
 
   const shareUrl = `${window.location.origin}/polls/${poll.id}`;
   const shareText = `🗳️ ${poll.title}\n\n${poll.description || ""}\n\n📊 ${totalVotes} suara sudah masuk${poll.ends_at ? `\n⏰ Berakhir: ${format(new Date(poll.ends_at), "d MMMM yyyy", { locale: idLocale })}` : ""}`;
@@ -207,30 +207,6 @@ export const PollCard = ({
               {voteBlockReason}
             </p>
           )}
-           {/* Change vote button */}
-           {hasVoted && canChangeVote && !isChangingMode && poll.is_active && !isPollExpired && (
-             <Button
-               variant="outline"
-               size="sm"
-               onClick={() => setIsChangingMode(true)}
-               className="w-full"
-             >
-               <RefreshCw className="w-4 h-4 mr-2" />
-               Ubah Suara
-             </Button>
-           )}
-           {isChangingMode && (
-             <div className="flex items-center justify-between bg-warning/10 p-2 rounded-md">
-               <span className="text-sm text-warning">Mode ubah suara aktif</span>
-               <Button
-                 variant="ghost"
-                 size="sm"
-                 onClick={() => setIsChangingMode(false)}
-               >
-                 Batal
-               </Button>
-             </div>
-           )}
           {poll.options.map((option, optionIndex) => {
             const isUserChoice = poll.userVote?.option_index === optionIndex;
             const isWinning =
@@ -238,46 +214,23 @@ export const PollCard = ({
               getWinningIndex() === optionIndex &&
               totalVotes > 0;
             const percentage = getVotePercentage(optionIndex);
+            const canClickOption = canInteract && !isUserChoice;
 
             return (
               <div key={optionIndex} className="space-y-1">
-                 {canVote || isChangingMode ? (
-                  <Button
-                    variant="outline"
-                     className={cn(
-                       "w-full justify-start h-auto py-3 px-4",
-                       isChangingMode && isUserChoice && "border-primary bg-primary/5"
-                     )}
-                     onClick={() => {
-                       if (isChangingMode && onChangeVote) {
-                         onChangeVote(optionIndex);
-                         setIsChangingMode(false);
-                       } else {
-                         onVote(optionIndex);
-                       }
-                     }}
-                     disabled={isVoting || isChangingVote || (isChangingMode && isUserChoice)}
-                  >
-                     {isVoting || isChangingVote ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                       <div className={cn(
-                         "w-4 h-4 mr-2 rounded-full border-2",
-                         isChangingMode && isUserChoice ? "border-primary bg-primary" : "border-primary"
-                       )} />
-                    )}
-                    {option}
-                     {isChangingMode && isUserChoice && (
-                       <span className="ml-2 text-xs text-muted-foreground">(pilihan saat ini)</span>
-                     )}
-                  </Button>
-                ) : (
+                {showResults ? (
                   <div
                     className={cn(
                       "relative rounded-lg border p-3 overflow-hidden",
                       isUserChoice && "border-primary bg-primary/5",
-                      isWinning && "border-success"
+                      isWinning && "border-success",
+                      canClickOption && "cursor-pointer hover:border-primary/50 transition-colors"
                     )}
+                    onClick={() => {
+                      if (canClickOption && onChangeVote) {
+                        onChangeVote(optionIndex);
+                      }
+                    }}
                   >
                     <div
                       className={cn(
@@ -299,6 +252,9 @@ export const PollCard = ({
                         >
                           {option}
                         </span>
+                        {canClickOption && (
+                          <span className="text-xs text-muted-foreground">(klik untuk ubah)</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
@@ -314,7 +270,26 @@ export const PollCard = ({
                         </span>
                       </div>
                     </div>
+                    {isVoting || isChangingVote ? (
+                      <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      </div>
+                    ) : null}
                   </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-auto py-3 px-4"
+                    onClick={() => onVote(optionIndex)}
+                    disabled={isVoting || isChangingVote}
+                  >
+                    {isVoting || isChangingVote ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <div className="w-4 h-4 mr-2 rounded-full border-2 border-primary" />
+                    )}
+                    {option}
+                  </Button>
                 )}
               </div>
             );
