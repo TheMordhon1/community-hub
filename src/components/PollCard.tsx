@@ -61,8 +61,15 @@ export const PollCard = ({
   const [isShareOpen, setIsShareOpen] = useState(false);
   const totalVotes = poll.votes.length;
   const hasVoted = !!poll?.userVote;
-  const showResults = hasVoted || !poll.is_active || isPollExpired || poll.houseHasVoted;
   const canInteract = canVote || (hasVoted && canChangeVote && poll.is_active && !isPollExpired);
+  
+  // Determine if we should show full results (vote count & percentage)
+  // Only show when: poll closed, expired, or user has exhausted change limit
+  const isChangeExhausted = hasVoted && poll.remainingChanges === 0;
+  const showFullResults = !poll.is_active || isPollExpired || isChangeExhausted || (poll.houseHasVoted && !hasVoted);
+  
+  // Show voted state (checklist) when user has voted but can still change
+  const showVotedState = hasVoted || poll.houseHasVoted;
 
   const shareUrl = `${window.location.origin}/polls/${poll.id}`;
   const shareText = `🗳️ ${poll.title}\n\n${poll.description || ""}\n\n📊 ${totalVotes} suara sudah masuk${poll.ends_at ? `\n⏰ Berakhir: ${format(new Date(poll.ends_at), "d MMMM yyyy", { locale: idLocale })}` : ""}`;
@@ -210,7 +217,7 @@ export const PollCard = ({
           {poll.options.map((option, optionIndex) => {
             const isUserChoice = poll.userVote?.option_index === optionIndex;
             const isWinning =
-              showResults &&
+              showFullResults &&
               getWinningIndex() === optionIndex &&
               totalVotes > 0;
             const percentage = getVotePercentage(optionIndex);
@@ -218,12 +225,12 @@ export const PollCard = ({
 
             return (
               <div key={optionIndex} className="space-y-1">
-                {showResults ? (
+                {showVotedState ? (
                   <div
                     className={cn(
                       "relative rounded-lg border p-3 overflow-hidden",
                       isUserChoice && "border-primary bg-primary/5",
-                      isWinning && "border-success",
+                      showFullResults && isWinning && "border-success",
                       canClickOption && "cursor-pointer hover:border-primary/50 transition-colors"
                     )}
                     onClick={() => {
@@ -232,13 +239,16 @@ export const PollCard = ({
                       }
                     }}
                   >
-                    <div
-                      className={cn(
-                        "absolute inset-0 transition-all",
-                        isWinning ? "bg-success/10" : "bg-muted"
-                      )}
-                      style={{ width: `${percentage}%` }}
-                    />
+                    {/* Progress bar only shown when full results visible */}
+                    {showFullResults && (
+                      <div
+                        className={cn(
+                          "absolute inset-0 transition-all",
+                          isWinning ? "bg-success/10" : "bg-muted"
+                        )}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    )}
                     <div className="relative flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {isUserChoice && (
@@ -247,7 +257,7 @@ export const PollCard = ({
                         <span
                           className={cn(
                             "font-medium",
-                            isWinning && "text-success"
+                            showFullResults && isWinning && "text-success"
                           )}
                         >
                           {option}
@@ -256,19 +266,22 @@ export const PollCard = ({
                           <span className="text-xs text-muted-foreground">(klik untuk ubah)</span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
-                          {getVoteCount(optionIndex)} suara
-                        </span>
-                        <span
-                          className={cn(
-                            "text-sm font-semibold",
-                            isWinning && "text-success"
-                          )}
-                        >
-                          {percentage}%
-                        </span>
-                      </div>
+                      {/* Vote count & percentage only shown when full results visible */}
+                      {showFullResults && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {getVoteCount(optionIndex)} suara
+                          </span>
+                          <span
+                            className={cn(
+                              "text-sm font-semibold",
+                              isWinning && "text-success"
+                            )}
+                          >
+                            {percentage}%
+                          </span>
+                        </div>
+                      )}
                     </div>
                     {isVoting || isChangingVote ? (
                       <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
