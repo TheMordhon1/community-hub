@@ -64,9 +64,10 @@ export const PollCard = ({
   const canInteract = canVote || (hasVoted && canChangeVote && poll.is_active && !isPollExpired);
   
   // Determine if we should show full results (vote count & percentage)
-  // Only show when: poll closed, expired, or user has exhausted change limit
+  // Show when: poll closed, expired, user has exhausted change limit, OR unlimited mode (can always see results)
+  const isUnlimitedMode = poll.max_vote_changes === null;
   const isChangeExhausted = hasVoted && poll.remainingChanges === 0;
-  const showFullResults = !poll.is_active || isPollExpired || isChangeExhausted || (poll.houseHasVoted && !hasVoted);
+  const showFullResults = !poll.is_active || isPollExpired || isChangeExhausted || (poll.houseHasVoted && !hasVoted) || (hasVoted && isUnlimitedMode);
   
   // Show voted state (checklist) when user has voted but can still change
   const showVotedState = hasVoted || poll.houseHasVoted;
