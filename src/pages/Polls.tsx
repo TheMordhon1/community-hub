@@ -100,7 +100,7 @@ export default function Polls() {
         .from("house_residents")
         .select("user_id, house_id");
 
-       const pollsWithVotes: PollWithVotesProps[] = pollsData.map((poll: any) => {
+       const pollsWithVotes: PollWithVotesProps[] = pollsData.map((poll: PollWithVotesProps) => {
         const pollVotes = votesData?.filter((v) => v.poll_id === poll.id) || [];
         const userVote = pollVotes.find((v) => v.user_id === user?.id);
 

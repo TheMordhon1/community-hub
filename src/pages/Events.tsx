@@ -67,7 +67,7 @@ import { Link } from "react-router-dom";
 import type { Event, EventRsvp, EventType } from "@/types/database";
 import { TimePickerField } from "@/components/TimePickerDialog";
 
-type EventTab = "upcoming" | "now" | "past";
+
 
 export default function Events() {
   const { user, canManageContent } = useAuth();
@@ -82,7 +82,6 @@ export default function Events() {
   const [eventDate, setEventDate] = useState<Date>();
   const [eventTime, setEventTime] = useState("");
   const [eventType, setEventType] = useState<EventType>("regular");
-  const [activeTab, setActiveTab] = useState<EventTab>("upcoming");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -411,18 +410,7 @@ export default function Events() {
     return { upcomingEvents: upcoming, nowEvents: now, pastEvents: past };
   }, [events]);
 
-  const getTabEvents = () => {
-    switch (activeTab) {
-      case "upcoming":
-        return upcomingEvents;
-      case "now":
-        return nowEvents;
-      case "past":
-        return pastEvents;
-      default:
-        return [];
-    }
-  };
+
 
   const renderEventCard = (event: Event, index: number, isPast = false) => (
     <motion.div
@@ -474,7 +462,7 @@ export default function Events() {
           <div className="flex flex-col justify-between gap-4 flex-1 p-4">
             <div className="flex justify-between items-start gap-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-semibold text-lg truncate">
+                <h3 className="font-semibold text-lg line-clamp-1">
                   {event.title}
                 </h3>
                 {event.event_type === "competition" && (
@@ -866,126 +854,76 @@ export default function Events() {
               )}
             </div>
 
-            <div className="flex items-center gap-4">
-              <Select
-                value={activeTab}
-                onValueChange={(v) => setActiveTab(v as EventTab)}
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Pilih kategori" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="upcoming">
-                    <div className="flex items-center gap-2">
-                      Mendatang
-                      {upcomingEvents.length > 0 && (
-                        <Badge variant="secondary" className="ml-1">
-                          {upcomingEvents.length}
-                        </Badge>
-                      )}
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="now">
-                    <div className="flex items-center gap-2">
-                      Hari Ini
-                      {nowEvents.length > 0 && (
-                        <Badge variant="default" className="ml-1">
-                          {nowEvents.length}
-                        </Badge>
-                      )}
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="past">
-                    <div className="flex items-center gap-2">
-                      Selesai
-                      {pastEvents.length > 0 && (
-                        <Badge variant="outline" className="ml-1">
-                          {pastEvents.length}
-                        </Badge>
-                      )}
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {isLoading ? (
+{isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
               </div>
             ) : (
-              <div className="space-y-3 mt-4">
-                {activeTab === "upcoming" && (
-                  <>
-                    {upcomingEvents.length === 0 ? (
-                      <Card className="py-12">
-                        <CardContent className="flex flex-col items-center justify-center text-center">
-                          <CalendarIcon className="w-12 h-12 text-muted-foreground mb-4" />
-                          <h3 className="text-lg font-semibold mb-2">
-                            Tidak Ada Acara Mendatang
-                          </h3>
-                          <p className="text-muted-foreground">
-                            Belum ada acara yang dijadwalkan
-                          </p>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {upcomingEvents.map((event, index) =>
-                          renderEventCard(event, index)
-                        )}
-                      </div>
-                    )}
-                  </>
+              <div className="space-y-12">
+                {/* Hari Ini */}
+                {nowEvents.length > 0 && (
+                  <section>
+                    <div className="flex items-center gap-2 mb-4">
+                      <h2 className="text-xl font-bold">Hari Ini</h2>
+                      <Badge variant="default" className="text-xs">
+                        {nowEvents.length}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {nowEvents.map((event, index) =>
+                        renderEventCard(event, index)
+                      )}
+                    </div>
+                  </section>
                 )}
 
-                {activeTab === "now" && (
-                  <>
-                    {nowEvents.length === 0 ? (
-                      <Card className="py-12">
-                        <CardContent className="flex flex-col items-center justify-center text-center">
-                          <CalendarIcon className="w-12 h-12 text-muted-foreground mb-4" />
-                          <h3 className="text-lg font-semibold mb-2">
-                            Tidak Ada Acara Hari Ini
-                          </h3>
-                          <p className="text-muted-foreground">
-                            Tidak ada acara yang berlangsung hari ini
-                          </p>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {nowEvents.map((event, index) =>
-                          renderEventCard(event, index)
-                        )}
-                      </div>
+                {/* Akan Datang */}
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <h2 className="text-xl font-bold">Akan Datang</h2>
+                    {upcomingEvents.length > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {upcomingEvents.length}
+                      </Badge>
                     )}
-                  </>
-                )}
+                  </div>
+                  {upcomingEvents.length === 0 ? (
+                    <Card className="py-8 bg-muted/30 border-dashed">
+                      <CardContent className="flex flex-col items-center justify-center text-center">
+                        <CalendarIcon className="w-10 h-10 text-muted-foreground/50 mb-3" />
+                        <p className="text-muted-foreground">
+                          Belum ada acara mendatang
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {upcomingEvents.map((event, index) =>
+                        renderEventCard(event, index)
+                      )}
+                    </div>
+                  )}
+                </section>
 
-                {activeTab === "past" && (
-                  <>
-                    {pastEvents.length === 0 ? (
-                      <Card className="py-12">
-                        <CardContent className="flex flex-col items-center justify-center text-center">
-                          <CalendarIcon className="w-12 h-12 text-muted-foreground mb-4" />
-                          <h3 className="text-lg font-semibold mb-2">
-                            Tidak Ada Acara Selesai
-                          </h3>
-                          <p className="text-muted-foreground">
-                            Belum ada acara yang sudah berlalu
-                          </p>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {pastEvents.map((event, index) =>
-                          renderEventCard(event, index, true)
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
+                {/* Selesai */}
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <h2 className="text-xl font-bold text-muted-foreground">
+                      Selesai
+                    </h2>
+                  </div>
+                  {pastEvents.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">
+                      Belum ada riwayat acara
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {pastEvents.map((event, index) =>
+                        renderEventCard(event, index, true)
+                      )}
+                    </div>
+                  )}
+                </section>
               </div>
             )}
           </TabsContent>

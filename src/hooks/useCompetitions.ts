@@ -664,7 +664,7 @@ export function useGenerateBracket() {
       // Insert new matches
       const { error } = await supabase
         .from("competition_matches")
-        .insert(matches as any[]);
+        .insert(matches as CompetitionMatch[]);
 
       if (error) throw error;
       return { competition_id };

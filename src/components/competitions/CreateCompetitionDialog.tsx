@@ -41,6 +41,14 @@ interface CreateCompetitionDialogProps {
   editingCompetition?: EventCompetition | null;
 }
 
+const FORMAT_DESCRIPTIONS: Record<CompetitionFormat, string> = {
+  knockout: "Sistem Gugur: Pemenang lanjut ke babak berikutnya, yang kalah langsung berhenti. Cocok untuk kompetisi cepat.",
+  round_robin: "Round Robin: Semua peserta saling bertemu satu sama lain. Pemenang ditentukan dari poin terbanyak.",
+  league: "Liga: Sistem klasemen poin seperti liga sepak bola. Berjalan dalam periode waktu tertentu.",
+  swiss: "Sistem Swiss: Format turnamen adil tanpa eliminasi. Peserta akan melawan lawan dengan skor yang setara di setiap ronde.",
+  custom: "Format Bebas: Aturan main ditentukan sendiri oleh panitia sesuai kesepakatan.",
+};
+
 export function CreateCompetitionDialog({
   open,
   onOpenChange,
@@ -80,7 +88,7 @@ export function CreateCompetitionDialog({
     setFormat("knockout");
     setMatchType("1v1");
     setParticipantType("user");
-    setRules("");
+    setRules(FORMAT_DESCRIPTIONS["knockout"]); // Default description for knockout
     setMaxParticipants("");
     setSelectedEventId(eventId);
   }, [eventId]);
@@ -99,8 +107,22 @@ export function CreateCompetitionDialog({
     }
   }, [editingCompetition, open, eventId, resetForm]);
 
+  const handleFormatChange = (value: string) => {
+    const newFormat = value as CompetitionFormat;
+    setFormat(newFormat);
+    
+    // Auto-fill rules if empty or matches any default description
+    const isDefaultDescription = Object.values(FORMAT_DESCRIPTIONS).includes(rules) || rules === "";
+    if (isDefaultDescription) {
+      setRules(FORMAT_DESCRIPTIONS[newFormat]);
+    }
+  };
+
   const handleSubmit = () => {
-    if (!sportName.trim() || (!selectedEventId && !eventId)) return;
+    // Check if sportName is not empty and if there's an eventId
+    if (!sportName.trim() || (!selectedEventId && !eventId)) {
+      return;
+    }
 
     const data = {
       sport_name: sportName,
@@ -112,7 +134,7 @@ export function CreateCompetitionDialog({
     };
 
     const finalEventId = eventId || selectedEventId;
-    if (!finalEventId) return;
+    if (!finalEventId) return; 
 
     if (isEditing) {
       updateMutation.mutate(
@@ -126,6 +148,7 @@ export function CreateCompetitionDialog({
       );
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -184,7 +207,7 @@ export function CreateCompetitionDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Format</Label>
-              <Select value={format} onValueChange={(v) => setFormat(v as CompetitionFormat)}>
+              <Select value={format} onValueChange={handleFormatChange}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -261,14 +284,16 @@ export function CreateCompetitionDialog({
           <Button
             onClick={handleSubmit}
             disabled={
-              !sportName.trim() ||
-              (!eventId && !selectedEventId) ||
-              isPending
+              !sportName.trim() ||  
+              (!eventId && !selectedEventId) || 
+              isPending ||
+              (maxParticipants && isNaN(parseInt(maxParticipants))) 
             }
           >
             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {isEditing ? "Simpan" : "Buat Kompetisi"}
           </Button>
+
         </DialogFooter>
       </DialogContent>
     </Dialog>

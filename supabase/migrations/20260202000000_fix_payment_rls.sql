@@ -1,6 +1,3 @@
--- Drop the restrictive policy
-DROP POLICY IF EXISTS "Users can insert payments for their house" ON public.payments;
-
 -- Create a new permissive policy that allows admins/pengurus to insert for any house
 CREATE POLICY "Users can insert payments"
 ON public.payments FOR INSERT

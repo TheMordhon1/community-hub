@@ -229,7 +229,7 @@ export default function EventDetail() {
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
+      <div className="px-6 py-6 space-y-6">
         {/* Header without image */}
         {!event.image_url && (
           <motion.div
@@ -271,12 +271,7 @@ export default function EventDetail() {
                         <Trophy className="w-3 h-3" />
                         Kompetisi
                       </Badge>
-                    ) : (
-                      <Badge variant="outline" className="gap-1">
-                        <PartyPopper className="w-3 h-3" />
-                        Acara Biasa
-                      </Badge>
-                    )}
+                    ) : <></>}
                     {isPastEvent && <Badge variant="secondary">Selesai</Badge>}
                     {isCompetitionEvent && hasCompetitions && (
                       <Badge variant="outline" className="gap-1">

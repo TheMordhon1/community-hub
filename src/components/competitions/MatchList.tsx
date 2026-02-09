@@ -173,6 +173,7 @@ export function MatchList({ competition, canManage }: MatchListProps) {
         match={editingMatch}
         competition={competition}
       />
+      
     </div>
   );
 }

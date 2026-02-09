@@ -57,6 +57,12 @@ export function UpdateMatchDialog({
   }, [match]);
 
   const handleSubmit = () => {
+    // Validate required fields
+    if (!score1 || !score2 || !winnerId) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
     if (!match) return;
 
     updateMutation.mutate(
@@ -71,7 +77,13 @@ export function UpdateMatchDialog({
         notes: notes || null,
       },
       {
-        onSuccess: () => onOpenChange(false),
+        onSuccess: () => {
+          onOpenChange(false);
+        },
+        onError: (error) => {
+          console.error("Update failed:", error);
+          alert("Failed to update match.");
+        },
       }
     );
   };
@@ -97,6 +109,7 @@ export function UpdateMatchDialog({
                 value={score1}
                 onChange={(e) => setScore1(e.target.value)}
                 placeholder="Skor"
+                type="number" // Ensure only numbers are entered
               />
             </div>
             <div className="space-y-2">
@@ -105,6 +118,7 @@ export function UpdateMatchDialog({
                 value={score2}
                 onChange={(e) => setScore2(e.target.value)}
                 placeholder="Skor"
+                type="number" // Ensure only numbers are entered
               />
             </div>
           </div>
@@ -117,7 +131,7 @@ export function UpdateMatchDialog({
                 <SelectValue placeholder="Pilih pemenang" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Belum ditentukan</SelectItem>
+                <SelectItem value={null}>Belum ditentukan</SelectItem>
                 {match.team1_id && (
                   <SelectItem value={match.team1_id}>
                     {match.team1?.name || "Tim 1"}

@@ -146,7 +146,7 @@ export default function CompetitionDetail() {
     <section className="min-h-screen bg-background">
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-b">
-        <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="px-6 py-8">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -156,10 +156,10 @@ export default function CompetitionDetail() {
             <div className="flex items-center justify-between">
               <Link
                 to={`/events/${eventId}`}
-                className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-2 "
               >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm">Kembali ke Acara</span>
+                 <ArrowLeft className="w-5 h-5" />
+                <h1 className="font-display text-xl md:text-2xl font-bold">Kembali ke Acara</h1>
               </Link>
               <Button
                 variant="outline"
@@ -258,7 +258,7 @@ export default function CompetitionDetail() {
       </div>
 
       {/* Content Section */}
-      <div className="max-w-5xl mx-auto px-6 py-6 space-y-6">
+      <div className="px-6 py-6 space-y-6">
         {/* Rules Section (if exists) */}
         {competition.rules && (
           <motion.div

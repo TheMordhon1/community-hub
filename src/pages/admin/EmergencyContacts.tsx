@@ -199,71 +199,75 @@ export default function EmergencyContacts() {
                 ))}
               </div>
             ) : contacts && contacts.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">#</TableHead>
-                    <TableHead>Nama</TableHead>
-                    <TableHead>Kontak</TableHead>
-                    <TableHead>Platform</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {contacts.map((contact) => (
-                    <TableRow key={contact.id}>
-                      <TableCell className="font-medium">
-                        {contact.order_index}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{contact.name}</p>
-                          {contact.description && (
-                            <p className="text-sm text-muted-foreground">
-                              {contact.description}
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{contact.phone}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getPlatformIcon(contact.platform)}
-                          <span>{getPlatformLabel(contact.platform)}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={contact.is_active}
-                          onCheckedChange={() => handleToggleActive(contact)}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenDialog(contact)}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setContactToDelete(contact);
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="overflow-x-auto">
+                <div className="min-w-[800px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">#</TableHead>
+                        <TableHead>Nama</TableHead>
+                        <TableHead>Kontak</TableHead>
+                        <TableHead>Platform</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {contacts.map((contact) => (
+                        <TableRow key={contact.id}>
+                          <TableCell className="font-medium">
+                            {contact.order_index}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{contact.name}</p>
+                              {contact.description && (
+                                <p className="text-sm text-muted-foreground">
+                                  {contact.description}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>{contact.phone}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getPlatformIcon(contact.platform)}
+                              <span>{getPlatformLabel(contact.platform)}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Switch
+                              checked={contact.is_active}
+                              onCheckedChange={() => handleToggleActive(contact)}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleOpenDialog(contact)}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setContactToDelete(contact);
+                                  setDeleteDialogOpen(true);
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 Belum ada kontak darurat. Klik "Tambah Kontak" untuk menambahkan.
