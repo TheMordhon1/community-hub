@@ -99,6 +99,8 @@ export interface Announcement {
   updated_at: string;
 }
 
+export type EventType = 'regular' | 'competition';
+
 export interface Event {
   id: string;
   title: string;
@@ -108,6 +110,7 @@ export interface Event {
   event_time: string | null;
   image_url: string | null;
   author_id: string | null;
+  event_type: EventType;
   created_at: string;
   updated_at: string;
 }

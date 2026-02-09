@@ -455,6 +455,7 @@ export type Database = {
           description: string | null
           event_date: string
           event_time: string | null
+          event_type: string
           id: string
           image_url: string | null
           location: string | null
@@ -467,6 +468,7 @@ export type Database = {
           description?: string | null
           event_date: string
           event_time?: string | null
+          event_type?: string
           id?: string
           image_url?: string | null
           location?: string | null
@@ -479,6 +481,7 @@ export type Database = {
           description?: string | null
           event_date?: string
           event_time?: string | null
+          event_type?: string
           id?: string
           image_url?: string | null
           location?: string | null

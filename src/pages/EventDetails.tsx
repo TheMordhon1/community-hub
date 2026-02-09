@@ -29,8 +29,9 @@ import {
   Clock,
   Trophy,
   User,
+  PartyPopper,
 } from "lucide-react";
-import type { Profile } from "@/types/database";
+import type { Profile, EventType } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
 import { formatEventTime, getValidDate } from "@/lib/utils";
 import { CompetitionList } from "@/components/competitions/CompetitionList";
@@ -155,6 +156,7 @@ export default function EventDetail() {
 
   const isUserAttending = attendees?.some((a) => a.user_id === user?.id);
   const isPastEvent = event ? new Date(event.event_date) < new Date() : false;
+  const isCompetitionEvent = event?.event_type === "competition";
   const hasCompetitions = competitions && competitions.length > 0;
 
   const shareText = `${event?.title}\n\n${event?.description || ""}\n\n 
@@ -263,13 +265,25 @@ export default function EventDetail() {
             <CardHeader className="space-y-4">
               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                 <div className="space-y-2">
-                  {isPastEvent && <Badge variant="secondary">Selesai</Badge>}
-                  {hasCompetitions && (
-                    <Badge variant="outline" className="gap-1">
-                      <Trophy className="w-3 h-3" />
-                      {competitions.length} Kompetisi
-                    </Badge>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {isCompetitionEvent ? (
+                      <Badge className="gap-1 bg-amber-500 hover:bg-amber-600">
+                        <Trophy className="w-3 h-3" />
+                        Kompetisi
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="gap-1">
+                        <PartyPopper className="w-3 h-3" />
+                        Acara Biasa
+                      </Badge>
+                    )}
+                    {isPastEvent && <Badge variant="secondary">Selesai</Badge>}
+                    {isCompetitionEvent && hasCompetitions && (
+                      <Badge variant="outline" className="gap-1">
+                        {competitions.length} Kompetisi
+                      </Badge>
+                    )}
+                  </div>
                   <h1 className="text-2xl md:text-3xl font-bold">
                     {event.title}
                   </h1>
@@ -365,8 +379,8 @@ export default function EventDetail() {
           </Card>
         </motion.div>
 
-        {/* Competitions Section */}
-        {(hasCompetitions || canManage) && (
+        {/* Competitions Section - Only for competition events */}
+        {isCompetitionEvent && (hasCompetitions || canManage) && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
