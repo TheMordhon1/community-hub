@@ -60,9 +60,11 @@ import {
   Clock,
   ImagePlus,
   X,
+  Trophy,
+  PartyPopper,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { Event, EventRsvp } from "@/types/database";
+import type { Event, EventRsvp, EventType } from "@/types/database";
 import { TimePickerField } from "@/components/TimePickerDialog";
 
 type EventTab = "upcoming" | "now" | "past";
@@ -79,6 +81,7 @@ export default function Events() {
   const [location, setLocation] = useState("");
   const [eventDate, setEventDate] = useState<Date>();
   const [eventTime, setEventTime] = useState("");
+  const [eventType, setEventType] = useState<EventType>("regular");
   const [activeTab, setActiveTab] = useState<EventTab>("upcoming");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -137,6 +140,7 @@ export default function Events() {
       event_date: string;
       event_time: string | null;
       image_url: string | null;
+      event_type: EventType;
     }) => {
       const { error } = await supabase.from("events").insert({
         title: data.title,
@@ -145,6 +149,7 @@ export default function Events() {
         event_date: data.event_date,
         event_time: data.event_time,
         image_url: data.image_url,
+        event_type: data.event_type,
         author_id: user?.id,
       });
       if (error) throw error;
@@ -172,6 +177,7 @@ export default function Events() {
       event_date: string;
       event_time: string | null;
       image_url: string | null;
+      event_type: EventType;
     }) => {
       const { error } = await supabase
         .from("events")
@@ -182,6 +188,7 @@ export default function Events() {
           event_date: data.event_date,
           event_time: data.event_time,
           image_url: data.image_url,
+          event_type: data.event_type,
         })
         .eq("id", data.id);
       if (error) throw error;
@@ -253,6 +260,7 @@ export default function Events() {
     setLocation("");
     setEventDate(undefined);
     setEventTime("");
+    setEventType("regular");
     setImageFile(null);
     setImagePreview(null);
     setIsCreateOpen(false);
@@ -286,6 +294,7 @@ export default function Events() {
     setLocation(event.location || "");
     setEventDate(new Date(event.event_date));
     setEventTime(event.event_time || "");
+    setEventType(event.event_type || "regular");
     setImagePreview(event.image_url || null);
     setImageFile(null);
     setIsCreateOpen(true);
@@ -331,6 +340,7 @@ export default function Events() {
       event_date: eventDate.toISOString(),
       event_time: eventTime || null,
       image_url: imageUrl,
+      event_type: eventType,
     };
 
     setIsUploading(false);
@@ -467,6 +477,12 @@ export default function Events() {
                 <h3 className="font-semibold text-lg truncate">
                   {event.title}
                 </h3>
+                {event.event_type === "competition" && (
+                  <Badge variant="default" className="gap-1 bg-amber-500 hover:bg-amber-600">
+                    <Trophy className="w-3 h-3" />
+                    Kompetisi
+                  </Badge>
+                )}
                 {isPast && <Badge variant="secondary">Selesai</Badge>}
                 {isToday(new Date(event.event_date)) && !isPast && (
                   <Badge variant="default">Hari ini</Badge>
@@ -660,6 +676,57 @@ export default function Events() {
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4 max-h-[70vh] overflow-auto px-1">
+                      {/* Event Type Selector */}
+                      <div className="space-y-2">
+                        <Label>Tipe Acara</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setEventType("regular")}
+                            className={cn(
+                              "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
+                              eventType === "regular"
+                                ? "border-primary bg-primary/10"
+                                : "border-muted hover:border-muted-foreground/30"
+                            )}
+                          >
+                            <PartyPopper className={cn(
+                              "w-8 h-8",
+                              eventType === "regular" ? "text-primary" : "text-muted-foreground"
+                            )} />
+                            <div className="text-center">
+                              <p className={cn(
+                                "font-medium text-sm",
+                                eventType === "regular" ? "text-primary" : "text-foreground"
+                              )}>Acara Biasa</p>
+                              <p className="text-xs text-muted-foreground">Kegiatan, rapat, dll</p>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEventType("competition")}
+                            className={cn(
+                              "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
+                              eventType === "competition"
+                                ? "border-primary bg-primary/10"
+                                : "border-muted hover:border-muted-foreground/30"
+                            )}
+                          >
+                            <Trophy className={cn(
+                              "w-8 h-8",
+                              eventType === "competition" ? "text-primary" : "text-muted-foreground"
+                            )} />
+                            <div className="text-center">
+                              <p className={cn(
+                                "font-medium text-sm",
+                                eventType === "competition" ? "text-primary" : "text-foreground"
+                              )}>Kompetisi</p>
+                              <p className="text-xs text-muted-foreground">Lomba, turnamen, dll</p>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="title">Judul Acara</Label>
                         <Input
