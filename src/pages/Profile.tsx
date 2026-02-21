@@ -581,47 +581,9 @@ export default function Profile() {
             transition={{ delay: 0.2 }}
           >
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Status Rumah</CardTitle>
-                  <CardDescription>Atur status hunian rumah Anda</CardDescription>
-                </div>
-                {!isEditingHouse && (
-                  <div className="flex gap-2">
-                    {(userHouse.houses as House).occupancy_status === "empty" && (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={handleSetOccupied}
-                        disabled={isSavingHouse}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        {isSavingHouse ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Home className="w-4 h-4 mr-2" />
-                        )}
-                        Saya Sudah Kembali
-                      </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const house = userHouse.houses as House;
-                        houseForm.reset({
-                          occupancy_status: house.occupancy_status || "occupied",
-                          vacancy_reason: house.vacancy_reason || "",
-                          estimated_return_date: house.estimated_return_date || "",
-                        });
-                        setIsEditingHouse(true);
-                      }}
-                    >
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Edit Status
-                    </Button>
-                  </div>
-                )}
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Status Rumah</CardTitle>
+                <CardDescription className="text-xs">Atur status hunian rumah Anda</CardDescription>
               </CardHeader>
               <CardContent>
                 {isEditingHouse ? (
@@ -713,16 +675,17 @@ export default function Profile() {
                     )}
 
                     <div className="flex gap-2 pt-2">
-                      <Button type="submit" disabled={isSavingHouse}>
+                      <Button type="submit" disabled={isSavingHouse} size="sm">
                         {isSavingHouse && (
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         )}
                         <Save className="w-4 h-4 mr-2" />
-                        Simpan Status
+                        Simpan
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
+                        size="sm"
                         onClick={handleCancelHouse}
                       >
                         <X className="w-4 h-4 mr-2" />
@@ -732,45 +695,50 @@ export default function Profile() {
                   </form>
                 ) : (
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`w-3 h-3 rounded-full ${
-                          (userHouse.houses as House).occupancy_status === "empty"
-                            ? "bg-red-500"
-                            : "bg-green-500"
-                        }`}
-                      />
-                      <span className="font-medium">
-                        {(userHouse.houses as House).occupancy_status === "empty"
-                          ? "Kosong"
-                          : "Terisi"}
-                      </span>
+                    {/* Status Badge */}
+                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold border ${
+                      (userHouse.houses as House).occupancy_status === "empty"
+                        ? "bg-red-50 text-red-700 border-red-200"
+                        : "bg-green-50 text-green-700 border-green-200"
+                    }`}>
+                      <div className={`w-2 h-2 rounded-full ${
+                        (userHouse.houses as House).occupancy_status === "empty"
+                          ? "bg-red-500"
+                          : "bg-green-500 animate-pulse"
+                      }`} />
+                      {(userHouse.houses as House).occupancy_status === "empty"
+                        ? "Rumah Sedang Kosong"
+                        : "Rumah Sedang Ditempati"}
                     </div>
 
+                    {/* Vacancy info */}
                     {(userHouse.houses as House).occupancy_status === "empty" && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/50 p-4 rounded-lg">
-                        <div className="flex items-start gap-2">
-                          <Info className="w-4 h-4 mt-0.5 text-muted-foreground" />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-red-50/50 border border-red-100 rounded-xl">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-none w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                            <Info className="w-4 h-4 text-red-600" />
+                          </div>
                           <div>
-                            <p className="text-xs text-muted-foreground">Alasan</p>
+                            <p className="text-xs text-muted-foreground mb-0.5">Alasan Kosong</p>
                             <p className="text-sm font-medium">
                               {(userHouse.houses as House).vacancy_reason || "-"}
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-start gap-2">
-                          <CalendarIcon className="w-4 h-4 mt-0.5 text-muted-foreground" />
+                        <div className="flex items-start gap-3">
+                          <div className="flex-none w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                            <CalendarIcon className="w-4 h-4 text-red-600" />
+                          </div>
                           <div>
-                            <p className="text-xs text-muted-foreground">
-                              Estimasi Kembali
-                            </p>
+                            <p className="text-xs text-muted-foreground mb-0.5">Estimasi Kembali</p>
                             <p className="text-sm font-medium">
                               {(userHouse.houses as House).estimated_return_date
                                 ? format(
                                     new Date(
-                                      (userHouse.houses as House).estimated_return_date
+                                      (userHouse.houses as House).estimated_return_date!
                                     ),
-                                    "dd MMMM yyyy"
+                                    "dd MMMM yyyy",
+                                    { locale: idLocale }
                                   )
                                 : "-"}
                             </p>
@@ -778,6 +746,43 @@ export default function Profile() {
                         </div>
                       </div>
                     )}
+
+                    {/* Action Buttons at bottom */}
+                    <div className="flex flex-wrap gap-2 pt-4 border-t">
+                      {(userHouse.houses as House).occupancy_status === "empty" && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleSetOccupied}
+                          disabled={isSavingHouse}
+                          className="bg-green-600 hover:bg-green-700 gap-1.5 flex-1 sm:flex-none"
+                        >
+                          {isSavingHouse ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Home className="w-3.5 h-3.5" />
+                          )}
+                          Sudah Kembali
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 flex-1 sm:flex-none"
+                        onClick={() => {
+                          const house = userHouse.houses as House;
+                          houseForm.reset({
+                            occupancy_status: house.occupancy_status || "occupied",
+                            vacancy_reason: house.vacancy_reason || "",
+                            estimated_return_date: house.estimated_return_date || "",
+                          });
+                          setIsEditingHouse(true);
+                        }}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Edit Status
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
