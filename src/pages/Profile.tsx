@@ -26,9 +26,16 @@ import {
   Trash2,
   ArrowLeft,
   Home,
-  Calendar,
+  Calendar as CalendarIcon,
   Info,
 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -38,6 +45,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -84,6 +92,7 @@ export default function Profile() {
 
   const [isEditingHouse, setIsEditingHouse] = useState(false);
   const [isSavingHouse, setIsSavingHouse] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const houseForm = useForm<HouseStatusForm>({
     resolver: zodResolver(houseStatusSchema),
@@ -187,6 +196,38 @@ export default function Profile() {
     });
 
     setIsEditingHouse(false);
+    queryClient.invalidateQueries({ queryKey: ["user-house"] });
+  };
+
+  const handleSetOccupied = async () => {
+    if (!userHouse?.house_id) return;
+
+    setIsSavingHouse(true);
+    const { error } = await supabase
+      .from("houses")
+      .update({
+        occupancy_status: "occupied",
+        vacancy_reason: null,
+        estimated_return_date: null,
+      })
+      .eq("id", userHouse.house_id);
+
+    setIsSavingHouse(false);
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Gagal menyimpan",
+        description: "Terjadi kesalahan saat menyimpan status rumah",
+      });
+      return;
+    }
+
+    toast({
+      title: "Status rumah disimpan",
+      description: "Anda telah kembali! Status rumah diperbarui menjadi Terisi",
+    });
+
     queryClient.invalidateQueries({ queryKey: ["user-house"] });
   };
 
@@ -546,22 +587,40 @@ export default function Profile() {
                   <CardDescription>Atur status hunian rumah Anda</CardDescription>
                 </div>
                 {!isEditingHouse && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const house = userHouse.houses as House;
-                      houseForm.reset({
-                        occupancy_status: house.occupancy_status || "occupied",
-                        vacancy_reason: house.vacancy_reason || "",
-                        estimated_return_date: house.estimated_return_date || "",
-                      });
-                      setIsEditingHouse(true);
-                    }}
-                  >
-                    <Pencil className="w-4 h-4 mr-2" />
-                    Edit Status
-                  </Button>
+                  <div className="flex gap-2">
+                    {(userHouse.houses as House).occupancy_status === "empty" && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={handleSetOccupied}
+                        disabled={isSavingHouse}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        {isSavingHouse ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Home className="w-4 h-4 mr-2" />
+                        )}
+                        Saya Sudah Kembali
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const house = userHouse.houses as House;
+                        houseForm.reset({
+                          occupancy_status: house.occupancy_status || "occupied",
+                          vacancy_reason: house.vacancy_reason || "",
+                          estimated_return_date: house.estimated_return_date || "",
+                        });
+                        setIsEditingHouse(true);
+                      }}
+                    >
+                      <Pencil className="w-4 h-4 mr-2" />
+                      Edit Status
+                    </Button>
+                  </div>
                 )}
               </CardHeader>
               <CardContent>
@@ -604,11 +663,51 @@ export default function Profile() {
                           <Label htmlFor="estimated_return_date">
                             Estimasi Tanggal Kembali
                           </Label>
-                          <Input
-                            id="estimated_return_date"
-                            type="date"
-                            {...houseForm.register("estimated_return_date")}
-                          />
+                          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal",
+                                  !houseForm.watch("estimated_return_date") &&
+                                    "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {houseForm.watch("estimated_return_date") ? (
+                                  format(
+                                    new Date(
+                                      houseForm.watch("estimated_return_date")!
+                                    ),
+                                    "d MMMM yyyy",
+                                    { locale: idLocale }
+                                  )
+                                ) : (
+                                  <span>Pilih tanggal</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={
+                                  houseForm.watch("estimated_return_date")
+                                    ? new Date(
+                                        houseForm.watch("estimated_return_date")!
+                                      )
+                                    : undefined
+                                }
+                                onSelect={(date) => {
+                                  houseForm.setValue(
+                                    "estimated_return_date",
+                                    date ? date.toISOString() : ""
+                                  );
+                                  setIsCalendarOpen(false);
+                                }}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </>
                     )}
@@ -660,7 +759,7 @@ export default function Profile() {
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
-                          <Calendar className="w-4 h-4 mt-0.5 text-muted-foreground" />
+                          <CalendarIcon className="w-4 h-4 mt-0.5 text-muted-foreground" />
                           <div>
                             <p className="text-xs text-muted-foreground">
                               Estimasi Kembali

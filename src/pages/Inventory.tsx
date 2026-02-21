@@ -55,9 +55,13 @@ import {
   RotateCcw,
   User,
   Loader2,
+  Image as ImageIcon,
+  Camera,
+  X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { useRef } from "react";
 
 interface InventoryItem {
   id: string;
@@ -150,6 +154,9 @@ export default function Inventory() {
   const [borrowDialogOpen, setBorrowDialogOpen] = useState(false);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Item form state
   const [itemForm, setItemForm] = useState({
@@ -158,6 +165,7 @@ export default function Inventory() {
     category: "",
     quantity: 1,
     condition: "good",
+    image_url: "",
   });
 
   // Fetch inventory items
@@ -253,6 +261,7 @@ export default function Inventory() {
         quantity: form.quantity,
         available_quantity: form.quantity,
         condition: form.condition,
+        image_url: form.image_url || null,
         created_by: user?.id,
       });
       if (error) throw error;
@@ -282,6 +291,7 @@ export default function Inventory() {
           quantity: form.quantity,
           available_quantity: newAvailable,
           condition: form.condition,
+          image_url: form.image_url || null,
         })
         .eq("id", id);
       if (error) throw error;
@@ -392,7 +402,7 @@ export default function Inventory() {
   });
 
   const resetItemForm = () => {
-    setItemForm({ name: "", description: "", category: "", quantity: 1, condition: "good" });
+    setItemForm({ name: "", description: "", category: "", quantity: 1, condition: "good", image_url: "" });
   };
 
   const openEditDialog = (item: InventoryItem) => {
@@ -403,6 +413,7 @@ export default function Inventory() {
       category: item.category || "",
       quantity: item.quantity,
       condition: item.condition,
+      image_url: item.image_url || "",
     });
     setItemDialogOpen(true);
   };
@@ -421,6 +432,44 @@ export default function Inventory() {
     const newSelected = new Map(selectedItems);
     newSelected.set(itemId, Math.min(Math.max(1, qty), maxAvailable));
     setSelectedItems(newSelected);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ variant: "destructive", title: "File tidak valid", description: "Pilih file gambar" });
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "File terlalu besar", description: "Maksimal 2MB" });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `items/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage.from("inventory").upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from("inventory").getPublicUrl(filePath);
+      setItemForm((prev) => ({ ...prev, image_url: urlData.publicUrl }));
+      toast({ title: "Berhasil", description: "Gambar berhasil diunggah" });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan";
+      toast({ variant: "destructive", title: "Gagal", description: errorMessage });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeImage = () => {
+    setItemForm((prev) => ({ ...prev, image_url: "" }));
   };
 
   const canManage = canManageContent() || isAdmin();
@@ -492,6 +541,39 @@ export default function Inventory() {
                         </Select>
                       </div>
                     </div>
+                    <div>
+                      <label className="text-sm font-medium">Foto Barang</label>
+                      <div className="mt-2 flex items-center gap-4">
+                        {itemForm.image_url ? (
+                          <div className="relative w-20 h-20 rounded-lg overflow-hidden border">
+                            <img src={itemForm.image_url} alt="Preview" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={removeImage}
+                              className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 shadow-sm"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-20 h-20 rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-muted transition-colors text-muted-foreground"
+                          >
+                            <Camera className="w-6 h-6 mb-1" />
+                            <span className="text-[10px]">Unggah</span>
+                          </div>
+                        )}
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleImageUpload}
+                        />
+                        {isUploading && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+                      </div>
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button
@@ -532,38 +614,133 @@ export default function Inventory() {
             ) : (
               <>
                 {/* Mobile cards */}
-                <div className="grid grid-cols-1 gap-3 md:hidden">
+                <div className="grid grid-cols-1 gap-4 md:hidden">
                   {items.map((item) => {
                     const borrowers = activeBorrowsByItem.get(item.id) || [];
                     const isSelected = selectedItems.has(item.id);
                     return (
-                      <Card key={item.id} className={`transition-all ${isSelected ? "ring-2 ring-primary" : ""}`}>
-                        <CardContent className="p-4 space-y-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-3 flex-1">
-                              {item.available_quantity > 0 && item.condition !== "broken" && (
+                      <Card key={item.id} className={`overflow-hidden transition-all duration-300 ${isSelected ? "ring-2 ring-primary shadow-lg scale-[1.02]" : "shadow-sm"}`}>
+                        <div className="relative">
+                          {/* Selection Checkbox - Absolute Top Left */}
+                          {item.available_quantity > 0 && item.condition !== "broken" && (
+                            <div className="absolute top-3 left-3 z-20">
+                              <div className="bg-background/90 backdrop-blur-md p-1.5 rounded-full shadow-md border border-primary/20 flex items-center justify-center">
                                 <Checkbox
                                   checked={isSelected}
                                   onCheckedChange={() => toggleItemSelection(item.id, item.available_quantity)}
-                                  className="mt-1"
+                                  className="h-5 w-5 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                                 />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold truncate">{item.name}</h3>
-                                {item.category && (
-                                  <Badge variant="outline" className="text-xs mt-1">{item.category}</Badge>
-                                )}
                               </div>
                             </div>
+                          )}
+
+
+                            {/* Image on Top - Full Width */}
+                            <div 
+                              className="w-full h-56 bg-muted relative overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                              onClick={() => item.image_url && setPreviewImage(item.image_url)}
+                            >
+                              {item.image_url ? (
+                                <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-muted to-muted-foreground/10">
+                                  <ImageIcon className="w-12 h-12 opacity-20 mb-2" />
+                                  <span className="text-[10px] uppercase font-bold tracking-widest opacity-40">No Image</span>
+                                </div>
+                              )}
+                              <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background/80 to-transparent pointer-events-none" />
+                            </div>
+                          </div>
+
+                          <CardContent className="p-5 -mt-6 relative bg-background rounded-t-3xl space-y-4">
+                            <div className="space-y-1.5">
+                              <div className="flex items-start justify-between gap-3">
+                                <h3 className="font-bold text-xl text-foreground leading-tight">{item.name}</h3>
+                                {getConditionBadge(item.condition)}
+                              </div>
+                              {item.category && (
+                                <p className="text-xs font-bold text-primary uppercase tracking-widest">{item.category}</p>
+                              )}
+                            </div>
+
+                            {item.description && (
+                              <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                                {item.description}
+                              </p>
+                            )}
+
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50">
+                              <div className="space-y-0.5">
+                                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Status Stok</p>
+                                <p className="text-sm font-bold">
+                                  <span className={item.available_quantity === 0 ? "text-destructive" : "text-green-600"}>
+                                    {item.available_quantity} Tersedia
+                                  </span>
+                                  <span className="text-muted-foreground font-normal ml-1">/ {item.quantity} Total</span>
+                                </p>
+                              </div>
+                              <div className="w-12 h-12 rounded-full border-4 border-muted flex items-center justify-center relative">
+                                <div 
+                                  className="absolute inset-0 rounded-full border-4 border-primary transition-all duration-500" 
+                                  style={{ 
+                                    clipPath: `inset(${100 - (item.available_quantity / item.quantity) * 100}% 0 0 0)`,
+                                    borderColor: item.available_quantity === 0 ? 'rgb(239 68 68)' : 'rgb(34 197 94)'
+                                  }}
+                                />
+                                <span className="text-[10px] font-black">{Math.round((item.available_quantity / item.quantity) * 100)}%</span>
+                              </div>
+                            </div>
+
+                            {isSelected && (
+                              <div className="p-4 rounded-xl border-2 border-primary bg-primary/5 space-y-3 animate-in fade-in zoom-in-95 duration-300">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-xs font-black uppercase tracking-widest text-primary">Jumlah Pinjam</label>
+                                  <Badge variant="outline" className="font-bold">{selectedItems.get(item.id) || 1} Unit</Badge>
+                                </div>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={item.available_quantity}
+                                  className="h-12 text-lg font-bold text-center appearance-none"
+                                  value={selectedItems.get(item.id) || 1}
+                                  onChange={(e) => updateSelectedQuantity(item.id, parseInt(e.target.value) || 1, item.available_quantity)}
+                                />
+                              </div>
+                            )}
+
+                            {borrowers.length > 0 && (
+                              <div className="pt-2 border-t border-dashed">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
+                                  <User className="w-3.5 h-3.5" /> Peminjam Saat Ini
+                                </p>
+                                <div className="space-y-2">
+                                  {borrowers.map((b, i) => (
+                                    <div key={i} className="flex items-center justify-between bg-muted/50 p-2 rounded-lg border border-border/30">
+                                      <span className="text-xs font-medium">{b.userName}</span>
+                                      <Badge variant="outline" className="text-[10px] font-bold bg-background">{b.quantity}x</Badge>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Full-width manage buttons at the very bottom of content */}
                             {canManage && (
-                              <div className="flex gap-1">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(item)}>
-                                  <Edit className="w-3.5 h-3.5" />
+                              <div className="grid grid-cols-2 gap-2 pt-2 border-t mt-4">
+                                <Button 
+                                  variant="outline" 
+                                  className="w-full flex items-center gap-2 h-11 font-bold uppercase text-[10px] tracking-widest"
+                                  onClick={() => openEditDialog(item)}
+                                >
+                                  <Edit className="w-4 h-4" /> Edit
                                 </Button>
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                                      <Trash2 className="w-3.5 h-3.5" />
+                                    <Button 
+                                      variant="outline" 
+                                      className="w-full flex items-center gap-2 h-11 font-bold uppercase text-[10px] tracking-widest text-destructive hover:text-destructive hover:bg-destructive/5"
+                                    >
+                                      <Trash2 className="w-4 h-4" /> Hapus
                                     </Button>
                                   </AlertDialogTrigger>
                                   <AlertDialogContent>
@@ -579,44 +756,11 @@ export default function Inventory() {
                                 </AlertDialog>
                               </div>
                             )}
-                          </div>
-                          {item.description && <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>}
-                          <div className="flex flex-wrap gap-2 items-center">
-                            {getConditionBadge(item.condition)}
-                            <span className="text-sm">
-                              Tersedia: <strong>{item.available_quantity}</strong> / {item.quantity}
-                            </span>
-                          </div>
-                          {isSelected && (
-                            <div className="flex items-center gap-2">
-                              <label className="text-sm">Jumlah pinjam:</label>
-                              <Input
-                                type="number"
-                                min={1}
-                                max={item.available_quantity}
-                                value={selectedItems.get(item.id) || 1}
-                                onChange={(e) => updateSelectedQuantity(item.id, parseInt(e.target.value) || 1, item.available_quantity)}
-                                className="w-20 h-8"
-                              />
-                            </div>
-                          )}
-                          {borrowers.length > 0 && (
-                            <div className="text-sm space-y-1 border-t pt-2">
-                              <p className="text-muted-foreground font-medium flex items-center gap-1">
-                                <User className="w-3.5 h-3.5" /> Sedang dipinjam:
-                              </p>
-                              {borrowers.map((b, i) => (
-                                <p key={i} className="text-muted-foreground pl-5">
-                                  {b.userName} ({b.quantity}x)
-                                </p>
-                              ))}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
 
                 {/* Desktop table */}
                 <div className="hidden md:block">
@@ -625,6 +769,7 @@ export default function Inventory() {
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-10"></TableHead>
+                          <TableHead className="w-16">Foto</TableHead>
                           <TableHead>Nama</TableHead>
                           <TableHead>Kategori</TableHead>
                           <TableHead>Kondisi</TableHead>
@@ -647,6 +792,20 @@ export default function Inventory() {
                                     onCheckedChange={() => toggleItemSelection(item.id, item.available_quantity)}
                                   />
                                 )}
+                              </TableCell>
+                              <TableCell>
+                                <div 
+                                  className="w-10 h-10 rounded border overflow-hidden bg-muted cursor-pointer hover:opacity-90 transition-opacity"
+                                  onClick={() => item.image_url && setPreviewImage(item.image_url)}
+                                >
+                                  {item.image_url ? (
+                                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                      <ImageIcon className="w-4 h-4" />
+                                    </div>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <div>
@@ -850,6 +1009,25 @@ export default function Inventory() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Image Preview Dialog */}
+      <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
+        <DialogContent className="max-w-3xl p-0 overflow-hidden bg-transparent border-none shadow-none flex items-center justify-center">
+          <div className="relative w-full h-full max-h-[80vh] flex items-center justify-center">
+            <img 
+              src={previewImage || ""} 
+              alt="Preview" 
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            />
+            <button 
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-4 right-4 bg-background/50 backdrop-blur-sm text-foreground rounded-full p-2 hover:bg-background/80 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

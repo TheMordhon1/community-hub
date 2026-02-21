@@ -20,6 +20,26 @@ import {
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Download,
+  FileSpreadsheet,
+  FileText,
+} from "lucide-react";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { toast } from "sonner";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -64,6 +84,7 @@ interface HouseWithResidents {
 }
 
 type HouseType = "all" | "registered" | "unregistered";
+type OccupancyFilter = "all" | "occupied" | "empty";
 
 export default function Residents() {
   const { naturalSort } = useNaturalSort();
@@ -72,6 +93,7 @@ export default function Residents() {
     null
   );
   const [filterType, setFilterType] = useState<HouseType>("all");
+  const [occupancyFilter, setOccupancyFilter] = useState<OccupancyFilter>("all");
 
   const { data: houses, isLoading } = useQuery({
     queryKey: ["houses-with-residents"],
@@ -145,9 +167,15 @@ export default function Residents() {
       } else if (filterType === "unregistered") {
         matchesFilter = house.residents.length === 0;
       }
-      // filterType === "all" matches everything
 
-      return matchesSearch && matchesFilter;
+      let matchesOccupancy = true;
+      if (occupancyFilter === "occupied") {
+        matchesOccupancy = house.occupancy_status === "occupied";
+      } else if (occupancyFilter === "empty") {
+        matchesOccupancy = house.occupancy_status === "empty";
+      }
+
+      return matchesSearch && matchesFilter && matchesOccupancy;
     })
     .sort((a, b) => {
       const blockSort = naturalSort(a.block, b.block);
@@ -162,6 +190,58 @@ export default function Residents() {
     houses?.reduce((sum, h) => sum + h.residents.length, 0) || 0;
 
 
+
+  const exportToExcel = () => {
+    if (!filteredHouses) return;
+
+    const data = filteredHouses.map((house) => ({
+      Blok: house.block,
+      Nomor: house.number,
+      Status: house.occupancy_status === "empty" ? "Kosong" : "Terisi",
+      Penghuni: house.residents.map((r) => r.profiles?.full_name).join(", ") || "Kosong",
+      "Total Penghuni": house.residents.length,
+      "Alasan Kosong": house.vacancy_reason || "-",
+      "Estimasi Kembali": house.estimated_return_date 
+        ? format(new Date(house.estimated_return_date), "dd/MM/yyyy") 
+        : "-",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Daftar Penghuni");
+    XLSX.writeFile(wb, `daftar-penghuni-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    toast.success("Daftar penghuni berhasil diunduh sebagai Excel");
+  };
+
+  const exportToPDF = () => {
+    if (!filteredHouses) return;
+
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text("Daftar Rumah & Penghuni PKT", 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Dicetak pada: ${format(new Date(), "dd MMMM yyyy HH:mm", { locale: idLocale })}`, 14, 28);
+
+    const tableData = filteredHouses.map((house) => [
+      `${house.block}-${house.number}`,
+      house.occupancy_status === "empty" ? "Kosong" : "Terisi",
+      house.residents.map((r) => r.profiles?.full_name).join(", ") || "Kosong",
+      house.residents.length.toString(),
+      house.vacancy_reason || "-",
+    ]);
+
+    autoTable(doc, {
+      startY: 35,
+      head: [["Rumah", "Status", "Penghuni", "Total", "Keterangan"]],
+      body: tableData,
+      theme: "grid",
+      headStyles: { fillColor: [59, 130, 246] },
+      styles: { fontSize: 8 },
+    });
+
+    doc.save(`daftar-penghuni-${format(new Date(), "yyyy-MM-dd")}.pdf`);
+    toast.success("Daftar penghuni berhasil diunduh sebagai PDF");
+  };
 
   if (isLoading) {
     return (
@@ -181,7 +261,7 @@ export default function Residents() {
 
   return (
     <div className="container mx-auto py-6 px-4 space-y-6">
-      <div className="flex w-full flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex w-full flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link to="/dashboard">
             <ArrowLeft className="w-5 h-5" />
@@ -193,8 +273,8 @@ export default function Residents() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 justify-between">
-          <div className="relative flex-1 w-full sm:w-64">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Cari rumah atau penghuni..."
@@ -203,22 +283,53 @@ export default function Residents() {
               className="pl-9"
             />
           </div>
-          <div className="flex flex-1 items-center">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <Select
               value={filterType}
               onValueChange={(value: HouseType) => setFilterType(value)}
             >
-              <SelectTrigger className="w-full text-left">
+              <SelectTrigger className="w-[160px] text-left">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="w-full">
-                <SelectItem value="all">Semua Rumah</SelectItem>
-                <SelectItem value="registered">Penghuni Terdaftar</SelectItem>
-                <SelectItem value="unregistered">
-                  Penghuni Belum Terdaftar
-                </SelectItem>
+              <SelectContent>
+                <SelectItem value="all">Semua Pendaftaran</SelectItem>
+                <SelectItem value="registered">Terdaftar</SelectItem>
+                <SelectItem value="unregistered">Belum Terdaftar</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select
+              value={occupancyFilter}
+              onValueChange={(value: OccupancyFilter) => setOccupancyFilter(value)}
+            >
+              <SelectTrigger className="w-[140px] text-left">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="occupied">Terisi</SelectItem>
+                <SelectItem value="empty">Kosong</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  <span>Export</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportToExcel} className="cursor-pointer">
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToPDF} className="cursor-pointer">
+                  <FileText className="mr-2 h-4 w-4" />
+                  PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

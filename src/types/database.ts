@@ -265,3 +265,38 @@ export interface PollWithVotes extends Poll {
   votes?: PollVote[];
   vote_counts?: number[];
 }
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  quantity: number;
+  available_quantity: number;
+  condition: string;
+  image_url: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BorrowRequest {
+  id: string;
+  user_id: string;
+  status: string;
+  notes: string | null;
+  borrow_date: string;
+  return_date: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BorrowItem {
+  id: string;
+  borrow_id: string;
+  item_id: string;
+  quantity: number;
+  created_at: string;
+}
