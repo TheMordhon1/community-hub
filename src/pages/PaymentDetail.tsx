@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import type { Profile, House } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
+import { getInitials } from "@/lib/utils";
 
 interface PaymentWithDetails {
   id: string;
@@ -295,11 +296,7 @@ export default function PaymentDetail() {
                       <Avatar className="h-6 w-6">
                         <AvatarImage src={payment.submitter.avatar_url || ""} />
                         <AvatarFallback className="text-xs">
-                          {payment.submitter.full_name
-                            ?.split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase() || "?"}
+                          {getInitials(payment.submitter.full_name)}
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-muted-foreground">
@@ -345,11 +342,7 @@ export default function PaymentDetail() {
                       <Avatar className="h-6 w-6">
                         <AvatarImage src={payment.verifier.avatar_url || ""} />
                         <AvatarFallback className="text-xs">
-                          {payment.verifier.full_name
-                            ?.split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase() || "?"}
+                          {getInitials(payment.verifier.full_name)}
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-muted-foreground">

@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUpcomingEventsCount } from "@/hooks/useUpcomingEventsCount";
 import { useAnnouncementCount } from "@/hooks/useAnnouncementCount";
+import { getInitials } from "@/lib/utils";
 
 export function AppSidebar() {
   const location = useLocation();
@@ -187,15 +188,15 @@ export function AppSidebar() {
               <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
             ) : (
               <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-sm">
-                {profile?.full_name?.charAt(0) ?? "U"}
+                {getInitials(profile?.full_name)}
               </AvatarFallback>
             )}
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">
+            <p className="text-sm font-medium line-clamp-1">
               {profile?.full_name ?? "User"}
             </p>
-            <p className="text-xs text-sidebar-foreground/70 truncate">
+            <p className="text-xs text-sidebar-foreground/70 line-clamp-1">
               {getRoleDisplay()}
             </p>
           </div>

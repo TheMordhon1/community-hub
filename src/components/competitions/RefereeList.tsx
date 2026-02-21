@@ -17,6 +17,7 @@ import {
 import { Users, UserPlus, Trash2, Loader2, ShieldCheck } from "lucide-react";
 import { useAssignReferee, useRemoveReferee } from "@/hooks/useCompetitions";
 import type { EventCompetitionWithDetails } from "@/types/competition";
+import { getInitials } from "@/lib/utils";
 
 interface RefereeListProps {
   competition: EventCompetitionWithDetails;
@@ -104,7 +105,7 @@ export function RefereeList({ competition, canManage }: RefereeListProps) {
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={referee.profile?.avatar_url || ""} />
                     <AvatarFallback>
-                      {referee.profile?.full_name?.charAt(0) || "W"}
+                      {getInitials(referee.profile?.full_name)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
@@ -182,7 +183,7 @@ export function RefereeList({ competition, canManage }: RefereeListProps) {
                         <Avatar className="w-8 h-8">
                           <AvatarImage src={profile.avatar_url || ""} />
                           <AvatarFallback>
-                            {profile.full_name?.charAt(0) || "W"}
+                            {getInitials(profile.full_name)}
                           </AvatarFallback>
                         </Avatar>
                         <span className="text-sm font-medium">

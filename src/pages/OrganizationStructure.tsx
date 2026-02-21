@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, Users, Phone, Mail, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import { getInitials } from "@/lib/utils";
 
 interface PengurusData {
   id: string;
@@ -155,12 +156,12 @@ export default function OrganizationStructure() {
                               />
                             ) : (
                               <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                                {person.full_name.charAt(0)}
+                                {getInitials(person.full_name)}
                               </AvatarFallback>
                             )}
                           </Avatar>
                           <div className="min-w-0 flex-1">
-                            <p className="font-semibold truncate">
+                            <p className="font-semibold line-clamp-1">
                               {person.full_name}
                             </p>
                             <Badge className="mt-1 bg-accent text-accent-foreground">

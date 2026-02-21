@@ -29,6 +29,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { getInitials } from "@/lib/utils";
 
 const profileSchema = z.object({
   full_name: z
@@ -299,7 +300,7 @@ export default function Profile() {
                       />
                     ) : (
                       <AvatarFallback className="text-2xl">
-                        {profile?.full_name?.charAt(0) ?? "U"}
+                        {getInitials(profile?.full_name)}
                       </AvatarFallback>
                     )}
                   </Avatar>

@@ -93,6 +93,7 @@ export default function Events() {
       const { data, error } = await supabase
         .from("events")
         .select("*")
+        .neq("event_type", "competition")
         .order("event_date", { ascending: true });
 
       if (error) throw error;

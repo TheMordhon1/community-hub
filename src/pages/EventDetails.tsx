@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import type { Profile, EventType } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
-import { formatEventTime, getValidDate } from "@/lib/utils";
+import { formatEventTime, getValidDate, getInitials } from "@/lib/utils";
 import { CompetitionList } from "@/components/competitions/CompetitionList";
 import { useEventCompetitions } from "@/hooks/useCompetitions";
 
@@ -356,11 +356,7 @@ export default function EventDetail() {
                     <Avatar>
                       <AvatarImage src={event.author.avatar_url || ""} />
                       <AvatarFallback>
-                        {event.author.full_name
-                          ?.split(" ")
-                          .map((n: string) => n[0])
-                          .join("")
-                          .toUpperCase() || "?"}
+                        {getInitials(event.author.full_name)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
@@ -429,19 +425,15 @@ export default function EventDetail() {
                       <Avatar>
                         <AvatarImage src={attendee.profile?.avatar_url || ""} />
                         <AvatarFallback>
-                          {attendee.profile?.full_name
-                            ?.split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase() || "?"}
+                          {getInitials(attendee.profile?.full_name)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">
+                        <p className="font-medium line-clamp-1">
                           {attendee.profile?.full_name || "Unknown"}
                         </p>
                         {attendee.profile?.phone && (
-                          <p className="text-sm text-muted-foreground truncate">
+                          <p className="text-sm text-muted-foreground line-clamp-1">
                             {attendee.profile.phone}
                           </p>
                         )}

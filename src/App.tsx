@@ -82,6 +82,7 @@ function AppRoutes() {
           <Route path="/events" element={<Events />} />
           <Route path="/events/:id" element={<EventDetails />} />
           <Route path="/events/:id/competitions/:competitionId" element={<CompetitionDetail />} />
+          <Route path="/competitions/:competitionId" element={<CompetitionDetail />} />
           <Route path="/complaints" element={<Complaints />} />
           <Route path="/polls" element={<Polls />} />
           <Route path="/polls/:id" element={<PollsDetail />} />

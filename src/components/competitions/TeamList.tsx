@@ -16,6 +16,7 @@ import {
 import { Plus, Users, Trash2, Crown } from "lucide-react";
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
 import { useDeleteTeam } from "@/hooks/useCompetitions";
+import { getInitials } from "@/lib/utils";
 
 interface TeamListProps {
   competition: EventCompetitionWithDetails;
@@ -106,10 +107,10 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                           <Avatar className="w-6 h-6">
                             <AvatarImage src={member.profile?.avatar_url || ""} />
                             <AvatarFallback className="text-xs">
-                              {member.profile?.full_name?.[0] || "?"}
+                              {getInitials(member.profile?.full_name)}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-sm truncate">
+                          <span className="text-sm line-clamp-1">
                             {member.profile?.full_name || "Unknown"}
                           </span>
                           {member.is_captain && (

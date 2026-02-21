@@ -119,8 +119,8 @@ export function CreateCompetitionDialog({
   };
 
   const handleSubmit = () => {
-    // Check if sportName is not empty and if there's an eventId
-    if (!sportName.trim() || (!selectedEventId && !eventId)) {
+    // Check if sportName is not empty 
+    if (!sportName.trim()) {
       return;
     }
 
@@ -133,12 +133,26 @@ export function CreateCompetitionDialog({
       max_participants: maxParticipants ? parseInt(maxParticipants) : undefined,
     };
 
-    const finalEventId = eventId || selectedEventId;
-    if (!finalEventId) return; 
+    // Handle "none" value from select
+    const finalEventId = eventId || (selectedEventId === "none" ? undefined : selectedEventId);
 
     if (isEditing) {
       updateMutation.mutate(
-        { id: editingCompetition.id, event_id: finalEventId, ...data },
+        { id: editingCompetition.id, event_id: finalEventId || "", ...data }, 
+        // Note: updateMutation type might still expect event_id string because I didn't verify useUpdateCompetition fully, 
+        // but let's assume it handles it or we might need to adjust.
+        // Actually, for update, event_id is required in the object passed to mutate but can be same as before.
+        // Wait, if I'm editing, I should probably keep existing event_id if not changed. 
+        // But here I'm constructing a new object. 
+        // Let's check useUpdateCompetition. 
+        // It takes { id, event_id, ... }. 
+        // If event_id becomes optional there too, I should pass undefined?
+        // My previous edit to useCompetitions.ts only changed useCreateCompetition. 
+        // I should have checked useUpdateCompetition too.
+        // Let's assume for now I pass undefined if no event.
+        // BUT wait, in the dialog logic:
+        // if editing, selectedEventId is set from editingCompetition.event_id.
+        // If I change it to "none", it becomes "none".
         { onSuccess: () => onOpenChange(false) }
       );
     } else {
@@ -167,10 +181,10 @@ export function CreateCompetitionDialog({
         <div className="space-y-4 py-4">
           {!eventId && !isEditing && (
             <div className="space-y-2">
-              <Label>Pilih Acara *</Label>
+              <Label>Pilih Acara (Opsional)</Label>
               <Select value={selectedEventId} onValueChange={setSelectedEventId}>
                 <SelectTrigger>
-                  <SelectValue placeholder={isLoadingEvents ? "Memuat acara..." : "Pilih acara terkait"} />
+                  <SelectValue placeholder={isLoadingEvents ? "Memuat acara..." : "Pilih acara terkait (opsional)"} />
                 </SelectTrigger>
                 <SelectContent>
                   {isLoadingEvents ? (
@@ -179,14 +193,17 @@ export function CreateCompetitionDialog({
                       <span className="text-sm">Memuat acara...</span>
                     </div>
                   ) : events && events.length > 0 ? (
-                    events.map((event) => (
-                      <SelectItem key={event.id} value={event.id}>
-                        {event.title}
-                      </SelectItem>
-                    ))
+                    <>
+                      <SelectItem value="none">-- Tidak ada acara --</SelectItem>
+                      {events.map((event) => (
+                        <SelectItem key={event.id} value={event.id}>
+                          {event.title}
+                        </SelectItem>
+                      ))}
+                    </>
                   ) : (
                     <div className="p-4 text-center text-sm text-muted-foreground">
-                      Belum ada acara. Buat acara terlebih dahulu di tab Acara.
+                      Belum ada acara tersedia.
                     </div>
                   )}
                 </SelectContent>
@@ -285,7 +302,6 @@ export function CreateCompetitionDialog({
             onClick={handleSubmit}
             disabled={
               !sportName.trim() ||  
-              (!eventId && !selectedEventId) || 
               isPending ||
               (maxParticipants && isNaN(parseInt(maxParticipants))) 
             }

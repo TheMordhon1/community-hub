@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Megaphone, Loader2, Share2 } from "lucide-react";
 import type { Announcement, Profile } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
+import { getInitials } from "@/lib/utils";
 
 interface AnnouncementWithAuthor extends Announcement {
   author?: Profile;
@@ -188,11 +189,7 @@ export default function AnnouncementDetail() {
                   <Avatar>
                     <AvatarImage src={announcement.author.avatar_url || ""} />
                     <AvatarFallback>
-                      {announcement.author.full_name
-                        ?.split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase() || "?"}
+                      {getInitials(announcement.author.full_name)}
                     </AvatarFallback>
                   </Avatar>
                   <div>

@@ -72,11 +72,11 @@ export function CompetitionCard({
                 <Trophy className="w-5 h-5 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
-                <CardTitle className="text-lg truncate">
+                <CardTitle className="text-lg line-clamp-1">
                   {competition.sport_name}
                 </CardTitle>
                 {showEventName && (
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                  <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
                     {showEventName}
                   </p>
                 )}
@@ -95,15 +95,15 @@ export function CompetitionCard({
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Target className="w-4 h-4 shrink-0" />
-              <span className="truncate">{FORMAT_LABELS[competition.format]}</span>
+              <span className="line-clamp-1">{FORMAT_LABELS[competition.format]}</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <Swords className="w-4 h-4 shrink-0" />
-              <span className="truncate">{MATCH_TYPE_LABELS[competition.match_type]}</span>
+              <span className="line-clamp-1">{MATCH_TYPE_LABELS[competition.match_type]}</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground col-span-2">
               <Users className="w-4 h-4 shrink-0" />
-              <span className="truncate">
+              <span className="line-clamp-1">
                 {PARTICIPANT_TYPE_LABELS[competition.participant_type]}
               </span>
             </div>
@@ -119,7 +119,11 @@ export function CompetitionCard({
           <div className="flex gap-2 pt-2 mt-auto">
             <Button asChild variant="default" size="sm" className="flex-1">
               <Link
-                to={`/events/${competition.event_id}/competitions/${competition.id}`}
+                to={
+                  competition.event_id
+                    ? `/events/${competition.event_id}/competitions/${competition.id}`
+                    : `/competitions/${competition.id}`
+                }
               >
                 <Eye className="w-4 h-4 mr-1" />
                 Lihat Detail

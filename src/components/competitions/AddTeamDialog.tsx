@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateTeam, useAddTeamMember } from "@/hooks/useCompetitions";
+import { getInitials } from "@/lib/utils";
 import type { EventCompetitionWithDetails } from "@/types/competition";
 import type { Profile, House } from "@/types/database";
 
@@ -198,10 +199,10 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                     <Avatar className="w-8 h-8">
                       <AvatarImage src={profile.avatar_url || ""} />
                       <AvatarFallback>
-                        {profile.full_name?.[0] || "?"}
+                        {getInitials(profile.full_name)}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="flex-1 text-sm truncate">
+                    <span className="flex-1 text-sm line-clamp-1">
                       {profile.full_name}
                     </span>
                     {selectedMembers.includes(profile.id) && (

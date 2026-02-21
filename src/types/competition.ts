@@ -8,7 +8,7 @@ export type MatchStatus = 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
 
 export interface EventCompetition {
   id: string;
-  event_id: string;
+  event_id: string | null;
   sport_name: string;
   format: CompetitionFormat;
   match_type: MatchType;

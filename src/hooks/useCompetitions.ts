@@ -183,7 +183,7 @@ export function useCreateCompetition() {
 
   return useMutation({
     mutationFn: async (data: {
-      event_id: string;
+      event_id?: string;
       sport_name: string;
       format: CompetitionFormat;
       match_type: MatchType;
@@ -197,9 +197,12 @@ export function useCreateCompetition() {
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["event-competitions", variables.event_id],
-      });
+      if (variables.event_id) {
+        queryClient.invalidateQueries({
+          queryKey: ["event-competitions", variables.event_id],
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["all-competitions"] });
       toast({ title: "Berhasil", description: "Kompetisi berhasil dibuat" });
     },
     onError: () => {

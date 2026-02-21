@@ -46,6 +46,7 @@ import {
 import type { House } from "@/types/database";
 import { Link } from "react-router-dom";
 import { useNaturalSort } from "@/hooks/useNaturalSort";
+import { getInitials } from "@/lib/utils";
 import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 
 interface HouseResident {
@@ -280,13 +281,7 @@ export default function Houses() {
     }
   };
 
-  const getInitials = (name: string) =>
-    name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+
 
   // Table Columns
   const columns: DataTableColumn<HouseWithResidents>[] = [
@@ -324,7 +319,7 @@ export default function Houses() {
                   {getInitials(firstResident.profiles.full_name)}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-sm truncate max-w-[150px]">
+              <span className="text-sm line-clamp-1 max-w-[150px]">
                 {firstResident.profiles.full_name}
               </span>
             </div>

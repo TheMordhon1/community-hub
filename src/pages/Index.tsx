@@ -24,6 +24,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useState } from "react";
 import { EmergencyContactsCard } from "@/components/EmergencyContactsCard";
+import { getInitials } from "@/lib/utils";
 
 type LandingSettings = Record<string, string | null>;
 
@@ -148,11 +149,7 @@ export default function Index() {
                         alt={profile?.full_name || "User"}
                       />
                       <AvatarFallback className="bg-gradient-to-br from-emerald-600 to-teal-600 text-white text-xs font-bold">
-                        {profile?.full_name
-                          ?.split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase() || "U"}
+                        {getInitials(profile?.full_name)}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm font-semibold text-emerald-900">
@@ -214,11 +211,7 @@ export default function Index() {
                           alt={profile?.full_name || "User"}
                         />
                         <AvatarFallback className="bg-gradient-to-br from-emerald-600 to-teal-600 text-white text-xs font-bold">
-                          {profile?.full_name
-                            ?.split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase() || "U"}
+                          {getInitials(profile?.full_name)}
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-sm font-semibold text-emerald-900">

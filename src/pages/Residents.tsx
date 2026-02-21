@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { getInitials } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -148,14 +149,7 @@ export default function Residents() {
   const totalUsers =
     houses?.reduce((sum, h) => sum + h.residents.length, 0) || 0;
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
+
 
   if (isLoading) {
     return (
@@ -325,7 +319,7 @@ export default function Residents() {
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium truncate">
+                        <span className="font-medium line-clamp-1">
                           {resident.profiles?.full_name}
                         </span>
                         {resident.is_owner && (
@@ -336,7 +330,7 @@ export default function Residents() {
                         )}
                       </div>
                       {resident.profiles?.phone && (
-                        <p className="text-sm text-muted-foreground truncate">
+                        <p className="text-sm text-muted-foreground line-clamp-1">
                           {resident.profiles.phone}
                         </p>
                       )}

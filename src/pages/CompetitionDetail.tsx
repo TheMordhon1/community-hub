@@ -77,7 +77,7 @@ export default function CompetitionDetail() {
     });
   };
 
-  const shareUrl = `${window.location.origin}/events/${eventId}/competitions/${competitionId}`;
+  const shareUrl = `${window.location.origin}${eventId ? `/events/${eventId}` : ""}/competitions/${competitionId}`;
   const shareText = `${competition?.sport_name}\n\nFormat: ${competition ? FORMAT_LABELS[competition.format] : ""}\nTipe: ${competition ? MATCH_TYPE_LABELS[competition.match_type] : ""}`;
 
   if (isLoading) {
@@ -101,7 +101,9 @@ export default function CompetitionDetail() {
                 Kompetisi Tidak Ditemukan
               </h3>
               <Button asChild className="mt-4">
-                <Link to={`/events/${eventId}`}>Kembali ke Acara</Link>
+                <Link to={eventId ? `/events/${eventId}` : "/events?tab=competitions"}>
+                  {eventId ? "Kembali ke Acara" : "Kembali ke Daftar Kompetisi"}
+                </Link>
               </Button>
             </CardContent>
           </Card>
@@ -155,11 +157,13 @@ export default function CompetitionDetail() {
             {/* Navigation */}
             <div className="flex items-center justify-between">
               <Link
-                to={`/events/${eventId}`}
+                to={eventId ? `/events/${eventId}` : "/events?tab=competitions"}
                 className="flex items-center gap-2 "
               >
                  <ArrowLeft className="w-5 h-5" />
-                <h1 className="font-display text-xl md:text-2xl font-bold">Kembali ke Acara</h1>
+                <h1 className="font-display text-xl md:text-2xl font-bold">
+                  {eventId ? "Kembali ke Acara" : "Kembali ke Daftar Kompetisi"}
+                </h1>
               </Link>
               <Button
                 variant="outline"
