@@ -366,7 +366,7 @@ export type Database = {
       event_competitions: {
         Row: {
           created_at: string
-          event_id: string
+          event_id: string | null
           format: string
           id: string
           match_type: string
@@ -380,7 +380,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          event_id: string
+          event_id?: string | null
           format?: string
           id?: string
           match_type?: string
@@ -394,7 +394,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          event_id?: string
+          event_id?: string | null
           format?: string
           id?: string
           match_type?: string
