@@ -75,6 +75,7 @@ export default function Announcements() {
     useState<Announcement | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [relatedUrl, setRelatedUrl] = useState("");
   const [isPublished, setIsPublished] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
@@ -106,11 +107,13 @@ export default function Announcements() {
     mutationFn: async (data: {
       title: string;
       content: string;
+      related_url: string | null;
       is_published: boolean;
     }) => {
       const { error } = await supabase.from("announcements").insert({
         title: data.title,
         content: data.content,
+        related_url: data.related_url,
         is_published: data.is_published,
         published_at: data.is_published ? new Date().toISOString() : null,
         author_id: user?.id,
@@ -136,6 +139,7 @@ export default function Announcements() {
       id: string;
       title: string;
       content: string;
+      related_url: string | null;
       is_published: boolean;
     }) => {
       const { error } = await supabase
@@ -143,6 +147,7 @@ export default function Announcements() {
         .update({
           title: data.title,
           content: data.content,
+          related_url: data.related_url,
           is_published: data.is_published,
           published_at: data.is_published ? new Date().toISOString() : null,
         })
@@ -190,6 +195,7 @@ export default function Announcements() {
   const resetForm = () => {
     setTitle("");
     setContent("");
+    setRelatedUrl("");
     setIsPublished(false);
     setIsCreateOpen(false);
     setEditingAnnouncement(null);
@@ -199,6 +205,7 @@ export default function Announcements() {
     setEditingAnnouncement(announcement);
     setTitle(announcement.title);
     setContent(announcement.content);
+    setRelatedUrl(announcement.related_url || "");
     setIsPublished(announcement.is_published);
     setIsCreateOpen(true);
   };
@@ -224,10 +231,16 @@ export default function Announcements() {
         id: editingAnnouncement.id,
         title,
         content,
+        related_url: relatedUrl.trim() || null,
         is_published: isPublished,
       });
     } else {
-      createMutation.mutate({ title, content, is_published: isPublished });
+      createMutation.mutate({
+        title,
+        content,
+        related_url: relatedUrl.trim() || null,
+        is_published: isPublished,
+      });
     }
   };
 
@@ -240,8 +253,8 @@ export default function Announcements() {
   const draftAnnouncements = announcements.filter((a) => !a.is_published) || [];
 
   return (
-    <section className="min-h-screen bg-background p-6">
-      <div className="mx-auto space-y-6">
+    <section className="min-h-screen bg-background px-4 pt-6 pb-24 sm:p-6 overflow-x-hidden">
+      <div className="mx-auto max-w-4xl space-y-6">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -253,7 +266,7 @@ export default function Announcements() {
             </Link>
 
             <div>
-              <h1 className="font-display text-2xl font-bold">Pengumuman</h1>
+              <h1 className="font-display text-xl sm:text-2xl font-bold">Pengumuman</h1>
               <p className="text-muted-foreground">
                 Informasi terbaru dari pengurus
               </p>
@@ -274,7 +287,7 @@ export default function Announcements() {
                   <span className="hidden md:block">Buat Pengumuman</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg">
+              <DialogContent className="max-w-[95vw] sm:max-w-lg">
                 <DialogHeader>
                   <DialogTitle>
                     {editingAnnouncement
@@ -303,6 +316,15 @@ export default function Announcements() {
                       rows={10}
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="relatedUrl">Link Terkait (Opsional)</Label>
+                    <Input
+                      id="relatedUrl"
+                      placeholder="https://..."
+                      value={relatedUrl}
+                      onChange={(e) => setRelatedUrl(e.target.value)}
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -370,44 +392,42 @@ export default function Announcements() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                   >
-                    <Card className="border-dashed">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary">
+                    <Card
+                      className="cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all duration-200 border-dashed"
+                      onClick={() => handleEdit(announcement)}
+                    >
+                      <CardHeader className="p-4 flex-row items-center justify-between space-y-0">
+                        <div className="flex-1 min-w-0 pr-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
                               <EyeOff className="w-3 h-3 mr-1" />
                               Draft
                             </Badge>
-                            <CardTitle className="text-lg">
-                              {announcement.title}
-                            </CardTitle>
                           </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(announcement)}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                setDeletingAnnouncement(announcement)
-                              }
-                              disabled={deleteMutation.isPending}
-                            >
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
-                          </div>
+                          <CardTitle className="text-base font-semibold break-all break-words">
+                            {announcement.title}
+                          </CardTitle>
+                        </div>
+                        <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleEdit(announcement)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setDeletingAnnouncement(announcement)}
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
                         </div>
                       </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground whitespace-pre-wrap">
-                          {announcement.content}
-                        </p>
-                      </CardContent>
                     </Card>
                   </motion.div>
                 ))}
@@ -429,40 +449,37 @@ export default function Announcements() {
                     transition={{ delay: index * 0.05 }}
                   >
                     <Card
-                      className="cursor-pointer hover:shadow-md hover:scale-[1.01] transition"
-                      onClick={() =>
-                        navigate(`/announcements/${announcement.id}`)
-                      }
+                      className="group cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all duration-200"
+                      onClick={() => navigate(`/announcements/${announcement.id}`)}
                     >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge className="bg-primary/10 text-primary">
-                                <Eye className="w-3 h-3 mr-1" />
-                                Publik
-                              </Badge>
-                            </div>
-                            <CardTitle className="text-lg">
-                              {announcement.title}
-                            </CardTitle>
-                            <CardDescription>
-                              {announcement.published_at &&
-                                format(
-                                  new Date(announcement.published_at),
-                                  "d MMMM yyyy, HH:mm",
-                                  { locale: idLocale }
-                                )}
-                            </CardDescription>
+                      <CardHeader className="p-4 flex-row items-center justify-between space-y-0">
+                        <div className="flex-1 min-w-0 pr-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 h-5 px-1.5 text-[10px] border-none">
+                              <Eye className="w-3 h-3 mr-1" />
+                              Warga
+                            </Badge>
                           </div>
+                          <CardTitle className="text-base font-semibold group-hover:text-primary transition-colors break-all break-words">
+                            {announcement.title}
+                          </CardTitle>
+                          <CardDescription className="text-[11px] mt-0.5">
+                            {announcement.published_at &&
+                              format(
+                                new Date(announcement.published_at),
+                                "d MMM yyyy",
+                                { locale: idLocale }
+                              )}
+                          </CardDescription>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 shrink-0">
                           {canManageContent() && (
-                            <div
-                              className="flex gap-2"
-                              onClick={(e) => e.stopPropagation()}
-                            >
+                            <div className="flex gap-1 pr-2 border-r mr-1" onClick={(e) => e.stopPropagation()}>
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className="h-8 w-8"
                                 onClick={() => handleEdit(announcement)}
                               >
                                 <Edit className="w-4 h-4" />
@@ -470,22 +487,17 @@ export default function Announcements() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() =>
-                                  setDeletingAnnouncement(announcement)
-                                }
+                                className="h-8 w-8"
+                                onClick={() => setDeletingAnnouncement(announcement)}
                                 disabled={deleteMutation.isPending}
                               >
                                 <Trash2 className="w-4 h-4 text-destructive" />
                               </Button>
                             </div>
                           )}
+                          <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                         </div>
                       </CardHeader>
-                      <CardContent>
-                        <p className="text-foreground whitespace-pre-wrap line-clamp-3">
-                          {announcement.content}
-                        </p>
-                      </CardContent>
                     </Card>
                   </motion.div>
                 ))}
@@ -493,8 +505,8 @@ export default function Announcements() {
             )}
 
             {totalPages > 0 && (
-              <div className="flex flex-col md:flex-row items-center justify-end">
-                <div className="flex items-center  gap-2">
+              <div className="flex flex-col gap-4 sm:flex-row items-center justify-between mt-4">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <Select
                     defaultValue={String(DEFAULT_ITEMS_PER_PAGE)}
                     value={String(itemsPerPage)}
@@ -559,8 +571,10 @@ export default function Announcements() {
             <AlertDialogTitle>Hapus Pengumuman?</AlertDialogTitle>
             <AlertDialogDescription>
               Apakah Anda yakin ingin menghapus pengumuman "
-              {deletingAnnouncement?.title}"? Tindakan ini tidak dapat
-              dibatalkan.
+              <span className="font-semibold break-all">
+                {deletingAnnouncement?.title}
+              </span>
+              "? Tindakan ini tidak dapat dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -15,10 +15,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Megaphone, Loader2, Share2 } from "lucide-react";
+import { ArrowLeft, Megaphone, Loader2, Share2, Search,
+  ExternalLink,
+  Link as LinkIcon,
+  Copy,
+  Check,
+} from "lucide-react";
 import type { Announcement, Profile } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
 import { getInitials } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface AnnouncementWithAuthor extends Announcement {
   author?: Profile;
@@ -28,6 +34,18 @@ interface AnnouncementWithAuthor extends Announcement {
 export default function AnnouncementDetail() {
   const { id } = useParams();
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleCopyLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setIsCopied(true);
+      toast.success("Link berhasil disalin");
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      toast.error("Gagal menyalin link");
+    }
+  };
 
   const { data: announcement, isLoading } = useQuery({
     queryKey: ["announcement", id],
@@ -113,8 +131,8 @@ export default function AnnouncementDetail() {
   const shareUrl = `${window.location.origin}/announcements/${id}`;
 
   return (
-    <section className="min-h-screen bg-background p-6">
-      <div className="space-y-6">
+    <section className="min-h-screen bg-background p-6 overflow-x-hidden">
+      <div className="mx-auto max-w-4xl space-y-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -166,7 +184,9 @@ export default function AnnouncementDetail() {
                 >
                   {announcement.is_published ? "Publik" : "Draft"}
                 </Badge>
-                <CardTitle className="text-3xl">{announcement.title}</CardTitle>
+                <CardTitle className="text-3xl break-words whitespace-pre-wrap">
+                  {announcement.title}
+                </CardTitle>
                 <CardDescription className="text-base">
                   {announcement.published_at &&
                     format(
@@ -178,11 +198,46 @@ export default function AnnouncementDetail() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                <p className="whitespace-pre-wrap text-foreground">
+              <div className="prose prose-sm dark:prose-invert max-w-none overflow-hidden">
+                <p className="whitespace-pre-wrap text-foreground break-words overflow-wrap-anywhere">
                   {announcement.content}
                 </p>
               </div>
+
+              {announcement.related_url && (
+                <div className="mt-4 pt-4 border-t border-dashed">
+                  <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                    <LinkIcon className="w-4 h-4 text-primary" />
+                    Link Terkait
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={announcement.related_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-primary/5 hover:bg-primary/10 text-primary border border-primary/20 rounded-lg transition-colors group max-w-full"
+                    >
+                      <span className="line-clamp-1 break-all">
+                        {announcement.related_url}
+                      </span>
+                      <ExternalLink className="w-4 h-4 shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    </a>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-[42px] px-3 gap-2"
+                      onClick={() => handleCopyLink(announcement.related_url!)}
+                    >
+                      {isCopied ? (
+                        <Check className="w-4 h-4 text-green-500" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                      <span>Salin Link</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {announcement.author && (
                 <div className="flex items-center gap-3 pt-4 border-t">

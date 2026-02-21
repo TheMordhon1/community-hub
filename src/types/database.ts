@@ -98,6 +98,7 @@ export interface Announcement {
   is_published: boolean;
   published_at: string | null;
   author_id: string | null;
+  related_url: string | null;
   created_at: string;
   updated_at: string;
 }
