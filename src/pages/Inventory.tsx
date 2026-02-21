@@ -58,6 +58,7 @@ import {
   Image as ImageIcon,
   Camera,
   X,
+  HelpCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -158,6 +159,7 @@ export default function Inventory() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
 
   // Item form state
   const [itemForm, setItemForm] = useState({
@@ -499,7 +501,18 @@ export default function Inventory() {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Inventaris</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold">Inventaris</h1>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 text-xs font-medium text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-200 ml-1 shadow-sm bg-background/50 backdrop-blur-sm"
+                onClick={() => setIsInstructionsOpen(true)}
+              >
+                <HelpCircle className="w-4 h-4" />
+                <span>Cara Pinjam</span>
+              </Button>
+            </div>
             <p className="text-muted-foreground text-sm">Kelola dan pinjam peralatan paguyuban</p>
           </div>
           <div className="flex gap-2">
@@ -1029,6 +1042,70 @@ export default function Inventory() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Dialog open={isInstructionsOpen} onOpenChange={setIsInstructionsOpen}>
+        <DialogContent className="max-w-md sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <HelpCircle className="w-5 h-5 text-primary" />
+              Tata Cara Peminjaman
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="grid gap-4">
+              <div className="flex gap-4">
+                <div className="flex-none flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">1</div>
+                <div>
+                  <h4 className="font-semibold text-sm">Pilih Barang</h4>
+                  <p className="text-sm text-muted-foreground">Cari barang yang Anda butuhkan di daftar inventaris. Pastikan stok tersedia (tersedia &gt; 0).</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-none flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">2</div>
+                <div>
+                  <h4 className="font-semibold text-sm">Tambah ke Daftar</h4>
+                  <p className="text-sm text-muted-foreground">Centang kotak pada barang yang ingin dipinjam. Anda bisa memilih lebih dari satu barang sekaligus.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-none flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">3</div>
+                <div>
+                  <h4 className="font-semibold text-sm">Isi Formulir</h4>
+                  <p className="text-sm text-muted-foreground">Klik tombol <span className="font-medium text-foreground">"Pinjam"</span> di pojok kanan atas, lalu isi tanggal peminjaman dan perkiraan kembali.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-none flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">4</div>
+                <div>
+                  <h4 className="font-semibold text-sm">Tunggu Persetujuan</h4>
+                  <p className="text-sm text-muted-foreground">Permintaan akan dikirim ke Pengurus. Pantau statusnya di tab <span className="font-medium text-foreground">"Riwayat Peminjaman"</span>.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-none flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">5</div>
+                <div>
+                  <h4 className="font-semibold text-sm">Pengambilan & Pengembalian</h4>
+                  <p className="text-sm text-muted-foreground">Setelah disetujui, hubungi Pengurus untuk pengambilan fisik. Kembalikan barang tepat waktu dalam kondisi baik.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-muted/50 rounded-lg border border-dashed text-xs text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Catatan:</p>
+              Penanggung jawab inventaris berhak menolak ajuan peminjaman sesuai dengan kebijakan atau kondisi barang.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsInstructionsOpen(false)} className="w-full sm:w-auto font-semibold">
+              Saya Mengerti
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Image Preview Dialog */}
       <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
