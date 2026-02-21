@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -497,7 +498,7 @@ export default function Inventory() {
   const canManage = canManageContent() || isAdmin();
 
   return (
-    <section className="p-6">
+    <section className="p-6 pb-32">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -517,7 +518,7 @@ export default function Inventory() {
           </div>
           <div className="flex gap-2">
             {selectedItems.size > 0 && (
-              <Button onClick={() => setBorrowDialogOpen(true)} className="gap-2">
+              <Button onClick={() => setBorrowDialogOpen(true)} className="gap-2 hidden sm:flex">
                 <Send className="w-4 h-4" />
                 Pinjam ({selectedItems.size})
               </Button>
@@ -1125,6 +1126,28 @@ export default function Inventory() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Sticky mobile borrow button */}
+      <AnimatePresence>
+        {selectedItems.size > 0 && (
+          <motion.div
+            key="sticky-borrow-btn"
+            initial={{ opacity: 0, y: 80 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 80 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="fixed bottom-10 left-4 right-4 z-50 sm:hidden"
+          >
+            <Button
+              onClick={() => setBorrowDialogOpen(true)}
+              className="w-full gap-2 shadow-2xl h-12 text-base font-semibold rounded-2xl"
+            >
+              <Send className="w-5 h-5" />
+              Pinjam {selectedItems.size} Barang
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
