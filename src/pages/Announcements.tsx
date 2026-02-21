@@ -254,7 +254,7 @@ export default function Announcements() {
 
   return (
     <section className="min-h-screen bg-background px-4 pt-6 pb-24 sm:p-6 overflow-x-hidden">
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="space-y-6">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
