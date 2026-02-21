@@ -634,11 +634,14 @@ export type Database = {
           block: string
           color: string | null
           created_at: string
+          estimated_return_date: string | null
           height: number
           id: string
           is_occupied: boolean | null
           number: string
+          occupancy_status: string | null
           updated_at: string
+          vacancy_reason: string | null
           width: number
           x_position: number
           y_position: number
@@ -647,11 +650,14 @@ export type Database = {
           block: string
           color?: string | null
           created_at?: string
+          estimated_return_date?: string | null
           height?: number
           id?: string
           is_occupied?: boolean | null
           number: string
+          occupancy_status?: string | null
           updated_at?: string
+          vacancy_reason?: string | null
           width?: number
           x_position?: number
           y_position?: number
@@ -660,11 +666,14 @@ export type Database = {
           block?: string
           color?: string | null
           created_at?: string
+          estimated_return_date?: string | null
           height?: number
           id?: string
           is_occupied?: boolean | null
           number?: string
+          occupancy_status?: string | null
           updated_at?: string
+          vacancy_reason?: string | null
           width?: number
           x_position?: number
           y_position?: number

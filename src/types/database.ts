@@ -74,6 +74,9 @@ export interface House {
   height: number;
   color: string | null;
   is_occupied: boolean;
+  occupancy_status: 'occupied' | 'empty' | null;
+  vacancy_reason: string | null;
+  estimated_return_date: string | null;
   created_at: string;
   updated_at: string;
 }

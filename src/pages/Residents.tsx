@@ -14,7 +14,11 @@ import {
   Users,
   ArrowLeft,
   Filter,
+  Calendar,
+  Info,
 } from "lucide-react";
+import { format } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useNaturalSort } from "@/hooks/useNaturalSort";
+import { House } from "@/types/database";
 
 interface HouseResident {
   id: string;
@@ -52,6 +57,9 @@ interface HouseWithResidents {
   block: string;
   number: string;
   is_occupied: boolean;
+  occupancy_status?: "occupied" | "empty";
+  vacancy_reason?: string | null;
+  estimated_return_date?: string | null;
   residents: HouseResident[];
 }
 
@@ -94,11 +102,15 @@ export default function Residents() {
       if (profilesError) throw profilesError;
 
       const profilesMap = new Map((profilesData || []).map((p) => [p.id, p]));
+      const typedHousesData = (housesData || []) as House[];
 
       // Map residents to houses
-      const housesWithResidents: HouseWithResidents[] = housesData.map(
+      const housesWithResidents: HouseWithResidents[] = typedHousesData.map(
         (house) => ({
           ...house,
+          occupancy_status: house.occupancy_status || "occupied",
+          vacancy_reason: house.vacancy_reason || null,
+          estimated_return_date: house.estimated_return_date || null,
           residents: (residentsData || [])
             .filter((r) => r.house_id === house.id)
             .map((r) => ({
@@ -268,7 +280,14 @@ export default function Residents() {
             }`}
             onClick={() => setSelectedHouse(house)}
           >
-            <CardContent className="p-4 text-center">
+            <CardContent className="p-4 text-center relative overflow-hidden">
+              {house.occupancy_status === "empty" && (
+                <div className="absolute top-0 right-0">
+                  <Badge variant="destructive" className="rounded-none rounded-bl-lg text-[10px] px-1.5 h-5">
+                    Kosong
+                  </Badge>
+                </div>
+              )}
               <div className="text-lg font-bold text-primary">
                 {house.block} - {house.number}
               </div>
@@ -299,6 +318,26 @@ export default function Residents() {
           </DialogHeader>
 
           <div className="space-y-4">
+            {selectedHouse?.occupancy_status === "empty" && (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2 text-destructive font-semibold text-sm">
+                  <Info className="h-4 w-4" />
+                  Status: Rumah Kosong
+                </div>
+                {selectedHouse.vacancy_reason && (
+                  <p className="text-sm">
+                    <span className="font-medium">Alasan:</span> {selectedHouse.vacancy_reason}
+                  </p>
+                )}
+                {selectedHouse.estimated_return_date && (
+                  <p className="text-sm">
+                    <span className="font-medium">Estimasi Kembali:</span>{" "}
+                    {format(new Date(selectedHouse.estimated_return_date), "dd MMMM yyyy", { locale: idLocale })}
+                  </p>
+                )}
+              </div>
+            )}
+            
             {selectedHouse?.residents.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <User className="h-12 w-12 mx-auto mb-2 opacity-50" />

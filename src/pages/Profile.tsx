@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useForm } from "react-hook-form";
@@ -16,7 +16,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from "@/types/database";
+import { ROLE_LABELS, PENGURUS_TITLE_LABELS, House } from "@/types/database";
 import {
   Loader2,
   Pencil,
@@ -25,7 +25,19 @@ import {
   Camera,
   Trash2,
   ArrowLeft,
+  Home,
+  Calendar,
+  Info,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -43,7 +55,14 @@ const profileSchema = z.object({
     .or(z.literal("")),
 });
 
+const houseStatusSchema = z.object({
+  occupancy_status: z.enum(["occupied", "empty"]),
+  vacancy_reason: z.string().optional().or(z.literal("")),
+  estimated_return_date: z.string().optional().or(z.literal("")),
+});
+
 type ProfileForm = z.infer<typeof profileSchema>;
+type HouseStatusForm = z.infer<typeof houseStatusSchema>;
 
 export default function Profile() {
   const { profile, role, pengurusTitle, user } = useAuth();
@@ -60,6 +79,18 @@ export default function Profile() {
     defaultValues: {
       full_name: profile?.full_name ?? "",
       phone: profile?.phone ?? "",
+    },
+  });
+
+  const [isEditingHouse, setIsEditingHouse] = useState(false);
+  const [isSavingHouse, setIsSavingHouse] = useState(false);
+
+  const houseForm = useForm<HouseStatusForm>({
+    resolver: zodResolver(houseStatusSchema),
+    defaultValues: {
+      occupancy_status: "occupied",
+      vacancy_reason: "",
+      estimated_return_date: "",
     },
   });
 
@@ -125,6 +156,63 @@ export default function Profile() {
     queryClient.invalidateQueries({ queryKey: ["profile"] });
     window.location.reload();
   };
+
+  const onHouseSubmit = async (data: HouseStatusForm) => {
+    if (!userHouse?.house_id) return;
+
+    setIsSavingHouse(true);
+    const { error } = await supabase
+      .from("houses")
+      .update({
+        occupancy_status: data.occupancy_status,
+        vacancy_reason: data.occupancy_status === "empty" ? data.vacancy_reason : null,
+        estimated_return_date: data.occupancy_status === "empty" ? (data.estimated_return_date || null) : null,
+      })
+      .eq("id", userHouse.house_id);
+
+    setIsSavingHouse(false);
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Gagal menyimpan",
+        description: "Terjadi kesalahan saat menyimpan status rumah",
+      });
+      return;
+    }
+
+    toast({
+      title: "Status rumah disimpan",
+      description: "Data status rumah berhasil diperbarui",
+    });
+
+    setIsEditingHouse(false);
+    queryClient.invalidateQueries({ queryKey: ["user-house"] });
+  };
+
+  const handleCancelHouse = () => {
+    if (userHouse?.houses) {
+      const house = userHouse.houses as House;
+      houseForm.reset({
+        occupancy_status: house.occupancy_status || "occupied",
+        vacancy_reason: house.vacancy_reason || "",
+        estimated_return_date: house.estimated_return_date || "",
+      });
+    }
+    setIsEditingHouse(false);
+  };
+
+  // Set house form default values when userHouse is loaded
+  useEffect(() => {
+    if (userHouse?.houses) {
+      const house = userHouse.houses as House;
+      houseForm.reset({
+        occupancy_status: house.occupancy_status || "occupied",
+        vacancy_reason: house.vacancy_reason || "",
+        estimated_return_date: house.estimated_return_date || "",
+      });
+    }
+  }, [userHouse, houseForm]);
 
   const handleCancel = () => {
     form.reset({
@@ -444,6 +532,159 @@ export default function Profile() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {userHouse && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Status Rumah</CardTitle>
+                  <CardDescription>Atur status hunian rumah Anda</CardDescription>
+                </div>
+                {!isEditingHouse && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const house = userHouse.houses as House;
+                      houseForm.reset({
+                        occupancy_status: house.occupancy_status || "occupied",
+                        vacancy_reason: house.vacancy_reason || "",
+                        estimated_return_date: house.estimated_return_date || "",
+                      });
+                      setIsEditingHouse(true);
+                    }}
+                  >
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Edit Status
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {isEditingHouse ? (
+                  <form
+                    onSubmit={houseForm.handleSubmit(onHouseSubmit)}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor="occupancy_status">Status Hunian</Label>
+                      <Select
+                        value={houseForm.watch("occupancy_status")}
+                        onValueChange={(value: "occupied" | "empty") =>
+                          houseForm.setValue("occupancy_status", value)
+                        }
+                      >
+                        <SelectTrigger id="occupancy_status">
+                          <SelectValue placeholder="Pilih status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="occupied">Terisi (Ada Orang)</SelectItem>
+                          <SelectItem value="empty">Kosong (Tidak Ada Orang)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {houseForm.watch("occupancy_status") === "empty" && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="vacancy_reason">Alasan Kosong *</Label>
+                          <Textarea
+                            id="vacancy_reason"
+                            {...houseForm.register("vacancy_reason")}
+                            placeholder="Contoh: Mudik, Liburan, dsb"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="estimated_return_date">
+                            Estimasi Tanggal Kembali
+                          </Label>
+                          <Input
+                            id="estimated_return_date"
+                            type="date"
+                            {...houseForm.register("estimated_return_date")}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="flex gap-2 pt-2">
+                      <Button type="submit" disabled={isSavingHouse}>
+                        {isSavingHouse && (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        )}
+                        <Save className="w-4 h-4 mr-2" />
+                        Simpan Status
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelHouse}
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Batal
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-3 h-3 rounded-full ${
+                          (userHouse.houses as House).occupancy_status === "empty"
+                            ? "bg-red-500"
+                            : "bg-green-500"
+                        }`}
+                      />
+                      <span className="font-medium">
+                        {(userHouse.houses as House).occupancy_status === "empty"
+                          ? "Kosong"
+                          : "Terisi"}
+                      </span>
+                    </div>
+
+                    {(userHouse.houses as House).occupancy_status === "empty" && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/50 p-4 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <Info className="w-4 h-4 mt-0.5 text-muted-foreground" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Alasan</p>
+                            <p className="text-sm font-medium">
+                              {(userHouse.houses as House).vacancy_reason || "-"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Calendar className="w-4 h-4 mt-0.5 text-muted-foreground" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Estimasi Kembali
+                            </p>
+                            <p className="text-sm font-medium">
+                              {(userHouse.houses as House).estimated_return_date
+                                ? format(
+                                    new Date(
+                                      (userHouse.houses as House).estimated_return_date
+                                    ),
+                                    "dd MMMM yyyy"
+                                  )
+                                : "-"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
       </div>
     </section>
   );
