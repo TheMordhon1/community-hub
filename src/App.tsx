@@ -32,6 +32,7 @@ import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 import Houses from "./pages/Houses";
 import Home from "./pages/Index";
+import Inventory from "./pages/Inventory";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +93,7 @@ function AppRoutes() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/houses" element={<Houses />} />
+          <Route path="/inventory" element={<Inventory />} />
           <Route path="/admin/titles" element={<AdminTitles />} />
           <Route path="/admin/menus" element={<AdminMenus />} />
           <Route path="/admin/landing" element={<LandingSettings />} />

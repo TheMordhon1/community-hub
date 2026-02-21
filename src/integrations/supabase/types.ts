@@ -671,6 +671,126 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_borrow_items: {
+        Row: {
+          borrow_id: string
+          created_at: string
+          id: string
+          item_id: string
+          quantity: number
+        }
+        Insert: {
+          borrow_id: string
+          created_at?: string
+          id?: string
+          item_id: string
+          quantity?: number
+        }
+        Update: {
+          borrow_id?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_borrow_items_borrow_id_fkey"
+            columns: ["borrow_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_borrows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_borrow_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_borrows: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          borrow_date: string
+          created_at: string
+          id: string
+          notes: string | null
+          return_date: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          borrow_date?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          return_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          borrow_date?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          return_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      inventory_items: {
+        Row: {
+          available_quantity: number
+          category: string | null
+          condition: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          available_quantity?: number
+          category?: string | null
+          condition?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          available_quantity?: number
+          category?: string | null
+          condition?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       landing_settings: {
         Row: {
           created_at: string
