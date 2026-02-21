@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { User, LogOut } from "lucide-react";
+import { User, LogOut, Database } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from "@/types/database";
 import {
@@ -172,6 +172,19 @@ export function AppSidebar() {
                       </SidebarMenuItem>
                     ))
                   )}
+                  {/* Hardcoded Maintenance Link for Admin */}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive("/admin/maintenance")}
+                      onClick={closeSidebarOnMobile}
+                    >
+                      <Link to="/admin/maintenance">
+                        <Database className="w-4 h-4 text-primary" />
+                        <span>Pemeliharaan</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

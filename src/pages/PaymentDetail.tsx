@@ -28,6 +28,7 @@ import {
   Check,
   X,
   ImageIcon,
+  Info,
 } from "lucide-react";
 import type { Profile, House } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
@@ -328,6 +329,12 @@ export default function PaymentDetail() {
                       alt="Bukti pembayaran"
                       className="w-full max-h-96 object-contain bg-muted"
                     />
+                  </div>
+                  <div className="flex items-start gap-2 text-[10px] text-blue-700 bg-blue-50 p-2 rounded border border-blue-100 border-dashed">
+                    <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    <p>
+                      Guna mengoptimalkan kapasitas penyimpanan cloud, file bukti pembayaran hanya tersedia selama 1 bulan sejak iuran dibayarkan.
+                    </p>
                   </div>
                 </div>
               )}

@@ -62,6 +62,7 @@ import {
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useRef } from "react";
+import { getStoragePath } from "@/lib/utils";
 
 interface InventoryItem {
   id: string;
@@ -295,6 +296,14 @@ export default function Inventory() {
         })
         .eq("id", id);
       if (error) throw error;
+
+      // Cleanup old image if it was changed
+      if (currentItem?.image_url && currentItem.image_url !== form.image_url) {
+        const oldPath = getStoragePath(currentItem.image_url, "inventory");
+        if (oldPath) {
+          await supabase.storage.from("inventory").remove([oldPath]);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory-items"] });
@@ -308,8 +317,19 @@ export default function Inventory() {
 
   const deleteItemMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Find item to get image_url before deletion
+      const item = items.find((i) => i.id === id);
+
       const { error } = await supabase.from("inventory_items").delete().eq("id", id);
       if (error) throw error;
+
+      // Cleanup storage image
+      if (item?.image_url) {
+        const path = getStoragePath(item.image_url, "inventory");
+        if (path) {
+          await supabase.storage.from("inventory").remove([path]);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory-items"] });

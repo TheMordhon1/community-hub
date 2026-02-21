@@ -29,3 +29,17 @@ export const getInitials = (name?: string) => {
     .join("")
     .toUpperCase();
 };
+
+/**
+ * Extracts storage path from public URL
+ */
+export const getStoragePath = (url: string, bucket: string): string | null => {
+  try {
+    const urlObj = new URL(url);
+    const pattern = `/storage/v1/object/public/${bucket}/`;
+    const parts = urlObj.pathname.split(pattern);
+    return parts.length > 1 ? decodeURIComponent(parts[1]) : null;
+  } catch (e) {
+    return null;
+  }
+};

@@ -33,6 +33,7 @@ import { Loader2 } from "lucide-react";
 import Houses from "./pages/Houses";
 import Home from "./pages/Index";
 import Inventory from "./pages/Inventory";
+import Maintenance from "./pages/admin/Maintenance";
 
 const queryClient = new QueryClient();
 
@@ -98,6 +99,7 @@ function AppRoutes() {
           <Route path="/admin/titles" element={<AdminTitles />} />
           <Route path="/admin/menus" element={<AdminMenus />} />
           <Route path="/admin/landing" element={<LandingSettings />} />
+          <Route path="/admin/maintenance" element={<Maintenance />} />
           <Route path="/admin/emergency-contacts" element={<AdminEmergencyContacts />} />
         </Route>
       </Route>

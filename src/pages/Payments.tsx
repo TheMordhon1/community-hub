@@ -39,7 +39,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { cn, getStoragePath } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -424,7 +424,16 @@ export default function Payments() {
           .from("payment-proofs")
           .getPublicUrl(fileName);
 
+
         proofUrl = urlData.publicUrl;
+
+        // Cleanup old image if it exists
+        if (editingPayment.proof_url) {
+          const oldPath = getStoragePath(editingPayment.proof_url, "payment-proofs");
+          if (oldPath) {
+            await supabase.storage.from("payment-proofs").remove([oldPath]);
+          }
+        }
       }
 
       const { error } = await supabase
@@ -463,12 +472,23 @@ export default function Payments() {
   // Delete payment mutation
   const deletePayment = useMutation({
     mutationFn: async (paymentId: string) => {
+      // Find the payment to get the proof_url before deleting
+      const payment = payments?.find((p) => p.id === paymentId);
+      
       const { error } = await supabase
         .from("payments")
         .delete()
         .eq("id", paymentId);
 
       if (error) throw error;
+
+      // Cleanup storage image
+      if (payment?.proof_url) {
+        const path = getStoragePath(payment.proof_url, "payment-proofs");
+        if (path) {
+          await supabase.storage.from("payment-proofs").remove([path]);
+        }
+      }
     },
     onSuccess: () => {
       toast.success("Pembayaran berhasil dihapus");
