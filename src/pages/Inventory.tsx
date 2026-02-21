@@ -206,7 +206,26 @@ export default function Inventory() {
     },
   });
 
-  const profileMap = new Map(profiles.map((p) => [p.id, p.full_name]));
+  const { data: residents = [] } = useQuery({
+    queryKey: ["residents-all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("house_residents")
+        .select("user_id, houses(block, number)");
+      if (error) throw error;
+      
+      // Since houses is an array when joining (or single object depending on relationship),
+      // we need to handle both possible return shapes from supabase-js typing.
+      // Usually house_residents -> houses is a many-to-one (one house per resident record).
+      return data as { user_id: string; houses: { block: string; number: string } | null }[];
+    },
+  });
+
+  const profileMap = new Map(profiles.map((p) => {
+    const resident = residents.find(r => r.user_id === p.id);
+    const houseStr = resident?.houses ? `${resident.houses.block}${resident.houses.number}` : "";
+    return [p.id, houseStr ? `${p.full_name} (${houseStr})` : p.full_name];
+  }));
 
   // Get active borrowers per item
   const activeBorrowsByItem = new Map<string, { userName: string; quantity: number }[]>();
@@ -407,220 +426,220 @@ export default function Inventory() {
   const canManage = canManageContent() || isAdmin();
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Inventaris</h1>
-          <p className="text-muted-foreground text-sm">Kelola dan pinjam peralatan komunitas</p>
-        </div>
-        <div className="flex gap-2">
-          {selectedItems.size > 0 && (
-            <Button onClick={() => setBorrowDialogOpen(true)} className="gap-2">
-              <Send className="w-4 h-4" />
-              Pinjam ({selectedItems.size})
-            </Button>
-          )}
-          {canManage && (
-            <Dialog open={itemDialogOpen} onOpenChange={(open) => {
-              setItemDialogOpen(open);
-              if (!open) { resetItemForm(); setEditingItem(null); }
-            }}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Tambah
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>{editingItem ? "Edit Inventaris" : "Tambah Inventaris"}</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Nama Barang *</label>
-                    <Input value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} placeholder="Nama barang" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Deskripsi</label>
-                    <Textarea value={itemForm.description} onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })} placeholder="Deskripsi barang" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Kategori</label>
-                    <Select value={itemForm.category} onValueChange={(v) => setItemForm({ ...itemForm, category: v })}>
-                      <SelectTrigger><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
-                      <SelectContent>
-                        {CATEGORY_OPTIONS.map((c) => (
-                          <SelectItem key={c} value={c}>{c}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+    <section className="p-6">
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Inventaris</h1>
+            <p className="text-muted-foreground text-sm">Kelola dan pinjam peralatan paguyuban</p>
+          </div>
+          <div className="flex gap-2">
+            {selectedItems.size > 0 && (
+              <Button onClick={() => setBorrowDialogOpen(true)} className="gap-2">
+                <Send className="w-4 h-4" />
+                Pinjam ({selectedItems.size})
+              </Button>
+            )}
+            {canManage && (
+              <Dialog open={itemDialogOpen} onOpenChange={(open) => {
+                setItemDialogOpen(open);
+                if (!open) { resetItemForm(); setEditingItem(null); }
+              }}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Tambah
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>{editingItem ? "Edit Inventaris" : "Tambah Inventaris"}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
                     <div>
-                      <label className="text-sm font-medium">Jumlah *</label>
-                      <Input type="number" min={1} value={itemForm.quantity} onChange={(e) => setItemForm({ ...itemForm, quantity: parseInt(e.target.value) || 1 })} />
+                      <label className="text-sm font-medium">Nama Barang *</label>
+                      <Input value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} placeholder="Nama barang" />
                     </div>
                     <div>
-                      <label className="text-sm font-medium">Kondisi *</label>
-                      <Select value={itemForm.condition} onValueChange={(v) => setItemForm({ ...itemForm, condition: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                      <label className="text-sm font-medium">Deskripsi</label>
+                      <Textarea value={itemForm.description} onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })} placeholder="Deskripsi barang" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Kategori</label>
+                      <Select value={itemForm.category} onValueChange={(v) => setItemForm({ ...itemForm, category: v })}>
+                        <SelectTrigger><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
                         <SelectContent>
-                          {CONDITION_OPTIONS.map((c) => (
-                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                          {CATEGORY_OPTIONS.map((c) => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Jumlah *</label>
+                        <Input type="number" min={1} value={itemForm.quantity} onChange={(e) => setItemForm({ ...itemForm, quantity: parseInt(e.target.value) || 1 })} />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Kondisi *</label>
+                        <Select value={itemForm.condition} onValueChange={(v) => setItemForm({ ...itemForm, condition: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {CONDITION_OPTIONS.map((c) => (
+                              <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <DialogFooter>
-                  <Button
-                    onClick={() => editingItem
-                      ? updateItemMutation.mutate({ id: editingItem.id, form: itemForm })
-                      : createItemMutation.mutate(itemForm)
-                    }
-                    disabled={!itemForm.name || createItemMutation.isPending || updateItemMutation.isPending}
-                  >
-                    {(createItemMutation.isPending || updateItemMutation.isPending) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    {editingItem ? "Simpan" : "Tambah"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
+                  <DialogFooter>
+                    <Button
+                      onClick={() => editingItem
+                        ? updateItemMutation.mutate({ id: editingItem.id, form: itemForm })
+                        : createItemMutation.mutate(itemForm)
+                      }
+                      disabled={!itemForm.name || createItemMutation.isPending || updateItemMutation.isPending}
+                    >
+                      {(createItemMutation.isPending || updateItemMutation.isPending) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      {editingItem ? "Simpan" : "Tambah"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
         </div>
-      </div>
 
-      <Tabs defaultValue="items">
-        <TabsList>
-          <TabsTrigger value="items">Daftar Barang</TabsTrigger>
-          <TabsTrigger value="borrows">Peminjaman</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="items">
+          <TabsList>
+            <TabsTrigger value="items">Daftar Barang</TabsTrigger>
+            <TabsTrigger value="borrows">Peminjaman</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="items" className="mt-4">
-          {itemsLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : items.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Package className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Belum ada inventaris</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              {/* Mobile cards */}
-              <div className="grid grid-cols-1 gap-3 md:hidden">
-                {items.map((item) => {
-                  const borrowers = activeBorrowsByItem.get(item.id) || [];
-                  const isSelected = selectedItems.has(item.id);
-                  return (
-                    <Card key={item.id} className={`transition-all ${isSelected ? "ring-2 ring-primary" : ""}`}>
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3 flex-1">
-                            {!canManage && item.available_quantity > 0 && item.condition !== "broken" && (
-                              <Checkbox
-                                checked={isSelected}
-                                onCheckedChange={() => toggleItemSelection(item.id, item.available_quantity)}
-                                className="mt-1"
-                              />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold truncate">{item.name}</h3>
-                              {item.category && (
-                                <Badge variant="outline" className="text-xs mt-1">{item.category}</Badge>
+          <TabsContent value="items" className="mt-4">
+            {itemsLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : items.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Package className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Belum ada inventaris</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {/* Mobile cards */}
+                <div className="grid grid-cols-1 gap-3 md:hidden">
+                  {items.map((item) => {
+                    const borrowers = activeBorrowsByItem.get(item.id) || [];
+                    const isSelected = selectedItems.has(item.id);
+                    return (
+                      <Card key={item.id} className={`transition-all ${isSelected ? "ring-2 ring-primary" : ""}`}>
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-3 flex-1">
+                              {item.available_quantity > 0 && item.condition !== "broken" && (
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={() => toggleItemSelection(item.id, item.available_quantity)}
+                                  className="mt-1"
+                                />
                               )}
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold truncate">{item.name}</h3>
+                                {item.category && (
+                                  <Badge variant="outline" className="text-xs mt-1">{item.category}</Badge>
+                                )}
+                              </div>
                             </div>
+                            {canManage && (
+                              <div className="flex gap-1">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(item)}>
+                                  <Edit className="w-3.5 h-3.5" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Hapus {item.name}?</AlertDialogTitle>
+                                      <AlertDialogDescription>Tindakan ini tidak bisa dibatalkan.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => deleteItemMutation.mutate(item.id)}>Hapus</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            )}
                           </div>
-                          {canManage && (
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(item)}>
-                                <Edit className="w-3.5 h-3.5" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Hapus {item.name}?</AlertDialogTitle>
-                                    <AlertDialogDescription>Tindakan ini tidak bisa dibatalkan.</AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Batal</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => deleteItemMutation.mutate(item.id)}>Hapus</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                          {item.description && <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>}
+                          <div className="flex flex-wrap gap-2 items-center">
+                            {getConditionBadge(item.condition)}
+                            <span className="text-sm">
+                              Tersedia: <strong>{item.available_quantity}</strong> / {item.quantity}
+                            </span>
+                          </div>
+                          {isSelected && (
+                            <div className="flex items-center gap-2">
+                              <label className="text-sm">Jumlah pinjam:</label>
+                              <Input
+                                type="number"
+                                min={1}
+                                max={item.available_quantity}
+                                value={selectedItems.get(item.id) || 1}
+                                onChange={(e) => updateSelectedQuantity(item.id, parseInt(e.target.value) || 1, item.available_quantity)}
+                                className="w-20 h-8"
+                              />
                             </div>
                           )}
-                        </div>
-                        {item.description && <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>}
-                        <div className="flex flex-wrap gap-2 items-center">
-                          {getConditionBadge(item.condition)}
-                          <span className="text-sm">
-                            Tersedia: <strong>{item.available_quantity}</strong> / {item.quantity}
-                          </span>
-                        </div>
-                        {isSelected && (
-                          <div className="flex items-center gap-2">
-                            <label className="text-sm">Jumlah pinjam:</label>
-                            <Input
-                              type="number"
-                              min={1}
-                              max={item.available_quantity}
-                              value={selectedItems.get(item.id) || 1}
-                              onChange={(e) => updateSelectedQuantity(item.id, parseInt(e.target.value) || 1, item.available_quantity)}
-                              className="w-20 h-8"
-                            />
-                          </div>
-                        )}
-                        {borrowers.length > 0 && (
-                          <div className="text-sm space-y-1 border-t pt-2">
-                            <p className="text-muted-foreground font-medium flex items-center gap-1">
-                              <User className="w-3.5 h-3.5" /> Sedang dipinjam:
-                            </p>
-                            {borrowers.map((b, i) => (
-                              <p key={i} className="text-muted-foreground pl-5">
-                                {b.userName} ({b.quantity}x)
+                          {borrowers.length > 0 && (
+                            <div className="text-sm space-y-1 border-t pt-2">
+                              <p className="text-muted-foreground font-medium flex items-center gap-1">
+                                <User className="w-3.5 h-3.5" /> Sedang dipinjam:
                               </p>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+                              {borrowers.map((b, i) => (
+                                <p key={i} className="text-muted-foreground pl-5">
+                                  {b.userName} ({b.quantity}x)
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
 
-              {/* Desktop table */}
-              <div className="hidden md:block">
-                <div className="overflow-x-auto rounded-lg border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {!canManage && <TableHead className="w-10"></TableHead>}
-                        <TableHead>Nama</TableHead>
-                        <TableHead>Kategori</TableHead>
-                        <TableHead>Kondisi</TableHead>
-                        <TableHead className="text-center">Jumlah</TableHead>
-                        <TableHead className="text-center">Tersedia</TableHead>
-                        <TableHead>Peminjam</TableHead>
-                        {canManage && <TableHead className="text-right">Aksi</TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {items.map((item) => {
-                        const borrowers = activeBorrowsByItem.get(item.id) || [];
-                        const isSelected = selectedItems.has(item.id);
-                        return (
-                          <TableRow key={item.id} className={isSelected ? "bg-primary/5" : ""}>
-                            {!canManage && (
+                {/* Desktop table */}
+                <div className="hidden md:block">
+                  <div className="overflow-x-auto rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10"></TableHead>
+                          <TableHead>Nama</TableHead>
+                          <TableHead>Kategori</TableHead>
+                          <TableHead>Kondisi</TableHead>
+                          <TableHead className="text-center">Jumlah</TableHead>
+                          <TableHead className="text-center">Tersedia</TableHead>
+                          <TableHead>Peminjam</TableHead>
+                          {canManage && <TableHead className="text-right">Aksi</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {items.map((item) => {
+                          const borrowers = activeBorrowsByItem.get(item.id) || [];
+                          const isSelected = selectedItems.has(item.id);
+                          return (
+                            <TableRow key={item.id} className={isSelected ? "bg-primary/5" : ""}>
                               <TableCell>
                                 {item.available_quantity > 0 && item.condition !== "broken" && (
                                   <Checkbox
@@ -629,208 +648,208 @@ export default function Inventory() {
                                   />
                                 )}
                               </TableCell>
-                            )}
-                            <TableCell>
-                              <div>
-                                <p className="font-medium">{item.name}</p>
-                                {item.description && <p className="text-xs text-muted-foreground line-clamp-1">{item.description}</p>}
-                              </div>
-                              {isSelected && (
-                                <div className="flex items-center gap-2 mt-1">
-                                  <label className="text-xs">Qty:</label>
-                                  <Input
-                                    type="number"
-                                    min={1}
-                                    max={item.available_quantity}
-                                    value={selectedItems.get(item.id) || 1}
-                                    onChange={(e) => updateSelectedQuantity(item.id, parseInt(e.target.value) || 1, item.available_quantity)}
-                                    className="w-16 h-7 text-xs"
-                                  />
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">{item.name}</p>
+                                  {item.description && <p className="text-xs text-muted-foreground line-clamp-1">{item.description}</p>}
                                 </div>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {item.category && <Badge variant="outline">{item.category}</Badge>}
-                            </TableCell>
-                            <TableCell>{getConditionBadge(item.condition)}</TableCell>
-                            <TableCell className="text-center">{item.quantity}</TableCell>
-                            <TableCell className="text-center">
-                              <span className={item.available_quantity === 0 ? "text-destructive font-bold" : "text-green-600 font-bold"}>
-                                {item.available_quantity}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              {borrowers.length > 0 ? (
-                                <div className="space-y-0.5">
-                                  {borrowers.map((b, i) => (
-                                    <p key={i} className="text-xs flex items-center gap-1">
-                                      <User className="w-3 h-3" /> {b.userName} ({b.quantity}x)
-                                    </p>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            {canManage && (
-                              <TableCell className="text-right">
-                                <div className="flex justify-end gap-1">
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(item)}>
-                                    <Edit className="w-3.5 h-3.5" />
-                                  </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Hapus {item.name}?</AlertDialogTitle>
-                                        <AlertDialogDescription>Tindakan ini tidak bisa dibatalkan.</AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Batal</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => deleteItemMutation.mutate(item.id)}>Hapus</AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </div>
+                                {isSelected && (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <label className="text-xs">Qty:</label>
+                                    <Input
+                                      type="number"
+                                      min={1}
+                                      max={item.available_quantity}
+                                      value={selectedItems.get(item.id) || 1}
+                                      onChange={(e) => updateSelectedQuantity(item.id, parseInt(e.target.value) || 1, item.available_quantity)}
+                                      className="w-16 h-7 text-xs"
+                                    />
+                                  </div>
+                                )}
                               </TableCell>
-                            )}
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            </>
-          )}
-        </TabsContent>
-
-        <TabsContent value="borrows" className="mt-4">
-          {borrowsLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : borrows.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Send className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Belum ada peminjaman</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {borrows.map((borrow) => {
-                const bItems = borrowItems.filter((bi) => bi.borrow_id === borrow.id);
-                const borrowerName = profileMap.get(borrow.user_id) || "Unknown";
-                const approverName = borrow.approved_by ? profileMap.get(borrow.approved_by) : null;
-
-                return (
-                  <Card key={borrow.id}>
-                    <CardHeader className="pb-2">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <CardTitle className="text-base">{borrowerName}</CardTitle>
-                          {getStatusBadge(borrow.status)}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(borrow.created_at), "dd MMM yyyy HH:mm", { locale: idLocale })}
-                        </span>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="space-y-1">
-                        {bItems.map((bi) => {
-                          const item = items.find((i) => i.id === bi.item_id);
-                          return (
-                            <p key={bi.id} className="text-sm">
-                              • {item?.name || "Unknown"} ({bi.quantity}x)
-                            </p>
+                              <TableCell>
+                                {item.category && <Badge variant="outline">{item.category}</Badge>}
+                              </TableCell>
+                              <TableCell>{getConditionBadge(item.condition)}</TableCell>
+                              <TableCell className="text-center">{item.quantity}</TableCell>
+                              <TableCell className="text-center">
+                                <span className={item.available_quantity === 0 ? "text-destructive font-bold" : "text-green-600 font-bold"}>
+                                  {item.available_quantity}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                {borrowers.length > 0 ? (
+                                  <div className="space-y-0.5">
+                                    {borrowers.map((b, i) => (
+                                      <p key={i} className="text-xs flex items-center gap-1">
+                                        <User className="w-3 h-3" /> {b.userName}
+                                      </p>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              {canManage && (
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-1">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(item)}>
+                                      <Edit className="w-3.5 h-3.5" />
+                                    </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Hapus {item.name}?</AlertDialogTitle>
+                                          <AlertDialogDescription>Tindakan ini tidak bisa dibatalkan.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Batal</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => deleteItemMutation.mutate(item.id)}>Hapus</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </div>
+                                </TableCell>
+                              )}
+                            </TableRow>
                           );
                         })}
-                      </div>
-                      {borrow.notes && <p className="text-sm text-muted-foreground">Catatan: {borrow.notes}</p>}
-                      {approverName && (
-                        <p className="text-xs text-muted-foreground">Disetujui oleh: {approverName}</p>
-                      )}
-                      {borrow.return_date && (
-                        <p className="text-xs text-muted-foreground">
-                          Dikembalikan: {format(new Date(borrow.return_date), "dd MMM yyyy HH:mm", { locale: idLocale })}
-                        </p>
-                      )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </>
+            )}
+          </TabsContent>
 
-                      {canManage && (
-                        <div className="flex flex-wrap gap-2 pt-2 border-t">
-                          {borrow.status === "pending" && (
-                            <>
-                              <Button size="sm" variant="outline" className="gap-1" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "approved" })}>
-                                <CheckCircle className="w-3.5 h-3.5" /> Setujui
-                              </Button>
-                              <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "rejected" })}>
-                                <XCircle className="w-3.5 h-3.5" /> Tolak
-                              </Button>
-                            </>
-                          )}
-                          {borrow.status === "approved" && (
-                            <Button size="sm" variant="outline" className="gap-1" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "borrowed" })}>
-                              <Package className="w-3.5 h-3.5" /> Tandai Dipinjam
-                            </Button>
-                          )}
-                          {borrow.status === "borrowed" && (
-                            <Button size="sm" variant="outline" className="gap-1" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "returned" })}>
-                              <RotateCcw className="w-3.5 h-3.5" /> Tandai Dikembalikan
-                            </Button>
-                          )}
+          <TabsContent value="borrows" className="mt-4">
+            {borrowsLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : borrows.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Send className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Belum ada peminjaman</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {borrows.map((borrow) => {
+                  const bItems = borrowItems.filter((bi) => bi.borrow_id === borrow.id);
+                  const borrowerName = profileMap.get(borrow.user_id) || "Unknown";
+                  const approverName = borrow.approved_by ? profileMap.get(borrow.approved_by) : null;
+
+                  return (
+                    <Card key={borrow.id}>
+                      <CardHeader className="pb-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <CardTitle className="text-base">{borrowerName}</CardTitle>
+                            {getStatusBadge(borrow.status)}
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(borrow.created_at), "dd MMM yyyy HH:mm", { locale: idLocale })}
+                          </span>
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="space-y-1">
+                          {bItems.map((bi) => {
+                            const item = items.find((i) => i.id === bi.item_id);
+                            return (
+                              <p key={bi.id} className="text-sm">
+                                • {item?.name || "Unknown"} ({bi.quantity}x)
+                              </p>
+                            );
+                          })}
+                        </div>
+                        {borrow.notes && <p className="text-sm text-muted-foreground">Catatan: {borrow.notes}</p>}
+                        {approverName && (
+                          <p className="text-xs text-muted-foreground">Disetujui oleh: {approverName}</p>
+                        )}
+                        {borrow.return_date && (
+                          <p className="text-xs text-muted-foreground">
+                            Dikembalikan: {format(new Date(borrow.return_date), "dd MMM yyyy HH:mm", { locale: idLocale })}
+                          </p>
+                        )}
 
-      {/* Borrow confirmation dialog */}
-      <Dialog open={borrowDialogOpen} onOpenChange={setBorrowDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Konfirmasi Peminjaman</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Barang yang dipinjam:</p>
-              {Array.from(selectedItems.entries()).map(([itemId, qty]) => {
-                const item = items.find((i) => i.id === itemId);
-                return (
-                  <p key={itemId} className="text-sm text-muted-foreground">
-                    • {item?.name} ({qty}x)
-                  </p>
-                );
-              })}
+                        {canManage && (
+                          <div className="flex flex-wrap gap-2 pt-2 border-t">
+                            {borrow.status === "pending" && (
+                              <>
+                                <Button size="sm" variant="outline" className="gap-1" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "approved" })}>
+                                  <CheckCircle className="w-3.5 h-3.5" /> Setujui
+                                </Button>
+                                <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "rejected" })}>
+                                  <XCircle className="w-3.5 h-3.5" /> Tolak
+                                </Button>
+                              </>
+                            )}
+                            {borrow.status === "approved" && (
+                              <Button size="sm" variant="outline" className="gap-1" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "borrowed" })}>
+                                <Package className="w-3.5 h-3.5" /> Tandai Dipinjam
+                              </Button>
+                            )}
+                            {borrow.status === "borrowed" && (
+                              <Button size="sm" variant="outline" className="gap-1" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "returned" })}>
+                                <RotateCcw className="w-3.5 h-3.5" /> Tandai Dikembalikan
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        {/* Borrow confirmation dialog */}
+        <Dialog open={borrowDialogOpen} onOpenChange={setBorrowDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Konfirmasi Peminjaman</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Barang yang dipinjam:</p>
+                {Array.from(selectedItems.entries()).map(([itemId, qty]) => {
+                  const item = items.find((i) => i.id === itemId);
+                  return (
+                    <p key={itemId} className="text-sm text-muted-foreground">
+                      • {item?.name} ({qty}x)
+                    </p>
+                  );
+                })}
+              </div>
+              <div>
+                <label className="text-sm font-medium">Catatan (opsional)</label>
+                <Textarea
+                  value={borrowNotes}
+                  onChange={(e) => setBorrowNotes(e.target.value)}
+                  placeholder="Tujuan peminjaman, estimasi pengembalian, dll."
+                />
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-medium">Catatan (opsional)</label>
-              <Textarea
-                value={borrowNotes}
-                onChange={(e) => setBorrowNotes(e.target.value)}
-                placeholder="Tujuan peminjaman, estimasi pengembalian, dll."
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setBorrowDialogOpen(false)}>Batal</Button>
-            <Button onClick={() => submitBorrowMutation.mutate()} disabled={submitBorrowMutation.isPending}>
-              {submitBorrowMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Kirim Permintaan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBorrowDialogOpen(false)}>Batal</Button>
+              <Button onClick={() => submitBorrowMutation.mutate()} disabled={submitBorrowMutation.isPending}>
+                {submitBorrowMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Kirim Permintaan
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </section>
   );
 }
