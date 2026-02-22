@@ -136,6 +136,16 @@ export default function Profile() {
     enabled: !!user?.id,
   });
 
+  const MEMBER_SORT_PRIORITY: Record<string, number> = {
+    suami: 1,
+    istri: 2,
+    anak: 3,
+    orang_tua: 4,
+    saudara: 5,
+    asisten: 6,
+    single: 7,
+  };
+
   // Fetch all house members
   const { data: houseMembers, isLoading: isMembersLoading } = useQuery({
     queryKey: ["house-members", userHouse?.house_id],
@@ -741,7 +751,15 @@ export default function Profile() {
                   </div>
                 ) : (
                     <div className="space-y-3">
-                      {[...(houseMembers || [])].sort((a, b) => (b.is_head ? 1 : 0) - (a.is_head ? 1 : 0)).map((member, index) => (
+                      {[...(houseMembers || [])]
+                        .sort((a, b) => {
+                          if (a.is_head !== b.is_head) return b.is_head ? 1 : -1;
+                          const priorityA = MEMBER_SORT_PRIORITY[a.member_type || ""] || 99;
+                          const priorityB = MEMBER_SORT_PRIORITY[b.member_type || ""] || 99;
+                          if (priorityA !== priorityB) return priorityA - priorityB;
+                          return (a.full_name || "").localeCompare(b.full_name || "");
+                        })
+                        .map((member, index) => (
                         <motion.div
                           key={member.id}
                           initial={{ opacity: 0, x: -10 }}

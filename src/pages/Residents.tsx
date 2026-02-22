@@ -95,6 +95,15 @@ type OccupancyFilter = "all" | "occupied" | "empty";
 export default function Residents() {
   const { naturalSort } = useNaturalSort();
   const [searchQuery, setSearchQuery] = useState("");
+  const MEMBER_SORT_PRIORITY: Record<string, number> = {
+    suami: 1,
+    istri: 2,
+    anak: 3,
+    orang_tua: 4,
+    saudara: 5,
+    asisten: 6,
+    single: 7,
+  };
   const [selectedHouse, setSelectedHouse] = useState<HouseWithResidents | null>(
     null
   );
@@ -476,7 +485,15 @@ export default function Residents() {
               </div>
             ) : (
               <div className="space-y-3">
-                {[...(selectedHouse?.residents || [])].sort((a, b) => (b.is_head ? 1 : 0) - (a.is_head ? 1 : 0)).map((resident) => (
+                {[...(selectedHouse?.residents || [])]
+                  .sort((a, b) => {
+                    if (a.is_head !== b.is_head) return b.is_head ? 1 : -1;
+                    const priorityA = MEMBER_SORT_PRIORITY[a.member_type || ""] || 99;
+                    const priorityB = MEMBER_SORT_PRIORITY[b.member_type || ""] || 99;
+                    if (priorityA !== priorityB) return priorityA - priorityB;
+                    return (a.full_name || "").localeCompare(b.full_name || "");
+                  })
+                  .map((resident) => (
                   <div
                     key={resident.id}
                     className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
