@@ -22,10 +22,18 @@ export const getValidDate = (date?: string, time?: string) => {
 
 export const getInitials = (name?: string) => {
   if (!name) return "?";
-  return name
-    .split(" ")
-    .map((n) => n[0])
+  
+  // Remove anything inside parentheses, including the parentheses themselves
+  const cleanName = name.replace(/\([^)]*\)/g, "");
+  
+  // Split by anything that is not a letter to get word-like chunks of letters
+  const letterChunks = cleanName.split(/[^a-zA-Z]+/).filter(Boolean);
+  
+  if (letterChunks.length === 0) return "?";
+  
+  return letterChunks
     .slice(0, 2)
+    .map((chunk) => chunk[0])
     .join("")
     .toUpperCase();
 };
