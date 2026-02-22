@@ -603,6 +603,7 @@ export type Database = {
           is_head: boolean | null
           member_type: string | null
           move_in_date: string | null
+          status: string | null
           updated_at: string
           user_id: string | null
         }
@@ -614,6 +615,7 @@ export type Database = {
           is_head?: boolean | null
           member_type?: string | null
           move_in_date?: string | null
+          status?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -625,6 +627,7 @@ export type Database = {
           is_head?: boolean | null
           member_type?: string | null
           move_in_date?: string | null
+          status?: string | null
           updated_at?: string
           user_id?: string | null
         }

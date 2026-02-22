@@ -66,6 +66,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { getInitials } from "@/lib/utils";
+import { useNaturalSort } from "@/hooks/useNaturalSort";
 
 const profileSchema = z.object({
   full_name: z
@@ -77,6 +78,7 @@ const profileSchema = z.object({
     .max(20, "Nomor telepon terlalu panjang")
     .optional()
     .or(z.literal("")),
+  house_id: z.string().min(1, "Pilih nomor rumah"),
 });
 
 const houseStatusSchema = z.object({
@@ -103,8 +105,11 @@ export default function Profile() {
     defaultValues: {
       full_name: profile?.full_name ?? "",
       phone: profile?.phone ?? "",
+      house_id: "",
     },
   });
+
+  const { naturalSort } = useNaturalSort();
 
   const [isEditingHouse, setIsEditingHouse] = useState(false);
   const [isSavingHouse, setIsSavingHouse] = useState(false);
@@ -124,16 +129,36 @@ export default function Profile() {
     queryKey: ["user-house", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from("house_members")
         .select("*, houses(*)")
         .eq("user_id", user.id)
-        .maybeSingle();
+        .eq("status", "approved")
+        .maybeSingle());
 
       if (error) throw error;
       return data;
     },
     enabled: !!user?.id,
+  });
+
+  // Fetch all houses for selection
+  const { data: houses } = useQuery({
+    queryKey: ["houses-all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("houses")
+        .select("*")
+        .order("block")
+        .order("number");
+
+      if (error) throw error;
+      return (data as House[]).sort((a, b) => {
+        const blockSort = naturalSort(a.block, b.block);
+        if (blockSort !== 0) return blockSort;
+        return naturalSort(a.number, b.number);
+      });
+    },
   });
 
   const MEMBER_SORT_PRIORITY: Record<string, number> = {
@@ -155,6 +180,7 @@ export default function Profile() {
         .from("house_members")
         .select("*")
         .eq("house_id", userHouse.house_id)
+        .eq("status", "approved")
         .order("is_head", { ascending: false })
         .order("full_name");
 
@@ -182,6 +208,38 @@ export default function Profile() {
       return (members || []).map((m) => ({ ...m, profiles: null }));
     },
     enabled: !!userHouse?.house_id,
+  });
+
+  // Fetch pending join requests for THE USER (outgoing requests)
+  const { data: myPendingRequests } = useQuery({
+    queryKey: ["my-pending-requests", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await (supabase
+        .from("house_members")
+        .select("*, houses(*)")
+        .eq("user_id", user.id)
+        .eq("status", "pending"));
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch pending join requests for THE HOUSE (incoming requests for KK)
+  const { data: incomingRequests } = useQuery({
+    queryKey: ["incoming-requests", userHouse?.house_id],
+    queryFn: async () => {
+      if (!userHouse?.house_id || !userHouse?.is_head) return [];
+      const { data, error } = await supabase
+        .from("house_members")
+        .select("*")
+        .eq("house_id", userHouse.house_id)
+        .eq("status", "pending");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!userHouse?.house_id && !!userHouse?.is_head,
   });
 
   const [isAddingMember, setIsAddingMember] = useState(false);
@@ -281,37 +339,168 @@ export default function Profile() {
     return `Blok ${house.block} No. ${house.number}`;
   };
 
+  const approveRequestMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      // 1. Get the request details
+      const { data: request, error: fetchErr } = await supabase
+        .from("house_members")
+        .select("*")
+        .eq("id", requestId)
+        .single();
+      
+      if (fetchErr) throw fetchErr;
+
+      // 2. Remove old house member record for this user if it exists
+      if (request.user_id) {
+        // Find existing approved record for this user
+        const { data: existingApproved } = await supabase
+          .from("house_members")
+          .select("id")
+          .eq("user_id", request.user_id)
+          .eq("status", "approved")
+          .maybeSingle();
+        
+        if (existingApproved) {
+          await supabase.from("house_members").delete().eq("id", existingApproved.id);
+        }
+      }
+
+      // 3. Approve the new request
+      const { error: approveErr } = await supabase
+        .from("house_members")
+        .update({ status: "approved" })
+        .eq("id", requestId);
+      
+      if (approveErr) throw approveErr;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["house-members"] });
+      queryClient.invalidateQueries({ queryKey: ["incoming-requests"] });
+      toast({ title: "Berhasil Setujui", description: "Anggota baru telah disetujui." });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Gagal menyetujui", description: err.message });
+    }
+  });
+
+  const rejectRequestMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      const { error } = await supabase
+        .from("house_members")
+        .delete()
+        .eq("id", requestId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["incoming-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["my-pending-requests"] });
+      toast({ title: "Permintaan Dihapus", description: "Permintaan bergabung telah dihapus." });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Gagal menghapus", description: err.message });
+    }
+  });
+
   const onSubmit = async (data: ProfileForm) => {
     if (!user?.id) return;
 
     setIsSaving(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        full_name: data.full_name,
-        phone: data.phone || null,
-      })
-      .eq("id", user.id);
+    
+    try {
+      // 1. Update Profile (Name, Phone)
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          full_name: data.full_name,
+          phone: data.phone || null,
+        })
+        .eq("id", user.id);
 
-    setIsSaving(false);
+      if (profileError) throw profileError;
 
-    if (error) {
+      // 2. Handle House Move if house_id changed
+      if (data.house_id !== userHouse?.house_id) {
+        // Check if target house is empty
+        const { data: targetMembers, error: checkError } = await supabase
+          .from("house_members")
+          .select("id, status, is_head")
+          .eq("house_id", data.house_id)
+          .eq("status", "approved");
+
+        if (checkError) throw checkError;
+
+        const isHouseEmpty = !targetMembers || targetMembers.length === 0;
+
+        if (isHouseEmpty) {
+          // Move directly and become KK
+          // Remove old link
+          if (userHouse?.id) {
+            await supabase.from("house_members").delete().eq("id", userHouse.id);
+          }
+          
+          // Add new link as approved head
+          const { error: moveError } = await supabase
+            .from("house_members")
+            .insert({
+              house_id: data.house_id,
+              user_id: user.id,
+              full_name: data.full_name,
+              is_head: true,
+              status: "approved"
+            });
+            
+          if (moveError) throw moveError;
+          toast({ title: "Berhasil Pindah Rumah", description: "Anda telah didaftarkan sebagai Kepala Keluarga di rumah baru." });
+        } else {
+          // Create a PENDING request
+          // Don't delete old link yet! User stays in old house until approved.
+          // First check if a pending request already exists for this house
+          const { data: existingRequest } = await supabase
+            .from("house_members")
+            .select("id")
+            .eq("house_id", data.house_id)
+            .eq("user_id", user.id)
+            .eq("status", "pending")
+            .maybeSingle();
+
+          if (!existingRequest) {
+            const { error: reqError } = await supabase
+              .from("house_members")
+              .insert({
+                house_id: data.house_id,
+                user_id: user.id,
+                full_name: data.full_name,
+                is_head: false,
+                status: "pending"
+              });
+
+            if (reqError) throw reqError;
+            toast({ title: "Permintaan Pindah Dikirim", description: "Menunggu persetujuan dari Kepala Keluarga rumah tujuan." });
+          } else {
+            toast({ title: "Permintaan Sudah Ada", description: "Anda sudah memiliki permintaan bergabung yang sedang diproses untuk rumah ini." });
+          }
+        }
+      }
+
+      toast({
+        title: "Profil disimpan",
+        description: "Data profil berhasil diperbarui",
+      });
+
+      setIsEditing(false);
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["user-house"] });
+      queryClient.invalidateQueries({ queryKey: ["house-members"] });
+    } catch (error) {
+      console.error("Save profile error:", error);
       toast({
         variant: "destructive",
         title: "Gagal menyimpan",
-        description: "Terjadi kesalahan saat menyimpan profil",
+        description: error.message || "Terjadi kesalahan saat menyimpan profil",
       });
-      return;
+    } finally {
+      setIsSaving(false);
     }
-
-    toast({
-      title: "Profil disimpan",
-      description: "Data profil berhasil diperbarui",
-    });
-
-    setIsEditing(false);
-    queryClient.invalidateQueries({ queryKey: ["profile"] });
-    window.location.reload();
   };
 
   const onHouseSubmit = async (data: HouseStatusForm) => {
@@ -394,14 +583,17 @@ export default function Profile() {
   // Set house form default values when userHouse is loaded
   useEffect(() => {
     if (userHouse?.houses) {
-      const house = userHouse.houses as House;
+      const house = userHouse.houses as unknown as House;
       houseForm.reset({
         occupancy_status: house.occupancy_status || "occupied",
         vacancy_reason: house.vacancy_reason || "",
         estimated_return_date: house.estimated_return_date || "",
       });
+      
+      // Also update profile form with current house
+      form.setValue("house_id", userHouse.house_id);
     }
-  }, [userHouse, houseForm]);
+  }, [userHouse, houseForm, form]);
 
   const handleCancel = () => {
     form.reset({
@@ -525,6 +717,33 @@ export default function Profile() {
   return (
     <section className="p-6">
       <div className="mx-auto space-y-6">
+        {myPendingRequests && myPendingRequests.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+          >
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+              <Info className="w-5 h-5 text-amber-600 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="font-bold text-amber-900 text-sm">Menunggu Persetujuan Pindah</h3>
+                <p className="text-amber-700 text-xs mt-1">
+                  Permintaan Anda untuk bergabung dengan <strong>Blok {(myPendingRequests[0].houses as unknown as House).block} No. {(myPendingRequests[0].houses as unknown as House).number}</strong> sedang menunggu persetujuan dari Kepala Keluarga tersebut.
+                </p>
+                <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-9 sm:h-8 text-xs border-amber-200 text-amber-700 hover:bg-amber-100 w-full sm:w-auto"
+                    onClick={() => rejectRequestMutation.mutate(myPendingRequests[0].id)}
+                    disabled={rejectRequestMutation.isPending}
+                  >
+                    Batalkan Permintaan
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -543,6 +762,62 @@ export default function Profile() {
             </div>
           </div>
         </motion.div>
+
+        {incomingRequests && incomingRequests.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+          >
+            <Card className="border-amber-200 bg-amber-50/30">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-amber-600" />
+                  <CardTitle className="text-base text-amber-900">Permintaan Bergabung</CardTitle>
+                </div>
+                <CardDescription className="text-xs text-amber-700">
+                  Ada penghuni yang ingin bergabung dengan rumah Anda.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {incomingRequests.map((req) => (
+                  <div key={req.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-white border border-amber-100 shadow-sm gap-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="text-[10px]">
+                          {getInitials(req.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-bold">{req.full_name}</p>
+                        <p className="text-[10px] text-muted-foreground italic">Ingin bergabung sebagai anggota keluarga</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end w-full sm:w-auto mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-amber-50">
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="h-9 sm:h-8 flex-1 sm:flex-none text-xs text-destructive hover:bg-destructive/10"
+                        onClick={() => rejectRequestMutation.mutate(req.id)}
+                        disabled={rejectRequestMutation.isPending || approveRequestMutation.isPending}
+                      >
+                        Tolak
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        className="h-9 sm:h-8 flex-1 sm:flex-none text-xs bg-amber-600 hover:bg-amber-700"
+                        onClick={() => approveRequestMutation.mutate(req.id)}
+                        disabled={rejectRequestMutation.isPending || approveRequestMutation.isPending}
+                      >
+                        Setujui
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -627,50 +902,84 @@ export default function Profile() {
                     onSubmit={form.handleSubmit(onSubmit)}
                     className="flex-1 space-y-4"
                   >
-                    <div className="space-y-2">
-                      <Label htmlFor="full_name">Nama Lengkap</Label>
-                      <Input
-                        id="full_name"
-                        {...form.register("full_name")}
-                        placeholder="Masukkan nama lengkap"
-                      />
-                      {form.formState.errors.full_name && (
-                        <p className="text-sm text-destructive">
-                          {form.formState.errors.full_name.message}
-                        </p>
-                      )}
-                    </div>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="full_name">Nama Lengkap</Label>
+                          <Input
+                            id="full_name"
+                            {...form.register("full_name")}
+                            placeholder="Masukkan nama lengkap"
+                          />
+                          {form.formState.errors.full_name && (
+                            <p className="text-sm text-destructive">
+                              {form.formState.errors.full_name.message}
+                            </p>
+                          )}
+                        </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Nomor Telepon</Label>
-                      <Input
-                        id="phone"
-                        {...form.register("phone")}
-                        placeholder="Contoh: 08123456789"
-                      />
-                      {form.formState.errors.phone && (
-                        <p className="text-sm text-destructive">
-                          {form.formState.errors.phone.message}
-                        </p>
-                      )}
-                    </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="house_id">Blok/Nomor Rumah</Label>
+                          <Select
+                            value={form.watch("house_id")}
+                            onValueChange={(value) => form.setValue("house_id", value)}
+                          >
+                            <SelectTrigger id="house_id">
+                              <SelectValue placeholder="Pilih Nomor Rumah" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {houses?.map((house) => (
+                                <SelectItem key={house.id} value={house.id}>
+                                  Blok {house.block} No. {house.number}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-[10px] text-muted-foreground italic">
+                            * Jika rumah tujuan sudah berpenghuni, kepindahan memerlukan persetujuan KK rumah tersebut.
+                          </p>
+                          {myPendingRequests && myPendingRequests.length > 0 && (
+                            <div className="bg-amber-50 border border-amber-100 rounded-lg p-2.5 mt-2 transition-all">
+                              <p className="text-[11px] sm:text-xs text-amber-800 font-medium flex items-center gap-1.5">
+                                <Info className="w-3 h-3 flex-shrink-0" />
+                                <span>Permintaan pending: Blok {(myPendingRequests[0].houses)?.block} No. {(myPendingRequests[0].houses)?.number}</span>
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
-                    <div className="flex gap-2 pt-2">
-                      <Button type="submit" disabled={isSaving}>
-                        {isSaving && (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Nomor Telepon</Label>
+                        <Input
+                          id="phone"
+                          {...form.register("phone")}
+                          placeholder="Contoh: 08123456789"
+                        />
+                        {form.formState.errors.phone && (
+                          <p className="text-sm text-destructive">
+                            {form.formState.errors.phone.message}
+                          </p>
                         )}
-                        <Save className="w-4 h-4 mr-2" />
-                        Simpan
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleCancel}
-                      >
-                        <X className="w-4 h-4 mr-2" />
-                        Batal
-                      </Button>
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <Button type="submit" disabled={isSaving}>
+                          {isSaving && (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          )}
+                          <Save className="w-4 h-4 mr-2" />
+                          Simpan
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleCancel}
+                        >
+                          <X className="w-4 h-4 mr-2" />
+                          Batal
+                        </Button>
+                      </div>
                     </div>
                   </form>
                 ) : (
@@ -691,7 +1000,14 @@ export default function Profile() {
                         <p className="text-xs text-muted-foreground">
                           Nomor Rumah
                         </p>
-                        <p className="font-medium">{getHouseDisplay()}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium">{getHouseDisplay()}</p>
+                          {myPendingRequests && myPendingRequests.length > 0 && (
+                            <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-700 hover:bg-amber-100 border-none">
+                              Pindah Pending
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Telepon</p>
