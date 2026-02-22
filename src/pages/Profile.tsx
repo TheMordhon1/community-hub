@@ -789,11 +789,22 @@ export default function Profile() {
                                 <SelectValue placeholder="Status" />
                               </SelectTrigger>
                               <SelectContent>
-                                {Object.entries(MEMBER_TYPE_LABELS).map(([value, label]) => (
-                                  <SelectItem key={value} value={value} className="text-[9px] sm:text-[10px]">
-                                    {label}
-                                  </SelectItem>
-                                ))}
+                                {Object.entries(MEMBER_TYPE_LABELS).map(([value, label]) => {
+                                  const isSuamiTaken = value === "suami" && houseMembers?.some(m => m.member_type === "suami" && m.id !== member.id);
+                                  const isIstriTaken = value === "istri" && houseMembers?.some(m => m.member_type === "istri" && m.id !== member.id);
+                                  const isSingleRestricted = value === "single" && (houseMembers?.length || 0) > 1;
+
+                                  return (
+                                    <SelectItem 
+                                      key={value} 
+                                      value={value} 
+                                      className="text-[9px] sm:text-[10px]"
+                                      disabled={isSuamiTaken || isIstriTaken || isSingleRestricted}
+                                    >
+                                      {label}
+                                    </SelectItem>
+                                  );
+                                })}
                               </SelectContent>
                             </Select>
                             {!member.is_head && (!houseMembers?.some(m => m.member_type === "suami" || m.member_type === "single") || member.member_type === "suami" || member.member_type === "single") && (
@@ -863,11 +874,21 @@ export default function Profile() {
                     <SelectValue placeholder="Pilih status" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(MEMBER_TYPE_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
+                    {Object.entries(MEMBER_TYPE_LABELS).map(([value, label]) => {
+                      const isSuamiTaken = value === "suami" && houseMembers?.some(m => m.member_type === "suami");
+                      const isIstriTaken = value === "istri" && houseMembers?.some(m => m.member_type === "istri");
+                      const isSingleRestricted = value === "single" && (houseMembers?.length || 0) > 0;
+
+                      return (
+                        <SelectItem 
+                          key={value} 
+                          value={value}
+                          disabled={isSuamiTaken || isIstriTaken || isSingleRestricted}
+                        >
+                          {label}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
