@@ -491,6 +491,7 @@ export default function Profile() {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       queryClient.invalidateQueries({ queryKey: ["user-house"] });
       queryClient.invalidateQueries({ queryKey: ["house-members"] });
+      queryClient.invalidateQueries({ queryKey: ["my-pending-requests"] });
     } catch (error) {
       console.error("Save profile error:", error);
       toast({
