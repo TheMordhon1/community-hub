@@ -6,6 +6,7 @@ import {
   useCompetitionDetails,
   useGenerateBracket,
   useUpdateCompetition,
+  useDeleteCompetition,
 } from "@/hooks/useCompetitions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,8 @@ import {
   Target,
   ShieldCheck,
   Share2,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 import {
   FORMAT_LABELS,
@@ -38,7 +41,18 @@ import { TeamList } from "@/components/competitions/TeamList";
 import { MatchList } from "@/components/competitions/MatchList";
 import { RefereeList } from "@/components/competitions/RefereeList";
 import { AddTeamDialog } from "@/components/competitions/AddTeamDialog";
+import { CreateCompetitionDialog } from "@/components/competitions/CreateCompetitionDialog";
 import { ShareDialog } from "@/components/ShareDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function CompetitionDetail() {
   const { id: eventId, competitionId } = useParams();
@@ -48,8 +62,11 @@ export default function CompetitionDetail() {
   const { data: competition, isLoading } = useCompetitionDetails(competitionId);
   const generateBracket = useGenerateBracket();
   const updateCompetition = useUpdateCompetition();
+  const deleteCompetition = useDeleteCompetition();
 
   const [isAddTeamOpen, setIsAddTeamOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("matches");
   const [isShareOpen, setIsShareOpen] = useState(false);
 
@@ -75,6 +92,18 @@ export default function CompetitionDetail() {
       event_id: competition.event_id,
       status,
     });
+  };
+
+  const handleDelete = () => {
+    if (!competition) return;
+    deleteCompetition.mutate(
+      { id: competition.id, event_id: competition.event_id },
+      {
+        onSuccess: () => {
+          navigate(eventId ? `/events/${eventId}` : "/events?tab=competitions");
+        },
+      }
+    );
   };
 
   const shareUrl = `${window.location.origin}${eventId ? `/events/${eventId}` : ""}/competitions/${competitionId}`;
@@ -220,6 +249,21 @@ export default function CompetitionDetail() {
                       Selesaikan
                     </Button>
                   )}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsEditOpen(true)}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setIsDeleteOpen(true)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               )}
             </div>
@@ -370,6 +414,40 @@ export default function CompetitionDetail() {
         url={shareUrl}
         shareText={shareText}
       />
+
+      <CreateCompetitionDialog
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        eventId={eventId}
+        editingCompetition={competition}
+      />
+
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Kompetisi?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Semua data pertandingan dan
+              skor dalam kompetisi ini akan dihapus secara permanen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteCompetition.isPending}
+            >
+              {deleteCompetition.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-2" />
+              )}
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
