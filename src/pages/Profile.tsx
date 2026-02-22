@@ -182,10 +182,14 @@ export default function Profile() {
   const addMemberMutation = useMutation({
     mutationFn: async ({ fullName, memberType }: { fullName: string; memberType: MemberType | null }) => {
       if (!userHouse?.house_id) return;
+      
+      const isAutoHead = memberType === "suami" || memberType === "single" || (houseMembers?.length === 0);
+      
       const { error } = await supabase.from("house_members").insert({
         house_id: userHouse.house_id,
         full_name: fullName,
         member_type: memberType || null,
+        is_head: isAutoHead,
       });
       if (error) throw error;
     },
@@ -203,9 +207,14 @@ export default function Profile() {
 
   const updateMemberStatusMutation = useMutation({
     mutationFn: async ({ memberId, memberType }: { memberId: string; memberType: MemberType }) => {
+      const isAutoHead = memberType === "suami" || memberType === "single";
+      
       const { error } = await supabase
         .from("house_members")
-        .update({ member_type: memberType })
+        .update({ 
+          member_type: memberType,
+          ...(isAutoHead ? { is_head: true } : {})
+        })
         .eq("id", memberId);
       if (error) throw error;
     },
@@ -787,7 +796,7 @@ export default function Profile() {
                                 ))}
                               </SelectContent>
                             </Select>
-                            {!member.is_head && (
+                            {!member.is_head && (!houseMembers?.some(m => m.member_type === "suami" || m.member_type === "single") || member.member_type === "suami" || member.member_type === "single") && (
                               <Button
                                 variant="outline"
                                 size="sm"
