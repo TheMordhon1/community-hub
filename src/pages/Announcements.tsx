@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
@@ -49,6 +49,9 @@ import {
   EyeOff,
   ChevronLeft,
   ChevronRight,
+  ImagePlus,
+  X,
+  ImageIcon,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import type { Announcement } from "@/types/database";
@@ -79,6 +82,10 @@ export default function Announcements() {
   const [isPublished, setIsPublished] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: announcementData, isLoading } = useQuery({
     queryKey: ["announcements", currentPage, itemsPerPage],
@@ -103,18 +110,56 @@ export default function Announcements() {
     },
   });
 
+  const { data: settings } = useQuery({
+    queryKey: ["landing-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("landing_settings")
+        .select("key, value");
+      if (error) throw error;
+      const settingsObj: Record<string, string | null> = {};
+      data?.forEach((item) => {
+        settingsObj[item.key] = item.value;
+      });
+      return settingsObj;
+    },
+  });
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${crypto.randomUUID()}.${fileExt}`;
+    const filePath = `announcements/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("announcement-images")
+      .upload(filePath, file);
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      return null;
+    }
+
+    const { data } = supabase.storage
+      .from("announcement-images")
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: {
       title: string;
       content: string;
       related_url: string | null;
       is_published: boolean;
+      image_url: string | null;
     }) => {
       const { error } = await supabase.from("announcements").insert({
         title: data.title,
         content: data.content,
         related_url: data.related_url,
         is_published: data.is_published,
+        image_url: data.image_url,
         published_at: data.is_published ? new Date().toISOString() : null,
         author_id: user?.id,
       });
@@ -141,6 +186,7 @@ export default function Announcements() {
       content: string;
       related_url: string | null;
       is_published: boolean;
+      image_url: string | null;
     }) => {
       const { error } = await supabase
         .from("announcements")
@@ -149,6 +195,7 @@ export default function Announcements() {
           content: data.content,
           related_url: data.related_url,
           is_published: data.is_published,
+          image_url: data.image_url,
           published_at: data.is_published ? new Date().toISOString() : null,
         })
         .eq("id", data.id);
@@ -197,8 +244,45 @@ export default function Announcements() {
     setContent("");
     setRelatedUrl("");
     setIsPublished(false);
+    setImageFile(null);
+    setImagePreview(null);
     setIsCreateOpen(false);
     setEditingAnnouncement(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const maxSizeMB = Number.parseFloat(settings?.announcement_max_image_size || "1");
+      const maxSizeBytes = maxSizeMB * 1024 * 1024;
+
+      if (file.size > maxSizeBytes) {
+        toast({
+          variant: "destructive",
+          title: "Ukuran Gambar Terlalu Besar",
+          description: `Maksimal ukuran gambar adalah ${maxSizeMB}MB`,
+        });
+        return;
+      }
+
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleEdit = (announcement: Announcement) => {
@@ -207,6 +291,8 @@ export default function Announcements() {
     setContent(announcement.content);
     setRelatedUrl(announcement.related_url || "");
     setIsPublished(announcement.is_published);
+    setImagePreview(announcement.image_url || null);
+    setImageFile(null);
     setIsCreateOpen(true);
   };
 
@@ -216,7 +302,7 @@ export default function Announcements() {
     setCurrentPage(1);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim() || !content.trim()) {
       toast({
         variant: "destructive",
@@ -226,22 +312,43 @@ export default function Announcements() {
       return;
     }
 
+    setIsUploading(true);
+    let imageUrl = editingAnnouncement?.image_url || null;
+
+    if (imageFile) {
+      const uploadedUrl = await uploadImage(imageFile);
+      if (uploadedUrl) {
+        imageUrl = uploadedUrl;
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Gagal",
+          description: "Gagal mengupload gambar",
+        });
+        setIsUploading(false);
+        return;
+      }
+    } else if (!imagePreview) {
+      imageUrl = null;
+    }
+
+    const payload = {
+      title,
+      content,
+      related_url: relatedUrl.trim() || null,
+      is_published: isPublished,
+      image_url: imageUrl,
+    };
+
     if (editingAnnouncement) {
       updateMutation.mutate({
         id: editingAnnouncement.id,
-        title,
-        content,
-        related_url: relatedUrl.trim() || null,
-        is_published: isPublished,
+        ...payload,
       });
     } else {
-      createMutation.mutate({
-        title,
-        content,
-        related_url: relatedUrl.trim() || null,
-        is_published: isPublished,
-      });
+      createMutation.mutate(payload);
     }
+    setIsUploading(false);
   };
 
   const announcements = announcementData?.data || [];
@@ -327,6 +434,48 @@ export default function Announcements() {
                       onChange={(e) => setRelatedUrl(e.target.value)}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label>Gambar (Opsional)</Label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                    {imagePreview ? (
+                      <div className="relative rounded-lg overflow-hidden border">
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          className="w-full h-40 object-cover"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 right-2 h-8 w-8"
+                          onClick={removeImage}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-24 border-dashed"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <div className="flex flex-col items-center gap-1">
+                          <ImagePlus className="w-6 h-6 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            Klik untuk upload gambar
+                          </span>
+                        </div>
+                      </Button>
+                    )}
+                  </div>
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label>Publikasikan</Label>
@@ -350,7 +499,7 @@ export default function Announcements() {
                       createMutation.isPending || updateMutation.isPending
                     }
                   >
-                    {(createMutation.isPending || updateMutation.isPending) && (
+                    {(createMutation.isPending || updateMutation.isPending || isUploading) && (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     )}
                     {editingAnnouncement ? "Simpan" : "Buat"}
@@ -397,7 +546,7 @@ export default function Announcements() {
                       onClick={() => handleEdit(announcement)}
                     >
                       <CardHeader className="p-4 flex-row items-center justify-between space-y-0">
-                        <div className="flex-1 min-w-0 pr-4">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
                               <EyeOff className="w-3 h-3 mr-1" />
@@ -408,26 +557,38 @@ export default function Announcements() {
                             {announcement.title}
                           </CardTitle>
                         </div>
-                        <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleEdit(announcement)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => setDeletingAnnouncement(announcement)}
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
                       </CardHeader>
+                      <CardContent className="p-4 pt-0">
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                          {announcement.content}
+                        </p>
+                        <div className="flex items-center justify-between pt-3 border-t border-dashed">
+                          <span className="text-[10px] text-muted-foreground">
+                            Terakhir diedit: {format(new Date(announcement.updated_at), "d MMM, HH:mm", { locale: idLocale })}
+                          </span>
+                          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-xs"
+                              onClick={() => handleEdit(announcement)}
+                            >
+                              <Edit className="w-3.5 h-3.5 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => setDeletingAnnouncement(announcement)}
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mr-1" />
+                              Hapus
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
                     </Card>
                   </motion.div>
                 ))}
@@ -463,41 +624,60 @@ export default function Announcements() {
                           <CardTitle className="text-base font-semibold group-hover:text-primary transition-colors break-all break-words">
                             {announcement.title}
                           </CardTitle>
-                          <CardDescription className="text-[11px] mt-0.5">
-                            {announcement.published_at &&
-                              format(
-                                new Date(announcement.published_at),
-                                "d MMM yyyy",
-                                { locale: idLocale }
-                              )}
-                          </CardDescription>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 shrink-0">
-                          {canManageContent() && (
-                            <div className="flex gap-1 pr-2 border-r mr-1" onClick={(e) => e.stopPropagation()}>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => handleEdit(announcement)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => setDeletingAnnouncement(announcement)}
-                                disabled={deleteMutation.isPending}
-                              >
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </Button>
-                            </div>
-                          )}
-                          <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                         </div>
                       </CardHeader>
+                      <CardContent className="p-4 pt-0">
+                        <div className="flex gap-4">
+                          {announcement.image_url && (
+                            <div className="w-20 h-20 shrink-0 rounded-md overflow-hidden border">
+                              <img
+                                src={announcement.image_url}
+                                alt={announcement.title}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-muted-foreground line-clamp-3">
+                              {announcement.content}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <CardDescription className="text-[11px]">
+                                {announcement.published_at &&
+                                  format(
+                                    new Date(announcement.published_at),
+                                    "d MMM yyyy",
+                                    { locale: idLocale }
+                                  )}
+                              </CardDescription>
+                            </div>
+                          </div>
+                        </div>
+
+                        {canManageContent() && (
+                          <div className="mt-4 pt-3 border-t flex gap-2 justify-end" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-xs"
+                              onClick={() => handleEdit(announcement)}
+                            >
+                              <Edit className="w-3.5 h-3.5 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => setDeletingAnnouncement(announcement)}
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mr-1" />
+                              Hapus
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
                     </Card>
                   </motion.div>
                 ))}

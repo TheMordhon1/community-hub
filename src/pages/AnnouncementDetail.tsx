@@ -12,6 +12,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -35,6 +40,7 @@ export default function AnnouncementDetail() {
   const { id } = useParams();
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isImageOpen, setIsImageOpen] = useState(false);
 
   const handleCopyLink = async (url: string) => {
     try {
@@ -164,12 +170,28 @@ export default function AnnouncementDetail() {
         >
           <Card>
             {announcement.image_url && (
-              <div className="w-full h-64 overflow-hidden rounded-t-lg">
-                <img
-                  src={announcement.image_url || "/placeholder.svg"}
-                  alt={announcement.title}
-                  className="w-full h-full object-cover"
-                />
+              <div className="w-full h-64 overflow-hidden rounded-t-lg relative group">
+                <Dialog open={isImageOpen} onOpenChange={setIsImageOpen}>
+                  <DialogTrigger asChild>
+                    <div className="w-full h-full cursor-zoom-in">
+                      <img
+                        src={announcement.image_url || "/placeholder.svg"}
+                        alt={announcement.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Search className="w-10 h-10 text-white" />
+                      </div>
+                    </div>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none">
+                    <img
+                      src={announcement.image_url}
+                      alt={announcement.title}
+                      className="w-full h-auto max-h-[90vh] object-contain rounded-lg"
+                    />
+                  </DialogContent>
+                </Dialog>
               </div>
             )}
             <CardHeader>

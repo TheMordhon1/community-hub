@@ -20,6 +20,7 @@ import {
   ImageIcon,
   Home,
   Phone,
+  Settings2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -453,6 +454,36 @@ export default function LandingSettings() {
                     </div>
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+
+            {/* Ketentuan Aplikasi - NEW SECTION */}
+            <Card className="overflow-hidden border-2 border-primary/10 hover:border-primary/30 transition-colors">
+              <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
+                <CardTitle className="flex items-center gap-2">
+                  <Settings2 className="w-5 h-5 text-primary" />
+                  Ketentuan Aplikasi
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                <div className="space-y-2">
+                  <Label htmlFor="announcement_max_image_size" className="font-semibold text-sm">
+                    Maksimal Ukuran Gambar Pengumuman (MB)
+                  </Label>
+                  <Input
+                    id="announcement_max_image_size"
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    value={settings.announcement_max_image_size || "1"}
+                    onChange={(e) => updateSetting("announcement_max_image_size", e.target.value)}
+                    placeholder="Contoh: 1"
+                    className="text-sm"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Batasi ukuran file gambar yang diupload untuk pengumuman. Default: 1MB.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
