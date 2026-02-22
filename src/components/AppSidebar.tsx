@@ -8,6 +8,7 @@ import {
   useSidebarMainMenus,
 } from "@/hooks/useMenus";
 import { DynamicIcon } from "@/components/DynamicIcon";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
   SidebarContent,
@@ -26,9 +27,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { useUpcomingEventsCount } from "@/hooks/useUpcomingEventsCount";
 import { useAnnouncementCount } from "@/hooks/useAnnouncementCount";
 import { getInitials } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { Crown } from "lucide-react";
 
 export function AppSidebar() {
   const location = useLocation();
@@ -42,6 +46,21 @@ export function AppSidebar() {
   const { data: adminMenus, isLoading: adminLoading } = useSidebarAdminMenus();
   const { data: announcementsCount = 0 } = useAnnouncementCount();
   const { data: upcomingCount = 0 } = useUpcomingEventsCount();
+
+  const { data: isHead = false } = useQuery({
+    queryKey: ["is-kk", profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return false;
+      const { data, error } = await supabase
+        .from("house_members")
+        .select("is_head")
+        .eq("user_id", profile.id)
+        .maybeSingle();
+      if (error) return false;
+      return !!data?.is_head;
+    },
+    enabled: !!profile?.id,
+  });
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -206,9 +225,17 @@ export function AppSidebar() {
             )}
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium line-clamp-1">
-              {profile?.full_name ?? "User"}
-            </p>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <p className="text-sm font-medium line-clamp-1">
+                {profile?.full_name ?? "User"}
+              </p>
+              {isHead && (
+                <Badge variant="secondary" className="px-2 h-5 text-[9px] bg-amber-500/10 text-amber-600 border-amber-200/50 font-bold uppercase tracking-wider shadow-sm ring-1 ring-amber-500/20">
+                  <Crown className="w-2.5 h-2.5 mr-1" />
+                  KK
+                </Badge>
+              )}
+            </div>
             <p className="text-xs text-sidebar-foreground/70 line-clamp-1">
               {getRoleDisplay()}
             </p>

@@ -179,10 +179,10 @@ export default function Payments() {
     queryFn: async () => {
       if (!user?.id) return null;
       const { data, error } = await supabase
-        .from("house_residents")
+        .from("house_members")
         .select("house_id, houses(*)")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data?.houses as House;
     },

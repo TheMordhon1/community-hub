@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -8,14 +10,16 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Home,
-  Search,
-  User,
   Crown,
   Users,
   ArrowLeft,
   Filter,
   Calendar,
   Info,
+  ShieldCheck,
+  UserCheck,
+  Search,
+  User,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -60,8 +64,9 @@ import { House } from "@/types/database";
 
 interface HouseResident {
   id: string;
-  user_id: string;
-  is_owner: boolean;
+  user_id: string | null;
+  is_head: boolean;
+  full_name: string;
   move_in_date: string | null;
   profiles: {
     id: string;
@@ -69,7 +74,7 @@ interface HouseResident {
     email: string;
     phone: string | null;
     avatar_url: string | null;
-  };
+  } | null;
 }
 
 interface HouseWithResidents {
@@ -107,23 +112,27 @@ export default function Residents() {
 
       if (housesError) throw housesError;
 
-      // Fetch all residents
-      const { data: residentsData, error: residentsError } = await supabase
-        .from("house_residents")
-        .select("id, user_id, house_id, is_owner, move_in_date");
+      // Fetch all house members
+      const { data: membersData, error: membersError } = await supabase
+        .from("house_members")
+        .select("id, user_id, house_id, is_head, full_name, move_in_date");
 
-      if (residentsError) throw residentsError;
+      if (membersError) throw membersError;
 
-      // Fetch profiles for all residents
-      const userIds = [...new Set((residentsData || []).map((r) => r.user_id))];
-      const { data: profilesData, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, phone, avatar_url")
-        .in("id", userIds);
+      // Fetch profiles for registered residents
+      const userIds = [...new Set((membersData || []).filter(m => m.user_id).map((r) => r.user_id as string))];
+      let profilesMap = new Map();
 
-      if (profilesError) throw profilesError;
+      if (userIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, full_name, email, phone, avatar_url")
+          .in("id", userIds);
 
-      const profilesMap = new Map((profilesData || []).map((p) => [p.id, p]));
+        if (profilesError) throw profilesError;
+        profilesMap = new Map((profilesData || []).map((p) => [p.id, p]));
+      }
+
       const typedHousesData = (housesData || []) as House[];
 
       // Map residents to houses
@@ -133,16 +142,12 @@ export default function Residents() {
           occupancy_status: house.occupancy_status || "occupied",
           vacancy_reason: house.vacancy_reason || null,
           estimated_return_date: house.estimated_return_date || null,
-          residents: (residentsData || [])
+          residents: (membersData || [])
             .filter((r) => r.house_id === house.id)
             .map((r) => ({
-              id: r.id,
-              user_id: r.user_id,
-              is_owner: r.is_owner || false,
-              move_in_date: r.move_in_date,
-              profiles: profilesMap.get(r.user_id) as HouseResident["profiles"],
-            }))
-            .filter((r) => r.profiles),
+              ...r,
+              profiles: r.user_id ? profilesMap.get(r.user_id) : null,
+            })),
         })
       );
 
@@ -155,7 +160,7 @@ export default function Residents() {
       const searchLower = searchQuery.toLowerCase();
       const houseLabel = `${house.block}${house.number}`.toLowerCase();
       const residentNames = house.residents
-        .map((r) => r.profiles?.full_name?.toLowerCase() || "")
+        .map((r) => (r.profiles?.full_name || r.full_name || "").toLowerCase())
         .join(" ");
 
       const matchesSearch =
@@ -198,7 +203,7 @@ export default function Residents() {
       Blok: house.block,
       Nomor: house.number,
       Status: house.occupancy_status === "empty" ? "Kosong" : "Terisi",
-      Penghuni: house.residents.map((r) => r.profiles?.full_name).join(", ") || "Kosong",
+      Penghuni: house.residents.map((r) => r.profiles?.full_name || r.full_name).join(", ") || "Kosong",
       "Total Penghuni": house.residents.length,
       "Alasan Kosong": house.vacancy_reason || "-",
       "Estimasi Kembali": house.estimated_return_date 
@@ -225,7 +230,7 @@ export default function Residents() {
     const tableData = filteredHouses.map((house) => [
       `${house.block}-${house.number}`,
       house.occupancy_status === "empty" ? "Kosong" : "Terisi",
-      house.residents.map((r) => r.profiles?.full_name).join(", ") || "Kosong",
+      house.residents.map((r) => r.profiles?.full_name || r.full_name).join(", ") || "Kosong",
       house.residents.length.toString(),
       house.vacancy_reason || "-",
     ]);
@@ -245,7 +250,7 @@ export default function Residents() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-6 px-4 space-y-6">
+      <div className="mx-auto py-6 px-4 space-y-6">
         <div className="flex items-center gap-3">
           <Home className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-bold">Daftar Rumah & Penghuni</h1>
@@ -260,7 +265,7 @@ export default function Residents() {
   }
 
   return (
-    <div className="container mx-auto py-6 px-4 space-y-6">
+    <div className="py-6 px-4 space-y-6">
       <div className="flex w-full flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link to="/dashboard">
@@ -380,38 +385,52 @@ export default function Residents() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        {filteredHouses?.map((house) => (
-          <Card
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
+        {filteredHouses?.map((house, index) => (
+          <motion.div
             key={house.id}
-            className={`cursor-pointer transition-all hover:shadow-md hover:scale-105 ${
-              house.residents.length > 0
-                ? "border-primary/50 bg-primary/5"
-                : "border-muted bg-muted/30 opacity-50 hover:opacity-100"
-            }`}
-            onClick={() => setSelectedHouse(house)}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: index * 0.01 }}
           >
-            <CardContent className="p-4 text-center relative overflow-hidden">
-              {house.occupancy_status === "empty" && (
-                <div className="absolute top-0 right-0">
-                  <Badge variant="destructive" className="rounded-none rounded-bl-lg text-[10px] px-1.5 h-5">
-                    Kosong
-                  </Badge>
-                </div>
+            <Card
+              className={cn(
+                "group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden relative aspect-square flex items-center justify-center",
+                house.residents.length > 0
+                  ? "border-primary/20 bg-gradient-to-br from-white to-primary/5 hover:border-primary/50"
+                  : "border-muted bg-muted/20 grayscale opacity-70 hover:opacity-100 hover:grayscale-0"
               )}
-              <div className="text-lg font-bold text-primary">
-                {house.block} - {house.number}
+              onClick={() => setSelectedHouse(house)}
+            >
+              <CardContent className="p-3 sm:p-4 text-center flex flex-col items-center justify-center w-full h-full relative z-10">
+                {house.occupancy_status === "empty" && (
+                  <div className="absolute top-0 right-0 p-1">
+                    <Badge variant="destructive" className="h-4 sm:h-5 text-[8px] sm:text-[9px] px-1 sm:px-1.5 uppercase font-bold tracking-tighter">
+                      Kosong
+                    </Badge>
+                  </div>
+                )}
+                
+                <div className="text-xl sm:text-2xl font-black text-primary tracking-tighter group-hover:scale-110 transition-transform">
+                  {house.block}<span className="text-primary/40 font-normal mx-0.5">-</span>{house.number}
+                </div>
+                
+                <div className="flex items-center gap-1 mt-1.5 sm:mt-2 py-0.5 px-2 rounded-full bg-background/50 border border-border/50 backdrop-blur-sm shadow-sm transition-all group-hover:bg-primary/10">
+                  <Users className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-muted-foreground" />
+                  <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground whitespace-nowrap">
+                    {house.residents.length > 0
+                      ? `${house.residents.length}`
+                      : "0"}
+                  </span>
+                </div>
+              </CardContent>
+              
+              {/* Subtle background decoration */}
+              <div className="absolute -bottom-2 -right-2 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+                <Home className="h-16 w-16 sm:h-20 sm:w-20" />
               </div>
-              <div className="flex items-center justify-center gap-1 mt-2 text-sm text-muted-foreground">
-                <Users className="h-3 w-3" />
-                <span>
-                  {house.residents.length > 0
-                    ? `${house.residents.length} penghuni`
-                    : "Kosong"}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+            </Card>
+          </motion.div>
         ))}
       </div>
 
@@ -456,28 +475,36 @@ export default function Residents() {
               </div>
             ) : (
               <div className="space-y-3">
-                {selectedHouse?.residents.map((resident) => (
+                {[...(selectedHouse?.residents || [])].sort((a, b) => (b.is_head ? 1 : 0) - (a.is_head ? 1 : 0)).map((resident) => (
                   <div
                     key={resident.id}
                     className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
                   >
-                    <Avatar className="h-10 w-10">
+                  <Avatar className="h-10 w-10">
                       <AvatarImage src={resident.profiles?.avatar_url || ""} />
                       <AvatarFallback>
-                        {getInitials(resident.profiles?.full_name || "?")}
+                        {getInitials(resident.profiles?.full_name || resident.full_name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium line-clamp-1">
-                          {resident.profiles?.full_name}
+                          {resident.profiles?.full_name || resident.full_name}
                         </span>
-                        {resident.is_owner && (
-                          <Badge variant="secondary" className="text-xs">
-                            <Crown className="h-3 w-3 mr-1" />
-                            Pemilik
-                          </Badge>
-                        )}
+                        <div className="flex gap-1.5 font-bold">
+                          {resident.is_head && (
+                            <Badge variant="secondary" className="px-2 h-5 text-[9px] bg-amber-500/10 text-amber-600 border-amber-200/50 font-bold uppercase tracking-wider shadow-sm ring-1 ring-amber-500/20">
+                              <Crown className="w-2.5 h-2.5 mr-1" />
+                              KK
+                            </Badge>
+                          )}
+                          {resident.user_id && (
+                            <Badge variant="secondary" className="px-2 h-5 text-[9px] bg-sky-500/10 text-sky-600 border-sky-200/50 font-bold uppercase tracking-wider shadow-sm ring-1 ring-sky-500/20 hover:bg-sky-500/20">
+                              <UserCheck className="w-2.5 h-2.5 mr-1" />
+                              Akun
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       {resident.profiles?.phone && (
                         <p className="text-sm text-muted-foreground line-clamp-1">

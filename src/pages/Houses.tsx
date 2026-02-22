@@ -35,13 +35,14 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Plus,
-  Loader2,
-  Trash2,
-  Home,
-  Pencil,
   Users,
   ArrowLeft,
+  ShieldCheck,
+  Trash2,
+  Pencil,
+  Plus,
+  Loader2,
+  Home,
 } from "lucide-react";
 import type { House } from "@/types/database";
 import { Link } from "react-router-dom";
@@ -51,16 +52,17 @@ import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 
 interface HouseResident {
   id: string;
-  user_id: string;
+  user_id: string | null;
   house_id: string;
-  is_owner: boolean;
+  is_head: boolean;
+  full_name: string;
   profiles: {
     id: string;
     full_name: string;
     email: string;
     phone: string | null;
     avatar_url: string | null;
-  };
+  } | null;
 }
 
 interface HouseWithResidents extends House {
@@ -100,13 +102,13 @@ export default function Houses() {
 
       if (housesError) throw housesError;
 
-      const { data: residents, error: residentsError } = await supabase
-        .from("house_residents")
-        .select("id, user_id, house_id, is_owner");
+      const { data: members, error: membersError } = await supabase
+        .from("house_members")
+        .select("id, user_id, house_id, is_head, full_name");
 
-      if (residentsError) throw residentsError;
+      if (membersError) throw membersError;
 
-      const userIds = residents?.map((r) => r.user_id) || [];
+      const userIds = members?.filter(m => m.user_id).map((r) => r.user_id as string) || [];
       let profilesMap = new Map();
 
       if (userIds.length > 0) {
@@ -119,17 +121,10 @@ export default function Houses() {
         profilesMap = new Map(profiles?.map((p) => [p.id, p]));
       }
 
-      const residentsWithProfiles: HouseResident[] = (residents || []).map(
-        (r) => ({
-          ...r,
-          is_owner: r.is_owner ?? false,
-          profiles: profilesMap.get(r.user_id) || {
-            id: r.user_id,
-            full_name: "Unknown",
-            email: "",
-            phone: null,
-            avatar_url: null,
-          },
+      const residentsWithProfiles: HouseResident[] = (members || []).map(
+        (m) => ({
+          ...m,
+          profiles: m.user_id ? profilesMap.get(m.user_id) : null,
         })
       );
 
@@ -232,7 +227,7 @@ export default function Houses() {
       oldHouseId: string;
     }) => {
       const { error } = await supabase
-        .from("house_residents")
+        .from("house_members")
         .update({ house_id: data.newHouseId })
         .eq("id", data.residentId);
       if (error) throw error;
@@ -243,7 +238,7 @@ export default function Houses() {
         .eq("id", data.newHouseId);
 
       const { data: remaining } = await supabase
-        .from("house_residents")
+        .from("house_members")
         .select("id")
         .eq("house_id", data.oldHouseId);
       if (!remaining || remaining.length === 0) {
@@ -313,14 +308,15 @@ export default function Houses() {
             <div className="flex items-center gap-2">
               <Avatar className="w-6 h-6">
                 <AvatarImage
-                  src={firstResident.profiles.avatar_url ?? undefined}
+                  src={firstResident.profiles?.avatar_url ?? undefined}
                 />
                 <AvatarFallback className="text-[10px]">
-                  {getInitials(firstResident.profiles.full_name)}
+                  {getInitials(firstResident.profiles?.full_name || firstResident.full_name)}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-sm line-clamp-1 max-w-[150px]">
-                {firstResident.profiles.full_name}
+              <span className="text-sm line-clamp-1 max-w-[150px] flex items-center gap-1">
+                {firstResident.profiles?.full_name || firstResident.full_name}
+                {firstResident.is_head && <ShieldCheck className="w-3 h-3 text-amber-500" />}
               </span>
             </div>
           );
@@ -503,17 +499,24 @@ export default function Houses() {
               >
                 <div className="flex items-center gap-3">
                   <Avatar>
-                    <AvatarImage src={res.profiles.avatar_url || ""} />
+                    <AvatarImage src={res.profiles?.avatar_url || ""} />
                     <AvatarFallback>
-                      {getInitials(res.profiles.full_name)}
+                      {getInitials(res.profiles?.full_name || res.full_name)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="text-sm font-semibold">
-                      {res.profiles.full_name}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold">
+                        {res.profiles?.full_name || res.full_name}
+                      </p>
+                      {res.is_head && (
+                        <Badge variant="secondary" className="px-1.5 h-5 text-[10px] bg-amber-50 text-amber-600 border-amber-200">
+                          KK
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                      {res.profiles.phone || "No Phone"}
+                      {res.profiles?.phone || "No Phone"}
                     </p>
                   </div>
                 </div>

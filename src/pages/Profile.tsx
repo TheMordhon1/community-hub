@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -12,28 +12,43 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ROLE_LABELS, PENGURUS_TITLE_LABELS, House } from "@/types/database";
 import {
-  Loader2,
-  Pencil,
-  Save,
-  X,
-  Camera,
-  Trash2,
   ArrowLeft,
   Home,
   Calendar as CalendarIcon,
   Info,
+  Users,
+  UserPlus,
+  ShieldCheck,
+  UserCheck,
+  Save,
+  X,
+  Plus,
+  Crown,
+  Pencil,
+  Loader2,
+  Trash2,
+  Camera,
 } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import {
@@ -109,7 +124,7 @@ export default function Profile() {
     queryFn: async () => {
       if (!user?.id) return null;
       const { data, error } = await supabase
-        .from("house_residents")
+        .from("house_members")
         .select("*, houses(*)")
         .eq("user_id", user.id)
         .maybeSingle();
@@ -118,6 +133,79 @@ export default function Profile() {
       return data;
     },
     enabled: !!user?.id,
+  });
+
+  // Fetch all house members
+  const { data: houseMembers, isLoading: isMembersLoading } = useQuery({
+    queryKey: ["house-members", userHouse?.house_id],
+    queryFn: async () => {
+      if (!userHouse?.house_id) return [];
+      const { data, error } = await supabase
+        .from("house_members")
+        .select("*")
+        .eq("house_id", userHouse.house_id)
+        .order("is_head", { ascending: false })
+        .order("full_name");
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!userHouse?.house_id,
+  });
+
+  const [isAddingMember, setIsAddingMember] = useState(false);
+  const [newMemberName, setNewMemberName] = useState("");
+  const [isSettingHead, setIsSettingHead] = useState(false);
+
+  const addMemberMutation = useMutation({
+    mutationFn: async (fullName: string) => {
+      if (!userHouse?.house_id) return;
+      const { error } = await supabase.from("house_members").insert({
+        house_id: userHouse.house_id,
+        full_name: fullName,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["house-members"] });
+      toast({ title: "Berhasil", description: "Anggota keluarga berhasil ditambahkan" });
+      setIsAddingMember(false);
+      setNewMemberName("");
+    },
+    onError: () => {
+      toast({ variant: "destructive", title: "Gagal", description: "Gagal menambah anggota keluarga" });
+    },
+  });
+
+  const setHeadMutation = useMutation({
+    mutationFn: async (memberId: string) => {
+      const { error } = await supabase
+        .from("house_members")
+        .update({ is_head: true })
+        .eq("id", memberId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["house-members"] });
+      toast({ title: "Berhasil", description: "Kepala keluarga berhasil diperbarui" });
+    },
+    onError: () => {
+      toast({ variant: "destructive", title: "Gagal", description: "Gagal memperbarui kepala keluarga" });
+    },
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: async (memberId: string) => {
+      const { error } = await supabase.from("house_members").delete().eq("id", memberId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["house-members"] });
+      toast({ title: "Berhasil", description: "Anggota keluarga berhasil dihapus" });
+    },
+    onError: () => {
+      toast({ variant: "destructive", title: "Gagal", description: "Gagal menghapus anggota keluarga" });
+    },
   });
 
   const getRoleDisplay = () => {
@@ -573,6 +661,141 @@ export default function Profile() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {userHouse?.houses && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="w-5 h-5 text-primary" />
+                    Kelola Keluarga
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Atur anggota keluarga dan kepala keluarga
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setIsAddingMember(true)}>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Tambah
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {isMembersLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                    <div className="space-y-3">
+                      {[...(houseMembers || [])].sort((a, b) => (b.is_head ? 1 : 0) - (a.is_head ? 1 : 0)).map((member, index) => (
+                        <motion.div
+                          key={member.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border bg-card hover:shadow-md transition-all gap-4"
+                        >
+                          <div className="flex items-center gap-4">
+                            <Avatar className="w-12 h-12 border-2 border-primary/10 shadow-sm">
+                              <AvatarFallback className="bg-primary/5 text-primary text-sm font-semibold">
+                                {getInitials(member.full_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-bold tracking-tight">{member.full_name}</span>
+                                <div className="flex gap-1.5 font-bold">
+                                  {member.is_head && (
+                                    <Badge variant="secondary" className="px-2 h-5 text-[9px] bg-amber-500/10 text-amber-600 border-amber-200/50 font-bold uppercase tracking-wider shadow-sm ring-1 ring-amber-500/20">
+                                      <Crown className="w-2.5 h-2.5 mr-1" />
+                                      KK
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground font-medium">
+                                {member.user_id === user?.id ? "Profil Anda" : member.user_id ? "Terdaftar" : "Belum Punya Akun"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-end gap-2 border-t sm:border-0 pt-3 sm:pt-0">
+                            {!member.is_head && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-9 text-[10px] font-bold border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 transition-colors px-3"
+                                onClick={() => setHeadMutation.mutate(member.id)}
+                                disabled={setHeadMutation.isPending}
+                              >
+                                <Crown className="w-3.5 h-3.5 mr-1.5" />
+                                Jadi KK
+                              </Button>
+                            )}
+                            {!member.user_id && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 text-destructive hover:bg-destructive/10 transition-all rounded-full"
+                                onClick={() => {
+                                  if (confirm(`Hapus ${member.full_name} dari anggota keluarga?`)) {
+                                    removeMemberMutation.mutate(member.id);
+                                  }
+                                }}
+                                disabled={removeMemberMutation.isPending}
+                              >
+                                <Trash2 className="w-4.5 h-4.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        <Dialog open={isAddingMember} onOpenChange={setIsAddingMember}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Tambah Anggota Keluarga</DialogTitle>
+              <DialogDescription>
+                Masukkan nama anggota keluarga yang tinggal di rumah ini.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="memberName">Nama Lengkap</Label>
+                <Input
+                  id="memberName"
+                  placeholder="Contoh: Jane Doe"
+                  value={newMemberName}
+                  onChange={(e) => setNewMemberName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && newMemberName.trim() && addMemberMutation.mutate(newMemberName)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddingMember(false)}>
+                Batal
+              </Button>
+              <Button
+                disabled={!newMemberName.trim() || addMemberMutation.isPending}
+                onClick={() => addMemberMutation.mutate(newMemberName)}
+              >
+                {addMemberMutation.isPending && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
+                Tambah Anggota
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {userHouse?.houses && (
           <motion.div

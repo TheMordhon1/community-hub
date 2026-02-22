@@ -594,34 +594,40 @@ export type Database = {
         }
         Relationships: []
       }
-      house_residents: {
+      house_members: {
         Row: {
           created_at: string
+          full_name: string
           house_id: string
           id: string
-          is_owner: boolean | null
+          is_head: boolean | null
           move_in_date: string | null
-          user_id: string
+          updated_at: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
+          full_name: string
           house_id: string
           id?: string
-          is_owner?: boolean | null
+          is_head?: boolean | null
           move_in_date?: string | null
-          user_id: string
+          updated_at?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
+          full_name?: string
           house_id?: string
           id?: string
-          is_owner?: boolean | null
+          is_head?: boolean | null
           move_in_date?: string | null
-          user_id?: string
+          updated_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "house_residents_house_id_fkey"
+            foreignKeyName: "house_members_house_id_fkey"
             columns: ["house_id"]
             isOneToOne: false
             referencedRelation: "houses"

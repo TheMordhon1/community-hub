@@ -68,7 +68,7 @@ export default function Polls() {
     queryFn: async () => {
       if (!user?.id) return null;
       const { data, error } = await supabase
-        .from("house_residents")
+        .from("house_members")
         .select("house_id")
         .eq("user_id", user.id)
         .maybeSingle();
@@ -97,7 +97,7 @@ export default function Polls() {
 
       // Get house residents to check house votes
       const { data: residentsData } = await supabase
-        .from("house_residents")
+        .from("house_members")
         .select("user_id, house_id");
 
        const pollsWithVotes: PollWithVotesProps[] = pollsData.map((poll: PollWithVotesProps) => {

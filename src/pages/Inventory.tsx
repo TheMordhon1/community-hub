@@ -224,7 +224,7 @@ export default function Inventory() {
     queryKey: ["residents-all"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("house_residents")
+        .from("house_members")
         .select("user_id, houses(block, number)");
       if (error) throw error;
       

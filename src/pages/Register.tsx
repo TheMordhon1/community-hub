@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -46,6 +46,7 @@ const registerSchema = z
       .min(6, "Password minimal 6 karakter")
       .max(100, "Password terlalu panjang"),
     confirmPassword: z.string(),
+    claimMemberId: z.string().optional().nullable(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Password tidak cocok",
@@ -62,6 +63,53 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const form = useForm<RegisterForm>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      fullName: "",
+      houseId: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      claimMemberId: null,
+    },
+  });
+
+  // Auto-populate name when a profile is claimed
+  const watchClaimMemberId = form.watch("claimMemberId");
+  const { setValue } = form;
+
+  const houseId = form.watch("houseId");
+
+  const { data: unlinkedMembers } = useQuery({
+    queryKey: ["unlinked-members", houseId],
+    queryFn: async () => {
+      if (!houseId) return [];
+      console.log("Fetching unlinked members for house:", houseId);
+      const { data, error } = await supabase
+        .from("house_members")
+        .select("id, full_name")
+        .eq("house_id", houseId)
+        .is("user_id", null);
+
+      if (error) {
+        console.error("Error fetching unlinked members:", error);
+        throw error;
+      }
+      return data;
+    },
+    enabled: !!houseId,
+  });
+
+  useEffect(() => {
+    if (watchClaimMemberId && watchClaimMemberId !== "none" && unlinkedMembers) {
+      const selectedMember = unlinkedMembers.find(m => m.id === watchClaimMemberId);
+      if (selectedMember) {
+        setValue("fullName", selectedMember.full_name, { shouldValidate: true });
+      }
+    }
+  }, [watchClaimMemberId, unlinkedMembers, setValue]);
 
   const { data: houses, isLoading: housesLoading } = useQuery({
     queryKey: ["houses-all"],
@@ -87,16 +135,6 @@ export default function Register() {
       return naturalSort(a.number, b.number);
     }) ?? [];
 
-  const form = useForm<RegisterForm>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      fullName: "",
-      houseId: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    },
-  });
 
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true);
@@ -126,15 +164,27 @@ export default function Register() {
       return;
     }
 
-    // Link user to house via house_residents
+    // Link user to house via house_members
     if (userId && selectedHouse) {
-      await supabase.from("house_residents").insert({
-        user_id: userId,
-        house_id: selectedHouse.id,
-        is_owner: false,
-      });
+      if (data.claimMemberId) {
+        // Link to existing profile and update name to match form
+        await supabase
+          .from("house_members")
+          .update({ 
+            user_id: userId,
+            full_name: data.fullName // Sync the name from the registration form
+          })
+          .eq("id", data.claimMemberId);
+      } else {
+        // Create new member profile
+        await supabase.from("house_members").insert({
+          user_id: userId,
+          house_id: selectedHouse.id,
+          full_name: data.fullName,
+        });
+      }
 
-      // Mark house as occupied (even if already occupied, keeps it occupied)
+      // Mark house as occupied
       await supabase
         .from("houses")
         .update({ is_occupied: true })
@@ -191,7 +241,10 @@ export default function Register() {
                 <Label htmlFor="houseId">Nomor Rumah</Label>
                 <Select
                   value={form.watch("houseId")}
-                  onValueChange={(value) => form.setValue("houseId", value)}
+                  onValueChange={(value) => {
+                    form.setValue("houseId", value);
+                    form.setValue("claimMemberId", null); // Reset when house changes
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue
@@ -220,6 +273,36 @@ export default function Register() {
                   </p>
                 )}
               </div>
+
+              {unlinkedMembers && unlinkedMembers.length > 0 && (
+                <div className="space-y-3 p-4 rounded-xl border bg-primary/5 border-primary/20 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    <Label className="text-sm font-semibold text-primary">Klaim Profil Keluarga</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Nama Anda mungkin sudah didaftarkan oleh anggota keluarga lainnya. Pilih di bawah jika sudah tertera.
+                  </p>
+                  <Select
+                    value={form.watch("claimMemberId") || "none"}
+                    onValueChange={(value) => form.setValue("claimMemberId", value === "none" ? null : value)}
+                  >
+                    <SelectTrigger className="h-10 bg-background/50 border-primary/20 hover:border-primary/40 transition-colors">
+                      <SelectValue placeholder="Pilih profil (Opsional)" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      <SelectItem value="none" className="font-medium text-muted-foreground">
+                        --- Buat profil baru ---
+                      </SelectItem>
+                      {unlinkedMembers.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
