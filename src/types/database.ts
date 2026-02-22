@@ -1,5 +1,7 @@
 export type AppRole = 'admin' | 'pengurus' | 'warga';
 
+export type MemberType = 'suami' | 'istri' | 'anak' | 'orang_tua' | 'saudara' | 'asisten' | 'single';
+
 // Legacy type - kept for backward compatibility
 export type PengurusTitle = 'ketua' | 'wakil_ketua' | 'sekretaris' | 'bendahara' | 'menteri_keamanan' | 'menteri_agama' | 'menteri_humas' | 'menteri_olahraga' | 'menteri_sisdigi' | 'anggota';
 
@@ -37,6 +39,16 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   admin: 'Super Admin',
   pengurus: 'Pengurus',
   warga: 'Warga',
+};
+
+export const MEMBER_TYPE_LABELS: Record<MemberType, string> = {
+  suami: 'Suami',
+  istri: 'Istri',
+  anak: 'Anak',
+  orang_tua: 'Orang Tua',
+  saudara: 'Saudara',
+  asisten: 'Asisten',
+  single: 'Single',
 };
 
 export type PollVoteType = 'per_account' | 'per_house';

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useForm } from "react-hook-form";
@@ -17,7 +18,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ROLE_LABELS, PENGURUS_TITLE_LABELS, House } from "@/types/database";
+import { ROLE_LABELS, PENGURUS_TITLE_LABELS, House, MemberType, MEMBER_TYPE_LABELS } from "@/types/database";
 import {
   ArrowLeft,
   Home,
@@ -140,7 +141,7 @@ export default function Profile() {
     queryKey: ["house-members", userHouse?.house_id],
     queryFn: async () => {
       if (!userHouse?.house_id) return [];
-      const { data, error } = await supabase
+      const { data: members, error } = await supabase
         .from("house_members")
         .select("*")
         .eq("house_id", userHouse.house_id)
@@ -148,21 +149,43 @@ export default function Profile() {
         .order("full_name");
 
       if (error) throw error;
-      return data;
+
+      const userIds = (members || [])
+        .filter((m) => m.user_id)
+        .map((m) => m.user_id as string);
+
+      if (userIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, full_name, avatar_url")
+          .in("id", userIds);
+
+        if (profilesError) throw profilesError;
+
+        const profilesMap = new Map((profilesData || []).map((p) => [p.id, p]));
+        return (members || []).map((m) => ({
+          ...m,
+          profiles: m.user_id ? profilesMap.get(m.user_id) : null,
+        }));
+      }
+
+      return (members || []).map((m) => ({ ...m, profiles: null }));
     },
     enabled: !!userHouse?.house_id,
   });
 
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [newMemberName, setNewMemberName] = useState("");
+  const [newMemberType, setNewMemberType] = useState<MemberType | "">("");
   const [isSettingHead, setIsSettingHead] = useState(false);
 
   const addMemberMutation = useMutation({
-    mutationFn: async (fullName: string) => {
+    mutationFn: async ({ fullName, memberType }: { fullName: string; memberType: MemberType | null }) => {
       if (!userHouse?.house_id) return;
       const { error } = await supabase.from("house_members").insert({
         house_id: userHouse.house_id,
         full_name: fullName,
+        member_type: memberType || null,
       });
       if (error) throw error;
     },
@@ -171,9 +194,27 @@ export default function Profile() {
       toast({ title: "Berhasil", description: "Anggota keluarga berhasil ditambahkan" });
       setIsAddingMember(false);
       setNewMemberName("");
+      setNewMemberType("");
     },
     onError: () => {
       toast({ variant: "destructive", title: "Gagal", description: "Gagal menambah anggota keluarga" });
+    },
+  });
+
+  const updateMemberStatusMutation = useMutation({
+    mutationFn: async ({ memberId, memberType }: { memberId: string; memberType: MemberType }) => {
+      const { error } = await supabase
+        .from("house_members")
+        .update({ member_type: memberType })
+        .eq("id", memberId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["house-members"] });
+      toast({ title: "Berhasil", description: "Status anggota keluarga diperbarui" });
+    },
+    onError: () => {
+      toast({ variant: "destructive", title: "Gagal", description: "Gagal memperbarui status" });
     },
   });
 
@@ -699,47 +740,71 @@ export default function Profile() {
                           transition={{ delay: index * 0.05 }}
                           className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border bg-card hover:shadow-md transition-all gap-4"
                         >
-                          <div className="flex items-center gap-4">
-                            <Avatar className="w-12 h-12 border-2 border-primary/10 shadow-sm">
-                              <AvatarFallback className="bg-primary/5 text-primary text-sm font-semibold">
-                                {getInitials(member.full_name)}
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                            <Avatar className="w-10 h-10 sm:w-12 sm:h-12 border-2 border-primary/10 shadow-sm shrink-0">
+                              <AvatarImage src={member.profiles?.avatar_url || ""} />
+                              <AvatarFallback className="bg-primary/5 text-primary text-xs sm:text-sm font-semibold">
+                                {getInitials(member.profiles?.full_name || member.full_name)}
                               </AvatarFallback>
                             </Avatar>
-                            <div className="space-y-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-bold tracking-tight">{member.full_name}</span>
-                                <div className="flex gap-1.5 font-bold">
+                            <div className="space-y-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                                <span className="text-sm font-bold tracking-tight truncate max-w-[150px] sm:max-w-none">
+                                  {member.profiles?.full_name || member.full_name}
+                                </span>
+                                <div className="flex flex-wrap gap-1 font-bold">
                                   {member.is_head && (
-                                    <Badge variant="secondary" className="px-2 h-5 text-[9px] bg-amber-500/10 text-amber-600 border-amber-200/50 font-bold uppercase tracking-wider shadow-sm ring-1 ring-amber-500/20">
-                                      <Crown className="w-2.5 h-2.5 mr-1" />
+                                    <Badge variant="secondary" className="px-1.5 h-4 sm:px-2 sm:h-5 text-[8px] sm:text-[9px] bg-amber-500/10 text-amber-600 border-amber-200/50 font-bold uppercase tracking-wider shadow-sm ring-1 ring-amber-500/20">
+                                      <Crown className="w-2 sm:w-2.5 h-2 sm:h-2.5 mr-1" />
                                       KK
+                                    </Badge>
+                                  )}
+                                  {member.member_type && (
+                                    <Badge variant="outline" className="px-1.5 h-4 sm:px-2 sm:h-5 text-[8px] sm:text-[9px] font-bold uppercase tracking-wider shadow-sm">
+                                      {MEMBER_TYPE_LABELS[member.member_type as MemberType]}
                                     </Badge>
                                   )}
                                 </div>
                               </div>
-                              <p className="text-[10px] text-muted-foreground font-medium">
+                              <p className="text-[10px] text-muted-foreground font-medium truncate">
                                 {member.user_id === user?.id ? "Profil Anda" : member.user_id ? "Terdaftar" : "Belum Punya Akun"}
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center justify-end gap-2 border-t sm:border-0 pt-3 sm:pt-0">
+                          <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2 border-t sm:border-0 pt-3 sm:pt-0">
+                            <Select
+                              value={member.member_type || ""}
+                              onValueChange={(value) => updateMemberStatusMutation.mutate({ memberId: member.id, memberType: value as MemberType })}
+                            >
+                              <SelectTrigger className="h-8 sm:h-9 w-[100px] sm:w-[120px] text-[9px] sm:text-[10px] font-bold">
+                                <SelectValue placeholder="Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(MEMBER_TYPE_LABELS).map(([value, label]) => (
+                                  <SelectItem key={value} value={value} className="text-[9px] sm:text-[10px]">
+                                    {label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             {!member.is_head && (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-9 text-[10px] font-bold border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 transition-colors px-3"
+                                className="h-8 sm:h-9 text-[9px] sm:text-[10px] font-bold border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 transition-colors px-2 sm:px-3"
                                 onClick={() => setHeadMutation.mutate(member.id)}
                                 disabled={setHeadMutation.isPending}
                               >
-                                <Crown className="w-3.5 h-3.5 mr-1.5" />
-                                Jadi KK
+                                <Crown className="w-3 sm:w-3.5 h-3 sm:h-3.5 mr-1.5" />
+                                <span className="hidden xs:inline">Jadi KK</span>
+                                <span className="xs:hidden">KK</span>
                               </Button>
                             )}
                             {!member.user_id && (
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-9 w-9 text-destructive hover:bg-destructive/10 transition-all rounded-full"
+                                className="h-8 w-8 sm:h-9 sm:w-9 text-destructive hover:bg-destructive/10 transition-all rounded-full"
                                 onClick={() => {
                                   if (confirm(`Hapus ${member.full_name} dari anggota keluarga?`)) {
                                     removeMemberMutation.mutate(member.id);
@@ -747,7 +812,7 @@ export default function Profile() {
                                 }}
                                 disabled={removeMemberMutation.isPending}
                               >
-                                <Trash2 className="w-4.5 h-4.5" />
+                                <Trash2 className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                               </Button>
                             )}
                           </div>
@@ -776,8 +841,26 @@ export default function Profile() {
                   placeholder="Contoh: Jane Doe"
                   value={newMemberName}
                   onChange={(e) => setNewMemberName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && newMemberName.trim() && addMemberMutation.mutate(newMemberName)}
+                  onKeyDown={(e) => e.key === "Enter" && newMemberName.trim() && addMemberMutation.mutate({ fullName: newMemberName, memberType: (newMemberType || null) as MemberType | null })}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="memberType">Status Keluarga</Label>
+                <Select
+                  value={newMemberType}
+                  onValueChange={(value: MemberType) => setNewMemberType(value)}
+                >
+                  <SelectTrigger id="memberType">
+                    <SelectValue placeholder="Pilih status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(MEMBER_TYPE_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <DialogFooter>
@@ -786,7 +869,7 @@ export default function Profile() {
               </Button>
               <Button
                 disabled={!newMemberName.trim() || addMemberMutation.isPending}
-                onClick={() => addMemberMutation.mutate(newMemberName)}
+                onClick={() => addMemberMutation.mutate({ fullName: newMemberName, memberType: (newMemberType || null) as MemberType | null })}
               >
                 {addMemberMutation.isPending && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />

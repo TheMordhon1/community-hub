@@ -60,12 +60,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useNaturalSort } from "@/hooks/useNaturalSort";
-import { House } from "@/types/database";
+import { House, MemberType, MEMBER_TYPE_LABELS } from "@/types/database";
 
 interface HouseResident {
   id: string;
   user_id: string | null;
   is_head: boolean;
+  member_type: string | null;
   full_name: string;
   move_in_date: string | null;
   profiles: {
@@ -115,7 +116,7 @@ export default function Residents() {
       // Fetch all house members
       const { data: membersData, error: membersError } = await supabase
         .from("house_members")
-        .select("id, user_id, house_id, is_head, full_name, move_in_date");
+        .select("id, user_id, house_id, is_head, member_type, full_name, move_in_date");
 
       if (membersError) throw membersError;
 
@@ -486,24 +487,24 @@ export default function Residents() {
                         {getInitials(resident.profiles?.full_name || resident.full_name)}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium line-clamp-1">
+                    <div className="flex-1 min-w-0 py-0.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
+                        <span className="font-bold text-sm sm:text-base line-clamp-1">
                           {resident.profiles?.full_name || resident.full_name}
                         </span>
-                        <div className="flex gap-1.5 font-bold">
+                        <div className="flex flex-wrap gap-1">
                           {resident.is_head && (
-                            <Badge variant="secondary" className="px-2 h-5 text-[9px] bg-amber-500/10 text-amber-600 border-amber-200/50 font-bold uppercase tracking-wider shadow-sm ring-1 ring-amber-500/20">
-                              <Crown className="w-2.5 h-2.5 mr-1" />
-                              KK
-                            </Badge>
-                          )}
-                          {resident.user_id && (
-                            <Badge variant="secondary" className="px-2 h-5 text-[9px] bg-sky-500/10 text-sky-600 border-sky-200/50 font-bold uppercase tracking-wider shadow-sm ring-1 ring-sky-500/20 hover:bg-sky-500/20">
-                              <UserCheck className="w-2.5 h-2.5 mr-1" />
-                              Akun
-                            </Badge>
-                          )}
+                               <Badge variant="secondary" className="px-1.5 h-4 text-[8px] bg-amber-500/10 text-amber-600 border-amber-200/50 font-bold uppercase tracking-wider shadow-sm ring-1 ring-amber-500/20">
+                                <Crown className="w-2 h-2 mr-1" />
+                                KK
+                              </Badge>
+                            )}
+                            {resident.member_type && (
+                              <Badge variant="outline" className="px-1.5 h-4 text-[8px] font-bold uppercase tracking-wider shadow-sm">
+                                {MEMBER_TYPE_LABELS[resident.member_type as MemberType]}
+                              </Badge>
+                            )}
+                           
                         </div>
                       </div>
                       {resident.profiles?.phone && (
