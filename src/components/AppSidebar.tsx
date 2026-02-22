@@ -164,7 +164,7 @@ export function AppSidebar() {
           </>
         )}
 
-        {isAdmin() && (
+        {(isAdmin() || (role === "pengurus" && pengurusTitle === "menteri_sisdigi")) && (
           <>
             <SidebarSeparator />
             <SidebarGroup>

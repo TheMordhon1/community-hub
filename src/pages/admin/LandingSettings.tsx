@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { Navigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
   Save,
@@ -22,12 +24,12 @@ import {
   Phone,
   Settings2,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 
 type LandingSettings = Record<string, string | null>;
 
 export default function LandingSettings() {
   const { toast } = useToast();
+  const { role, pengurusTitle, isAdmin, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [settings, setSettings] = useState<LandingSettings>({});
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
@@ -168,12 +170,18 @@ export default function LandingSettings() {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="min-h-screen bg-background p-6 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
+  }
+
+  const canManageSettings = isAdmin() || (role === 'pengurus' && pengurusTitle === 'menteri_sisdigi');
+
+  if (!canManageSettings) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (

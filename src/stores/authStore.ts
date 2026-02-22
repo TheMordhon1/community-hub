@@ -114,19 +114,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   fetchRole: async (userId) => {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role, title_id, pengurus_titles(name, has_finance_access)')
-      .eq('user_id', userId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role, title_id, pengurus_titles(name, has_finance_access)')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-    if (!error && data) {
-      const titleData = data.pengurus_titles as { name: string; has_finance_access: boolean } | null;
-      set({
-        role: data.role as AppRole,
-        pengurusTitle: titleData?.name as PengurusTitle | null,
-        hasFinanceAccess: titleData?.has_finance_access ?? false
-      });
+      if (error) {
+        console.error('Fetch role error:', error);
+        return;
+      }
+
+      if (data) {
+        const titleData = data.pengurus_titles as { name: string; has_finance_access: boolean } | null;
+        set({
+          role: data.role as AppRole,
+          pengurusTitle: titleData?.name as PengurusTitle | null,
+          hasFinanceAccess: titleData?.has_finance_access ?? false
+        });
+      } else {
+        // Default to warga if no role found
+        set({ role: 'warga', pengurusTitle: null, hasFinanceAccess: false });
+      }
+    } catch (err) {
+      console.error('Fetch role unexpected error:', err);
     }
   },
 
