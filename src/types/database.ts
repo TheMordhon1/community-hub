@@ -301,3 +301,17 @@ export interface BorrowItem {
   quantity: number;
   created_at: string;
 }
+
+export interface Schedule {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  start_date: string;
+  start_time: string | null;
+  end_date: string | null;
+  color: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}

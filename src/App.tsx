@@ -34,6 +34,8 @@ import Houses from "./pages/Houses";
 import Home from "./pages/Index";
 import Inventory from "./pages/Inventory";
 import Maintenance from "./pages/admin/Maintenance";
+import Schedule from "./pages/Schedule";
+import ScheduleDetail from "./pages/ScheduleDetail";
 
 const queryClient = new QueryClient();
 
@@ -101,6 +103,8 @@ function AppRoutes() {
           <Route path="/admin/landing" element={<LandingSettings />} />
           <Route path="/admin/maintenance" element={<Maintenance />} />
           <Route path="/admin/emergency-contacts" element={<AdminEmergencyContacts />} />
+          <Route path="/schedule" element={<Schedule />} />
+          <Route path="/schedule/:id" element={<ScheduleDetail />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFound />} />

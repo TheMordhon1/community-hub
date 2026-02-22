@@ -1118,6 +1118,56 @@ export type Database = {
           },
         ]
       }
+      schedules: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          location: string | null
+          start_date: string
+          start_time: string | null
+          end_date: string | null
+          color: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          location?: string | null
+          start_date: string
+          start_time?: string | null
+          end_date?: string | null
+          color?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          location?: string | null
+          start_date?: string
+          start_time?: string | null
+          end_date?: string | null
+          color?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

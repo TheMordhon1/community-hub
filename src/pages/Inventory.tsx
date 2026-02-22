@@ -60,11 +60,13 @@ import {
   Camera,
   X,
   HelpCircle,
+  ArrowLeft,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useRef } from "react";
 import { getStoragePath } from "@/lib/utils";
+import { Link } from "react-router-dom";
 
 interface InventoryItem {
   id: string;
@@ -501,20 +503,25 @@ export default function Inventory() {
     <section className="p-6 pb-32">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold">Inventaris</h1>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1.5 text-xs font-medium text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-200 ml-1 shadow-sm bg-background/50 backdrop-blur-sm"
-                onClick={() => setIsInstructionsOpen(true)}
-              >
-                <HelpCircle className="w-4 h-4" />
-                <span>Cara Pinjam</span>
-              </Button>
+          <div className="flex items-center gap-4">
+            <Link to="/dashboard">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold">Inventaris</h1>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs font-medium text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-200 ml-1 shadow-sm bg-background/50 backdrop-blur-sm"
+                  onClick={() => setIsInstructionsOpen(true)}
+                >
+                  <HelpCircle className="w-4 h-4" />
+                  <span>Cara Pinjam</span>
+                </Button>
+              </div>
+              <p className="text-muted-foreground text-sm">Kelola dan pinjam peralatan paguyuban</p>
             </div>
-            <p className="text-muted-foreground text-sm">Kelola dan pinjam peralatan paguyuban</p>
           </div>
           <div className="flex gap-2">
             {selectedItems.size > 0 && (
