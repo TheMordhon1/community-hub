@@ -23,6 +23,7 @@ export type Database = {
           image_url: string | null
           is_published: boolean | null
           published_at: string | null
+          related_url: string | null
           title: string
           updated_at: string
         }
@@ -34,6 +35,7 @@ export type Database = {
           image_url?: string | null
           is_published?: boolean | null
           published_at?: string | null
+          related_url?: string | null
           title: string
           updated_at?: string
         }
@@ -45,6 +47,7 @@ export type Database = {
           image_url?: string | null
           is_published?: boolean | null
           published_at?: string | null
+          related_url?: string | null
           title?: string
           updated_at?: string
         }
@@ -641,6 +644,41 @@ export type Database = {
           },
         ]
       }
+      house_residents: {
+        Row: {
+          created_at: string
+          house_id: string
+          id: string
+          is_owner: boolean | null
+          move_in_date: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          house_id: string
+          id?: string
+          is_owner?: boolean | null
+          move_in_date?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          house_id?: string
+          id?: string
+          is_owner?: boolean | null
+          move_in_date?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "house_residents_house_id_fkey"
+            columns: ["house_id"]
+            isOneToOne: false
+            referencedRelation: "houses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       houses: {
         Row: {
           block: string
@@ -1095,6 +1133,56 @@ export type Database = {
         }
         Relationships: []
       }
+      schedules: {
+        Row: {
+          color: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          location: string | null
+          start_date: string
+          start_time: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          location?: string | null
+          start_date: string
+          start_time?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          location?: string | null
+          start_date?: string
+          start_time?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1126,56 +1214,6 @@ export type Database = {
             columns: ["title_id"]
             isOneToOne: false
             referencedRelation: "pengurus_titles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      schedules: {
-        Row: {
-          id: string
-          title: string
-          description: string | null
-          location: string | null
-          start_date: string
-          start_time: string | null
-          end_date: string | null
-          color: string | null
-          created_by: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          title: string
-          description?: string | null
-          location?: string | null
-          start_date: string
-          start_time?: string | null
-          end_date?: string | null
-          color?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          title?: string
-          description?: string | null
-          location?: string | null
-          start_date?: string
-          start_time?: string | null
-          end_date?: string | null
-          color?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "schedules_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1214,12 +1252,24 @@ export type Database = {
         Args: { _house_id: string; _poll_id: string }
         Returns: boolean
       }
+      is_approved_house_member: {
+        Args: { _house_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_competition_referee: {
         Args: { _competition_id: string; _user_id: string }
         Returns: boolean
       }
       is_event_author: {
         Args: { _event_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_house_head: {
+        Args: { _house_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_house_member: {
+        Args: { _house_id: string; _user_id: string }
         Returns: boolean
       }
     }
