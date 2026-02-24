@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from "@/types/database";
 import {
   useSidebarAdminMenus,
-  usePengurusMenus,
+  useSidebarPengurusMenus,
   useSidebarMainMenus,
 } from "@/hooks/useMenus";
 import { DynamicIcon } from "@/components/DynamicIcon";
@@ -42,7 +42,7 @@ export function AppSidebar() {
 
   const { data: mainMenus, isLoading: mainLoading } = useSidebarMainMenus();
   const { data: pengurusMenus, isLoading: pengurusLoading } =
-    usePengurusMenus();
+    useSidebarPengurusMenus();
   const { data: adminMenus, isLoading: adminLoading } = useSidebarAdminMenus();
   const { data: announcementsCount = 0 } = useAnnouncementCount();
   const { data: upcomingCount = 0 } = useUpcomingEventsCount();
