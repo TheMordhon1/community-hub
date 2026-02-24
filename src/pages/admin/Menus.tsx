@@ -66,7 +66,7 @@ export default function Menus() {
   });
 
   const { data: menus, isLoading } = useQuery({
-    queryKey: ["menus", "admin"],
+    queryKey: ["menus", "admin-manage"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("menus")
