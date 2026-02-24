@@ -1,13 +1,18 @@
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Phone, MessageCircle, Send, Mail, AlertTriangle, ExternalLink } from "lucide-react";
+import { AlertTriangle, ExternalLink, ArrowRight, Copy, Check } from "lucide-react";
 import {
   useActiveEmergencyContacts,
   getContactLink,
-  EmergencyContact,
+  PLATFORM_OPTIONS,
 } from "@/hooks/useEmergencyContacts";
+import { Link } from "react-router-dom";
+import { DynamicIcon } from "./DynamicIcon";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface EmergencyContactsCardProps {
   variant?: "dashboard" | "landing";
@@ -19,52 +24,46 @@ export function EmergencyContactsCard({
   className = "",
 }: EmergencyContactsCardProps) {
   const { data: contacts, isLoading } = useActiveEmergencyContacts();
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const getPlatformIcon = (platform: string) => {
-    switch (platform) {
+  const handleCopy = (id: string, phone: string) => {
+    navigator.clipboard.writeText(phone);
+    setCopiedId(id);
+    toast.success("Nomor telepon disalin!");
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const getPlatformStyles = (platformValue: string) => {
+    switch (platformValue) {
       case "whatsapp":
-        return <MessageCircle className="w-4 h-4" />;
+        return "bg-[#25D366]/10 text-[#128C7E] border-[#25D366]/10";
       case "telegram":
-        return <Send className="w-4 h-4" />;
+        return "bg-[#0088cc]/10 text-[#0088cc] border-[#0088cc]/10";
       case "email":
-        return <Mail className="w-4 h-4" />;
+        return "bg-[#EA4335]/10 text-[#EA4335] border-[#EA4335]/10";
       case "phone":
       default:
-        return <Phone className="w-4 h-4" />;
+        return "bg-primary/10 text-primary border-primary/10";
     }
   };
 
   const getPlatformColor = (platform: string) => {
     switch (platform) {
       case "whatsapp":
-        return "bg-green-600 hover:bg-green-700 text-white";
+        return "bg-[#25D366] hover:bg-[#128C7E] text-white shadow-[#25D366]/20";
       case "telegram":
-        return "bg-blue-500 hover:bg-blue-600 text-white";
+        return "bg-[#0088cc] hover:bg-[#0077b5] text-white shadow-[#0088cc]/20";
       case "email":
-        return "bg-orange-500 hover:bg-orange-600 text-white";
+        return "bg-[#EA4335] hover:bg-[#d93025] text-white shadow-[#EA4335]/20";
       case "phone":
       default:
         return "bg-primary hover:bg-primary/90 text-primary-foreground";
     }
   };
 
-  const getPlatformLabel = (platform: string) => {
-    switch (platform) {
-      case "whatsapp":
-        return "WhatsApp";
-      case "telegram":
-        return "Telegram";
-      case "email":
-        return "Email";
-      case "phone":
-      default:
-        return "Telepon";
-    }
-  };
-
   if (isLoading) {
     return (
-      <Card className={className}>
+      <Card className={cn("border-slate-200 dark:border-slate-800", className)}>
         <CardHeader>
           <Skeleton className="h-6 w-40" />
           <Skeleton className="h-4 w-60" />
@@ -72,7 +71,7 @@ export function EmergencyContactsCard({
         <CardContent>
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-16 w-full" />
+              <Skeleton key={i} className="h-16 w-full rounded-xl" />
             ))}
           </div>
         </CardContent>
@@ -86,26 +85,26 @@ export function EmergencyContactsCard({
 
   if (variant === "landing") {
     return (
-      <section className={`min-h-screen bg-background p-6 ${className}`}>
-        <div className=" px-4">
+      <section className={cn("py-16 md:py-24 bg-background", className)}>
+        <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <div className="inline-flex items-center gap-2 bg-red-100 text-red-700 px-4 py-2 rounded-full mb-4">
+            <div className="inline-flex items-center gap-2 bg-red-50 dark:bg-red-950/30 text-red-600 px-4 py-2 rounded-full mb-4 border border-red-100 dark:border-red-900/50">
               <AlertTriangle className="w-5 h-5" />
-              <span className="font-semibold">Kontak Darurat</span>
+              <span className="font-bold tracking-tight">Kondisi Darurat</span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-black text-emerald-900 mb-2">
-              Nomor Darurat
+            <h2 className="text-3xl md:text-5xl font-black mb-2 tracking-tight">
+              Bantuan Cepat
             </h2>
-            <p className="text-muted-foreground text-lg">
-              Hubungi nomor di bawah ini dalam keadaan darurat
+            <p className="text-muted-foreground text-lg max-w-xl mx-auto">
+              Hubungi layanan keamanan atau pengurus segera jika Anda memerlukan bantuan mendesak.
             </p>
           </motion.div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {contacts.map((contact, index) => (
               <motion.div
                 key={contact.id}
@@ -114,17 +113,19 @@ export function EmergencyContactsCard({
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className="h-full border-red-200/50 hover:border-red-300 hover:shadow-xl transition-all bg-gradient-to-br from-white to-red-50/20">
-                  <CardContent className="p-6 flex flex-col items-center text-center">
-                    <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center mb-4 shadow-lg">
-                      {getPlatformIcon(contact.platform)}
-                      <span className="sr-only">{getPlatformLabel(contact.platform)}</span>
+                <Card className="h-full border-slate-200 dark:border-slate-800 hover:shadow-2xl transition-all group rounded-2xl overflow-hidden">
+                  <CardContent className="p-8 flex flex-col items-center text-center">
+                    <div className={cn(
+                      "w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-inner border",
+                      getPlatformStyles(contact.platform)
+                    )}>
+                      <DynamicIcon name={PLATFORM_OPTIONS.find(p => p.value === contact.platform)?.icon || "Phone"} className="w-8 h-8" />
                     </div>
-                    <h3 className="font-bold text-lg mb-1 text-foreground">
+                    <h3 className="font-bold text-xl mb-2 text-foreground">
                       {contact.name}
                     </h3>
                     {contact.description && (
-                      <p className="text-sm text-muted-foreground mb-3">
+                      <p className="text-sm text-muted-foreground mb-6 line-clamp-2 min-h-[2.5rem]">
                         {contact.description}
                       </p>
                     )}
@@ -135,11 +136,13 @@ export function EmergencyContactsCard({
                       className="w-full"
                     >
                       <Button
-                        className={`w-full ${getPlatformColor(contact.platform)}`}
+                        className={cn(
+                          "w-full h-12 rounded-xl font-bold shadow-lg transition-all active:scale-95",
+                          getPlatformColor(contact.platform)
+                        )}
                       >
-                        {getPlatformIcon(contact.platform)}
-                        <span className="ml-2">{contact.phone}</span>
-                        <ExternalLink className="w-3 h-3 ml-2" />
+                        <span className="mr-2">{contact.phone}</span>
+                        <ExternalLink className="w-4 h-4" />
                       </Button>
                     </a>
                   </CardContent>
@@ -154,60 +157,108 @@ export function EmergencyContactsCard({
 
   // Dashboard variant
   return (
-    <Card className={`border-red-200/50 ${className}`}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-            <AlertTriangle className="w-4 h-4 text-red-600" />
+    <Card className={cn("border-red-100 dark:border-red-950/50 overflow-hidden shadow-md", className)}>
+      <CardHeader className="pb-4 bg-red-50/50 dark:bg-red-950/20 border-b border-red-100/50 dark:border-red-950/30">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/20">
+              <AlertTriangle className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-xl font-bold tracking-tight">Kontak Darurat</CardTitle>
+              <CardDescription className="text-xs font-medium">Bantuan cepat 24/7</CardDescription>
+            </div>
           </div>
-          <div>
-            <CardTitle className="text-lg font-display">Kontak Darurat</CardTitle>
-            <CardDescription>Hubungi dalam keadaan darurat</CardDescription>
-          </div>
+          <Link to="/emergency-contacts">
+            <Button variant="ghost" size="sm" className="text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50">
+              Lihat Semua
+              <ArrowRight className="w-3 h-3 ml-1" />
+            </Button>
+          </Link>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {contacts.map((contact) => (
-            <div
+      <CardContent className="p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {contacts.map((contact, index) => (
+            <motion.div
               key={contact.id}
-              className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
             >
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                    contact.platform === "whatsapp"
-                      ? "bg-green-100 text-green-600"
-                      : contact.platform === "telegram"
-                      ? "bg-blue-100 text-blue-500"
-                      : contact.platform === "email"
-                      ? "bg-orange-100 text-orange-500"
-                      : "bg-primary/10 text-primary"
-                  }`}
-                >
-                  {getPlatformIcon(contact.platform)}
-                </div>
-                <div>
-                  <p className="font-medium text-sm">{contact.name}</p>
-                  <p className="text-xs text-muted-foreground">{contact.phone}</p>
-                </div>
-              </div>
-              <a
-                href={getContactLink(contact.platform, contact.phone)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button
-                  size="sm"
-                  className={getPlatformColor(contact.platform)}
-                >
-                  {getPlatformIcon(contact.platform)}
-                  <span className="ml-1 hidden sm:inline">
-                    {getPlatformLabel(contact.platform)}
-                  </span>
-                </Button>
-              </a>
-            </div>
+              <Card className="overflow-hidden border-slate-100 dark:border-slate-800 hover:shadow-md transition-all group h-full">
+                <CardContent className="p-4 flex flex-col h-full">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="space-y-1">
+                      <p className="font-bold text-sm tracking-tight group-hover:text-red-600 transition-colors uppercase line-clamp-1">{contact.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[11px] font-mono font-medium text-muted-foreground tracking-wider">{contact.phone}</p>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800"
+                          onClick={() => handleCopy(contact.id, contact.phone)}
+                        >
+                          <AnimatePresence mode="wait" initial={false}>
+                            {copiedId === contact.id ? (
+                              <motion.div
+                                key="check"
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0 }}
+                              >
+                                <Check className="w-3 h-3 text-green-600" />
+                              </motion.div>
+                            ) : (
+                              <motion.div
+                                key="copy"
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0 }}
+                              >
+                                <Copy className="w-3 h-3 text-muted-foreground" />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </Button>
+                      </div>
+                    </div>
+                    <div
+                      className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center border shrink-0",
+                        getPlatformStyles(contact.platform)
+                      )}
+                    >
+                      <DynamicIcon name={PLATFORM_OPTIONS.find(p => p.value === contact.platform)?.icon || "Phone"} className="w-5 h-5" />
+                    </div>
+                  </div>
+                  
+                  {contact.description && (
+                    <p className="text-[11px] text-muted-foreground line-clamp-1 mb-4 flex-1">
+                      {contact.description}
+                    </p>
+                  )}
+                  
+                  <a
+                    href={getContactLink(contact.platform, contact.phone)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-auto"
+                  >
+                    <Button
+                      size="sm"
+                      className={cn(
+                        "w-full h-9 rounded-lg shadow-sm transition-all active:scale-95 font-bold text-xs",
+                        getPlatformColor(contact.platform)
+                      )}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                      Hubungi
+                    </Button>
+                  </a>
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
         </div>
       </CardContent>

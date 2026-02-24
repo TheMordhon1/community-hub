@@ -249,10 +249,10 @@ export default function EmergencyContacts() {
                         <p className="text-2xl font-mono font-bold tracking-tight text-slate-900 dark:text-slate-100">{contact.phone}</p>
                       </div>
 
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-col gap-3">
                         <Button 
                           asChild 
-                          className="flex-1 h-12 rounded-xl text-base font-semibold shadow-md active:scale-95 transition-transform"
+                          className="w-full h-12 rounded-xl text-base font-semibold shadow-md active:scale-95 transition-transform"
                         >
                           <a href={getContactLink(contact.platform, contact.phone)} target="_blank" rel="noopener noreferrer">
                             Hubungi Sekarang
@@ -261,25 +261,25 @@ export default function EmergencyContacts() {
                         </Button>
                         
                         {canManage && (
-                          <div className="flex items-center gap-2">
+                          <div className="grid grid-cols-2 gap-2">
                             <Button
                               variant="outline"
-                              size="icon"
-                              className="w-12 h-12 rounded-xl border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
+                              className="h-12 rounded-xl border-slate-200 dark:border-slate-800 hover:bg-primary/10 dark:hover:bg-slate-800 font-medium"
                               onClick={() => handleOpenDialog(contact)}
                             >
-                              <Pencil className="w-4 h-4" />
+                              <Pencil className="w-4 h-4 mr-2" />
+                              Ubah
                             </Button>
                             <Button
                               variant="outline"
-                              size="icon"
-                              className="w-12 h-12 rounded-xl border-slate-200 dark:border-slate-800 hover:bg-red-50 dark:hover:bg-red-950/30 text-destructive"
+                              className="h-12 rounded-xl border-slate-200 dark:border-slate-800 hover:bg-red-100 dark:hover:bg-red-950/30 text-destructive font-medium"
                               onClick={() => {
                                 setContactToDelete(contact);
                                 setDeleteDialogOpen(true);
                               }}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Hapus
                             </Button>
                           </div>
                         )}
