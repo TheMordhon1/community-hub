@@ -14,6 +14,8 @@ import { DynamicIcon } from "./DynamicIcon";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
+import { useAuth } from "@/hooks/useAuth";
+
 interface EmergencyContactsCardProps {
   variant?: "dashboard" | "landing";
   className?: string;
@@ -25,6 +27,7 @@ export function EmergencyContactsCard({
 }: EmergencyContactsCardProps) {
   const { data: contacts, isLoading } = useActiveEmergencyContacts();
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { isAdmin, canManageContent } = useAuth();
 
   const handleCopy = (id: string, phone: string) => {
     navigator.clipboard.writeText(phone);
@@ -169,12 +172,14 @@ export function EmergencyContactsCard({
               <CardDescription className="text-xs font-medium">Bantuan cepat 24/7</CardDescription>
             </div>
           </div>
-          <Link to="/emergency-contacts">
-            <Button variant="ghost" size="sm" className="text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50">
-              Lihat Semua
-              <ArrowRight className="w-3 h-3 ml-1" />
-            </Button>
-          </Link>
+          {(isAdmin() || canManageContent()) && (
+            <Link to="/emergency-contacts">
+              <Button variant="ghost" size="sm" className="text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50">
+                Lihat Semua
+                <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </Link>
+          )}
         </div>
       </CardHeader>
       <CardContent className="p-4">
