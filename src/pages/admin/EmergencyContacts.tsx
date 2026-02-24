@@ -61,7 +61,7 @@ import { Plus, Pencil, Trash2, Phone, MessageCircle, Send, Mail } from "lucide-r
 import { DynamicIcon } from "@/components/DynamicIcon";
 
 export default function EmergencyContacts() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isPengurus } = useAuth();
   const { data: contacts, isLoading } = useEmergencyContacts();
   const createContact = useCreateEmergencyContact();
   const updateContact = useUpdateEmergencyContact();
@@ -80,7 +80,7 @@ export default function EmergencyContacts() {
   const [orderIndex, setOrderIndex] = useState(0);
   const [isActive, setIsActive] = useState(true);
 
-  if (!isAdmin()) {
+  if (!isAdmin() && !isPengurus()) {
     return <Navigate to="/dashboard" replace />;
   }
 
