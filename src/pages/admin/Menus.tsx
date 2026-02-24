@@ -96,7 +96,7 @@ export default function Menus() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
-      const { error } = await supabase.from("menus").update(data).eq("id", id);
+      const { error } = await supabase.from("menus").update(data).eq("id", id).select();
       if (error) throw error;
     },
     onSuccess: () => {
@@ -131,7 +131,8 @@ export default function Menus() {
       const { error } = await supabase
         .from("menus")
         .update({ is_active })
-        .eq("id", id);
+        .eq("id", id)
+        .select();
       if (error) throw error;
     },
     onSuccess: () => {

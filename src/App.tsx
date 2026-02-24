@@ -12,7 +12,7 @@ import Dashboard from "@/pages/Dashboard";
 import AdminUsers from "@/pages/admin/Users";
 import AdminTitles from "@/pages/admin/Titles";
 import AdminMenus from "@/pages/admin/Menus";
-import AdminEmergencyContacts from "@/pages/admin/EmergencyContacts";
+import EmergencyContacts from "@/pages/EmergencyContacts";
 import LandingSettings from "@/pages/admin/LandingSettings";
 import Announcements from "@/pages/Announcements";
 import AnnouncementDetail from "@/pages/AnnouncementDetail";
@@ -102,7 +102,7 @@ function AppRoutes() {
           <Route path="/admin/menus" element={<AdminMenus />} />
           <Route path="/admin/landing" element={<LandingSettings />} />
           <Route path="/admin/maintenance" element={<Maintenance />} />
-          <Route path="/admin/emergency-contacts" element={<AdminEmergencyContacts />} />
+          <Route path="/emergency-contacts" element={<EmergencyContacts />} />
           <Route path="/schedule" element={<Schedule />} />
           <Route path="/schedule/:id" element={<ScheduleDetail />} />
         </Route>
