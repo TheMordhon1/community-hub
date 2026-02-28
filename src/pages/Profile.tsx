@@ -1333,7 +1333,7 @@ export default function Profile() {
                                 onSelect={(date) => {
                                   houseForm.setValue(
                                     "estimated_return_date",
-                                    date ? date.toISOString() : ""
+                                    date ? format(date, "yyyy-MM-dd") : ""
                                   );
                                   setIsCalendarOpen(false);
                                 }}
