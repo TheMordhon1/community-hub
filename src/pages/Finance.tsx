@@ -651,24 +651,38 @@ export default function Finance() {
 
           <div className="flex flex-wrap gap-2">
             {canManageFinance && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    <span className="inline">Export</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={exportToPDF}>
-                    <FileText className="w-4 h-4 mr-2" />
-                    Download PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportToExcel}>
-                    <FileSpreadsheet className="w-4 h-4 mr-2" />
-                    Download Excel
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Download className="w-4 h-4 mr-2" />
+                      <span className="inline">Export</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={exportToPDF}>
+                      <FileText className="w-4 h-4 mr-2" />
+                      Download PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={exportToExcel}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      Download Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={downloadTemplate}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      Download Template Upload
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="outline" size="sm" onClick={() => setIsUploadOpen(true)}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  <span className="inline">Upload Excel</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setIsCategoryOpen(true)}>
+                  <Settings className="w-4 h-4 mr-2" />
+                  <span className="inline">Kategori</span>
+                </Button>
+              </>
             )}
           </div>
         </div>
