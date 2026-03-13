@@ -1,6 +1,6 @@
 import type React from "react";
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -55,15 +55,23 @@ import {
   CalendarIcon,
   ChevronDown,
   ChevronRight,
+  Upload,
+  Settings,
+  X,
 } from "lucide-react";
 import type { FinanceRecordWithDetails, Profile } from "@/types/database";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Link } from "react-router-dom";
-import { useAddFinanceRecord } from "@/hooks/finance/useAddFinanceRecord"; // Import the useAddFinanceRecord hook
+import { useAddFinanceRecord } from "@/hooks/finance/useAddFinanceRecord";
 import { useUpdateFinanceRecord } from "@/hooks/finance/useEditFinanceRecord";
 import { useDeleteFinanceRecord } from "@/hooks/finance/useDeleteFinanceRecord";
+import {
+  useFinanceCategories,
+  useAddFinanceCategory,
+  useDeleteFinanceCategory,
+} from "@/hooks/finance/useFinanceCategories";
 import type { SortingFinance } from "@/types/finance";
 import {
   AlertDialog,
@@ -77,19 +85,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const CATEGORIES = {
-  income: ["iuran", "donasi", "Pendapatan Lainnya"],
-  outcome: [
-    "kegiatan",
-    "keamanan",
-    "kebersihan",
-    "perbaikan",
-    "acara",
-    "operasional",
-    "Pengeluaran Lainnya",
-  ],
-};
 
 const MONTHS = [
   "Januari",
@@ -142,7 +137,28 @@ export default function Finance() {
     transaction_date: new Date().toISOString().split("T")[0],
   });
 
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isUploadLoading, setIsUploadLoading] = useState(false);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryType, setNewCategoryType] = useState<"income" | "outcome">("income");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const canManageFinance = isAdmin() || hasFinanceAccess;
+
+  // Fetch dynamic categories
+  const { data: categoriesData } = useFinanceCategories();
+  const addCategory = useAddFinanceCategory();
+  const deleteCategory = useDeleteFinanceCategory();
+  const queryClient = useQueryClient();
+
+  const CATEGORIES = useMemo(() => {
+    if (!categoriesData) return { income: [] as string[], outcome: [] as string[] };
+    return {
+      income: categoriesData.filter((c) => c.type === "income").map((c) => c.name),
+      outcome: categoriesData.filter((c) => c.type === "outcome").map((c) => c.name),
+    };
+  }, [categoriesData]);
 
   // Fetch finance records
   const { data: records, isLoading } = useQuery({
@@ -422,7 +438,143 @@ export default function Finance() {
     toast.success("Laporan Excel berhasil diunduh");
   };
 
-  const handleEdit = (record: FinanceRecordWithDetails) => {
+  // Download Excel template for bulk upload
+  const downloadTemplate = () => {
+    const allCategories = [...(CATEGORIES.income || []), ...(CATEGORIES.outcome || [])];
+    const templateData = [
+      {
+        Jenis: "income",
+        Jumlah: 100000,
+        Kategori: "iuran",
+        Deskripsi: "Contoh pemasukan",
+        "Tanggal (YYYY-MM-DD)": format(new Date(), "yyyy-MM-dd"),
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+
+    // Add category reference sheet
+    const catData = allCategories.map((cat) => {
+      const type = CATEGORIES.income.includes(cat) ? "income" : "outcome";
+      return { Kategori: cat, Jenis: type };
+    });
+    const catWs = XLSX.utils.json_to_sheet(catData);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data");
+    XLSX.utils.book_append_sheet(wb, catWs, "Referensi Kategori");
+
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 12 }, // Jenis
+      { wch: 15 }, // Jumlah
+      { wch: 25 }, // Kategori
+      { wch: 40 }, // Deskripsi
+      { wch: 18 }, // Tanggal
+    ];
+
+    XLSX.writeFile(wb, "template-upload-keuangan.xlsx");
+    toast.success("Template berhasil diunduh");
+  };
+
+  // Handle Excel file upload
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
+
+      if (rows.length === 0) {
+        toast.error("File Excel kosong");
+        return;
+      }
+
+      const validTypes = ["income", "outcome"];
+      const allCategories = [...(CATEGORIES.income || []), ...(CATEGORIES.outcome || [])];
+      const errors: string[] = [];
+      const records: Array<{
+        type: string;
+        amount: number;
+        category: string;
+        description: string;
+        transaction_date: string;
+        recorded_by: string;
+      }> = [];
+
+      rows.forEach((row, idx) => {
+        const rowNum = idx + 2; // Excel row (header is row 1)
+        const type = (row["Jenis"] || "").toString().toLowerCase().trim();
+        const amount = Number(row["Jumlah"]);
+        const category = (row["Kategori"] || "").toString().trim();
+        const description = (row["Deskripsi"] || "").toString().trim();
+        const dateStr = (row["Tanggal (YYYY-MM-DD)"] || "").toString().trim();
+
+        if (!validTypes.includes(type)) {
+          errors.push(`Baris ${rowNum}: Jenis harus 'income' atau 'outcome'`);
+          return;
+        }
+        if (isNaN(amount) || amount <= 0) {
+          errors.push(`Baris ${rowNum}: Jumlah harus angka positif`);
+          return;
+        }
+        if (!category) {
+          errors.push(`Baris ${rowNum}: Kategori tidak boleh kosong`);
+          return;
+        }
+        if (!description) {
+          errors.push(`Baris ${rowNum}: Deskripsi tidak boleh kosong`);
+          return;
+        }
+
+        // Parse date - handle Excel serial numbers
+        let finalDate = dateStr;
+        if (!dateStr || dateStr === "undefined") {
+          finalDate = format(new Date(), "yyyy-MM-dd");
+        } else if (!isNaN(Number(dateStr))) {
+          // Excel serial date number
+          const excelDate = new Date((Number(dateStr) - 25569) * 86400 * 1000);
+          finalDate = format(excelDate, "yyyy-MM-dd");
+        }
+
+        records.push({
+          type,
+          amount,
+          category,
+          description,
+          transaction_date: finalDate,
+          recorded_by: user.id,
+        });
+      });
+
+      if (errors.length > 0) {
+        toast.error(`Ada ${errors.length} kesalahan:\n${errors.slice(0, 3).join("\n")}`);
+        return;
+      }
+
+      // Bulk insert
+      const { error } = await supabase.from("finance_records").insert(records);
+      if (error) throw error;
+
+      toast.success(`${records.length} catatan berhasil diupload`);
+      queryClient.invalidateQueries({ queryKey: ["finance-records"] });
+      setIsUploadOpen(false);
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      toast.error(err.message || "Gagal mengupload file");
+    } finally {
+      setIsUploadLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+
     setEditingRecord(record);
     setEditType(record.type);
     setEditTransactionDate(
@@ -635,24 +787,38 @@ export default function Finance() {
 
           <div className="flex flex-wrap gap-2">
             {canManageFinance && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    <span className="inline">Export</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={exportToPDF}>
-                    <FileText className="w-4 h-4 mr-2" />
-                    Download PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportToExcel}>
-                    <FileSpreadsheet className="w-4 h-4 mr-2" />
-                    Download Excel
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Download className="w-4 h-4 mr-2" />
+                      <span className="inline">Export</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={exportToPDF}>
+                      <FileText className="w-4 h-4 mr-2" />
+                      Download PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={exportToExcel}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      Download Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={downloadTemplate}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      Download Template Upload
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="outline" size="sm" onClick={() => setIsUploadOpen(true)}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  <span className="inline">Upload Excel</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setIsCategoryOpen(true)}>
+                  <Settings className="w-4 h-4 mr-2" />
+                  <span className="inline">Kategori</span>
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -694,9 +860,7 @@ export default function Finance() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Kategori</SelectItem>
-                {Object.values(CATEGORIES)
-                  .flat()
-                  .map((cat) => (
+                {[...(CATEGORIES.income || []), ...(CATEGORIES.outcome || [])].map((cat) => (
                     <SelectItem key={cat} value={cat}>
                       {cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </SelectItem>
@@ -1127,6 +1291,133 @@ export default function Finance() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        {/* Upload Excel Dialog */}
+        <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+          <DialogContent className="max-w-[95vw] sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Upload Data Keuangan dari Excel</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Upload file Excel dengan format sesuai template. Kolom yang diperlukan:
+                <strong> Jenis</strong> (income/outcome), <strong>Jumlah</strong>,{" "}
+                <strong>Kategori</strong>, <strong>Deskripsi</strong>,{" "}
+                <strong>Tanggal (YYYY-MM-DD)</strong>
+              </p>
+              <Button variant="outline" size="sm" onClick={downloadTemplate} className="w-full">
+                <Download className="w-4 h-4 mr-2" />
+                Download Template
+              </Button>
+              <div className="space-y-2">
+                <Label>Pilih File Excel</Label>
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleExcelUpload}
+                  disabled={isUploadLoading}
+                />
+              </div>
+              {isUploadLoading && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Memproses file...
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Category Management Dialog */}
+        <Dialog open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
+          <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Kelola Kategori Keuangan</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {/* Add new category */}
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">Nama Kategori</Label>
+                  <Input
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Nama kategori baru"
+                  />
+                </div>
+                <div className="w-[130px] space-y-1">
+                  <Label className="text-xs">Jenis</Label>
+                  <Select value={newCategoryType} onValueChange={(v: "income" | "outcome") => setNewCategoryType(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="income">Pemasukan</SelectItem>
+                      <SelectItem value="outcome">Pengeluaran</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (!newCategoryName.trim()) return;
+                    addCategory.mutate(
+                      { name: newCategoryName.trim(), type: newCategoryType },
+                      { onSuccess: () => setNewCategoryName("") }
+                    );
+                  }}
+                  disabled={!newCategoryName.trim() || addCategory.isPending}
+                >
+                  {addCategory.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                </Button>
+              </div>
+
+              {/* Income categories */}
+              <div>
+                <h4 className="text-sm font-semibold mb-2 text-emerald-600">Pemasukan</h4>
+                <div className="space-y-1">
+                  {categoriesData
+                    ?.filter((c) => c.type === "income")
+                    .map((cat) => (
+                      <div key={cat.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                        <span className="text-sm capitalize">{cat.name}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => deleteCategory.mutate(cat.id)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* Outcome categories */}
+              <div>
+                <h4 className="text-sm font-semibold mb-2 text-red-600">Pengeluaran</h4>
+                <div className="space-y-1">
+                  {categoriesData
+                    ?.filter((c) => c.type === "outcome")
+                    .map((cat) => (
+                      <div key={cat.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                        <span className="text-sm capitalize">{cat.name}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => deleteCategory.mutate(cat.id)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </section>
   );
