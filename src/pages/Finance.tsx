@@ -137,7 +137,28 @@ export default function Finance() {
     transaction_date: new Date().toISOString().split("T")[0],
   });
 
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isUploadLoading, setIsUploadLoading] = useState(false);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryType, setNewCategoryType] = useState<"income" | "outcome">("income");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const canManageFinance = isAdmin() || hasFinanceAccess;
+
+  // Fetch dynamic categories
+  const { data: categoriesData } = useFinanceCategories();
+  const addCategory = useAddFinanceCategory();
+  const deleteCategory = useDeleteFinanceCategory();
+  const queryClient = useQueryClient();
+
+  const CATEGORIES = useMemo(() => {
+    if (!categoriesData) return { income: [] as string[], outcome: [] as string[] };
+    return {
+      income: categoriesData.filter((c) => c.type === "income").map((c) => c.name),
+      outcome: categoriesData.filter((c) => c.type === "outcome").map((c) => c.name),
+    };
+  }, [categoriesData]);
 
   // Fetch finance records
   const { data: records, isLoading } = useQuery({
