@@ -860,9 +860,7 @@ export default function Finance() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Kategori</SelectItem>
-                {Object.values(CATEGORIES)
-                  .flat()
-                  .map((cat) => (
+                {[...(CATEGORIES.income || []), ...(CATEGORIES.outcome || [])].map((cat) => (
                     <SelectItem key={cat} value={cat}>
                       {cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </SelectItem>
