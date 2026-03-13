@@ -117,7 +117,7 @@ export default function Finance() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingRecord, setEditingRecord] =
     useState<FinanceRecordWithDetails | null>(null);
-  const [editType, setEditType] = useState<"income" | "outcome">("income");
+  const [editType, setEditType] = useState<"income" | "outcome" | "donation">("income");
   const [editTransactionDate, setEditTransactionDate] = useState<
     Date | undefined
   >(undefined);
@@ -130,7 +130,7 @@ export default function Finance() {
   });
 
   const [formData, setFormData] = useState({
-    type: "income" as "income" | "outcome",
+    type: "income" as "income" | "outcome" | "donation",
     amount: "",
     description: "",
     category: "",
@@ -141,7 +141,7 @@ export default function Finance() {
   const [isUploadLoading, setIsUploadLoading] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
-  const [newCategoryType, setNewCategoryType] = useState<"income" | "outcome">("income");
+  const [newCategoryType, setNewCategoryType] = useState<"income" | "outcome" | "donation">("income");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canManageFinance = isAdmin() || hasFinanceAccess;
@@ -153,10 +153,11 @@ export default function Finance() {
   const queryClient = useQueryClient();
 
   const CATEGORIES = useMemo(() => {
-    if (!categoriesData) return { income: [] as string[], outcome: [] as string[] };
+    if (!categoriesData) return { income: [] as string[], outcome: [] as string[], donation: [] as string[] };
     return {
       income: categoriesData.filter((c) => c.type === "income").map((c) => c.name),
       outcome: categoriesData.filter((c) => c.type === "outcome").map((c) => c.name),
+      donation: categoriesData.filter((c) => c.type === "donation").map((c) => c.name),
     };
   }, [categoriesData]);
 
@@ -201,6 +202,7 @@ export default function Finance() {
 
   const totalBalance =
     records?.reduce((sum, r) => {
+      if (r.type === "donation") return sum;
       return r.type === "income" ? sum + r.amount : sum - r.amount;
     }, 0) || 0;
 
@@ -325,14 +327,25 @@ export default function Finance() {
       14,
       60
     );
-    doc.text(`Saldo: Rp ${totalBalance.toLocaleString("id-ID")}`, 14, 68);
+    const donasiTotal = sortedFilteredRecords
+      .filter((r) => r.type === "donation")
+      .reduce((sum, r) => sum + r.amount, 0);
+    if (donasiTotal > 0) {
+      doc.text(`Total Donasi: Rp ${donasiTotal.toLocaleString("id-ID")}`, 14, 68);
+      doc.text(`Saldo: Rp ${totalBalance.toLocaleString("id-ID")}`, 14, 76);
+    } else {
+      doc.text(`Saldo: Rp ${totalBalance.toLocaleString("id-ID")}`, 14, 68);
+    }
 
     // Table
     const tableData =
       sortedFilteredRecords?.map((r) => {
+        let jenisText = "Masuk";
+        if (r.type === "outcome") jenisText = "Keluar";
+        if (r.type === "donation") jenisText = "Donasi";
         return [
           format(new Date(r.transaction_date), "dd/MM/yyyy"),
-          r.type === "income" ? "Masuk" : "Keluar",
+          jenisText,
           r.category?.charAt(0).toUpperCase() + r.category?.slice(1),
           r.description,
           `Rp ${r.amount.toLocaleString("id-ID")}`,
@@ -368,9 +381,12 @@ export default function Finance() {
     const data =
       groupedRecords?.map((r) => {
         if (r.isGroup) {
+          let typeLabel = "Pemasukan";
+          if (r.type === "outcome") typeLabel = "Pengeluaran";
+          if (r.type === "donation") typeLabel = "Donasi";
           return {
             Tanggal: format(new Date(r.transaction_date), "dd/MM/yyyy"),
-            Jenis: r.type === "income" ? "Pemasukan" : "Pengeluaran",
+            Jenis: typeLabel,
             Kategori:
               r.category?.charAt(0).toUpperCase() + r.category?.slice(1),
             Deskripsi: r.description,
@@ -378,9 +394,12 @@ export default function Finance() {
             "Dicatat Oleh": "-",
           };
         }
+        let typeLabel = "Pemasukan";
+        if (r.type === "outcome") typeLabel = "Pengeluaran";
+        if (r.type === "donation") typeLabel = "Donasi";
         return {
           Tanggal: format(new Date(r.transaction_date), "dd/MM/yyyy"),
-          Jenis: r.type === "income" ? "Pemasukan" : "Pengeluaran",
+          Jenis: typeLabel,
           Kategori: r.category?.charAt(0).toUpperCase() + r.category?.slice(1),
           Deskripsi: r.description,
           Jumlah: r.amount,
@@ -417,6 +436,21 @@ export default function Finance() {
         .reduce((sum, r) => sum + r.amount, 0),
       "Dicatat Oleh": "",
     });
+    const donasiTotal = sortedFilteredRecords
+      .filter((r) => r.type === "donation")
+      .reduce((sum, r) => sum + r.amount, 0);
+
+    if (donasiTotal > 0) {
+      data.push({
+        Tanggal: "",
+        Jenis: "",
+        Kategori: "",
+        Deskripsi: "Total Donasi",
+        Jumlah: donasiTotal,
+        "Dicatat Oleh": "",
+      });
+    }
+
     data.push({
       Tanggal: "",
       Jenis: "",
@@ -438,42 +472,103 @@ export default function Finance() {
     toast.success("Laporan Excel berhasil diunduh");
   };
 
-  // Download Excel template for bulk upload
-  const downloadTemplate = () => {
-    const allCategories = [...(CATEGORIES.income || []), ...(CATEGORIES.outcome || [])];
-    const templateData = [
-      {
-        Jenis: "income",
-        Jumlah: 100000,
-        Kategori: "iuran",
-        Deskripsi: "Contoh pemasukan",
-        "Tanggal (YYYY-MM-DD)": format(new Date(), "yyyy-MM-dd"),
-      },
-    ];
-    const ws = XLSX.utils.json_to_sheet(templateData);
+  // Download Excel template for bulk upload (using exceljs for data validation)
+  const downloadTemplate = async () => {
+    try {
+      // Lazy load exceljs to avoid inflating the main bundle if not needed often
+      const ExcelJS = (await import("exceljs")).default;
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "Community Hub";
+      workbook.created = new Date();
 
-    // Add category reference sheet
-    const catData = allCategories.map((cat) => {
-      const type = CATEGORIES.income.includes(cat) ? "income" : "outcome";
-      return { Kategori: cat, Jenis: type };
-    });
-    const catWs = XLSX.utils.json_to_sheet(catData);
+      const ws = workbook.addWorksheet("Data", {
+        views: [{ state: "frozen", ySplit: 1 }],
+      });
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Data");
-    XLSX.utils.book_append_sheet(wb, catWs, "Referensi Kategori");
+      const catWs = workbook.addWorksheet("Referensi Kategori");
+      
+      const allCategories = [
+        ...(CATEGORIES.income || []),
+        ...(CATEGORIES.outcome || []),
+        ...(CATEGORIES.donation || []),
+      ];
 
-    // Set column widths
-    ws["!cols"] = [
-      { wch: 12 }, // Jenis
-      { wch: 15 }, // Jumlah
-      { wch: 25 }, // Kategori
-      { wch: 40 }, // Deskripsi
-      { wch: 18 }, // Tanggal
-    ];
+      // Setup Details Sheet Headers
+      ws.columns = [
+        { header: "Jenis", key: "jenis", width: 15 },
+        { header: "Jumlah", key: "jumlah", width: 20 },
+        { header: "Kategori", key: "kategori", width: 30 },
+        { header: "Deskripsi", key: "deskripsi", width: 45 },
+        { header: "Tanggal (YYYY-MM-DD)", key: "tanggal", width: 22, style: { numFmt: "yyyy-mm-dd" } },
+      ];
 
-    XLSX.writeFile(wb, "template-upload-keuangan.xlsx");
-    toast.success("Template berhasil diunduh");
+      // Styling Headers
+      ws.getRow(1).font = { bold: true };
+      ws.getRow(1).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFD3D3D3" }
+      };
+
+      // Setup Reference Sheet
+      catWs.columns = [
+        { header: "Kategori", key: "kategori", width: 30 },
+        { header: "Jenis", key: "jenis", width: 15 }
+      ];
+
+      allCategories.forEach((cat) => {
+        let type = "unknown";
+        if (CATEGORIES.income.includes(cat)) type = "income";
+        else if (CATEGORIES.outcome.includes(cat)) type = "outcome";
+        else if (CATEGORIES.donation.includes(cat)) type = "donation";
+        catWs.addRow({ kategori: cat, jenis: type });
+      });
+
+      // Protect Reference Sheet (Optional)
+      await catWs.protect("-", { selectLockedCells: true, selectUnlockedCells: true });
+
+      // Add Data Validation for Jenis
+      for (let i = 2; i <= 1000; i++) {
+        ws.getCell(`A${i}`).dataValidation = {
+          type: "list",
+          allowBlank: true,
+          formulae: ['"income,outcome,donation"'],
+          showErrorMessage: true,
+          errorTitle: "Jenis tidak valid",
+          error: "Pilih salah satu dari dropdown list",
+        };
+      }
+
+      // Add Data Validation for Kategori
+      // The formula references the Kategori column in the Referensi Kategori sheet.
+      const catCount = allCategories.length > 0 ? allCategories.length : 1;
+      for (let i = 2; i <= 1000; i++) {
+        ws.getCell(`C${i}`).dataValidation = {
+          type: "list",
+          allowBlank: true,
+          formulae: [`'Referensi Kategori'!$A$2:$A$${catCount + 1}`],
+          showErrorMessage: true,
+          errorTitle: "Kategori tidak valid",
+          error: "Pilih kategori yang tersedia di list",
+        };
+      }
+
+      // Write to browser
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "template-upload-keuangan.xlsx";
+      link.click();
+      toast.success("Template berhasil diunduh");
+
+    } catch (error) {
+      console.error("Error generating template:", error);
+      toast.error("Gagal men-generate template Excel");
+    }
   };
 
   // Handle Excel file upload
@@ -489,15 +584,15 @@ export default function Finance() {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
+      const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet);
 
       if (rows.length === 0) {
         toast.error("File Excel kosong");
         return;
       }
 
-      const validTypes = ["income", "outcome"];
-      const allCategories = [...(CATEGORIES.income || []), ...(CATEGORIES.outcome || [])];
+      const validTypes = ["income", "outcome", "donation"];
+      const allCategories = [...(CATEGORIES.income || []), ...(CATEGORIES.outcome || []), ...(CATEGORIES.donation || [])];
       const errors: string[] = [];
       const records: Array<{
         type: string;
@@ -517,7 +612,7 @@ export default function Finance() {
         const dateStr = (row["Tanggal (YYYY-MM-DD)"] || "").toString().trim();
 
         if (!validTypes.includes(type)) {
-          errors.push(`Baris ${rowNum}: Jenis harus 'income' atau 'outcome'`);
+          errors.push(`Baris ${rowNum}: Jenis harus 'income', 'outcome', atau 'donation'`);
           return;
         }
         if (isNaN(amount) || amount <= 0) {
@@ -565,7 +660,7 @@ export default function Finance() {
       toast.success(`${records.length} catatan berhasil diupload`);
       queryClient.invalidateQueries({ queryKey: ["finance-records"] });
       setIsUploadOpen(false);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Upload error:", err);
       toast.error(err.message || "Gagal mengupload file");
     } finally {
@@ -672,14 +767,16 @@ export default function Finance() {
       label: "Jenis",
       render: (_, row) => (
         <Badge
-          variant={row.type === "income" ? "default" : "destructive"}
+          variant={row.type === "outcome" ? "destructive" : "default"}
           className={`${row.isChild ? "scale-90 opacity-80" : ""} ${
             row.type === "income"
               ? "bg-emerald-500/10 hover:bg-emerald-500/10 text-emerald-600 border-none"
+              : row.type === "donation"
+              ? "bg-blue-500/10 hover:bg-blue-500/10 text-blue-600 border-none"
               : "bg-red-500/10 hover:bg-red-500/10 text-red-600 border-none"
           }`}
         >
-          {row.type === "income" ? "Masuk" : "Keluar"}
+          {row.type === "income" ? "Masuk" : row.type === "outcome" ? "Keluar" : "Donasi"}
         </Badge>
       ),
     },
@@ -887,7 +984,7 @@ export default function Finance() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="border-green-500/20 bg-green-500/5">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
@@ -949,6 +1046,26 @@ export default function Finance() {
               </div>
             </CardContent>
           </Card>
+
+          {records?.some((r) => r.type === "donation") && (
+            <Card className="border-blue-500/20 bg-blue-500/5">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Donasi
+                </CardTitle>
+                <TrendingUp className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg sm:text-2xl font-bold text-blue-600">
+                  Rp{" "}
+                  {sortedFilteredRecords
+                    .filter((r) => r.type === "donation")
+                    .reduce((sum, r) => sum + r.amount, 0)
+                    .toLocaleString("id-ID")}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {canManageFinance && (
@@ -980,6 +1097,7 @@ export default function Finance() {
                     <SelectContent>
                       <SelectItem value="income">Pemasukan</SelectItem>
                       <SelectItem value="outcome">Pengeluaran</SelectItem>
+                      <SelectItem value="donation">Donasi</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1104,10 +1222,13 @@ export default function Finance() {
                 onValueChange={setActiveTab}
                 className="w-full md:w-auto"
               >
-                <TabsList className="grid w-full grid-cols-3 md:w-[400px]">
+                <TabsList className="flex h-auto w-full flex-wrap md:w-auto">
                   <TabsTrigger value="all">Semua</TabsTrigger>
                   <TabsTrigger value="income">Pemasukan</TabsTrigger>
                   <TabsTrigger value="outcome">Pengeluaran</TabsTrigger>
+                  {filteredRecords?.some((r) => r.type === "donation") && (
+                    <TabsTrigger value="donation">Donasi</TabsTrigger>
+                  )}
                 </TabsList>
               </Tabs>
             </div>
@@ -1146,6 +1267,7 @@ export default function Finance() {
                       <SelectGroup>
                         <SelectItem value="income">Pemasukan</SelectItem>
                         <SelectItem value="outcome">Pengeluaran</SelectItem>
+                        <SelectItem value="donation">Donasi</SelectItem>
                       </SelectGroup>
                     </SelectContent>
                   </Select>
@@ -1347,13 +1469,14 @@ export default function Finance() {
                 </div>
                 <div className="w-[130px] space-y-1">
                   <Label className="text-xs">Jenis</Label>
-                  <Select value={newCategoryType} onValueChange={(v: "income" | "outcome") => setNewCategoryType(v)}>
+                  <Select value={newCategoryType} onValueChange={(v: "income" | "outcome" | "donation") => setNewCategoryType(v)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="income">Pemasukan</SelectItem>
                       <SelectItem value="outcome">Pengeluaran</SelectItem>
+                      <SelectItem value="donation">Donasi</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1400,6 +1523,28 @@ export default function Finance() {
                 <div className="space-y-1">
                   {categoriesData
                     ?.filter((c) => c.type === "outcome")
+                    .map((cat) => (
+                      <div key={cat.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                        <span className="text-sm capitalize">{cat.name}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => deleteCategory.mutate(cat.id)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* Donation categories */}
+              <div>
+                <h4 className="text-sm font-semibold mb-2 text-blue-600">Donasi</h4>
+                <div className="space-y-1">
+                  {categoriesData
+                    ?.filter((c) => c.type === "donation")
                     .map((cat) => (
                       <div key={cat.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
                         <span className="text-sm capitalize">{cat.name}</span>

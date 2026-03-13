@@ -4,7 +4,7 @@ import { toast } from "sonner"
 
 interface FinanceRecordUpdate {
   id: string
-  type: "income" | "outcome"
+  type: "income" | "outcome" | "donation"
   amount: string
   description: string
   category: string

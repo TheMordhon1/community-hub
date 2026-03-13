@@ -5,7 +5,7 @@ import { toast } from "sonner"
 export interface FinanceCategory {
   id: string
   name: string
-  type: "income" | "outcome"
+  type: "income" | "outcome" | "donation"
   created_by: string | null
   created_at: string
 }
@@ -27,7 +27,7 @@ export function useFinanceCategories() {
 export function useAddFinanceCategory() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ name, type }: { name: string; type: "income" | "outcome" }) => {
+    mutationFn: async ({ name, type }: { name: string; type: "income" | "outcome" | "donation" }) => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("Not authenticated")
       const { error } = await supabase.from("finance_categories").insert({
@@ -41,8 +41,9 @@ export function useAddFinanceCategory() {
       toast.success("Kategori berhasil ditambahkan")
       queryClient.invalidateQueries({ queryKey: ["finance-categories"] })
     },
-    onError: (error: any) => {
-      if (error?.code === "23505") {
+    onError: (error) => {
+      const customError = error as any;
+      if (customError?.code === "23505") {
         toast.error("Kategori sudah ada")
       } else {
         toast.error("Gagal menambahkan kategori")

@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client"
 import { toast } from "sonner"
 
 interface FinanceRecordInput {
-  type: "income" | "outcome"
+  type: "income" | "outcome" | "donation"
   amount: string
   description: string
   category: string
