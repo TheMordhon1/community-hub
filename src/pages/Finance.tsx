@@ -1,6 +1,6 @@
 import type React from "react";
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -55,15 +55,23 @@ import {
   CalendarIcon,
   ChevronDown,
   ChevronRight,
+  Upload,
+  Settings,
+  X,
 } from "lucide-react";
 import type { FinanceRecordWithDetails, Profile } from "@/types/database";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Link } from "react-router-dom";
-import { useAddFinanceRecord } from "@/hooks/finance/useAddFinanceRecord"; // Import the useAddFinanceRecord hook
+import { useAddFinanceRecord } from "@/hooks/finance/useAddFinanceRecord";
 import { useUpdateFinanceRecord } from "@/hooks/finance/useEditFinanceRecord";
 import { useDeleteFinanceRecord } from "@/hooks/finance/useDeleteFinanceRecord";
+import {
+  useFinanceCategories,
+  useAddFinanceCategory,
+  useDeleteFinanceCategory,
+} from "@/hooks/finance/useFinanceCategories";
 import type { SortingFinance } from "@/types/finance";
 import {
   AlertDialog,
@@ -77,19 +85,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const CATEGORIES = {
-  income: ["iuran", "donasi", "Pendapatan Lainnya"],
-  outcome: [
-    "kegiatan",
-    "keamanan",
-    "kebersihan",
-    "perbaikan",
-    "acara",
-    "operasional",
-    "Pengeluaran Lainnya",
-  ],
-};
 
 const MONTHS = [
   "Januari",
