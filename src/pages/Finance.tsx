@@ -574,7 +574,7 @@ export default function Finance() {
     }
   };
 
-
+  const handleEdit = (record: FinanceRecordWithDetails) => {
     setEditingRecord(record);
     setEditType(record.type);
     setEditTransactionDate(
