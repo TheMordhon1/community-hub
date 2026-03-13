@@ -1293,6 +1293,133 @@ export default function Finance() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        {/* Upload Excel Dialog */}
+        <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+          <DialogContent className="max-w-[95vw] sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Upload Data Keuangan dari Excel</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Upload file Excel dengan format sesuai template. Kolom yang diperlukan:
+                <strong> Jenis</strong> (income/outcome), <strong>Jumlah</strong>,{" "}
+                <strong>Kategori</strong>, <strong>Deskripsi</strong>,{" "}
+                <strong>Tanggal (YYYY-MM-DD)</strong>
+              </p>
+              <Button variant="outline" size="sm" onClick={downloadTemplate} className="w-full">
+                <Download className="w-4 h-4 mr-2" />
+                Download Template
+              </Button>
+              <div className="space-y-2">
+                <Label>Pilih File Excel</Label>
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleExcelUpload}
+                  disabled={isUploadLoading}
+                />
+              </div>
+              {isUploadLoading && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Memproses file...
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Category Management Dialog */}
+        <Dialog open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
+          <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Kelola Kategori Keuangan</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {/* Add new category */}
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">Nama Kategori</Label>
+                  <Input
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Nama kategori baru"
+                  />
+                </div>
+                <div className="w-[130px] space-y-1">
+                  <Label className="text-xs">Jenis</Label>
+                  <Select value={newCategoryType} onValueChange={(v: "income" | "outcome") => setNewCategoryType(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="income">Pemasukan</SelectItem>
+                      <SelectItem value="outcome">Pengeluaran</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (!newCategoryName.trim()) return;
+                    addCategory.mutate(
+                      { name: newCategoryName.trim(), type: newCategoryType },
+                      { onSuccess: () => setNewCategoryName("") }
+                    );
+                  }}
+                  disabled={!newCategoryName.trim() || addCategory.isPending}
+                >
+                  {addCategory.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                </Button>
+              </div>
+
+              {/* Income categories */}
+              <div>
+                <h4 className="text-sm font-semibold mb-2 text-emerald-600">Pemasukan</h4>
+                <div className="space-y-1">
+                  {categoriesData
+                    ?.filter((c) => c.type === "income")
+                    .map((cat) => (
+                      <div key={cat.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                        <span className="text-sm capitalize">{cat.name}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => deleteCategory.mutate(cat.id)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* Outcome categories */}
+              <div>
+                <h4 className="text-sm font-semibold mb-2 text-red-600">Pengeluaran</h4>
+                <div className="space-y-1">
+                  {categoriesData
+                    ?.filter((c) => c.type === "outcome")
+                    .map((cat) => (
+                      <div key={cat.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                        <span className="text-sm capitalize">{cat.name}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => deleteCategory.mutate(cat.id)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </section>
   );
