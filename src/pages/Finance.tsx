@@ -438,7 +438,143 @@ export default function Finance() {
     toast.success("Laporan Excel berhasil diunduh");
   };
 
-  const handleEdit = (record: FinanceRecordWithDetails) => {
+  // Download Excel template for bulk upload
+  const downloadTemplate = () => {
+    const allCategories = [...(CATEGORIES.income || []), ...(CATEGORIES.outcome || [])];
+    const templateData = [
+      {
+        Jenis: "income",
+        Jumlah: 100000,
+        Kategori: "iuran",
+        Deskripsi: "Contoh pemasukan",
+        "Tanggal (YYYY-MM-DD)": format(new Date(), "yyyy-MM-dd"),
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+
+    // Add category reference sheet
+    const catData = allCategories.map((cat) => {
+      const type = CATEGORIES.income.includes(cat) ? "income" : "outcome";
+      return { Kategori: cat, Jenis: type };
+    });
+    const catWs = XLSX.utils.json_to_sheet(catData);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data");
+    XLSX.utils.book_append_sheet(wb, catWs, "Referensi Kategori");
+
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 12 }, // Jenis
+      { wch: 15 }, // Jumlah
+      { wch: 25 }, // Kategori
+      { wch: 40 }, // Deskripsi
+      { wch: 18 }, // Tanggal
+    ];
+
+    XLSX.writeFile(wb, "template-upload-keuangan.xlsx");
+    toast.success("Template berhasil diunduh");
+  };
+
+  // Handle Excel file upload
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
+
+      if (rows.length === 0) {
+        toast.error("File Excel kosong");
+        return;
+      }
+
+      const validTypes = ["income", "outcome"];
+      const allCategories = [...(CATEGORIES.income || []), ...(CATEGORIES.outcome || [])];
+      const errors: string[] = [];
+      const records: Array<{
+        type: string;
+        amount: number;
+        category: string;
+        description: string;
+        transaction_date: string;
+        recorded_by: string;
+      }> = [];
+
+      rows.forEach((row, idx) => {
+        const rowNum = idx + 2; // Excel row (header is row 1)
+        const type = (row["Jenis"] || "").toString().toLowerCase().trim();
+        const amount = Number(row["Jumlah"]);
+        const category = (row["Kategori"] || "").toString().trim();
+        const description = (row["Deskripsi"] || "").toString().trim();
+        const dateStr = (row["Tanggal (YYYY-MM-DD)"] || "").toString().trim();
+
+        if (!validTypes.includes(type)) {
+          errors.push(`Baris ${rowNum}: Jenis harus 'income' atau 'outcome'`);
+          return;
+        }
+        if (isNaN(amount) || amount <= 0) {
+          errors.push(`Baris ${rowNum}: Jumlah harus angka positif`);
+          return;
+        }
+        if (!category) {
+          errors.push(`Baris ${rowNum}: Kategori tidak boleh kosong`);
+          return;
+        }
+        if (!description) {
+          errors.push(`Baris ${rowNum}: Deskripsi tidak boleh kosong`);
+          return;
+        }
+
+        // Parse date - handle Excel serial numbers
+        let finalDate = dateStr;
+        if (!dateStr || dateStr === "undefined") {
+          finalDate = format(new Date(), "yyyy-MM-dd");
+        } else if (!isNaN(Number(dateStr))) {
+          // Excel serial date number
+          const excelDate = new Date((Number(dateStr) - 25569) * 86400 * 1000);
+          finalDate = format(excelDate, "yyyy-MM-dd");
+        }
+
+        records.push({
+          type,
+          amount,
+          category,
+          description,
+          transaction_date: finalDate,
+          recorded_by: user.id,
+        });
+      });
+
+      if (errors.length > 0) {
+        toast.error(`Ada ${errors.length} kesalahan:\n${errors.slice(0, 3).join("\n")}`);
+        return;
+      }
+
+      // Bulk insert
+      const { error } = await supabase.from("finance_records").insert(records);
+      if (error) throw error;
+
+      toast.success(`${records.length} catatan berhasil diupload`);
+      queryClient.invalidateQueries({ queryKey: ["finance-records"] });
+      setIsUploadOpen(false);
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      toast.error(err.message || "Gagal mengupload file");
+    } finally {
+      setIsUploadLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+
     setEditingRecord(record);
     setEditType(record.type);
     setEditTransactionDate(
