@@ -114,6 +114,7 @@ export default function Finance() {
   >("date-newest");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [isIuranExpanded, setIsIuranExpanded] = useState(false);
+  const [expandedDonationGroups, setExpandedDonationGroups] = useState<Set<string>>(new Set());
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingRecord, setEditingRecord] =
     useState<FinanceRecordWithDetails | null>(null);
@@ -262,31 +263,66 @@ export default function Finance() {
     const iuranRecords = sortedFilteredRecords.filter(
       (r) => r.category?.toLowerCase() === "iuran"
     );
+    const donationRecords = sortedFilteredRecords.filter(
+      (r) => r.type === "donation"
+    );
     const otherRecords = sortedFilteredRecords.filter(
-      (r) => r.category?.toLowerCase() !== "iuran"
+      (r) => r.category?.toLowerCase() !== "iuran" && r.type !== "donation"
     );
 
-    if (iuranRecords.length === 0) return sortedFilteredRecords;
+    const result: FinanceRecordWithDetails[] = [];
 
-    // Create summary row for iuran
-    const iuranTotal = iuranRecords.reduce((sum, r) => sum + r.amount, 0);
-    const iuranSummary: FinanceRecordWithDetails = {
-      id: "iuran-summary",
-      type: "income" as const,
-      category: "iuran",
-      description: `Total Iuran (${iuranRecords.length} transaksi)`,
-      amount: iuranTotal,
-      transaction_date: iuranRecords[0].transaction_date,
-      recorded_by: null,
-      recorder: undefined,
-      payment_id: null,
-      updated_at: iuranRecords[0].updated_at,
-      created_at: iuranRecords[0].created_at,
-      isGroup: true,
-      groupRecords: iuranRecords,
-    };
+    // Group iuran
+    if (iuranRecords.length > 0) {
+      const iuranTotal = iuranRecords.reduce((sum, r) => sum + r.amount, 0);
+      result.push({
+        id: "iuran-summary",
+        type: "income" as const,
+        category: "iuran",
+        description: `Total Iuran (${iuranRecords.length} transaksi)`,
+        amount: iuranTotal,
+        transaction_date: iuranRecords[0].transaction_date,
+        recorded_by: null,
+        recorder: undefined,
+        payment_id: null,
+        updated_at: iuranRecords[0].updated_at,
+        created_at: iuranRecords[0].created_at,
+        isGroup: true,
+        groupRecords: iuranRecords,
+      });
+    }
 
-    return [iuranSummary, ...otherRecords];
+    // Group donations by category
+    if (donationRecords.length > 0) {
+      const donationByCategory = new Map<string, FinanceRecordWithDetails[]>();
+      donationRecords.forEach((r) => {
+        const cat = r.category || "Lainnya";
+        if (!donationByCategory.has(cat)) donationByCategory.set(cat, []);
+        donationByCategory.get(cat)!.push(r);
+      });
+
+      donationByCategory.forEach((records, cat) => {
+        const total = records.reduce((sum, r) => sum + r.amount, 0);
+        result.push({
+          id: `donation-summary-${cat}`,
+          type: "donation" as const,
+          category: cat,
+          description: `Total ${cat} (${records.length} transaksi)`,
+          amount: total,
+          transaction_date: records[0].transaction_date,
+          recorded_by: null,
+          recorder: undefined,
+          payment_id: null,
+          updated_at: records[0].updated_at,
+          created_at: records[0].created_at,
+          isGroup: true,
+          groupRecords: records,
+        });
+      });
+    }
+
+    result.push(...otherRecords);
+    return result;
   })();
 
   // Export to PDF
@@ -711,6 +747,15 @@ export default function Finance() {
     );
   };
 
+  const toggleDonationGroup = (cat: string) => {
+    setExpandedDonationGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
   const displayData = useMemo(() => {
     if (!groupedRecords) return [];
 
@@ -719,19 +764,24 @@ export default function Finance() {
     groupedRecords.forEach((record) => {
       flattened.push(record);
 
-      // If this is the Iuran summary and it's expanded, insert children
-      if (record.isGroup && isIuranExpanded && record.groupRecords) {
-        record.groupRecords.forEach((child) => {
-          flattened.push({
-            ...child,
-            isChild: true, // Mark this so we can indent the UI
+      if (record.isGroup && record.groupRecords) {
+        const isExpanded =
+          record.id === "iuran-summary"
+            ? isIuranExpanded
+            : record.id.startsWith("donation-summary-")
+            ? expandedDonationGroups.has(record.category || "")
+            : false;
+
+        if (isExpanded) {
+          record.groupRecords.forEach((child) => {
+            flattened.push({ ...child, isChild: true });
           });
-        });
+        }
       }
     });
 
     return flattened;
-  }, [groupedRecords, isIuranExpanded]);
+  }, [groupedRecords, isIuranExpanded, expandedDonationGroups]);
 
   const columns: DataTableColumn<
     FinanceRecordWithDetails & { isChild?: boolean }
@@ -749,14 +799,28 @@ export default function Finance() {
             className={`flex items-center gap-2 ${
               isGroup ? "cursor-pointer font-bold text-primary" : ""
             } ${isChild ? "pl-8 text-muted-foreground scale-90" : ""}`}
-            onClick={() => isGroup && setIsIuranExpanded(!isIuranExpanded)}
+            onClick={() => {
+              if (isGroup) {
+                if (row.id === "iuran-summary") {
+                  setIsIuranExpanded(!isIuranExpanded);
+                } else if (row.id.startsWith("donation-summary-")) {
+                  toggleDonationGroup(row.category || "");
+                }
+              }
+            }}
           >
             {isGroup &&
-              (isIuranExpanded ? (
-                <ChevronDown className="w-4 h-4" />
-              ) : (
-                <ChevronRight className="w-4 h-4" />
-              ))}
+              ((() => {
+                const isExpanded =
+                  row.id === "iuran-summary"
+                    ? isIuranExpanded
+                    : expandedDonationGroups.has(row.category || "");
+                return isExpanded ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                );
+              })())}
             {format(new Date(row.transaction_date), "dd/MM/yyyy")}
           </div>
         );
@@ -808,18 +872,25 @@ export default function Finance() {
       key: "amount",
       label: "Jumlah",
       className: "min-w-[160px] whitespace-nowrap",
-      render: (_, row) => (
-        <span
-          className={`font-mono font-bold ${
-            row.isGroup || row.type === "income"
-              ? "text-emerald-600"
-              : "text-red-600"
-          }`}
-        >
-          {row.isGroup || row.type === "income" ? "+" : "-"} Rp{" "}
-          {row.amount.toLocaleString("id-ID")}
-        </span>
-      ),
+      render: (_, row) => {
+        const isPositive = row.isGroup
+          ? row.type !== "outcome"
+          : row.type === "income" || row.type === "donation";
+        return (
+          <span
+            className={`font-mono font-bold ${
+              row.type === "donation"
+                ? "text-blue-600"
+                : isPositive
+                ? "text-emerald-600"
+                : "text-red-600"
+            }`}
+          >
+            {row.type === "outcome" ? "-" : "+"} Rp{" "}
+            {row.amount.toLocaleString("id-ID")}
+          </span>
+        );
+      },
     },
     {
       key: "recorder",
