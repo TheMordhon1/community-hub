@@ -1,5 +1,5 @@
 import type React from "react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -103,6 +103,7 @@ const MONTHS = [
 
 export default function Finance() {
   const { isAdmin, hasFinanceAccess } = useAuth();
+  const [ledgerType, setLedgerType] = useState<"umum" | "donasi">("umum");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [filterMonth, setFilterMonth] = useState<string>("all");
@@ -114,11 +115,10 @@ export default function Finance() {
   >("date-newest");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [isIuranExpanded, setIsIuranExpanded] = useState(false);
-  const [expandedDonationGroups, setExpandedDonationGroups] = useState<Set<string>>(new Set());
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingRecord, setEditingRecord] =
     useState<FinanceRecordWithDetails | null>(null);
-  const [editType, setEditType] = useState<"income" | "outcome" | "donation">("income");
+  const [editType, setEditType] = useState<"income" | "outcome" | "donation" | "donation_outcome">("income");
   const [editTransactionDate, setEditTransactionDate] = useState<
     Date | undefined
   >(undefined);
@@ -131,7 +131,7 @@ export default function Finance() {
   });
 
   const [formData, setFormData] = useState({
-    type: "income" as "income" | "outcome" | "donation",
+    type: "income" as "income" | "outcome" | "donation" | "donation_outcome",
     amount: "",
     description: "",
     category: "",
@@ -140,9 +140,16 @@ export default function Finance() {
 
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isUploadLoading, setIsUploadLoading] = useState(false);
+  const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
+  const [isConfirmUploadOpen, setIsConfirmUploadOpen] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
-  const [newCategoryType, setNewCategoryType] = useState<"income" | "outcome" | "donation">("income");
+  const [newCategoryType, setNewCategoryType] = useState<"income" | "outcome" | "donation" | "donation_outcome">("income");
+  
+  // Update newCategoryType when ledgerType changes
+  useEffect(() => {
+    setNewCategoryType(ledgerType === "umum" ? "income" : "donation");
+  }, [ledgerType]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canManageFinance = isAdmin() || hasFinanceAccess;
@@ -154,11 +161,12 @@ export default function Finance() {
   const queryClient = useQueryClient();
 
   const CATEGORIES = useMemo(() => {
-    if (!categoriesData) return { income: [] as string[], outcome: [] as string[], donation: [] as string[] };
+    if (!categoriesData) return { income: [] as string[], outcome: [] as string[], donation: [] as string[], donation_outcome: [] as string[] };
     return {
       income: categoriesData.filter((c) => c.type === "income").map((c) => c.name),
       outcome: categoriesData.filter((c) => c.type === "outcome").map((c) => c.name),
       donation: categoriesData.filter((c) => c.type === "donation").map((c) => c.name),
+      donation_outcome: categoriesData.filter((c) => c.type === "donation_outcome").map((c) => c.name),
     };
   }, [categoriesData]);
 
@@ -203,13 +211,34 @@ export default function Finance() {
 
   const totalBalance =
     records?.reduce((sum, r) => {
-      if (r.type === "donation") return sum;
-      return r.type === "income" ? sum + r.amount : sum - r.amount;
+      const isDonationRecord = r.type === "donation" || r.type === "donation_outcome";
+      if (ledgerType === "umum") {
+        if (isDonationRecord) return sum;
+        return r.type === "income" ? sum + r.amount : sum - r.amount;
+      } else {
+        if (!isDonationRecord) return sum;
+        return r.type === "donation" ? sum + r.amount : sum - r.amount;
+      }
     }, 0) || 0;
 
   const filteredRecords = records?.filter((r) => {
-    // Filter by Type (Income/Outcome)
-    const typeMatch = activeTab === "all" || r.type === activeTab;
+    // Ledger Type Filter
+    const isDonationRecord = r.type === "donation" || r.type === "donation_outcome";
+    if (ledgerType === "umum" && isDonationRecord) return false;
+    if (ledgerType === "donasi" && !isDonationRecord) return false;
+
+    // Sub-Type Filter (Masuk/Keluar)
+    let typeMatch = true;
+    if (activeTab !== "all") {
+      if (ledgerType === "umum") {
+        typeMatch = r.type === activeTab;
+      } else {
+        // For donation logic, "Masuk" (activeTab=income) translates to r.type="donation"
+        // and "Keluar" (activeTab=outcome) translates to r.type="donation_outcome"
+        if (activeTab === "income") typeMatch = r.type === "donation";
+        if (activeTab === "outcome") typeMatch = r.type === "donation_outcome";
+      }
+    }
 
     // Existing date logic
     const date = new Date(r.transaction_date);
@@ -260,69 +289,57 @@ export default function Finance() {
   const groupedRecords = (() => {
     if (!sortedFilteredRecords) return [];
 
-    const iuranRecords = sortedFilteredRecords.filter(
-      (r) => r.category?.toLowerCase() === "iuran"
-    );
-    const donationRecords = sortedFilteredRecords.filter(
-      (r) => r.type === "donation"
-    );
-    const otherRecords = sortedFilteredRecords.filter(
-      (r) => r.category?.toLowerCase() !== "iuran" && r.type !== "donation"
-    );
-
-    const result: FinanceRecordWithDetails[] = [];
-
-    // Group iuran
-    if (iuranRecords.length > 0) {
-      const iuranTotal = iuranRecords.reduce((sum, r) => sum + r.amount, 0);
-      result.push({
-        id: "iuran-summary",
-        type: "income" as const,
-        category: "iuran",
-        description: `Total Iuran (${iuranRecords.length} transaksi)`,
-        amount: iuranTotal,
-        transaction_date: iuranRecords[0].transaction_date,
-        recorded_by: null,
-        recorder: undefined,
-        payment_id: null,
-        updated_at: iuranRecords[0].updated_at,
-        created_at: iuranRecords[0].created_at,
-        isGroup: true,
-        groupRecords: iuranRecords,
-      });
-    }
-
-    // Group donations by category
-    if (donationRecords.length > 0) {
+    if (ledgerType === "donasi") {
+      // In donation view, no iuran grouping. We just group by category.
+      const result: FinanceRecordWithDetails[] = [];
       const donationByCategory = new Map<string, FinanceRecordWithDetails[]>();
-      donationRecords.forEach((r) => {
+      
+      sortedFilteredRecords.forEach((r) => {
         const cat = r.category || "Lainnya";
         if (!donationByCategory.has(cat)) donationByCategory.set(cat, []);
         donationByCategory.get(cat)!.push(r);
       });
 
-      donationByCategory.forEach((records, cat) => {
-        const total = records.reduce((sum, r) => sum + r.amount, 0);
+      // No need to create summary group objects because the entire view is already filtered by donation.
+      // We will show them flat but sorted by date as requested. 
+      // If summary rows are still desired we could add them, but standard flat list is usually better 
+      // for dedicated tables. Let's keep it flat for now.
+      return sortedFilteredRecords;
+
+    } else {
+      // Keuangan Umum
+      const iuranRecords = sortedFilteredRecords.filter(
+        (r) => r.category?.toLowerCase() === "iuran"
+      );
+      const otherRecords = sortedFilteredRecords.filter(
+        (r) => r.category?.toLowerCase() !== "iuran"
+      );
+
+      const result: FinanceRecordWithDetails[] = [];
+
+      // Group iuran
+      if (iuranRecords.length > 0) {
+        const iuranTotal = iuranRecords.reduce((sum, r) => sum + r.amount, 0);
         result.push({
-          id: `donation-summary-${cat}`,
-          type: "donation" as const,
-          category: cat,
-          description: `Total ${cat} (${records.length} transaksi)`,
-          amount: total,
-          transaction_date: records[0].transaction_date,
+          id: "iuran-summary",
+          type: "income" as const,
+          category: "iuran",
+          description: `Total Iuran (${iuranRecords.length} transaksi)`,
+          amount: iuranTotal,
+          transaction_date: iuranRecords[0].transaction_date,
           recorded_by: null,
           recorder: undefined,
           payment_id: null,
-          updated_at: records[0].updated_at,
-          created_at: records[0].created_at,
+          updated_at: iuranRecords[0].updated_at,
+          created_at: iuranRecords[0].created_at,
           isGroup: true,
-          groupRecords: records,
+          groupRecords: iuranRecords,
         });
-      });
-    }
+      }
 
-    result.push(...otherRecords);
-    return result;
+      result.push(...otherRecords);
+      return result;
+    }
   })();
 
   // Export to PDF
@@ -334,7 +351,8 @@ export default function Finance() {
 
     const doc = new jsPDF();
     doc.setFontSize(18);
-    doc.text("Laporan Keuangan paguyuban", 14, 22);
+    const title = ledgerType === "umum" ? "Laporan Keuangan paguyuban" : "Laporan Donasi paguyuban";
+    doc.text(title, 14, 22);
     doc.setFontSize(12);
     doc.text(`Periode: ${periodText}`, 14, 32);
     doc.text(
@@ -347,30 +365,42 @@ export default function Finance() {
 
     // Summary
     doc.setFontSize(11);
-    doc.text(
-      `Total Pemasukan: Rp ${sortedFilteredRecords
-        .filter((r) => r.type === "income")
-        .reduce((sum, r) => sum + r.amount, 0)
-        .toLocaleString("id-ID")}`,
-      14,
-      52
-    );
-    doc.text(
-      `Total Pengeluaran: Rp ${sortedFilteredRecords
-        .filter((r) => r.type === "outcome")
-        .reduce((sum, r) => sum + r.amount, 0)
-        .toLocaleString("id-ID")}`,
-      14,
-      60
-    );
-    const donasiTotal = sortedFilteredRecords
-      .filter((r) => r.type === "donation")
-      .reduce((sum, r) => sum + r.amount, 0);
-    if (donasiTotal > 0) {
-      doc.text(`Total Donasi: Rp ${donasiTotal.toLocaleString("id-ID")}`, 14, 68);
-      doc.text(`Saldo: Rp ${totalBalance.toLocaleString("id-ID")}`, 14, 76);
+    if (ledgerType === "umum") {
+      doc.text(
+        `Total Pemasukan: Rp ${sortedFilteredRecords
+          .filter((r) => r.type === "income")
+          .reduce((sum, r) => sum + r.amount, 0)
+          .toLocaleString("id-ID")}`,
+        14,
+        52
+      );
+      doc.text(
+        `Total Pengeluaran: Rp ${sortedFilteredRecords
+          .filter((r) => r.type === "outcome")
+          .reduce((sum, r) => sum + r.amount, 0)
+          .toLocaleString("id-ID")}`,
+        14,
+        60
+      );
+      doc.text(`Saldo Umum: Rp ${totalBalance.toLocaleString("id-ID")}`, 14, 68);
     } else {
-      doc.text(`Saldo: Rp ${totalBalance.toLocaleString("id-ID")}`, 14, 68);
+      doc.text(
+        `Total Donasi Masuk: Rp ${sortedFilteredRecords
+          .filter((r) => r.type === "donation")
+          .reduce((sum, r) => sum + r.amount, 0)
+          .toLocaleString("id-ID")}`,
+        14,
+        52
+      );
+      doc.text(
+        `Total Pengeluaran Donasi: Rp ${sortedFilteredRecords
+          .filter((r) => r.type === "donation_outcome")
+          .reduce((sum, r) => sum + r.amount, 0)
+          .toLocaleString("id-ID")}`,
+        14,
+        60
+      );
+      doc.text(`Sisa Saldo Donasi: Rp ${totalBalance.toLocaleString("id-ID")}`, 14, 68);
     }
 
     // Table
@@ -399,8 +429,9 @@ export default function Finance() {
       headStyles: { fillColor: [59, 130, 246] },
     });
 
+    const filenamePrefix = ledgerType === "umum" ? "laporan-keuangan" : "laporan-donasi";
     doc.save(
-      `laporan-keuangan-${filterYear}-${
+      `${filenamePrefix}-${filterYear}-${
         filterMonth === "all" ? "tahunan" : filterMonth
       }.pdf`
     );
@@ -456,9 +487,9 @@ export default function Finance() {
       Tanggal: "",
       Jenis: "",
       Kategori: "",
-      Deskripsi: "Total Pemasukan",
+      Deskripsi: ledgerType === "umum" ? "Total Pemasukan" : "Total Donasi Masuk",
       Jumlah: sortedFilteredRecords
-        .filter((r) => r.type === "income")
+        .filter((r) => ledgerType === "umum" ? r.type === "income" : r.type === "donation")
         .reduce((sum, r) => sum + r.amount, 0),
       "Dicatat Oleh": "",
     });
@@ -466,26 +497,13 @@ export default function Finance() {
       Tanggal: "",
       Jenis: "",
       Kategori: "",
-      Deskripsi: "Total Pengeluaran",
+      Deskripsi: ledgerType === "umum" ? "Total Pengeluaran" : "Total Pengeluaran Donasi",
       Jumlah: sortedFilteredRecords
-        .filter((r) => r.type === "outcome")
+        .filter((r) => ledgerType === "umum" ? r.type === "outcome" : r.type === "donation_outcome")
         .reduce((sum, r) => sum + r.amount, 0),
       "Dicatat Oleh": "",
     });
-    const donasiTotal = sortedFilteredRecords
-      .filter((r) => r.type === "donation")
-      .reduce((sum, r) => sum + r.amount, 0);
 
-    if (donasiTotal > 0) {
-      data.push({
-        Tanggal: "",
-        Jenis: "",
-        Kategori: "",
-        Deskripsi: "Total Donasi",
-        Jumlah: donasiTotal,
-        "Dicatat Oleh": "",
-      });
-    }
 
     data.push({
       Tanggal: "",
@@ -498,10 +516,13 @@ export default function Finance() {
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Laporan Keuangan");
+    const sheetName = ledgerType === "umum" ? "Laporan Keuangan" : "Laporan Donasi";
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    
+    const filenamePrefix = ledgerType === "umum" ? "laporan-keuangan" : "laporan-donasi";
     XLSX.writeFile(
       wb,
-      `laporan-keuangan-${filterYear}-${
+      `${filenamePrefix}-${filterYear}-${
         filterMonth === "all" ? "tahunan" : filterMonth
       }.xlsx`
     );
@@ -523,11 +544,9 @@ export default function Finance() {
 
       const catWs = workbook.addWorksheet("Referensi Kategori");
       
-      const allCategories = [
-        ...(CATEGORIES.income || []),
-        ...(CATEGORIES.outcome || []),
-        ...(CATEGORIES.donation || []),
-      ];
+      const activeCategories = ledgerType === "umum" 
+        ? [...(CATEGORIES.income || []), ...(CATEGORIES.outcome || [])]
+        : [...(CATEGORIES.donation || []), ...(CATEGORIES.donation_outcome || [])];
 
       // Setup Details Sheet Headers
       ws.columns = [
@@ -552,11 +571,14 @@ export default function Finance() {
         { header: "Jenis", key: "jenis", width: 15 }
       ];
 
-      allCategories.forEach((cat) => {
+      activeCategories.forEach((cat) => {
         let type = "unknown";
         if (CATEGORIES.income.includes(cat)) type = "income";
         else if (CATEGORIES.outcome.includes(cat)) type = "outcome";
-        else if (CATEGORIES.donation.includes(cat)) type = "donation";
+        else if (CATEGORIES.donation.includes(cat) || CATEGORIES.donation_outcome.includes(cat)) {
+           // For donation cats, we will accept both in validation later, but here is reference
+           type = CATEGORIES.donation.includes(cat) ? "donation" : "donation_outcome";
+        }
         catWs.addRow({ kategori: cat, jenis: type });
       });
 
@@ -568,7 +590,7 @@ export default function Finance() {
         ws.getCell(`A${i}`).dataValidation = {
           type: "list",
           allowBlank: true,
-          formulae: ['"income,outcome,donation"'],
+          formulae: [ledgerType === "umum" ? '"income,outcome"' : '"donation,donation_outcome"'],
           showErrorMessage: true,
           errorTitle: "Jenis tidak valid",
           error: "Pilih salah satu dari dropdown list",
@@ -577,7 +599,7 @@ export default function Finance() {
 
       // Add Data Validation for Kategori
       // The formula references the Kategori column in the Referensi Kategori sheet.
-      const catCount = allCategories.length > 0 ? allCategories.length : 1;
+      const catCount = activeCategories.length > 0 ? activeCategories.length : 1;
       for (let i = 2; i <= 1000; i++) {
         ws.getCell(`C${i}`).dataValidation = {
           type: "list",
@@ -597,7 +619,7 @@ export default function Finance() {
       
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = "template-upload-keuangan.xlsx";
+      link.download = ledgerType === "umum" ? "template-upload-keuangan.xlsx" : "template-upload-donasi.xlsx";
       link.click();
       toast.success("Template berhasil diunduh");
 
@@ -607,17 +629,16 @@ export default function Finance() {
     }
   };
 
-  // Handle Excel file upload
-  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Process Excel file upload
+  const processExcelUpload = async () => {
+    if (!selectedExcelFile) return;
 
     setIsUploadLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const data = await file.arrayBuffer();
+      const data = await selectedExcelFile.arrayBuffer();
       const workbook = XLSX.read(data);
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet);
@@ -627,8 +648,10 @@ export default function Finance() {
         return;
       }
 
-      const validTypes = ["income", "outcome", "donation"];
-      const allCategories = [...(CATEGORIES.income || []), ...(CATEGORIES.outcome || []), ...(CATEGORIES.donation || [])];
+      const validTypes = ledgerType === "umum" ? ["income", "outcome"] : ["donation", "donation_outcome"];
+      const activeCategories = ledgerType === "umum" 
+        ? [...(CATEGORIES.income || []), ...(CATEGORIES.outcome || [])]
+        : [...(CATEGORIES.donation || []), ...(CATEGORIES.donation_outcome || [])];
       const errors: string[] = [];
       const records: Array<{
         type: string;
@@ -696,6 +719,8 @@ export default function Finance() {
       toast.success(`${records.length} catatan berhasil diupload`);
       queryClient.invalidateQueries({ queryKey: ["finance-records"] });
       setIsUploadOpen(false);
+      setIsConfirmUploadOpen(false);
+      setSelectedExcelFile(null);
     } catch (err) {
       console.error("Upload error:", err);
       toast.error(err.message || "Gagal mengupload file");
@@ -730,7 +755,7 @@ export default function Finance() {
     updateRecord.mutate(
       {
         id: editingRecord.id,
-        type: formEditData.get("type") as "income" | "outcome",
+        type: formEditData.get("type") as "income" | "outcome" | "donation" | "donation_outcome",
         amount: formEditData.get("amount") as string,
         description: formEditData.get("description") as string,
         category: formEditData.get("category") as string,
@@ -747,14 +772,7 @@ export default function Finance() {
     );
   };
 
-  const toggleDonationGroup = (cat: string) => {
-    setExpandedDonationGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(cat)) next.delete(cat);
-      else next.add(cat);
-      return next;
-    });
-  };
+
 
   const displayData = useMemo(() => {
     if (!groupedRecords) return [];
@@ -765,12 +783,7 @@ export default function Finance() {
       flattened.push(record);
 
       if (record.isGroup && record.groupRecords) {
-        const isExpanded =
-          record.id === "iuran-summary"
-            ? isIuranExpanded
-            : record.id.startsWith("donation-summary-")
-            ? expandedDonationGroups.has(record.category || "")
-            : false;
+        const isExpanded = record.id === "iuran-summary" ? isIuranExpanded : false;
 
         if (isExpanded) {
           record.groupRecords.forEach((child) => {
@@ -781,7 +794,7 @@ export default function Finance() {
     });
 
     return flattened;
-  }, [groupedRecords, isIuranExpanded, expandedDonationGroups]);
+  }, [groupedRecords, isIuranExpanded]);
 
   const columns: DataTableColumn<
     FinanceRecordWithDetails & { isChild?: boolean }
@@ -800,21 +813,14 @@ export default function Finance() {
               isGroup ? "cursor-pointer font-bold text-primary" : ""
             } ${isChild ? "pl-8 text-muted-foreground scale-90" : ""}`}
             onClick={() => {
-              if (isGroup) {
-                if (row.id === "iuran-summary") {
-                  setIsIuranExpanded(!isIuranExpanded);
-                } else if (row.id.startsWith("donation-summary-")) {
-                  toggleDonationGroup(row.category || "");
-                }
+              if (isGroup && row.id === "iuran-summary") {
+                setIsIuranExpanded(!isIuranExpanded);
               }
             }}
           >
             {isGroup &&
               ((() => {
-                const isExpanded =
-                  row.id === "iuran-summary"
-                    ? isIuranExpanded
-                    : expandedDonationGroups.has(row.category || "");
+                const isExpanded = row.id === "iuran-summary" ? isIuranExpanded : false;
                 return isExpanded ? (
                   <ChevronDown className="w-4 h-4" />
                 ) : (
@@ -944,11 +950,28 @@ export default function Finance() {
             </Link>
 
             <div>
-              <h1 className="text-xl sm:text-2xl font-display font-bold">
-                Laporan Keuangan
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Catatan pemasukan dan pengeluaran paguyuban
+              <div className="flex items-center gap-3">
+                <Select
+                  value={ledgerType}
+                  onValueChange={(v: "umum" | "donasi") => {
+                    setLedgerType(v);
+                    setFilterCategory("all");
+                    setActiveTab("all");
+                  }}
+                >
+                  <SelectTrigger className="w-auto border-none shadow-none text-xl sm:text-2xl font-display font-bold p-0 h-auto gap-2 focus:ring-0 [&>svg]:w-6 [&>svg]:h-6">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="umum" className="text-lg font-medium">Laporan Keuangan Umum</SelectItem>
+                    <SelectItem value="donasi" className="text-lg font-medium">Laporan Donasi</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                {ledgerType === "umum" 
+                  ? "Catatan pemasukan dan pengeluaran paguyuban" 
+                  : "Catatan penerimaan dan penyaluran dana donasi"}
               </p>
             </div>
           </div>
@@ -1028,11 +1051,17 @@ export default function Finance() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Kategori</SelectItem>
-                {[...(CATEGORIES.income || []), ...(CATEGORIES.outcome || [])].map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </SelectItem>
-                  ))}
+                {ledgerType === "umum" 
+                  ? [...(CATEGORIES.income || []), ...(CATEGORIES.outcome || [])].map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      </SelectItem>
+                    ))
+                  : [...(CATEGORIES.donation || []), ...(CATEGORIES.donation_outcome || [])].map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      </SelectItem>
+                    ))}
               </SelectContent>
             </Select>
 
@@ -1055,11 +1084,11 @@ export default function Finance() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <Card className="border-green-500/20 bg-green-500/5">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
-                Total Pemasukan
+                {ledgerType === "umum" ? "Total Pemasukan" : "Total Donasi Masuk"}
               </CardTitle>
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
@@ -1067,7 +1096,7 @@ export default function Finance() {
               <div className="text-lg sm:text-2xl font-bold text-green-600">
                 Rp{" "}
                 {sortedFilteredRecords
-                  .filter((r) => r.type === "income")
+                  .filter((r) => ledgerType === "umum" ? r.type === "income" : r.type === "donation")
                   .reduce((sum, r) => sum + r.amount, 0)
                   .toLocaleString("id-ID")}
               </div>
@@ -1077,7 +1106,7 @@ export default function Finance() {
           <Card className="border-red-500/20 bg-red-500/5">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
-                Total Pengeluaran
+                {ledgerType === "umum" ? "Total Pengeluaran" : "Total Pengeluaran Donasi"}
               </CardTitle>
               <TrendingDown className="h-4 w-4 text-red-600" />
             </CardHeader>
@@ -1085,7 +1114,7 @@ export default function Finance() {
               <div className="text-lg sm:text-2xl font-bold text-red-600">
                 Rp{" "}
                 {sortedFilteredRecords
-                  .filter((r) => r.type === "outcome")
+                  .filter((r) => ledgerType === "umum" ? r.type === "outcome" : r.type === "donation_outcome")
                   .reduce((sum, r) => sum + r.amount, 0)
                   .toLocaleString("id-ID")}
               </div>
@@ -1100,7 +1129,9 @@ export default function Finance() {
             }
           >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Saldo</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {ledgerType === "umum" ? "Saldo Umum" : "Sisa Saldo Donasi"}
+              </CardTitle>
               <Wallet
                 className={`h-4 w-4 ${
                   totalBalance >= 0 ? "text-primary" : "text-orange-600"
@@ -1117,30 +1148,21 @@ export default function Finance() {
               </div>
             </CardContent>
           </Card>
-
-          {records?.some((r) => r.type === "donation") && (
-            <Card className="border-blue-500/20 bg-blue-500/5">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total Donasi
-                </CardTitle>
-                <TrendingUp className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-lg sm:text-2xl font-bold text-blue-600">
-                  Rp{" "}
-                  {sortedFilteredRecords
-                    .filter((r) => r.type === "donation")
-                    .reduce((sum, r) => sum + r.amount, 0)
-                    .toLocaleString("id-ID")}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         {canManageFinance && (
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <Dialog open={isAddOpen} onOpenChange={(open) => {
+            if (open) {
+              setFormData({
+                ...formData,
+                type: ledgerType === "umum" ? "income" : "donation",
+                category: "",
+                amount: "",
+                description: "",
+              });
+            }
+            setIsAddOpen(open);
+          }}>
             <div className="flex justify-end">
               <DialogTrigger asChild>
                 <Button size="sm">
@@ -1158,7 +1180,7 @@ export default function Finance() {
                   <Label>Jenis</Label>
                   <Select
                     value={formData.type}
-                    onValueChange={(v: "income" | "outcome") =>
+                    onValueChange={(v: "income" | "outcome" | "donation" | "donation_outcome") =>
                       setFormData({ ...formData, type: v, category: "" })
                     }
                   >
@@ -1166,9 +1188,17 @@ export default function Finance() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="income">Pemasukan</SelectItem>
-                      <SelectItem value="outcome">Pengeluaran</SelectItem>
-                      <SelectItem value="donation">Donasi</SelectItem>
+                      {ledgerType === "umum" ? (
+                        <>
+                          <SelectItem value="income">Pemasukan</SelectItem>
+                          <SelectItem value="outcome">Pengeluaran</SelectItem>
+                        </>
+                      ) : (
+                        <>
+                          <SelectItem value="donation">Uang Masuk Donasi</SelectItem>
+                          <SelectItem value="donation_outcome">Pengeluaran Donasi</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1271,12 +1301,17 @@ export default function Finance() {
                   disabled={
                     !formData.amount ||
                     !formData.description ||
-                    !formData.category
+                    !formData.category ||
+                    addRecord.isPending
                   }
                   className="w-full"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Tambah Catatan
+                  {addRecord.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4 mr-2" />
+                  )}
+                  {addRecord.isPending ? "Menyimpan..." : "Tambah Catatan"}
                 </Button>
               </div>
             </DialogContent>
@@ -1297,9 +1332,6 @@ export default function Finance() {
                   <TabsTrigger value="all">Semua</TabsTrigger>
                   <TabsTrigger value="income">Pemasukan</TabsTrigger>
                   <TabsTrigger value="outcome">Pengeluaran</TabsTrigger>
-                  {filteredRecords?.some((r) => r.type === "donation") && (
-                    <TabsTrigger value="donation">Donasi</TabsTrigger>
-                  )}
                 </TabsList>
               </Tabs>
             </div>
@@ -1327,7 +1359,7 @@ export default function Finance() {
                     name="type"
                     defaultValue={editingRecord?.type}
                     value={editType}
-                    onValueChange={(value: "income" | "outcome") => {
+                    onValueChange={(value: "income" | "outcome" | "donation" | "donation_outcome") => {
                       setEditType(value);
                     }}
                   >
@@ -1336,9 +1368,17 @@ export default function Finance() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        <SelectItem value="income">Pemasukan</SelectItem>
-                        <SelectItem value="outcome">Pengeluaran</SelectItem>
-                        <SelectItem value="donation">Donasi</SelectItem>
+                        {ledgerType === "umum" ? (
+                          <>
+                            <SelectItem value="income">Pemasukan</SelectItem>
+                            <SelectItem value="outcome">Pengeluaran</SelectItem>
+                          </>
+                        ) : (
+                          <>
+                            <SelectItem value="donation">Uang Masuk Donasi</SelectItem>
+                            <SelectItem value="donation_outcome">Pengeluaran Donasi</SelectItem>
+                          </>
+                        )}
                       </SelectGroup>
                     </SelectContent>
                   </Select>
@@ -1485,18 +1525,28 @@ export default function Finance() {
           </AlertDialogContent>
         </AlertDialog>
         {/* Upload Excel Dialog */}
-        <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+        <Dialog open={isUploadOpen} onOpenChange={(open) => {
+          setIsUploadOpen(open);
+          if (!open) {
+            setSelectedExcelFile(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+          }
+        }}>
           <DialogContent className="max-w-[95vw] sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Upload Data Keuangan dari Excel</DialogTitle>
+              <DialogTitle>
+                {ledgerType === "umum" ? "Upload Data Keuangan dari Excel" : "Upload Data Donasi dari Excel"}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Upload file Excel dengan format sesuai template. Kolom yang diperlukan:
-                <strong> Jenis</strong> (income/outcome), <strong>Jumlah</strong>,{" "}
-                <strong>Kategori</strong>, <strong>Deskripsi</strong>,{" "}
-                <strong>Tanggal (YYYY-MM-DD)</strong>
+                Upload file Excel dengan format sesuai template.
               </p>
+              
+              <div className="p-3 bg-muted rounded-md text-sm">
+                Data akan diupload ke: <strong>{ledgerType === "umum" ? "Laporan Keuangan Umum" : "Laporan Donasi"}</strong>
+              </div>
+
               <Button variant="outline" size="sm" onClick={downloadTemplate} className="w-full">
                 <Download className="w-4 h-4 mr-2" />
                 Download Template
@@ -1507,19 +1557,47 @@ export default function Finance() {
                   ref={fileInputRef}
                   type="file"
                   accept=".xlsx,.xls"
-                  onChange={handleExcelUpload}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setSelectedExcelFile(file);
+                  }}
                   disabled={isUploadLoading}
                 />
               </div>
-              {isUploadLoading && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Memproses file...
-                </div>
+
+              {selectedExcelFile && (
+                <Button 
+                   className="w-full" 
+                   onClick={() => setIsConfirmUploadOpen(true)}
+                   disabled={isUploadLoading}
+                >
+                   Lanjutkan Upload
+                </Button>
               )}
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Confirmation Modal for Excel Upload */}
+        <AlertDialog open={isConfirmUploadOpen} onOpenChange={setIsConfirmUploadOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Konfirmasi Upload Excel</AlertDialogTitle>
+              <AlertDialogDescription>
+                Anda akan mengupload file <strong>{selectedExcelFile?.name}</strong> ke{" "}
+                <strong>{ledgerType === "umum" ? "Laporan Keuangan Umum" : "Laporan Donasi"}</strong>.
+                Apakah Anda yakin?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isUploadLoading}>Batal</AlertDialogCancel>
+              <Button onClick={processExcelUpload} disabled={isUploadLoading}>
+                {isUploadLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Upload Sekarang
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Category Management Dialog */}
         <Dialog open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
@@ -1538,16 +1616,24 @@ export default function Finance() {
                     placeholder="Nama kategori baru"
                   />
                 </div>
-                <div className="w-[130px] space-y-1">
+                <div className="w-[180px] space-y-1">
                   <Label className="text-xs">Jenis</Label>
-                  <Select value={newCategoryType} onValueChange={(v: "income" | "outcome" | "donation") => setNewCategoryType(v)}>
+                  <Select value={newCategoryType} onValueChange={(v: "income" | "outcome" | "donation" | "donation_outcome") => setNewCategoryType(v)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="income">Pemasukan</SelectItem>
-                      <SelectItem value="outcome">Pengeluaran</SelectItem>
-                      <SelectItem value="donation">Donasi</SelectItem>
+                      {ledgerType === "umum" ? (
+                        <>
+                          <SelectItem value="income">Pemasukan</SelectItem>
+                          <SelectItem value="outcome">Pengeluaran</SelectItem>
+                        </>
+                      ) : (
+                        <>
+                          <SelectItem value="donation">Uang Masuk Donasi</SelectItem>
+                          <SelectItem value="donation_outcome">Pengeluaran Donasi</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1567,70 +1653,76 @@ export default function Finance() {
               </div>
 
               {/* Income categories */}
-              <div>
-                <h4 className="text-sm font-semibold mb-2 text-emerald-600">Pemasukan</h4>
-                <div className="space-y-1">
-                  {categoriesData
-                    ?.filter((c) => c.type === "income")
-                    .map((cat) => (
-                      <div key={cat.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                        <span className="text-sm capitalize">{cat.name}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => deleteCategory.mutate(cat.id)}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ))}
+              {ledgerType === "umum" && (
+                <div>
+                  <h4 className="text-sm font-semibold mb-2 text-emerald-600">Pemasukan</h4>
+                  <div className="space-y-1">
+                    {categoriesData
+                      ?.filter((c) => c.type === "income")
+                      .map((cat) => (
+                        <div key={cat.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                          <span className="text-sm capitalize">{cat.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive"
+                            onClick={() => deleteCategory.mutate(cat.id)}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Outcome categories */}
-              <div>
-                <h4 className="text-sm font-semibold mb-2 text-red-600">Pengeluaran</h4>
-                <div className="space-y-1">
-                  {categoriesData
-                    ?.filter((c) => c.type === "outcome")
-                    .map((cat) => (
-                      <div key={cat.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                        <span className="text-sm capitalize">{cat.name}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => deleteCategory.mutate(cat.id)}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ))}
+              {ledgerType === "umum" && (
+                <div>
+                  <h4 className="text-sm font-semibold mb-2 text-red-600">Pengeluaran</h4>
+                  <div className="space-y-1">
+                    {categoriesData
+                      ?.filter((c) => c.type === "outcome")
+                      .map((cat) => (
+                        <div key={cat.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                          <span className="text-sm capitalize">{cat.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive"
+                            onClick={() => deleteCategory.mutate(cat.id)}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Donation categories */}
-              <div>
-                <h4 className="text-sm font-semibold mb-2 text-blue-600">Donasi</h4>
-                <div className="space-y-1">
-                  {categoriesData
-                    ?.filter((c) => c.type === "donation")
-                    .map((cat) => (
-                      <div key={cat.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                        <span className="text-sm capitalize">{cat.name}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => deleteCategory.mutate(cat.id)}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ))}
+              {ledgerType === "donasi" && (
+                <div>
+                  <h4 className="text-sm font-semibold mb-2 text-blue-600">Kategori Donasi</h4>
+                  <div className="space-y-1">
+                    {categoriesData
+                      ?.filter((c) => c.type === "donation" || c.type === "donation_outcome")
+                      .map((cat) => (
+                        <div key={cat.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                          <span className="text-sm capitalize">{cat.name} - {cat.type === "donation" ? "Uang Masuk" : "Pengeluaran"}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive"
+                            onClick={() => deleteCategory.mutate(cat.id)}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>

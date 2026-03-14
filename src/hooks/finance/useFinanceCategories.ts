@@ -5,7 +5,7 @@ import { toast } from "sonner"
 export interface FinanceCategory {
   id: string
   name: string
-  type: "income" | "outcome" | "donation"
+  type: "income" | "outcome" | "donation" | "donation_outcome"
   created_by: string | null
   created_at: string
 }
@@ -27,7 +27,7 @@ export function useFinanceCategories() {
 export function useAddFinanceCategory() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ name, type }: { name: string; type: "income" | "outcome" | "donation" }) => {
+    mutationFn: async ({ name, type }: { name: string; type: "income" | "outcome" | "donation" | "donation_outcome" }) => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("Not authenticated")
       const { error } = await supabase.from("finance_categories").insert({

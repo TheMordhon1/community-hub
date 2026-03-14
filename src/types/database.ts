@@ -160,7 +160,7 @@ export interface Payment {
 
 export interface FinanceRecord {
   id: string;
-  type: 'income' | 'outcome' | 'donation';
+  type: 'income' | 'outcome' | 'donation' | 'donation_outcome';
   amount: number;
   description: string;
   category: string | null;

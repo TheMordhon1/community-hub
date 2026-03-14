@@ -2,9 +2,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/integrations/supabase/client"
 import { toast } from "sonner"
 
-interface FinanceRecordUpdate {
+interface EditFinanceRecordInput {
   id: string
-  type: "income" | "outcome" | "donation"
+  type: "income" | "outcome" | "donation" | "donation_outcome"
   amount: string
   description: string
   category: string
@@ -15,7 +15,7 @@ export function useUpdateFinanceRecord() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (formData: FinanceRecordUpdate) => {
+    mutationFn: async (formData: EditFinanceRecordInput) => {
       const { error } = await supabase
         .from("finance_records")
         .update({
