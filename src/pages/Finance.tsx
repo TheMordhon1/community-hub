@@ -114,6 +114,7 @@ export default function Finance() {
   >("date-newest");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [isIuranExpanded, setIsIuranExpanded] = useState(false);
+  const [expandedDonationGroups, setExpandedDonationGroups] = useState<Set<string>>(new Set());
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingRecord, setEditingRecord] =
     useState<FinanceRecordWithDetails | null>(null);
