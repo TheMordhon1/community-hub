@@ -263,31 +263,66 @@ export default function Finance() {
     const iuranRecords = sortedFilteredRecords.filter(
       (r) => r.category?.toLowerCase() === "iuran"
     );
+    const donationRecords = sortedFilteredRecords.filter(
+      (r) => r.type === "donation"
+    );
     const otherRecords = sortedFilteredRecords.filter(
-      (r) => r.category?.toLowerCase() !== "iuran"
+      (r) => r.category?.toLowerCase() !== "iuran" && r.type !== "donation"
     );
 
-    if (iuranRecords.length === 0) return sortedFilteredRecords;
+    const result: FinanceRecordWithDetails[] = [];
 
-    // Create summary row for iuran
-    const iuranTotal = iuranRecords.reduce((sum, r) => sum + r.amount, 0);
-    const iuranSummary: FinanceRecordWithDetails = {
-      id: "iuran-summary",
-      type: "income" as const,
-      category: "iuran",
-      description: `Total Iuran (${iuranRecords.length} transaksi)`,
-      amount: iuranTotal,
-      transaction_date: iuranRecords[0].transaction_date,
-      recorded_by: null,
-      recorder: undefined,
-      payment_id: null,
-      updated_at: iuranRecords[0].updated_at,
-      created_at: iuranRecords[0].created_at,
-      isGroup: true,
-      groupRecords: iuranRecords,
-    };
+    // Group iuran
+    if (iuranRecords.length > 0) {
+      const iuranTotal = iuranRecords.reduce((sum, r) => sum + r.amount, 0);
+      result.push({
+        id: "iuran-summary",
+        type: "income" as const,
+        category: "iuran",
+        description: `Total Iuran (${iuranRecords.length} transaksi)`,
+        amount: iuranTotal,
+        transaction_date: iuranRecords[0].transaction_date,
+        recorded_by: null,
+        recorder: undefined,
+        payment_id: null,
+        updated_at: iuranRecords[0].updated_at,
+        created_at: iuranRecords[0].created_at,
+        isGroup: true,
+        groupRecords: iuranRecords,
+      });
+    }
 
-    return [iuranSummary, ...otherRecords];
+    // Group donations by category
+    if (donationRecords.length > 0) {
+      const donationByCategory = new Map<string, FinanceRecordWithDetails[]>();
+      donationRecords.forEach((r) => {
+        const cat = r.category || "Lainnya";
+        if (!donationByCategory.has(cat)) donationByCategory.set(cat, []);
+        donationByCategory.get(cat)!.push(r);
+      });
+
+      donationByCategory.forEach((records, cat) => {
+        const total = records.reduce((sum, r) => sum + r.amount, 0);
+        result.push({
+          id: `donation-summary-${cat}`,
+          type: "donation" as const,
+          category: cat,
+          description: `Total ${cat} (${records.length} transaksi)`,
+          amount: total,
+          transaction_date: records[0].transaction_date,
+          recorded_by: null,
+          recorder: undefined,
+          payment_id: null,
+          updated_at: records[0].updated_at,
+          created_at: records[0].created_at,
+          isGroup: true,
+          groupRecords: records,
+        });
+      });
+    }
+
+    result.push(...otherRecords);
+    return result;
   })();
 
   // Export to PDF
