@@ -872,18 +872,25 @@ export default function Finance() {
       key: "amount",
       label: "Jumlah",
       className: "min-w-[160px] whitespace-nowrap",
-      render: (_, row) => (
-        <span
-          className={`font-mono font-bold ${
-            row.isGroup || row.type === "income"
-              ? "text-emerald-600"
-              : "text-red-600"
-          }`}
-        >
-          {row.isGroup || row.type === "income" ? "+" : "-"} Rp{" "}
-          {row.amount.toLocaleString("id-ID")}
-        </span>
-      ),
+      render: (_, row) => {
+        const isPositive = row.isGroup
+          ? row.type !== "outcome"
+          : row.type === "income" || row.type === "donation";
+        return (
+          <span
+            className={`font-mono font-bold ${
+              row.type === "donation"
+                ? "text-blue-600"
+                : isPositive
+                ? "text-emerald-600"
+                : "text-red-600"
+            }`}
+          >
+            {row.type === "outcome" ? "-" : "+"} Rp{" "}
+            {row.amount.toLocaleString("id-ID")}
+          </span>
+        );
+      },
     },
     {
       key: "recorder",
