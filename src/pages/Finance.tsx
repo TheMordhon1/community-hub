@@ -799,14 +799,28 @@ export default function Finance() {
             className={`flex items-center gap-2 ${
               isGroup ? "cursor-pointer font-bold text-primary" : ""
             } ${isChild ? "pl-8 text-muted-foreground scale-90" : ""}`}
-            onClick={() => isGroup && setIsIuranExpanded(!isIuranExpanded)}
+            onClick={() => {
+              if (isGroup) {
+                if (row.id === "iuran-summary") {
+                  setIsIuranExpanded(!isIuranExpanded);
+                } else if (row.id.startsWith("donation-summary-")) {
+                  toggleDonationGroup(row.category || "");
+                }
+              }
+            }}
           >
             {isGroup &&
-              (isIuranExpanded ? (
-                <ChevronDown className="w-4 h-4" />
-              ) : (
-                <ChevronRight className="w-4 h-4" />
-              ))}
+              ((() => {
+                const isExpanded =
+                  row.id === "iuran-summary"
+                    ? isIuranExpanded
+                    : expandedDonationGroups.has(row.category || "");
+                return isExpanded ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                );
+              })())}
             {format(new Date(row.transaction_date), "dd/MM/yyyy")}
           </div>
         );
