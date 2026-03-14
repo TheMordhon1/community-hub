@@ -747,6 +747,15 @@ export default function Finance() {
     );
   };
 
+  const toggleDonationGroup = (cat: string) => {
+    setExpandedDonationGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
   const displayData = useMemo(() => {
     if (!groupedRecords) return [];
 
@@ -755,19 +764,24 @@ export default function Finance() {
     groupedRecords.forEach((record) => {
       flattened.push(record);
 
-      // If this is the Iuran summary and it's expanded, insert children
-      if (record.isGroup && isIuranExpanded && record.groupRecords) {
-        record.groupRecords.forEach((child) => {
-          flattened.push({
-            ...child,
-            isChild: true, // Mark this so we can indent the UI
+      if (record.isGroup && record.groupRecords) {
+        const isExpanded =
+          record.id === "iuran-summary"
+            ? isIuranExpanded
+            : record.id.startsWith("donation-summary-")
+            ? expandedDonationGroups.has(record.category || "")
+            : false;
+
+        if (isExpanded) {
+          record.groupRecords.forEach((child) => {
+            flattened.push({ ...child, isChild: true });
           });
-        });
+        }
       }
     });
 
     return flattened;
-  }, [groupedRecords, isIuranExpanded]);
+  }, [groupedRecords, isIuranExpanded, expandedDonationGroups]);
 
   const columns: DataTableColumn<
     FinanceRecordWithDetails & { isChild?: boolean }
