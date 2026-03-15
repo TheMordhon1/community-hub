@@ -823,7 +823,7 @@ _Paguyuban Nijuuroku_`;
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {[2024, 2025, 2026].map((y) => (
+                              {Array.from({ length: new Date().getFullYear() - 2025 + 1 }, (_, i) => 2025 + i).map((y) => (
                                 <SelectItem key={y} value={y.toString()}>
                                   {y}
                                 </SelectItem>
@@ -936,7 +936,7 @@ _Paguyuban Nijuuroku_`;
                 <SelectValue placeholder="Tahun" />
               </SelectTrigger>
               <SelectContent>
-                {[2024, 2025, 2026].map((y) => (
+                {Array.from({ length: new Date().getFullYear() - 2025 + 1 }, (_, i) => 2025 + i).map((y) => (
                   <SelectItem key={y} value={y.toString()}>
                     {y}
                   </SelectItem>

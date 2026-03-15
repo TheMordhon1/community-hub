@@ -412,7 +412,7 @@ export default function Finance() {
           <Select value={filterYear} onValueChange={setFilterYear}>
             <SelectTrigger className="w-[100px]"><SelectValue placeholder="Tahun" /></SelectTrigger>
             <SelectContent>
-              {[2025, 2026, 2027].map((y) => (
+              {Array.from({ length: new Date().getFullYear() - 2025 + 1 }, (_, i) => 2025 + i).map((y) => (
                 <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
               ))}
             </SelectContent>
