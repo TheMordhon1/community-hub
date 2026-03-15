@@ -741,7 +741,8 @@ export default function Finance() {
       const { error } = await supabase.from("finance_records").insert(newRecords);
       if (error) throw error;
 
-      toast.success(`${records.length} catatan berhasil diupload`);
+      const skippedMsg = skipped > 0 ? ` (${skipped} data duplikat dilewati)` : "";
+      toast.success(`${newRecords.length} catatan berhasil diupload${skippedMsg}`);
       queryClient.invalidateQueries({ queryKey: ["finance-records"] });
       setIsUploadOpen(false);
       setIsConfirmUploadOpen(false);
