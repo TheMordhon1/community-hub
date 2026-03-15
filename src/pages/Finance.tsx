@@ -712,11 +712,37 @@ export default function Finance() {
         return;
       }
 
-      // Bulk insert
-      const { error } = await supabase.from("finance_records").insert(records);
+      // Fetch existing records to deduplicate
+      const { data: existingRecords } = await supabase
+        .from("finance_records")
+        .select("type, amount, category, description, transaction_date");
+
+      const existingSet = new Set(
+        (existingRecords || []).map((r) =>
+          `${r.type}|${Number(r.amount)}|${r.category || ""}|${r.description}|${r.transaction_date}`
+        )
+      );
+
+      const newRecords = records.filter(
+        (r) =>
+          !existingSet.has(
+            `${r.type}|${r.amount}|${r.category}|${r.description}|${r.transaction_date}`
+          )
+      );
+
+      if (newRecords.length === 0) {
+        toast.info("Semua data sudah ada, tidak ada data baru untuk diupload");
+        return;
+      }
+
+      const skipped = records.length - newRecords.length;
+
+      // Bulk insert only new records
+      const { error } = await supabase.from("finance_records").insert(newRecords);
       if (error) throw error;
 
-      toast.success(`${records.length} catatan berhasil diupload`);
+      const skippedMsg = skipped > 0 ? ` (${skipped} data duplikat dilewati)` : "";
+      toast.success(`${newRecords.length} catatan berhasil diupload${skippedMsg}`);
       queryClient.invalidateQueries({ queryKey: ["finance-records"] });
       setIsUploadOpen(false);
       setIsConfirmUploadOpen(false);
