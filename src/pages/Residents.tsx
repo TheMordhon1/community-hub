@@ -494,7 +494,12 @@ export default function Residents() {
       {/* House Detail Dialog */}
       <Dialog
         open={!!selectedHouse}
-        onOpenChange={() => setSelectedHouse(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedHouse(null);
+            setIsEditingStatus(false);
+          }
+        }}
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
