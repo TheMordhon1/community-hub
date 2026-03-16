@@ -286,14 +286,18 @@ export default function Residents() {
     doc.text(`Dicetak pada: ${format(new Date(), "dd MMMM yyyy HH:mm", { locale: idLocale })}`, 14, 28);
 
     const tableData = filteredHouses.map((house) => {
+      // Priority: 1) KK (is_head), 2) suami, 3) any member with linked account
       const head = house.residents.find((r) => r.is_head);
-      const headName = head ? (head.profiles?.full_name || head.full_name) : "-";
-      const headPhone = head?.profiles?.phone || "-";
+      const husband = !head ? house.residents.find((r) => r.member_type === "suami") : null;
+      const linkedMember = !head && !husband ? house.residents.find((r) => r.user_id != null) : null;
+      const representative = head || husband || linkedMember;
+      const repName = representative ? (representative.profiles?.full_name || representative.full_name) : "-";
+      const repPhone = representative?.profiles?.phone || "-";
       return [
         `${house.block}-${house.number}`,
         house.occupancy_status === "empty" ? "Kosong" : "Terisi",
-        headName,
-        headPhone,
+        repName,
+        repPhone,
         house.vacancy_reason || "-",
         house.estimated_return_date
           ? format(new Date(house.estimated_return_date), "dd/MM/yyyy")
