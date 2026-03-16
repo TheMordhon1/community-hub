@@ -98,6 +98,8 @@ type HouseType = "all" | "registered" | "unregistered";
 type OccupancyFilter = "all" | "occupied" | "empty";
 
 export default function Residents() {
+  const { canManageContent } = useAuth();
+  const queryClient = useQueryClient();
   const { naturalSort } = useNaturalSort();
   const [searchQuery, setSearchQuery] = useState("");
   const MEMBER_SORT_PRIORITY: Record<string, number> = {
@@ -114,6 +116,46 @@ export default function Residents() {
   );
   const [filterType, setFilterType] = useState<HouseType>("all");
   const [occupancyFilter, setOccupancyFilter] = useState<OccupancyFilter>("all");
+  const [isEditingStatus, setIsEditingStatus] = useState(false);
+  const [editOccupancy, setEditOccupancy] = useState<"occupied" | "empty">("occupied");
+  const [editVacancyReason, setEditVacancyReason] = useState("");
+  const [editReturnDate, setEditReturnDate] = useState("");
+
+  const updateHouseStatus = useMutation({
+    mutationFn: async ({ houseId, occupancy_status, vacancy_reason, estimated_return_date }: {
+      houseId: string;
+      occupancy_status: string;
+      vacancy_reason: string | null;
+      estimated_return_date: string | null;
+    }) => {
+      const { error } = await supabase
+        .from("houses")
+        .update({
+          occupancy_status,
+          vacancy_reason: occupancy_status === "empty" ? vacancy_reason : null,
+          estimated_return_date: occupancy_status === "empty" ? estimated_return_date : null,
+        })
+        .eq("id", houseId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Status rumah berhasil diperbarui");
+      queryClient.invalidateQueries({ queryKey: ["houses-with-residents"] });
+      setIsEditingStatus(false);
+      if (selectedHouse) {
+        // Update local state
+        setSelectedHouse({
+          ...selectedHouse,
+          occupancy_status: editOccupancy,
+          vacancy_reason: editOccupancy === "empty" ? editVacancyReason || null : null,
+          estimated_return_date: editOccupancy === "empty" ? editReturnDate || null : null,
+        });
+      }
+    },
+    onError: () => {
+      toast.error("Gagal memperbarui status rumah");
+    },
+  });
 
   const { data: houses, isLoading } = useQuery({
     queryKey: ["houses-with-residents"],
