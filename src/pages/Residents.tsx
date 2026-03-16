@@ -280,21 +280,29 @@ export default function Residents() {
 
     const doc = new jsPDF();
     doc.setFontSize(16);
-    doc.text("Daftar Rumah & Penghuni PKT", 14, 20);
+    doc.text("Daftar Rumah & Kepala Keluarga PKT", 14, 20);
     doc.setFontSize(10);
     doc.text(`Dicetak pada: ${format(new Date(), "dd MMMM yyyy HH:mm", { locale: idLocale })}`, 14, 28);
 
-    const tableData = filteredHouses.map((house) => [
-      `${house.block}-${house.number}`,
-      house.occupancy_status === "empty" ? "Kosong" : "Terisi",
-      house.residents.map((r) => r.profiles?.full_name || r.full_name).join(", ") || "Kosong",
-      house.residents.length.toString(),
-      house.vacancy_reason || "-",
-    ]);
+    const tableData = filteredHouses.map((house) => {
+      const head = house.residents.find((r) => r.is_head);
+      const headName = head ? (head.profiles?.full_name || head.full_name) : "-";
+      const headPhone = head?.profiles?.phone || "-";
+      return [
+        `${house.block}-${house.number}`,
+        house.occupancy_status === "empty" ? "Kosong" : "Terisi",
+        headName,
+        headPhone,
+        house.vacancy_reason || "-",
+        house.estimated_return_date
+          ? format(new Date(house.estimated_return_date), "dd/MM/yyyy")
+          : "-",
+      ];
+    });
 
     autoTable(doc, {
       startY: 35,
-      head: [["Rumah", "Status", "Penghuni", "Total", "Keterangan"]],
+      head: [["Rumah", "Status", "Kepala Keluarga", "No. HP", "Keterangan", "Est. Kembali"]],
       body: tableData,
       theme: "grid",
       headStyles: { fillColor: [59, 130, 246] },
