@@ -33,7 +33,13 @@ export function FinanceAddDialog({ ledgerType, CATEGORIES, isAddOpen, setIsAddOp
   const addRecord = useAddFinanceRecord();
   const defaultType: FinanceType = ledgerType === "umum" ? "income" : "donation";
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    type: string;
+    amount: string;
+    description: string;
+    category: string;
+    transaction_date: string;
+  }>({
     type: defaultType,
     amount: "",
     description: "",
@@ -70,7 +76,7 @@ export function FinanceAddDialog({ ledgerType, CATEGORIES, isAddOpen, setIsAddOp
             <Label>Jenis</Label>
             <Select
               value={formData.type}
-              onValueChange={(v: FinanceType) => setFormData({ ...formData, type: v, category: "" })}
+              onValueChange={(v) => setFormData({ ...formData, type: v as FinanceType, category: "" })}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -151,7 +157,7 @@ export function FinanceAddDialog({ ledgerType, CATEGORIES, isAddOpen, setIsAddOp
           </div>
 
           <Button
-            onClick={() => addRecord.mutate(formData, { onSuccess: () => { resetForm(); setIsAddOpen(false); } })}
+            onClick={() => addRecord.mutate({ ...formData, type: formData.type as FinanceType }, { onSuccess: () => { resetForm(); setIsAddOpen(false); } })}
             disabled={!formData.amount || !formData.description || !formData.category || addRecord.isPending}
             className="w-full"
           >

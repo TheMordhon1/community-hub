@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,8 @@ import {
   UserCheck,
   Search,
   User,
+  Pencil,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -61,6 +63,9 @@ import {
 } from "@/components/ui/select";
 import { useNaturalSort } from "@/hooks/useNaturalSort";
 import { House, MemberType, MEMBER_TYPE_LABELS } from "@/types/database";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
 
 interface HouseResident {
   id: string;
@@ -93,6 +98,8 @@ type HouseType = "all" | "registered" | "unregistered";
 type OccupancyFilter = "all" | "occupied" | "empty";
 
 export default function Residents() {
+  const { canManageContent } = useAuth();
+  const queryClient = useQueryClient();
   const { naturalSort } = useNaturalSort();
   const [searchQuery, setSearchQuery] = useState("");
   const MEMBER_SORT_PRIORITY: Record<string, number> = {
@@ -109,6 +116,46 @@ export default function Residents() {
   );
   const [filterType, setFilterType] = useState<HouseType>("all");
   const [occupancyFilter, setOccupancyFilter] = useState<OccupancyFilter>("all");
+  const [isEditingStatus, setIsEditingStatus] = useState(false);
+  const [editOccupancy, setEditOccupancy] = useState<"occupied" | "empty">("occupied");
+  const [editVacancyReason, setEditVacancyReason] = useState("");
+  const [editReturnDate, setEditReturnDate] = useState("");
+
+  const updateHouseStatus = useMutation({
+    mutationFn: async ({ houseId, occupancy_status, vacancy_reason, estimated_return_date }: {
+      houseId: string;
+      occupancy_status: string;
+      vacancy_reason: string | null;
+      estimated_return_date: string | null;
+    }) => {
+      const { error } = await supabase
+        .from("houses")
+        .update({
+          occupancy_status,
+          vacancy_reason: occupancy_status === "empty" ? vacancy_reason : null,
+          estimated_return_date: occupancy_status === "empty" ? estimated_return_date : null,
+        })
+        .eq("id", houseId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Status rumah berhasil diperbarui");
+      queryClient.invalidateQueries({ queryKey: ["houses-with-residents"] });
+      setIsEditingStatus(false);
+      if (selectedHouse) {
+        // Update local state
+        setSelectedHouse({
+          ...selectedHouse,
+          occupancy_status: editOccupancy,
+          vacancy_reason: editOccupancy === "empty" ? editVacancyReason || null : null,
+          estimated_return_date: editOccupancy === "empty" ? editReturnDate || null : null,
+        });
+      }
+    },
+    onError: () => {
+      toast.error("Gagal memperbarui status rumah");
+    },
+  });
 
   const { data: houses, isLoading } = useQuery({
     queryKey: ["houses-with-residents"],
@@ -447,7 +494,12 @@ export default function Residents() {
       {/* House Detail Dialog */}
       <Dialog
         open={!!selectedHouse}
-        onOpenChange={() => setSelectedHouse(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedHouse(null);
+            setIsEditingStatus(false);
+          }
+        }}
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -458,23 +510,107 @@ export default function Residents() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {selectedHouse?.occupancy_status === "empty" && (
-              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 space-y-2">
-                <div className="flex items-center gap-2 text-destructive font-semibold text-sm">
-                  <Info className="h-4 w-4" />
-                  Status: Rumah Kosong
+            {/* Status Section */}
+            {!isEditingStatus ? (
+              <div className="space-y-2">
+                {selectedHouse?.occupancy_status === "empty" && (
+                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 space-y-2">
+                    <div className="flex items-center gap-2 text-destructive font-semibold text-sm">
+                      <Info className="h-4 w-4" />
+                      Status: Rumah Kosong
+                    </div>
+                    {selectedHouse.vacancy_reason && (
+                      <p className="text-sm">
+                        <span className="font-medium">Alasan:</span> {selectedHouse.vacancy_reason}
+                      </p>
+                    )}
+                    {selectedHouse.estimated_return_date && (
+                      <p className="text-sm">
+                        <span className="font-medium">Estimasi Kembali:</span>{" "}
+                        {format(new Date(selectedHouse.estimated_return_date), "dd MMMM yyyy", { locale: idLocale })}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {canManageContent() && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setEditOccupancy((selectedHouse?.occupancy_status as "occupied" | "empty") || "occupied");
+                      setEditVacancyReason(selectedHouse?.vacancy_reason || "");
+                      setEditReturnDate(selectedHouse?.estimated_return_date || "");
+                      setIsEditingStatus(true);
+                    }}
+                  >
+                    <Pencil className="w-3.5 h-3.5 mr-2" />
+                    Ubah Status Rumah
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3 border rounded-lg p-3">
+                <div className="space-y-2">
+                  <Label className="text-sm">Status Hunian</Label>
+                  <Select value={editOccupancy} onValueChange={(v) => setEditOccupancy(v as "occupied" | "empty")}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="occupied">Terisi</SelectItem>
+                      <SelectItem value="empty">Kosong</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                {selectedHouse.vacancy_reason && (
-                  <p className="text-sm">
-                    <span className="font-medium">Alasan:</span> {selectedHouse.vacancy_reason}
-                  </p>
+                {editOccupancy === "empty" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Alasan Kosong</Label>
+                      <Textarea
+                        value={editVacancyReason}
+                        onChange={(e) => setEditVacancyReason(e.target.value)}
+                        placeholder="Contoh: Renovasi, pindah sementara..."
+                        rows={2}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Estimasi Kembali</Label>
+                      <Input
+                        type="date"
+                        value={editReturnDate}
+                        onChange={(e) => setEditReturnDate(e.target.value)}
+                      />
+                    </div>
+                  </>
                 )}
-                {selectedHouse.estimated_return_date && (
-                  <p className="text-sm">
-                    <span className="font-medium">Estimasi Kembali:</span>{" "}
-                    {format(new Date(selectedHouse.estimated_return_date), "dd MMMM yyyy", { locale: idLocale })}
-                  </p>
-                )}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setIsEditingStatus(false)}
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    disabled={updateHouseStatus.isPending}
+                    onClick={() => {
+                      if (!selectedHouse) return;
+                      updateHouseStatus.mutate({
+                        houseId: selectedHouse.id,
+                        occupancy_status: editOccupancy,
+                        vacancy_reason: editVacancyReason || null,
+                        estimated_return_date: editReturnDate || null,
+                      });
+                    }}
+                  >
+                    {updateHouseStatus.isPending ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+                    ) : null}
+                    Simpan
+                  </Button>
+                </div>
               </div>
             )}
             
