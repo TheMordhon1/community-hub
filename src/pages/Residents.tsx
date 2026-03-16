@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,8 @@ import {
   UserCheck,
   Search,
   User,
+  Pencil,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -61,6 +63,9 @@ import {
 } from "@/components/ui/select";
 import { useNaturalSort } from "@/hooks/useNaturalSort";
 import { House, MemberType, MEMBER_TYPE_LABELS } from "@/types/database";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
 
 interface HouseResident {
   id: string;
