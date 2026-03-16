@@ -70,7 +70,7 @@ export function FinanceAddDialog({ ledgerType, CATEGORIES, isAddOpen, setIsAddOp
             <Label>Jenis</Label>
             <Select
               value={formData.type}
-              onValueChange={(v: FinanceType) => setFormData({ ...formData, type: v, category: "" })}
+              onValueChange={(v) => setFormData({ ...formData, type: v as FinanceType, category: "" })}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
