@@ -66,6 +66,7 @@ import { House, MemberType, MEMBER_TYPE_LABELS } from "@/types/database";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface HouseResident {
   id: string;
@@ -582,10 +583,10 @@ export default function Residents() {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm">Estimasi Kembali</Label>
-                      <Input
-                        type="date"
-                        value={editReturnDate}
-                        onChange={(e) => setEditReturnDate(e.target.value)}
+                      <DatePicker
+                        date={editReturnDate ? new Date(editReturnDate) : undefined}
+                        setDate={(date) => setEditReturnDate(date ? format(date, "yyyy-MM-dd") : "")}
+                        placeholder="Estimasi tanggal kembali"
                       />
                     </div>
                   </>
