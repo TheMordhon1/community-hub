@@ -157,7 +157,7 @@ export function FinanceAddDialog({ ledgerType, CATEGORIES, isAddOpen, setIsAddOp
           </div>
 
           <Button
-            onClick={() => addRecord.mutate(formData, { onSuccess: () => { resetForm(); setIsAddOpen(false); } })}
+            onClick={() => addRecord.mutate({ ...formData, type: formData.type as FinanceType }, { onSuccess: () => { resetForm(); setIsAddOpen(false); } })}
             disabled={!formData.amount || !formData.description || !formData.category || addRecord.isPending}
             className="w-full"
           >
