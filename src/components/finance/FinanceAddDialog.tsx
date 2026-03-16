@@ -33,7 +33,13 @@ export function FinanceAddDialog({ ledgerType, CATEGORIES, isAddOpen, setIsAddOp
   const addRecord = useAddFinanceRecord();
   const defaultType: FinanceType = ledgerType === "umum" ? "income" : "donation";
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    type: string;
+    amount: string;
+    description: string;
+    category: string;
+    transaction_date: string;
+  }>({
     type: defaultType,
     amount: "",
     description: "",
