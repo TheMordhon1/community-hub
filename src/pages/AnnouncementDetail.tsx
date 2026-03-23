@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -33,6 +33,7 @@ import { ArrowLeft, Megaphone, Loader2, Share2, Search,
   Heart,
 } from "lucide-react";
 import { useAnnouncementLikes, useAnnouncementLikers } from "@/hooks/useAnnouncementLikes";
+import { useAnnouncementReads } from "@/hooks/useAnnouncementReads";
 import type { Announcement, Profile } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
 import { getInitials } from "@/lib/utils";
@@ -52,6 +53,8 @@ export default function AnnouncementDetail() {
   const announcementIds = id ? [id] : [];
   const { likeCounts, userLikes, toggleLike } = useAnnouncementLikes(announcementIds);
   const { data: likers = [] } = useAnnouncementLikers(id, showLikers);
+  const { markAsRead } = useAnnouncementReads(announcementIds);
+
 
   const handleCopyLink = async (url: string) => {
     try {
@@ -115,6 +118,13 @@ export default function AnnouncementDetail() {
     },
     enabled: !!id,
   });
+
+  // Mark as read when announcement is loaded
+  useEffect(() => {
+    if (announcement && id) {
+      markAsRead.mutate(id);
+    }
+  }, [announcement?.id]);
 
   if (isLoading) {
     return (

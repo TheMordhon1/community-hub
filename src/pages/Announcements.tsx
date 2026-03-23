@@ -55,6 +55,7 @@ import {
   Heart,
 } from "lucide-react";
 import { useAnnouncementLikes } from "@/hooks/useAnnouncementLikes";
+import { useAnnouncementReads } from "@/hooks/useAnnouncementReads";
 import { Link, useNavigate } from "react-router-dom";
 import type { Announcement } from "@/types/database";
 import {
@@ -369,6 +370,7 @@ export default function Announcements() {
     [publishedAnnouncements]
   );
   const { likeCounts, userLikes, toggleLike } = useAnnouncementLikes(announcementIds);
+  const { readSet } = useAnnouncementReads(announcementIds);
 
   return (
     <section className="min-h-screen bg-background px-4 pt-6 pb-24 sm:p-6 overflow-x-hidden">
@@ -647,7 +649,9 @@ export default function Announcements() {
                     transition={{ delay: index * 0.05 }}
                   >
                     <Card
-                      className="group cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all duration-200"
+                      className={`group cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all duration-200 ${
+                        !readSet.has(announcement.id) ? "border-l-4 border-l-primary" : ""
+                      }`}
                       onClick={() => navigate(`/announcements/${announcement.id}`)}
                     >
                       <CardHeader className="p-4 flex-row items-center justify-between space-y-0">
@@ -657,6 +661,11 @@ export default function Announcements() {
                               <Eye className="w-3 h-3 mr-1" />
                               Warga
                             </Badge>
+                            {!readSet.has(announcement.id) && (
+                              <Badge className="bg-primary/10 text-primary hover:bg-primary/10 h-5 px-1.5 text-[10px] border-none font-semibold">
+                                Baru
+                              </Badge>
+                            )}
                           </div>
                           <CardTitle className="text-base font-semibold group-hover:text-primary transition-colors break-all break-words">
                             {announcement.title}
