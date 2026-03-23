@@ -52,7 +52,9 @@ import {
   ImagePlus,
   X,
   ImageIcon,
+  Heart,
 } from "lucide-react";
+import { useAnnouncementLikes } from "@/hooks/useAnnouncementLikes";
 import { Link, useNavigate } from "react-router-dom";
 import type { Announcement } from "@/types/database";
 import {
