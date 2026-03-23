@@ -687,8 +687,28 @@ export default function Announcements() {
                                     { locale: idLocale }
                                   )}
                               </CardDescription>
+                              <button
+                                type="button"
+                                className="flex items-center gap-1 ml-auto"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleLike.mutate(announcement.id);
+                                }}
+                              >
+                                <Heart
+                                  className={`w-4 h-4 transition-colors ${
+                                    userLikes.has(announcement.id)
+                                      ? "fill-red-500 text-red-500"
+                                      : "text-muted-foreground hover:text-red-400"
+                                  }`}
+                                />
+                                {(likeCounts[announcement.id] || 0) > 0 && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {likeCounts[announcement.id]}
+                                  </span>
+                                )}
+                              </button>
                             </div>
-                          </div>
                         </div>
 
                         {canManageContent() && (
