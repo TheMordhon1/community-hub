@@ -364,6 +364,12 @@ export default function Announcements() {
     announcements.filter((a) => a.is_published) || [];
   const draftAnnouncements = announcements.filter((a) => !a.is_published) || [];
 
+  const announcementIds = useMemo(
+    () => publishedAnnouncements.map((a) => a.id),
+    [publishedAnnouncements]
+  );
+  const { likeCounts, userLikes, toggleLike } = useAnnouncementLikes(announcementIds);
+
   return (
     <section className="min-h-screen bg-background px-4 pt-6 pb-24 sm:p-6 overflow-x-hidden">
       <div className="space-y-6">
