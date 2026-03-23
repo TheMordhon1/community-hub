@@ -649,7 +649,9 @@ export default function Announcements() {
                     transition={{ delay: index * 0.05 }}
                   >
                     <Card
-                      className="group cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all duration-200"
+                      className={`group cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all duration-200 ${
+                        !readSet.has(announcement.id) ? "border-l-4 border-l-primary" : ""
+                      }`}
                       onClick={() => navigate(`/announcements/${announcement.id}`)}
                     >
                       <CardHeader className="p-4 flex-row items-center justify-between space-y-0">
