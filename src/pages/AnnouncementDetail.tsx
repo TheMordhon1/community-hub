@@ -119,6 +119,13 @@ export default function AnnouncementDetail() {
     enabled: !!id,
   });
 
+  // Mark as read when announcement is loaded
+  useEffect(() => {
+    if (announcement && id) {
+      markAsRead.mutate(id);
+    }
+  }, [announcement?.id]);
+
   if (isLoading) {
     return (
       <section className="min-h-screen bg-background p-6">
