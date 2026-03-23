@@ -43,6 +43,8 @@ export default function AnnouncementDetail() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isImageOpen, setIsImageOpen] = useState(false);
+  const announcementIds = id ? [id] : [];
+  const { likeCounts, userLikes, toggleLike } = useAnnouncementLikes(announcementIds);
 
   const handleCopyLink = async (url: string) => {
     try {
