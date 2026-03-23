@@ -25,7 +25,9 @@ import { ArrowLeft, Megaphone, Loader2, Share2, Search,
   Link as LinkIcon,
   Copy,
   Check,
+  Heart,
 } from "lucide-react";
+import { useAnnouncementLikes } from "@/hooks/useAnnouncementLikes";
 import type { Announcement, Profile } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
 import { getInitials } from "@/lib/utils";
@@ -41,6 +43,8 @@ export default function AnnouncementDetail() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isImageOpen, setIsImageOpen] = useState(false);
+  const announcementIds = id ? [id] : [];
+  const { likeCounts, userLikes, toggleLike } = useAnnouncementLikes(announcementIds);
 
   const handleCopyLink = async (url: string) => {
     try {
@@ -258,6 +262,28 @@ export default function AnnouncementDetail() {
                       <span>Salin Link</span>
                     </Button>
                   </div>
+                </div>
+              )}
+
+              {/* Like Button */}
+              {id && (
+                <div className="flex items-center gap-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 px-4 py-2 rounded-full border transition-colors hover:bg-muted"
+                    onClick={() => toggleLike.mutate(id)}
+                  >
+                    <Heart
+                      className={`w-5 h-5 transition-colors ${
+                        userLikes.has(id)
+                          ? "fill-red-500 text-red-500"
+                          : "text-muted-foreground"
+                      }`}
+                    />
+                    <span className="text-sm font-medium">
+                      {likeCounts[id] || 0} Suka
+                    </span>
+                  </button>
                 </div>
               )}
 

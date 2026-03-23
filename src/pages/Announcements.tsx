@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
@@ -52,7 +52,9 @@ import {
   ImagePlus,
   X,
   ImageIcon,
+  Heart,
 } from "lucide-react";
+import { useAnnouncementLikes } from "@/hooks/useAnnouncementLikes";
 import { Link, useNavigate } from "react-router-dom";
 import type { Announcement } from "@/types/database";
 import {
@@ -361,6 +363,12 @@ export default function Announcements() {
   const publishedAnnouncements =
     announcements.filter((a) => a.is_published) || [];
   const draftAnnouncements = announcements.filter((a) => !a.is_published) || [];
+
+  const announcementIds = useMemo(
+    () => publishedAnnouncements.map((a) => a.id),
+    [publishedAnnouncements]
+  );
+  const { likeCounts, userLikes, toggleLike } = useAnnouncementLikes(announcementIds);
 
   return (
     <section className="min-h-screen bg-background px-4 pt-6 pb-24 sm:p-6 overflow-x-hidden">
@@ -679,6 +687,27 @@ export default function Announcements() {
                                     { locale: idLocale }
                                   )}
                               </CardDescription>
+                              <button
+                                type="button"
+                                className="flex items-center gap-1 ml-auto"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleLike.mutate(announcement.id);
+                                }}
+                              >
+                                <Heart
+                                  className={`w-4 h-4 transition-colors ${
+                                    userLikes.has(announcement.id)
+                                      ? "fill-red-500 text-red-500"
+                                      : "text-muted-foreground hover:text-red-400"
+                                  }`}
+                                />
+                                {(likeCounts[announcement.id] || 0) > 0 && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {likeCounts[announcement.id]}
+                                  </span>
+                                )}
+                              </button>
                             </div>
                           </div>
                         </div>
