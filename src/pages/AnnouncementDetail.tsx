@@ -55,12 +55,6 @@ export default function AnnouncementDetail() {
   const { data: likers = [] } = useAnnouncementLikers(id, showLikers);
   const { markAsRead } = useAnnouncementReads(announcementIds);
 
-  // Mark as read when announcement is loaded
-  useEffect(() => {
-    if (announcement && id) {
-      markAsRead.mutate(id);
-    }
-  }, [announcement?.id]);
 
   const handleCopyLink = async (url: string) => {
     try {
