@@ -709,6 +709,7 @@ export default function Announcements() {
                                 )}
                               </button>
                             </div>
+                          </div>
                         </div>
 
                         {canManageContent() && (
