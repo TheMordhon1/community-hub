@@ -1,76 +1,106 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export interface LikerProfile {
   user_id: string;
   full_name: string;
   avatar_url: string | null;
+  reaction_type: string;
 }
 
 export function useAnnouncementLikes(announcementIds: string[]) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: likeCounts = {} } = useQuery({
-    queryKey: ["announcement-like-counts", announcementIds],
+  const { data: reactionCounts = {} } = useQuery({
+    queryKey: ["announcement-reaction-counts", announcementIds],
     queryFn: async () => {
       if (announcementIds.length === 0) return {};
       const { data, error } = await supabase
         .from("announcement_likes")
-        .select("announcement_id")
+        .select("announcement_id, reaction_type")
         .in("announcement_id", announcementIds);
       if (error) throw error;
-      const counts: Record<string, number> = {};
-      data.forEach((like) => {
-        counts[like.announcement_id] = (counts[like.announcement_id] || 0) + 1;
+
+      const counts: Record<string, Record<string, number>> = {};
+      data.forEach((item) => {
+        if (!counts[item.announcement_id]) {
+          counts[item.announcement_id] = {};
+        }
+        const reactionType = item.reaction_type || 'heart';
+        counts[item.announcement_id][reactionType] = (counts[item.announcement_id][reactionType] || 0) + 1;
       });
       return counts;
     },
     enabled: announcementIds.length > 0,
   });
 
-  const { data: userLikes = new Set<string>() } = useQuery({
-    queryKey: ["announcement-user-likes", user?.id, announcementIds],
+  const { data: userReactions = new Set<string>() } = useQuery<Set<string>>({
+    queryKey: ["announcement-user-reactions", user?.id, announcementIds],
     queryFn: async () => {
       if (!user || announcementIds.length === 0) return new Set<string>();
       const { data, error } = await supabase
         .from("announcement_likes")
-        .select("announcement_id")
+        .select("announcement_id, reaction_type")
         .eq("user_id", user.id)
         .in("announcement_id", announcementIds);
       if (error) throw error;
-      return new Set(data.map((l) => l.announcement_id));
+      return new Set(data.map((l) => `${l.announcement_id}:${l.reaction_type || 'heart'}`));
     },
     enabled: !!user && announcementIds.length > 0,
   });
 
-  const toggleLike = useMutation({
-    mutationFn: async (announcementId: string) => {
+  const toggleReaction = useMutation({
+    mutationFn: async ({ announcementId, reactionType = 'heart' }: { announcementId: string; reactionType?: string }) => {
       if (!user) throw new Error("Not authenticated");
-      const isLiked = userLikes.has(announcementId);
-      if (isLiked) {
-        const { error } = await supabase
+      
+      const existingReactionKey = Array.from(userReactions).find(key => key.startsWith(`${announcementId}:`));
+      const targetReactionKey = `${announcementId}:${reactionType}`;
+      
+
+      // Always delete any existing reaction first for this user/announcement
+      // This ensures we only have one reaction at a time
+      const { error: deleteError } = await supabase
+        .from("announcement_likes")
+        .delete()
+        .eq("announcement_id", announcementId)
+        .eq("user_id", user.id);
+      
+      if (deleteError) {
+        console.error('Delete error:', deleteError);
+        throw deleteError;
+      }
+
+      // If the clicked reaction is NOT the one we just removed, insert it as the new reaction
+      if (existingReactionKey !== targetReactionKey) {
+        const { error: insertError } = await supabase
           .from("announcement_likes")
-          .delete()
-          .eq("announcement_id", announcementId)
-          .eq("user_id", user.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("announcement_likes")
-          .insert({ announcement_id: announcementId, user_id: user.id });
-        if (error) throw error;
+          .insert({ 
+            announcement_id: announcementId, 
+            user_id: user.id,
+            reaction_type: reactionType,
+            created_at: new Date().toISOString()
+          });
+        if (insertError) {
+          console.error('Insert error:', insertError);
+          throw insertError;
+        }
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["announcement-like-counts"] });
-      queryClient.invalidateQueries({ queryKey: ["announcement-user-likes"] });
+      queryClient.invalidateQueries({ queryKey: ["announcement-reaction-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["announcement-user-reactions"] });
       queryClient.invalidateQueries({ queryKey: ["announcement-likers"] });
     },
+    onError: (error: any) => {
+      console.error('Mutation error:', error);
+      toast.error(`Gagal memperbarui reaksi: ${error.message || 'Error tidak diketahui'}`);
+    }
   });
 
-  return { likeCounts, userLikes, toggleLike };
+  return { reactionCounts, userReactions, toggleReaction };
 }
 
 export function useAnnouncementLikers(announcementId: string | undefined, enabled: boolean) {
@@ -80,7 +110,7 @@ export function useAnnouncementLikers(announcementId: string | undefined, enable
       if (!announcementId) return [];
       const { data, error } = await supabase
         .from("announcement_likes")
-        .select("user_id")
+        .select("user_id, reaction_type")
         .eq("announcement_id", announcementId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -94,10 +124,13 @@ export function useAnnouncementLikers(announcementId: string | undefined, enable
         .in("id", userIds);
       if (profileError) throw profileError;
 
-      return (profiles || []).map((p) => ({
-        user_id: p.id,
-        full_name: p.full_name,
-        avatar_url: p.avatar_url,
+      const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
+
+      return data.map((l) => ({
+        user_id: l.user_id,
+        full_name: profileMap.get(l.user_id)?.full_name || "Unknown User",
+        avatar_url: profileMap.get(l.user_id)?.avatar_url || null,
+        reaction_type: l.reaction_type || 'heart',
       })) as LikerProfile[];
     },
     enabled: !!announcementId && enabled,

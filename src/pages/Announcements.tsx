@@ -52,10 +52,11 @@ import {
   ImagePlus,
   X,
   ImageIcon,
-  Heart,
+  ThumbsUp,
 } from "lucide-react";
 import { useAnnouncementLikes } from "@/hooks/useAnnouncementLikes";
 import { useAnnouncementReads } from "@/hooks/useAnnouncementReads";
+import { REACTION_EMOJIS, EXTENDED_REACTION_EMOJIS, ALL_REACTIONS } from "@/lib/reaction-constants";
 import { Link, useNavigate } from "react-router-dom";
 import type { Announcement } from "@/types/database";
 import {
@@ -357,19 +358,24 @@ export default function Announcements() {
     setIsUploading(false);
   };
 
-  const announcements = announcementData?.data || [];
+  const announcements = useMemo(() => announcementData?.data || [], [announcementData?.data]);
   const totalCount = announcementData?.totalCount || 0;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
-  const publishedAnnouncements =
-    announcements.filter((a) => a.is_published) || [];
-  const draftAnnouncements = announcements.filter((a) => !a.is_published) || [];
+  const publishedAnnouncements = useMemo(
+    () => announcements.filter((a) => a.is_published) || [],
+    [announcements]
+  );
+  const draftAnnouncements = useMemo(
+    () => announcements.filter((a) => !a.is_published) || [],
+    [announcements]
+  );
 
   const announcementIds = useMemo(
     () => publishedAnnouncements.map((a) => a.id),
     [publishedAnnouncements]
   );
-  const { likeCounts, userLikes, toggleLike } = useAnnouncementLikes(announcementIds);
+  const { reactionCounts, userReactions, toggleReaction } = useAnnouncementLikes(announcementIds);
   const { readSet } = useAnnouncementReads(announcementIds);
 
   return (
@@ -701,21 +707,42 @@ export default function Announcements() {
                                 className="flex items-center gap-1 ml-auto"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  toggleLike.mutate(announcement.id);
+                                  toggleReaction.mutate({ announcementId: announcement.id });
                                 }}
                               >
-                                <Heart
+                                <ThumbsUp
                                   className={`w-4 h-4 transition-colors ${
-                                    userLikes.has(announcement.id)
-                                      ? "fill-red-500 text-red-500"
-                                      : "text-muted-foreground hover:text-red-400"
+                                    Object.keys(REACTION_EMOJIS).some(type => userReactions.has(`${announcement.id}:${type}`)) ||
+                                    Object.keys(EXTENDED_REACTION_EMOJIS).some(type => userReactions.has(`${announcement.id}:${type}`))
+                                      ? "fill-primary text-primary"
+                                      : "text-muted-foreground hover:text-primary"
                                   }`}
                                 />
-                                {(likeCounts[announcement.id] || 0) > 0 && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {likeCounts[announcement.id]}
-                                  </span>
-                                )}
+                                {(() => {
+                                  const counts = reactionCounts[announcement.id] || {};
+                                  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+                                  if (total === 0) return null;
+                                  
+                                  return (
+                                    <div className="flex items-center gap-1.5 ml-1">
+                                      <div className="flex -space-x-1">
+                                        {Object.entries(counts)
+                                          .filter(([_, count]) => count > 0)
+                                          .sort((a, b) => b[1] - a[1])
+                                          .slice(0, 3)
+                                          .map(([type, _]) => (
+                                            <span key={type} className="text-[14px]">
+                                              {ALL_REACTIONS[type] || "👍"}
+                                            </span>
+                                          ))
+                                        }
+                                      </div>
+                                      <span className="text-xs text-muted-foreground">
+                                        {total}
+                                      </span>
+                                    </div>
+                                  );
+                                })()}
                               </button>
                             </div>
                           </div>

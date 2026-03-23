@@ -40,3 +40,44 @@ export function useAnnouncementReads(announcementIds: string[]) {
 
   return { readSet, markAsRead };
 }
+
+export interface ReaderProfile {
+  user_id: string;
+  full_name: string;
+  avatar_url: string | null;
+  read_at: string;
+}
+
+export function useAnnouncementReaders(announcementId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ["announcement-readers", announcementId],
+    queryFn: async () => {
+      if (!announcementId) return [];
+      const { data, error } = await supabase
+        .from("announcement_reads")
+        .select("user_id, read_at")
+        .eq("announcement_id", announcementId)
+        .order("read_at", { ascending: false });
+      if (error) throw error;
+
+      if (data.length === 0) return [];
+
+      const userIds = data.map((r) => r.user_id);
+      const { data: profiles, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url")
+        .in("id", userIds);
+      if (profileError) throw profileError;
+
+      const profileMap = new Map(profiles?.map((p) => [p.id, p]));
+
+      return data.map((r) => ({
+        user_id: r.user_id,
+        full_name: profileMap.get(r.user_id)?.full_name || "Unknown User",
+        avatar_url: profileMap.get(r.user_id)?.avatar_url || null,
+        read_at: r.read_at,
+      })) as ReaderProfile[];
+    },
+    enabled: !!announcementId && enabled,
+  });
+}

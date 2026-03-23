@@ -30,30 +30,44 @@ import { ArrowLeft, Megaphone, Loader2, Share2, Search,
   Link as LinkIcon,
   Copy,
   Check,
+  ThumbsUp,
   Heart,
+  Eye,
+  Plus,
+  X,
 } from "lucide-react";
 import { useAnnouncementLikes, useAnnouncementLikers } from "@/hooks/useAnnouncementLikes";
-import { useAnnouncementReads } from "@/hooks/useAnnouncementReads";
+import { useAnnouncementReads, useAnnouncementReaders } from "@/hooks/useAnnouncementReads";
 import type { Announcement, Profile } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
 import { getInitials } from "@/lib/utils";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { REACTION_EMOJIS, EXTENDED_REACTION_EMOJIS, ALL_REACTIONS } from "@/lib/reaction-constants";
+import { type } from "os";
 
 interface AnnouncementWithAuthor extends Announcement {
   author?: Profile;
   title_display_name?: string;
 }
 
+
+
 export default function AnnouncementDetail() {
   const { id } = useParams();
+  const { canManageContent } = useAuth();
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isImageOpen, setIsImageOpen] = useState(false);
   const [showLikers, setShowLikers] = useState(false);
+  const [showReaders, setShowReaders] = useState(false);
+  const [showAllEmojis, setShowAllEmojis] = useState(false);
+  const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false);
   const announcementIds = id ? [id] : [];
-  const { likeCounts, userLikes, toggleLike } = useAnnouncementLikes(announcementIds);
+  const { reactionCounts, userReactions, toggleReaction } = useAnnouncementLikes(announcementIds);
   const { data: likers = [] } = useAnnouncementLikers(id, showLikers);
-  const { markAsRead } = useAnnouncementReads(announcementIds);
+  const { readSet, markAsRead } = useAnnouncementReads(announcementIds);
+  const { data: readers = [] } = useAnnouncementReaders(id, showReaders);
 
 
   const handleCopyLink = async (url: string) => {
@@ -121,10 +135,10 @@ export default function AnnouncementDetail() {
 
   // Mark as read when announcement is loaded
   useEffect(() => {
-    if (announcement && id) {
+    if (id && !readSet.has(id) && !markAsRead.isPending && !markAsRead.isError && !markAsRead.isSuccess) {
       markAsRead.mutate(id);
     }
-  }, [announcement?.id]);
+  }, [id, readSet, markAsRead]);
 
   if (isLoading) {
     return (
@@ -282,48 +296,181 @@ export default function AnnouncementDetail() {
                 </div>
               )}
 
-              {/* Like Button */}
+              {/* Reactions Section */}
               {id && (
-                <div className="flex items-center gap-3 pt-4 border-t">
-                  <button
-                    type="button"
-                    className="flex items-center gap-2 px-4 py-2 rounded-full border transition-colors hover:bg-muted"
-                    onClick={() => toggleLike.mutate(id)}
-                  >
-                    <Heart
-                      className={`w-5 h-5 transition-colors ${
-                        userLikes.has(id)
-                          ? "fill-red-500 text-red-500"
-                          : "text-muted-foreground"
-                      }`}
-                    />
-                    <span className="text-sm font-medium">
-                      {likeCounts[id] || 0} Suka
-                    </span>
-                  </button>
+                <div className="flex flex-wrap items-center gap-3 pt-4 border-t">
+                  <Popover open={isReactionPickerOpen} onOpenChange={setIsReactionPickerOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 px-4 py-2 rounded-full border transition-all hover:bg-muted hover:scale-105 active:scale-95"
+                      >
+                        <ThumbsUp
+                          className={`w-5 h-5 transition-colors ${
+                            Object.keys(ALL_REACTIONS).some(type => userReactions.has(`${id}:${type}`))
+                              ? "fill-primary text-primary"
+                              : "text-muted-foreground"
+                          }`}
+                        />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent 
+                      className="w-[95vw] max-w-[320px] p-3 sm:w-auto sm:max-w-none" 
+                      align="start" 
+                      side="top"
+                      sideOffset={8}
+                    >
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar pr-1 relative">
+                          {Object.entries(REACTION_EMOJIS).map(([type, emoji]) => {
+                            const hasReaction = userReactions.has(`${id}:${type}`);
+                            return (
+                              <button
+                                key={type}
+                                type="button"
+                                className={`text-2xl p-2 rounded-lg transition-all hover:scale-150 active:scale-90 flex-shrink-0 hover:bg-transparent ${
+                                  hasReaction ? "bg-primary/10 shadow-inner ring-1 ring-primary/20" : ""
+                                }`}
+                                onClick={() => {
+                                  toggleReaction.mutate({ announcementId: id, reactionType: type });
+                                  setIsReactionPickerOpen(false);
+                                }}
+                                title={type}
+                              >
+                                {emoji}
+                              </button>
+                            );
+                          })}
+                          <button
+                            type="button"
+                            className="p-2 rounded-lg hover:scale-125 transition-all flex items-center justify-center flex-shrink-0 hover:bg-transparent"
+                            onClick={() => setShowAllEmojis(!showAllEmojis)}
+                          >
+                            <Plus className={`w-6 h-6 text-muted-foreground transition-transform ${showAllEmojis ? 'rotate-45' : ''}`} />
+                          </button>
+                          
+                          <div className="flex-shrink-0 w-8 flex items-center justify-center">
+                            <button 
+                              onClick={() => setIsReactionPickerOpen(false)}
+                              className="p-2 hover:scale-125 transition-all flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg hover:bg-transparent"
+                            >
+                              <X className="w-5 h-5 text-muted-foreground" />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {showAllEmojis && (
+                          <div className="grid grid-cols-6 gap-1 border-t pt-2 max-h-48 overflow-y-auto">
+                            {Object.entries(EXTENDED_REACTION_EMOJIS).map(([type, emoji]) => {
+                              if (REACTION_EMOJIS[type]) return null;
+                              const hasReaction = userReactions.has(`${id}:${type}`);
+                              return (
+                                <button
+                                  key={type}
+                                  type="button"
+                                  className={`text-xl p-2 rounded-lg transition-all hover:scale-150 active:scale-90 flex items-center justify-center hover:bg-transparent ${
+                                    hasReaction ? "bg-primary/10 shadow-inner ring-1 ring-primary/20" : ""
+                                  }`}
+                                  onClick={() => {
+                                    toggleReaction.mutate({ announcementId: id, reactionType: type });
+                                    setIsReactionPickerOpen(false);
+                                  }}
+                                  title={type}
+                                >
+                                  {emoji}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
 
-                  {(likeCounts[id] || 0) > 0 && (
-                    <Popover open={showLikers} onOpenChange={setShowLikers}>
+                  {(() => {
+                    const counts = reactionCounts[id] || {};
+                    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+                    if (total === 0) return null;
+
+                    return (
+                      <div className="flex items-center gap-2">
+                        <div className="flex -space-x-1">
+                          {Object.entries(counts)
+                            .filter(([_, count]) => count > 0)
+                            .sort((a, b) => b[1] - a[1]) // Sort by count descending
+                            .slice(0, 1) // Only show the top reaction
+                            .map(([type, _]) => (
+                              <span key={type} className="text-base flex items-center justify-center">
+                                {ALL_REACTIONS[type] || "👍"}
+                              </span>
+                            ))
+                          }
+                        </div>
+                        <Popover open={showLikers} onOpenChange={setShowLikers}>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors h-9 px-2"
+                            >
+                              {total}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-3" align="start">
+                            <p className="text-sm font-semibold mb-2">Reaksi dari</p>
+                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                              {likers.map((liker) => (
+                                <div key={`${liker.user_id}-${liker.reaction_type}`} className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 truncate">
+                                    <Avatar className="w-7 h-7">
+                                      <AvatarImage src={liker.avatar_url || ""} />
+                                      <AvatarFallback className="text-xs">
+                                        {getInitials(liker.full_name)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-sm truncate">{liker.full_name}</span>
+                                  </div>
+                                  <span className="text-sm shrink-0">
+                                    {ALL_REACTIONS[liker.reaction_type] || "❤️"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    );
+                  })()}
+
+                  {canManageContent() && readers.length > 0 && (
+                    <Popover open={showReaders} onOpenChange={setShowReaders}>
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          className="text-sm text-primary hover:underline"
+                          className="flex items-center gap-2 px-4 py-2 rounded-full border transition-colors hover:bg-muted ml-auto"
                         >
-                          Lihat siapa
+                          <Eye className="w-5 h-5 text-muted-foreground" />
+                          <span className="text-sm font-medium">
+                            {readers.length} Dilihat
+                          </span>
                         </button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-64 p-3" align="start">
-                        <p className="text-sm font-semibold mb-2">Disukai oleh</p>
+                      <PopoverContent className="w-64 p-3" align="end">
+                        <p className="text-sm font-semibold mb-2">Dilihat oleh</p>
                         <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {likers.map((liker) => (
-                            <div key={liker.user_id} className="flex items-center gap-2">
-                              <Avatar className="w-7 h-7">
-                                <AvatarImage src={liker.avatar_url || ""} />
-                                <AvatarFallback className="text-xs">
-                                  {getInitials(liker.full_name)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm truncate">{liker.full_name}</span>
+                          {readers.map((reader) => (
+                            <div key={reader.user_id} className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 truncate">
+                                <Avatar className="w-7 h-7">
+                                  <AvatarImage src={reader.avatar_url || ""} />
+                                  <AvatarFallback className="text-xs">
+                                    {getInitials(reader.full_name)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="text-sm truncate">{reader.full_name}</span>
+                              </div>
+                              <span className="text-[10px] text-muted-foreground shrink-0">
+                                {format(new Date(reader.read_at), "HH:mm", { locale: idLocale })}
+                              </span>
                             </div>
                           ))}
                         </div>

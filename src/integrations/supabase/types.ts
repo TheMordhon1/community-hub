@@ -19,18 +19,21 @@ export type Database = {
           announcement_id: string
           created_at: string
           id: string
+          reaction_type: string | null
           user_id: string
         }
         Insert: {
           announcement_id: string
           created_at?: string
           id?: string
+          reaction_type?: string | null
           user_id: string
         }
         Update: {
           announcement_id?: string
           created_at?: string
           id?: string
+          reaction_type?: string | null
           user_id?: string
         }
         Relationships: [
