@@ -291,6 +291,35 @@ export default function AnnouncementDetail() {
                       {likeCounts[id] || 0} Suka
                     </span>
                   </button>
+
+                  {(likeCounts[id] || 0) > 0 && (
+                    <Popover open={showLikers} onOpenChange={setShowLikers}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="text-sm text-primary hover:underline"
+                        >
+                          Lihat siapa
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-3" align="start">
+                        <p className="text-sm font-semibold mb-2">Disukai oleh</p>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {likers.map((liker) => (
+                            <div key={liker.user_id} className="flex items-center gap-2">
+                              <Avatar className="w-7 h-7">
+                                <AvatarImage src={liker.avatar_url || ""} />
+                                <AvatarFallback className="text-xs">
+                                  {getInitials(liker.full_name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm truncate">{liker.full_name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  )}
                 </div>
               )}
 
