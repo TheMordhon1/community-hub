@@ -55,6 +55,7 @@ import {
   Heart,
 } from "lucide-react";
 import { useAnnouncementLikes } from "@/hooks/useAnnouncementLikes";
+import { useAnnouncementReads } from "@/hooks/useAnnouncementReads";
 import { Link, useNavigate } from "react-router-dom";
 import type { Announcement } from "@/types/database";
 import {
