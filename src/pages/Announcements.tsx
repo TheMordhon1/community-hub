@@ -661,6 +661,11 @@ export default function Announcements() {
                               <Eye className="w-3 h-3 mr-1" />
                               Warga
                             </Badge>
+                            {!readSet.has(announcement.id) && (
+                              <Badge className="bg-primary/10 text-primary hover:bg-primary/10 h-5 px-1.5 text-[10px] border-none font-semibold">
+                                Baru
+                              </Badge>
+                            )}
                           </div>
                           <CardTitle className="text-base font-semibold group-hover:text-primary transition-colors break-all break-words">
                             {announcement.title}
