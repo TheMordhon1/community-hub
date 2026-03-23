@@ -17,6 +17,11 @@ import {
   DialogContent,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -27,7 +32,7 @@ import { ArrowLeft, Megaphone, Loader2, Share2, Search,
   Check,
   Heart,
 } from "lucide-react";
-import { useAnnouncementLikes } from "@/hooks/useAnnouncementLikes";
+import { useAnnouncementLikes, useAnnouncementLikers } from "@/hooks/useAnnouncementLikes";
 import type { Announcement, Profile } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
 import { getInitials } from "@/lib/utils";
@@ -43,8 +48,10 @@ export default function AnnouncementDetail() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isImageOpen, setIsImageOpen] = useState(false);
+  const [showLikers, setShowLikers] = useState(false);
   const announcementIds = id ? [id] : [];
   const { likeCounts, userLikes, toggleLike } = useAnnouncementLikes(announcementIds);
+  const { data: likers = [] } = useAnnouncementLikers(id, showLikers);
 
   const handleCopyLink = async (url: string) => {
     try {
@@ -284,6 +291,35 @@ export default function AnnouncementDetail() {
                       {likeCounts[id] || 0} Suka
                     </span>
                   </button>
+
+                  {(likeCounts[id] || 0) > 0 && (
+                    <Popover open={showLikers} onOpenChange={setShowLikers}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="text-sm text-primary hover:underline"
+                        >
+                          Lihat siapa
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-3" align="start">
+                        <p className="text-sm font-semibold mb-2">Disukai oleh</p>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {likers.map((liker) => (
+                            <div key={liker.user_id} className="flex items-center gap-2">
+                              <Avatar className="w-7 h-7">
+                                <AvatarImage src={liker.avatar_url || ""} />
+                                <AvatarFallback className="text-xs">
+                                  {getInitials(liker.full_name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm truncate">{liker.full_name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  )}
                 </div>
               )}
 
