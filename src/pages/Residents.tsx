@@ -257,17 +257,32 @@ export default function Residents() {
   const exportToExcel = () => {
     if (!filteredHouses) return;
 
-    const data = filteredHouses.map((house) => ({
-      Blok: house.block,
-      Nomor: house.number,
-      Status: house.occupancy_status === "empty" ? "Kosong" : "Terisi",
-      Penghuni: house.residents.map((r) => r.profiles?.full_name || r.full_name).join(", ") || "Kosong",
-      "Total Penghuni": house.residents.length,
-      "Alasan Kosong": house.vacancy_reason || "-",
-      "Estimasi Kembali": house.estimated_return_date 
-        ? format(new Date(house.estimated_return_date), "dd/MM/yyyy") 
-        : "-",
-    }));
+    const data = filteredHouses.map((house) => {
+      // Priority: 1) KK (is_head), 2) suami, 3) any member with linked account
+      const head = house.residents.find((r) => r.is_head);
+      const husband = !head ? house.residents.find((r) => r.member_type === "suami") : null;
+      const linkedMember = !head && !husband ? house.residents.find((r) => r.user_id != null) : null;
+      const representative = head || husband || linkedMember;
+      const repName = representative ? (representative.profiles?.full_name || representative.full_name) : "-";
+      
+      const otherMembers = house.residents
+        .filter(r => r.id !== representative?.id)
+        .map(r => r.profiles?.full_name || r.full_name)
+        .join(", ");
+
+      return {
+        Blok: house.block,
+        Nomor: house.number,
+        Status: house.occupancy_status === "empty" ? "Kosong" : "Terisi",
+        "Kepala Keluarga": repName,
+        "Anggota Keluarga": otherMembers || "-",
+        "Total Penghuni": house.residents.length,
+        "Alasan Kosong": house.vacancy_reason || "-",
+        "Estimasi Kembali": house.estimated_return_date 
+          ? format(new Date(house.estimated_return_date), "dd/MM/yyyy") 
+          : "-",
+      };
+    });
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -281,7 +296,7 @@ export default function Residents() {
 
     const doc = new jsPDF();
     doc.setFontSize(16);
-    doc.text("Daftar Rumah & Kepala Keluarga PKT", 14, 20);
+    doc.text("Warga PKT ", 14, 20);
     doc.setFontSize(10);
     doc.text(`Dicetak pada: ${format(new Date(), "dd MMMM yyyy HH:mm", { locale: idLocale })}`, 14, 28);
 
@@ -293,10 +308,17 @@ export default function Residents() {
       const representative = head || husband || linkedMember;
       const repName = representative ? (representative.profiles?.full_name || representative.full_name) : "-";
       const repPhone = representative?.profiles?.phone || "-";
+
+      const otherMembers = house.residents
+        .filter(r => r.id !== representative?.id)
+        .map(r => r.profiles?.full_name || r.full_name)
+        .join(", ");
+
       return [
         `${house.block}-${house.number}`,
         house.occupancy_status === "empty" ? "Kosong" : "Terisi",
         repName,
+        otherMembers || "-",
         repPhone,
         house.vacancy_reason || "-",
         house.estimated_return_date
@@ -307,11 +329,14 @@ export default function Residents() {
 
     autoTable(doc, {
       startY: 35,
-      head: [["Rumah", "Status", "Kepala Keluarga", "No. HP", "Keterangan", "Est. Kembali"]],
+      head: [["Rumah", "Status", "Kepala Keluarga", "Anggota Keluarga", "No. HP", "Keterangan", "Est. Kembali"]],
       body: tableData,
       theme: "grid",
       headStyles: { fillColor: [59, 130, 246] },
-      styles: { fontSize: 8 },
+      styles: { fontSize: 7 },
+      columnStyles: {
+        3: { cellWidth: 40 }, // "Anggota Keluarga"
+      }
     });
 
     doc.save(`daftar-penghuni-${format(new Date(), "yyyy-MM-dd")}.pdf`);
