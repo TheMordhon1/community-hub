@@ -370,6 +370,7 @@ export default function Announcements() {
     [publishedAnnouncements]
   );
   const { likeCounts, userLikes, toggleLike } = useAnnouncementLikes(announcementIds);
+  const { readSet } = useAnnouncementReads(announcementIds);
 
   return (
     <section className="min-h-screen bg-background px-4 pt-6 pb-24 sm:p-6 overflow-x-hidden">
