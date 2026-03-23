@@ -83,7 +83,7 @@ export function AppSidebar() {
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden">
-            <img src="./logo-pkt.png" className="w-10 h-10" />
+            <img src="/logo-pkt.png" className="w-10 h-10" />
           </div>
           <div className="flex flex-col">
             <span className="font-display font-bold text-lg">Warga PKT</span>

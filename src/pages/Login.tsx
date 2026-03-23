@@ -91,7 +91,7 @@ export default function Login() {
               transition={{ delay: 0.2, type: "spring" }}
               className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-2 overflow-hidden"
             >
-              <img src="./logo-pkt.png" className="w-16 h-16" />
+              <img src="/logo-pkt.png" className="w-16 h-16" />
             </motion.div>
             <CardTitle className="font-display text-2xl">
               Selamat Datang

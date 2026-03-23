@@ -315,20 +315,20 @@ export default function AnnouncementDetail() {
                       </button>
                     </PopoverTrigger>
                     <PopoverContent 
-                      className="w-[95vw] max-w-[320px] p-3 sm:w-auto sm:max-w-none" 
+                      className="w-[95vw] max-w-[320px] p-2 sm:w-auto sm:max-w-none" 
                       align="start" 
                       side="top"
                       sideOffset={8}
                     >
                       <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar pr-1 relative">
+                        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pr-1 relative">
                           {Object.entries(REACTION_EMOJIS).map(([type, emoji]) => {
                             const hasReaction = userReactions.has(`${id}:${type}`);
                             return (
                               <button
                                 key={type}
                                 type="button"
-                                className={`text-2xl p-2 rounded-lg transition-all hover:scale-150 active:scale-90 flex-shrink-0 hover:bg-transparent ${
+                                className={`text-xl p-1 rounded-full transition-all hover:scale-100 scale-80 flex-shrink-0 hover:bg-transparent ${
                                   hasReaction ? "bg-primary/10 shadow-inner ring-1 ring-primary/20" : ""
                                 }`}
                                 onClick={() => {
@@ -346,7 +346,7 @@ export default function AnnouncementDetail() {
                             className="p-2 rounded-lg hover:scale-125 transition-all flex items-center justify-center flex-shrink-0 hover:bg-transparent"
                             onClick={() => setShowAllEmojis(!showAllEmojis)}
                           >
-                            <Plus className={`w-6 h-6 text-muted-foreground transition-transform ${showAllEmojis ? 'rotate-45' : ''}`} />
+                            <Plus className="w-6 h-6 text-muted-foreground transition-transform" />
                           </button>
                           
                           <div className="flex-shrink-0 w-8 flex items-center justify-center">
@@ -368,7 +368,7 @@ export default function AnnouncementDetail() {
                                 <button
                                   key={type}
                                   type="button"
-                                  className={`text-xl p-2 rounded-lg transition-all hover:scale-150 active:scale-90 flex items-center justify-center hover:bg-transparent ${
+                                  className={`text-xl p-2 rounded-lg transition-all hover:scale-125 active:scale-90 flex items-center justify-center hover:bg-transparent ${
                                     hasReaction ? "bg-primary/10 shadow-inner ring-1 ring-primary/20" : ""
                                   }`}
                                   onClick={() => {
