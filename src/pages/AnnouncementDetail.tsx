@@ -33,6 +33,7 @@ import { ArrowLeft, Megaphone, Loader2, Share2, Search,
   Heart,
 } from "lucide-react";
 import { useAnnouncementLikes, useAnnouncementLikers } from "@/hooks/useAnnouncementLikes";
+import { useAnnouncementReads } from "@/hooks/useAnnouncementReads";
 import type { Announcement, Profile } from "@/types/database";
 import { ShareDialog } from "@/components/ShareDialog";
 import { getInitials } from "@/lib/utils";
