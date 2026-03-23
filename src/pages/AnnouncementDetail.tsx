@@ -265,6 +265,28 @@ export default function AnnouncementDetail() {
                 </div>
               )}
 
+              {/* Like Button */}
+              {id && (
+                <div className="flex items-center gap-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 px-4 py-2 rounded-full border transition-colors hover:bg-muted"
+                    onClick={() => toggleLike.mutate(id)}
+                  >
+                    <Heart
+                      className={`w-5 h-5 transition-colors ${
+                        userLikes.has(id)
+                          ? "fill-red-500 text-red-500"
+                          : "text-muted-foreground"
+                      }`}
+                    />
+                    <span className="text-sm font-medium">
+                      {likeCounts[id] || 0} Suka
+                    </span>
+                  </button>
+                </div>
+              )}
+
               {announcement.author && (
                 <div className="flex items-center gap-3 pt-4 border-t">
                   <Avatar>
