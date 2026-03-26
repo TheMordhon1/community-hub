@@ -80,6 +80,9 @@ export default function Houses() {
   const [editingHouse, setEditingHouse] = useState<House | null>(null);
   const [block, setBlock] = useState("");
   const [number, setNumber] = useState("");
+  const [occupancyStatus, setOccupancyStatus] = useState("occupied");
+  const [vacancyReason, setVacancyReason] = useState("");
+  const [estimatedReturnDate, setEstimatedReturnDate] = useState("");
   const [selectedResidentsHouse, setSelectedResidentsHouse] =
     useState<HouseWithResidents | null>(null);
   const [editingResident, setEditingResident] = useState<HouseResident | null>(
