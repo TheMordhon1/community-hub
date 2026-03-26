@@ -80,6 +80,9 @@ export default function Houses() {
   const [editingHouse, setEditingHouse] = useState<House | null>(null);
   const [block, setBlock] = useState("");
   const [number, setNumber] = useState("");
+  const [occupancyStatus, setOccupancyStatus] = useState("occupied");
+  const [vacancyReason, setVacancyReason] = useState("");
+  const [estimatedReturnDate, setEstimatedReturnDate] = useState("");
   const [selectedResidentsHouse, setSelectedResidentsHouse] =
     useState<HouseWithResidents | null>(null);
   const [editingResident, setEditingResident] = useState<HouseResident | null>(
@@ -174,10 +177,24 @@ export default function Houses() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: { id: string; block: string; number: string }) => {
+    mutationFn: async (data: {
+      id: string;
+      block: string;
+      number: string;
+      occupancy_status: string;
+      vacancy_reason: string | null;
+      estimated_return_date: string | null;
+    }) => {
       const { error } = await supabase
         .from("houses")
-        .update({ block: data.block, number: data.number })
+        .update({
+          block: data.block,
+          number: data.number,
+          occupancy_status: data.occupancy_status,
+          is_occupied: data.occupancy_status === "occupied",
+          vacancy_reason: data.occupancy_status !== "occupied" ? data.vacancy_reason : null,
+          estimated_return_date: data.occupancy_status !== "occupied" && data.estimated_return_date ? data.estimated_return_date : null,
+        })
         .eq("id", data.id);
       if (error) throw error;
     },
@@ -263,6 +280,9 @@ export default function Houses() {
   const resetForm = () => {
     setBlock("");
     setNumber("");
+    setOccupancyStatus("occupied");
+    setVacancyReason("");
+    setEstimatedReturnDate("");
     setIsCreateOpen(false);
     setEditingHouse(null);
   };
@@ -270,7 +290,14 @@ export default function Houses() {
   const handleSubmit = () => {
     if (!block.trim() || !number.trim()) return;
     if (editingHouse) {
-      updateMutation.mutate({ id: editingHouse.id, block, number });
+      updateMutation.mutate({
+        id: editingHouse.id,
+        block,
+        number,
+        occupancy_status: occupancyStatus,
+        vacancy_reason: vacancyReason || null,
+        estimated_return_date: estimatedReturnDate || null,
+      });
     } else {
       createMutation.mutate({ block, number });
     }
@@ -364,6 +391,9 @@ export default function Houses() {
               setEditingHouse(row);
               setBlock(row.block);
               setNumber(row.number);
+              setOccupancyStatus(row.occupancy_status || "occupied");
+              setVacancyReason(row.vacancy_reason || "");
+              setEstimatedReturnDate(row.estimated_return_date || "");
               setIsCreateOpen(true);
             }}
           >
@@ -448,6 +478,43 @@ export default function Houses() {
                   placeholder="01"
                 />
               </div>
+              {editingHouse && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Status Hunian</Label>
+                    <Select value={occupancyStatus} onValueChange={setOccupancyStatus}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="occupied">Dihuni</SelectItem>
+                        <SelectItem value="vacant">Kosong</SelectItem>
+                        <SelectItem value="renovating">Renovasi</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {occupancyStatus !== "occupied" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Alasan Kosong</Label>
+                        <Input
+                          value={vacancyReason}
+                          onChange={(e) => setVacancyReason(e.target.value)}
+                          placeholder="Contoh: Mudik, Kontrak habis"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Estimasi Tanggal Kembali</Label>
+                        <Input
+                          type="date"
+                          value={estimatedReturnDate}
+                          onChange={(e) => setEstimatedReturnDate(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={resetForm}>
