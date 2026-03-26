@@ -177,10 +177,24 @@ export default function Houses() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: { id: string; block: string; number: string }) => {
+    mutationFn: async (data: {
+      id: string;
+      block: string;
+      number: string;
+      occupancy_status: string;
+      vacancy_reason: string | null;
+      estimated_return_date: string | null;
+    }) => {
       const { error } = await supabase
         .from("houses")
-        .update({ block: data.block, number: data.number })
+        .update({
+          block: data.block,
+          number: data.number,
+          occupancy_status: data.occupancy_status,
+          is_occupied: data.occupancy_status === "occupied",
+          vacancy_reason: data.occupancy_status !== "occupied" ? data.vacancy_reason : null,
+          estimated_return_date: data.occupancy_status !== "occupied" && data.estimated_return_date ? data.estimated_return_date : null,
+        })
         .eq("id", data.id);
       if (error) throw error;
     },
