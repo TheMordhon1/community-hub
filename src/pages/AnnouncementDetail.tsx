@@ -44,7 +44,7 @@ import { getInitials } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { REACTION_EMOJIS, EXTENDED_REACTION_EMOJIS, ALL_REACTIONS } from "@/lib/reaction-constants";
-import { type } from "os";
+
 
 interface AnnouncementWithAuthor extends Announcement {
   author?: Profile;
