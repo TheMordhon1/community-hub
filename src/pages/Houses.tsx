@@ -391,6 +391,9 @@ export default function Houses() {
               setEditingHouse(row);
               setBlock(row.block);
               setNumber(row.number);
+              setOccupancyStatus(row.occupancy_status || "occupied");
+              setVacancyReason(row.vacancy_reason || "");
+              setEstimatedReturnDate(row.estimated_return_date || "");
               setIsCreateOpen(true);
             }}
           >
