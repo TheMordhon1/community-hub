@@ -280,6 +280,9 @@ export default function Houses() {
   const resetForm = () => {
     setBlock("");
     setNumber("");
+    setOccupancyStatus("occupied");
+    setVacancyReason("");
+    setEstimatedReturnDate("");
     setIsCreateOpen(false);
     setEditingHouse(null);
   };
