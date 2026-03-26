@@ -478,6 +478,43 @@ export default function Houses() {
                   placeholder="01"
                 />
               </div>
+              {editingHouse && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Status Hunian</Label>
+                    <Select value={occupancyStatus} onValueChange={setOccupancyStatus}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="occupied">Dihuni</SelectItem>
+                        <SelectItem value="vacant">Kosong</SelectItem>
+                        <SelectItem value="renovating">Renovasi</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {occupancyStatus !== "occupied" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Alasan Kosong</Label>
+                        <Input
+                          value={vacancyReason}
+                          onChange={(e) => setVacancyReason(e.target.value)}
+                          placeholder="Contoh: Mudik, Kontrak habis"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Estimasi Tanggal Kembali</Label>
+                        <Input
+                          type="date"
+                          value={estimatedReturnDate}
+                          onChange={(e) => setEstimatedReturnDate(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={resetForm}>
