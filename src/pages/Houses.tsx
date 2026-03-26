@@ -290,7 +290,14 @@ export default function Houses() {
   const handleSubmit = () => {
     if (!block.trim() || !number.trim()) return;
     if (editingHouse) {
-      updateMutation.mutate({ id: editingHouse.id, block, number });
+      updateMutation.mutate({
+        id: editingHouse.id,
+        block,
+        number,
+        occupancy_status: occupancyStatus,
+        vacancy_reason: vacancyReason || null,
+        estimated_return_date: estimatedReturnDate || null,
+      });
     } else {
       createMutation.mutate({ block, number });
     }
