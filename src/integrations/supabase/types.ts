@@ -1357,6 +1357,7 @@ export type Database = {
         Args: { _house_id: string; _user_id: string }
         Returns: boolean
       }
+      is_menteri_sisdigi: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "pengurus" | "warga"
