@@ -364,18 +364,22 @@ export default function Houses() {
     {
       key: "is_occupied",
       label: "Status",
-      render: (val) => (
-        <Badge
-          variant={val ? "default" : "secondary"}
-          className={
-            val
-              ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10"
-              : ""
-          }
-        >
-          {val ? "Dihuni" : "Tersedia"}
-        </Badge>
-      ),
+      render: (val, row: HouseWithResidents) => {
+        const hasResidents = row.residents && row.residents.length > 0;
+        const isOccupied = val && hasResidents;
+        return (
+          <Badge
+            variant={isOccupied ? "default" : "secondary"}
+            className={
+              isOccupied
+                ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10"
+                : ""
+            }
+          >
+            {isOccupied ? "Dihuni" : "Tersedia"}
+          </Badge>
+        );
+      },
     },
     {
       key: "id",
