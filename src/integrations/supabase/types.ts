@@ -1308,6 +1308,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_update_house_status: { Args: never; Returns: undefined }
       can_change_vote: {
         Args: { _poll_id: string; _user_id: string }
         Returns: boolean
