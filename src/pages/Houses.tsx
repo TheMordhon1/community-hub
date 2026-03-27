@@ -97,6 +97,9 @@ export default function Houses() {
   const { data: houses = [], isLoading } = useQuery({
     queryKey: ["houses-with-residents"],
     queryFn: async () => {
+      // Auto-update houses with passed estimated_return_date
+      await supabase.rpc("auto_update_house_status");
+
       const { data: houses, error: housesError } = await supabase
         .from("houses")
         .select("*")
