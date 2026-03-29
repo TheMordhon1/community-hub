@@ -453,10 +453,24 @@ export default function Inventory() {
     setSelectedItems(newSelected);
   };
 
-  const updateSelectedQuantity = (itemId: string, qty: number, maxAvailable: number) => {
+  const updateSelectedQuantity = (itemId: string, qty: number | "", maxAvailable: number) => {
     const newSelected = new Map(selectedItems);
-    newSelected.set(itemId, Math.min(Math.max(1, qty), maxAvailable));
+    if (qty === "" || qty === 0) {
+      newSelected.set(itemId, 0);
+    } else {
+      newSelected.set(itemId, Math.min(Math.max(1, qty), maxAvailable));
+    }
     setSelectedItems(newSelected);
+  };
+
+  const finalizeSelectedQuantity = (itemId: string, maxAvailable: number) => {
+    const current = selectedItems.get(itemId);
+    if (!current || current < 1) {
+      const newSelected = new Map(selectedItems);
+      newSelected.set(itemId, 1);
+      setSelectedItems(newSelected);
+    }
+  };
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -743,8 +757,9 @@ export default function Inventory() {
                                   min={1}
                                   max={item.available_quantity}
                                   className="h-12 text-lg font-bold text-center appearance-none"
-                                  value={selectedItems.get(item.id) || 1}
-                                  onChange={(e) => updateSelectedQuantity(item.id, parseInt(e.target.value) || 1, item.available_quantity)}
+                                  value={selectedItems.get(item.id) === 0 ? "" : (selectedItems.get(item.id) || 1)}
+                                  onChange={(e) => { const v = e.target.value; updateSelectedQuantity(item.id, v === "" ? "" : (parseInt(v) || 0), item.available_quantity); }}
+                                  onBlur={() => finalizeSelectedQuantity(item.id, item.available_quantity)}
                                 />
                               </div>
                             )}
@@ -860,8 +875,9 @@ export default function Inventory() {
                                       type="number"
                                       min={1}
                                       max={item.available_quantity}
-                                      value={selectedItems.get(item.id) || 1}
-                                      onChange={(e) => updateSelectedQuantity(item.id, parseInt(e.target.value) || 1, item.available_quantity)}
+                                      value={selectedItems.get(item.id) === 0 ? "" : (selectedItems.get(item.id) || 1)}
+                                      onChange={(e) => { const v = e.target.value; updateSelectedQuantity(item.id, v === "" ? "" : (parseInt(v) || 0), item.available_quantity); }}
+                                      onBlur={() => finalizeSelectedQuantity(item.id, item.available_quantity)}
                                       className="w-16 h-7 text-xs"
                                     />
                                   </div>
