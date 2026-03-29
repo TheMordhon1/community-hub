@@ -568,7 +568,7 @@ export default function Inventory() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium">Jumlah *</label>
-                        <Input type="number" min={1} value={itemForm.quantity} onChange={(e) => setItemForm({ ...itemForm, quantity: parseInt(e.target.value) || 1 })} />
+                        <Input type="number" min={1} value={itemForm.quantity === 0 ? "" : itemForm.quantity} onChange={(e) => { const val = e.target.value; setItemForm({ ...itemForm, quantity: val === "" ? 0 : (parseInt(val) || 0) }); }} onBlur={() => { if (itemForm.quantity < 1) setItemForm(f => ({ ...f, quantity: 1 })); }} />
                       </div>
                       <div>
                         <label className="text-sm font-medium">Kondisi *</label>
