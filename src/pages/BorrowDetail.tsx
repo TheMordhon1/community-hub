@@ -142,6 +142,9 @@ export default function BorrowDetail() {
 
   const deleteBorrowMutation = useMutation({
     mutationFn: async () => {
+      // Delete borrow items first (FK constraint)
+      const { error: itemsError } = await supabase.from("inventory_borrow_items").delete().eq("borrow_id", id!);
+      if (itemsError) throw itemsError;
       const { error } = await supabase.from("inventory_borrows").delete().eq("id", id);
       if (error) throw error;
     },
