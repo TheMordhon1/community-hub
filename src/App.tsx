@@ -33,6 +33,7 @@ import { Loader2 } from "lucide-react";
 import Houses from "@/pages/Houses";
 import Home from "@/pages/Index";
 import Inventory from "@/pages/Inventory";
+import BorrowDetail from "@/pages/BorrowDetail";
 import Maintenance from "@/pages/admin/Maintenance";
 import Schedule from "@/pages/Schedule";
 import ScheduleDetail from "@/pages/ScheduleDetail";
@@ -98,6 +99,7 @@ function AppRoutes() {
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/houses" element={<Houses />} />
           <Route path="/inventory" element={<Inventory />} />
+          <Route path="/inventory/borrow/:id" element={<BorrowDetail />} />
           <Route path="/admin/titles" element={<AdminTitles />} />
           <Route path="/admin/menus" element={<AdminMenus />} />
           <Route path="/admin/landing" element={<LandingSettings />} />

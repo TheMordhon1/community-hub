@@ -44,6 +44,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
 import {
   Plus,
@@ -61,11 +63,12 @@ import {
   X,
   HelpCircle,
   ArrowLeft,
+  CalendarIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useRef } from "react";
-import { getStoragePath } from "@/lib/utils";
+import { getStoragePath, cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 
 interface InventoryItem {
@@ -156,6 +159,7 @@ export default function Inventory() {
   const queryClient = useQueryClient();
   const [selectedItems, setSelectedItems] = useState<Map<string, number>>(new Map());
   const [borrowNotes, setBorrowNotes] = useState("");
+  const [expectedReturnDate, setExpectedReturnDate] = useState<Date>();
   const [borrowDialogOpen, setBorrowDialogOpen] = useState(false);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -242,16 +246,23 @@ export default function Inventory() {
   }));
 
   // Get active borrowers per item
-  const activeBorrowsByItem = new Map<string, { userName: string; quantity: number }[]>();
+  const activeBorrowsByItem = new Map<string, { userName: string; quantity: number; returnDate: string | null }[]>();
   borrows
     .filter((b) => b.status === "borrowed" || b.status === "approved")
     .forEach((b) => {
+      // Extract the estimating date if it exists
+      let estimatedReturn = null;
+      if (b.notes && b.notes.startsWith("Estimasi Pengembalian:")) {
+        estimatedReturn = b.notes.split("\n")[0].replace("Estimasi Pengembalian:", "").trim();
+      }
+
       const bItems = borrowItems.filter((bi) => bi.borrow_id === b.id);
       bItems.forEach((bi) => {
         const existing = activeBorrowsByItem.get(bi.item_id) || [];
         existing.push({
           userName: profileMap.get(b.user_id) || "Unknown",
           quantity: bi.quantity,
+          returnDate: estimatedReturn,
         });
         activeBorrowsByItem.set(bi.item_id, existing);
       });
@@ -347,12 +358,17 @@ export default function Inventory() {
     mutationFn: async () => {
       if (!user) throw new Error("Anda harus login");
       if (selectedItems.size === 0) throw new Error("Pilih minimal 1 barang");
+      if (!expectedReturnDate) throw new Error("Pilih estimasi tanggal pengembalian");
+
+      const finalNotes = borrowNotes 
+        ? `Estimasi Pengembalian: ${format(expectedReturnDate, "dd MMM yyyy", { locale: idLocale })}\n\nCatatan: ${borrowNotes}`
+        : `Estimasi Pengembalian: ${format(expectedReturnDate, "dd MMM yyyy", { locale: idLocale })}`;
 
       const { data: borrow, error: borrowError } = await supabase
         .from("inventory_borrows")
         .insert({
           user_id: user.id,
-          notes: borrowNotes || null,
+          notes: finalNotes,
           status: "pending",
         })
         .select()
@@ -371,10 +387,12 @@ export default function Inventory() {
       if (itemsError) throw itemsError;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory-borrows", "inventory-borrow-items"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory-borrows"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory-borrow-items"] });
       toast({ title: "Berhasil", description: "Permintaan peminjaman berhasil dikirim" });
       setSelectedItems(new Map());
       setBorrowNotes("");
+      setExpectedReturnDate(undefined);
       setBorrowDialogOpen(false);
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -420,7 +438,9 @@ export default function Inventory() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory-items", "inventory-borrows"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory-items"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory-borrows"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory-borrow-items"] });
       toast({ title: "Berhasil", description: "Status peminjaman diperbarui" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -537,12 +557,6 @@ export default function Inventory() {
             </div>
           </div>
           <div className="flex gap-2">
-            {selectedItems.size > 0 && (
-              <Button onClick={() => setBorrowDialogOpen(true)} className="gap-2 hidden sm:flex">
-                <Send className="w-4 h-4" />
-                Pinjam ({selectedItems.size})
-              </Button>
-            )}
             {canManage && (
               <Dialog open={itemDialogOpen} onOpenChange={(open) => {
                 setItemDialogOpen(open);
@@ -770,9 +784,14 @@ export default function Inventory() {
                                 </p>
                                 <div className="space-y-2">
                                   {borrowers.map((b, i) => (
-                                    <div key={i} className="flex items-center justify-between bg-muted/50 p-2 rounded-lg border border-border/30">
-                                      <span className="text-xs font-medium">{b.userName}</span>
-                                      <Badge variant="outline" className="text-[10px] font-bold bg-background">{b.quantity}x</Badge>
+                                    <div key={i} className="flex flex-col bg-muted/50 p-2 rounded-lg border border-border/30">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs font-medium">{b.userName}</span>
+                                        <Badge variant="outline" className="text-[10px] font-bold bg-background">{b.quantity}x</Badge>
+                                      </div>
+                                      {b.returnDate && (
+                                        <span className="text-[10px] text-muted-foreground mt-1">Kembali: {b.returnDate}</span>
+                                      )}
                                     </div>
                                   ))}
                                 </div>
@@ -896,9 +915,16 @@ export default function Inventory() {
                                 {borrowers.length > 0 ? (
                                   <div className="space-y-0.5">
                                     {borrowers.map((b, i) => (
-                                      <p key={i} className="text-xs flex items-center gap-1">
-                                        <User className="w-3 h-3" /> {b.userName}
-                                      </p>
+                                      <div key={i} className="flex flex-col gap-0.5 mb-1 last:mb-0">
+                                        <p className="text-xs flex items-center gap-1 font-medium">
+                                          <User className="w-3 h-3" /> {b.userName}
+                                        </p>
+                                        {b.returnDate && (
+                                          <p className="text-[10px] text-muted-foreground ml-4">
+                                            Kembali: {b.returnDate}
+                                          </p>
+                                        )}
+                                      </div>
                                     ))}
                                   </div>
                                 ) : (
@@ -969,9 +995,11 @@ export default function Inventory() {
                             <CardTitle className="text-base">{borrowerName}</CardTitle>
                             {getStatusBadge(borrow.status)}
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                            {format(new Date(borrow.created_at), "dd MMM yyyy HH:mm", { locale: idLocale })}
-                          </span>
+                          <Link to={`/inventory/borrow/${borrow.id}`}>
+                            <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
+                              Lihat Detail
+                            </Button>
+                          </Link>
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-3">
@@ -985,7 +1013,11 @@ export default function Inventory() {
                             );
                           })}
                         </div>
-                        {borrow.notes && <p className="text-sm text-muted-foreground">Catatan: {borrow.notes}</p>}
+                        {borrow.notes && (
+                          <div className="text-sm text-muted-foreground whitespace-pre-wrap pt-1">
+                            {borrow.notes.startsWith("Estimasi Pengembalian:") ? borrow.notes : `Catatan: ${borrow.notes}`}
+                          </div>
+                        )}
                         {approverName && (
                           <p className="text-xs text-muted-foreground">Disetujui oleh: {approverName}</p>
                         )}
@@ -1047,11 +1079,38 @@ export default function Inventory() {
                 })}
               </div>
               <div>
+                <label className="text-sm font-medium">Estimasi Tanggal Pengembalian *</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal mt-1",
+                        !expectedReturnDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {expectedReturnDate ? format(expectedReturnDate, "dd MMM yyyy", { locale: idLocale }) : <span>Pilih tanggal</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={expectedReturnDate}
+                      onSelect={setExpectedReturnDate}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
                 <label className="text-sm font-medium">Catatan (opsional)</label>
                 <Textarea
                   value={borrowNotes}
                   onChange={(e) => setBorrowNotes(e.target.value)}
-                  placeholder="Tujuan peminjaman, estimasi pengembalian, dll."
+                  placeholder="Tujuan peminjaman, dll."
+                  className="mt-1"
                 />
               </div>
             </div>
@@ -1149,7 +1208,7 @@ export default function Inventory() {
         </DialogContent>
       </Dialog>
 
-      {/* Sticky mobile borrow button */}
+      {/* Sticky borrow button */}
       <AnimatePresence>
         {selectedItems.size > 0 && (
           <motion.div
@@ -1158,11 +1217,11 @@ export default function Inventory() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 80 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed bottom-10 left-4 right-4 z-50 sm:hidden"
+            className="fixed bottom-10 left-4 right-4 sm:left-auto sm:right-10 z-50"
           >
             <Button
               onClick={() => setBorrowDialogOpen(true)}
-              className="w-full gap-2 shadow-2xl h-12 text-base font-semibold rounded-2xl"
+              className="w-full sm:w-auto gap-2 shadow-2xl h-12 text-base font-semibold rounded-2xl sm:rounded-full sm:px-8"
             >
               <Send className="w-5 h-5" />
               Pinjam {selectedItems.size} Barang
