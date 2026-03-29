@@ -875,8 +875,9 @@ export default function Inventory() {
                                       type="number"
                                       min={1}
                                       max={item.available_quantity}
-                                      value={selectedItems.get(item.id) || 1}
-                                      onChange={(e) => updateSelectedQuantity(item.id, parseInt(e.target.value) || 1, item.available_quantity)}
+                                      value={selectedItems.get(item.id) === 0 ? "" : (selectedItems.get(item.id) || 1)}
+                                      onChange={(e) => { const v = e.target.value; updateSelectedQuantity(item.id, v === "" ? "" : (parseInt(v) || 0), item.available_quantity); }}
+                                      onBlur={() => finalizeSelectedQuantity(item.id, item.available_quantity)}
                                       className="w-16 h-7 text-xs"
                                     />
                                   </div>
