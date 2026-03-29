@@ -180,8 +180,8 @@ export default function BorrowDetail() {
       const hasDuplicatesInDb = bItems.length !== originalItems.size;
       const itemsChanged =
         hasDuplicatesInDb ||
-        editItems.size !== originalItems.size ||
-        Array.from(editItems.entries()).some(
+        validItems.size !== originalItems.size ||
+        Array.from(validItems.entries()).some(
           ([itemId, qty]) => originalItems.get(itemId) !== qty
         );
 
@@ -193,7 +193,7 @@ export default function BorrowDetail() {
           .eq("borrow_id", id);
         if (deleteError) throw deleteError;
 
-        const newItems = Array.from(editItems.entries()).map(([item_id, quantity]) => ({
+        const newItems = Array.from(validItems.entries()).map(([item_id, quantity]) => ({
           borrow_id: id,
           item_id,
           quantity,
