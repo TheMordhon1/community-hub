@@ -142,6 +142,9 @@ export default function BorrowDetail() {
 
   const deleteBorrowMutation = useMutation({
     mutationFn: async () => {
+      // Delete borrow items first (FK constraint)
+      const { error: itemsError } = await supabase.from("inventory_borrow_items").delete().eq("borrow_id", id!);
+      if (itemsError) throw itemsError;
       const { error } = await supabase.from("inventory_borrows").delete().eq("id", id);
       if (error) throw error;
     },
@@ -157,7 +160,9 @@ export default function BorrowDetail() {
   const updateBorrowMutation = useMutation({
     mutationFn: async () => {
       if (!editReturnDate) throw new Error("Pilih estimasi tanggal pengembalian");
-      if (editItems.size === 0) throw new Error("Pilih minimal 1 barang");
+      // Filter out zero-quantity items
+      const validItems = new Map(Array.from(editItems.entries()).filter(([, qty]) => qty > 0));
+      if (validItems.size === 0) throw new Error("Pilih minimal 1 barang");
 
       const finalNotes = editNotes 
         ? `Estimasi Pengembalian: ${format(editReturnDate, "dd MMM yyyy", { locale: idLocale })}\n\nCatatan: ${editNotes}`
@@ -175,8 +180,8 @@ export default function BorrowDetail() {
       const hasDuplicatesInDb = bItems.length !== originalItems.size;
       const itemsChanged =
         hasDuplicatesInDb ||
-        editItems.size !== originalItems.size ||
-        Array.from(editItems.entries()).some(
+        validItems.size !== originalItems.size ||
+        Array.from(validItems.entries()).some(
           ([itemId, qty]) => originalItems.get(itemId) !== qty
         );
 
@@ -188,7 +193,7 @@ export default function BorrowDetail() {
           .eq("borrow_id", id);
         if (deleteError) throw deleteError;
 
-        const newItems = Array.from(editItems.entries()).map(([item_id, quantity]) => ({
+        const newItems = Array.from(validItems.entries()).map(([item_id, quantity]) => ({
           borrow_id: id,
           item_id,
           quantity,
@@ -235,14 +240,31 @@ export default function BorrowDetail() {
     setEditDialogOpen(true);
   };
 
-  const updateEditQuantity = (itemId: string, qty: number, maxAvailable: number) => {
+  const updateEditQuantity = (itemId: string, qty: number | "", maxAvailable: number) => {
     const newItems = new Map(editItems);
-    if (qty <= 0) {
+    if (qty === "" || qty === 0) {
+      newItems.set(itemId, 0);
+    } else if (qty < 0) {
       newItems.delete(itemId);
     } else {
       newItems.set(itemId, Math.min(qty, maxAvailable));
     }
     setEditItems(newItems);
+  };
+
+  const removeEditItem = (itemId: string) => {
+    const newItems = new Map(editItems);
+    newItems.delete(itemId);
+    setEditItems(newItems);
+  };
+
+  const finalizeEditQuantity = (itemId: string) => {
+    const current = editItems.get(itemId);
+    if (current === undefined || current < 1) {
+      const newItems = new Map(editItems);
+      newItems.set(itemId, 1);
+      setEditItems(newItems);
+    }
   };
 
   const remainingItemsToAdd = allItems.filter(i => i.available_quantity > 0 && i.condition !== "broken" && !editItems.has(i.id));
@@ -475,20 +497,21 @@ export default function BorrowDetail() {
                       <div className="flex items-center gap-2">
                         <Input
                           type="number"
-                          min={0}
+                          min={1}
                           max={maxAllowed}
                           className="w-16 h-8 text-center text-xs"
                           value={qty === 0 ? "" : qty}
                           onChange={(e) => {
-                            const val = e.target.value === "" ? 0 : parseInt(e.target.value);
-                            updateEditQuantity(itemId, val || 0, maxAllowed);
+                            const val = e.target.value;
+                            updateEditQuantity(itemId, val === "" ? "" : (parseInt(val) || 0), maxAllowed);
                           }}
+                          onBlur={() => finalizeEditQuantity(itemId)}
                         />
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => updateEditQuantity(itemId, 0, 0)}
+                          onClick={() => removeEditItem(itemId)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
