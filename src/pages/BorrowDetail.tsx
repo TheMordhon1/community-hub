@@ -495,20 +495,21 @@ export default function BorrowDetail() {
                       <div className="flex items-center gap-2">
                         <Input
                           type="number"
-                          min={0}
+                          min={1}
                           max={maxAllowed}
                           className="w-16 h-8 text-center text-xs"
                           value={qty === 0 ? "" : qty}
                           onChange={(e) => {
-                            const val = e.target.value === "" ? 0 : parseInt(e.target.value);
-                            updateEditQuantity(itemId, val || 0, maxAllowed);
+                            const val = e.target.value;
+                            updateEditQuantity(itemId, val === "" ? "" : (parseInt(val) || 0), maxAllowed);
                           }}
+                          onBlur={() => finalizeEditQuantity(itemId)}
                         />
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => updateEditQuantity(itemId, 0, 0)}
+                          onClick={() => removeEditItem(itemId)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
