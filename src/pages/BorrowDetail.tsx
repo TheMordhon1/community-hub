@@ -160,7 +160,9 @@ export default function BorrowDetail() {
   const updateBorrowMutation = useMutation({
     mutationFn: async () => {
       if (!editReturnDate) throw new Error("Pilih estimasi tanggal pengembalian");
-      if (editItems.size === 0) throw new Error("Pilih minimal 1 barang");
+      // Filter out zero-quantity items
+      const validItems = new Map(Array.from(editItems.entries()).filter(([, qty]) => qty > 0));
+      if (validItems.size === 0) throw new Error("Pilih minimal 1 barang");
 
       const finalNotes = editNotes 
         ? `Estimasi Pengembalian: ${format(editReturnDate, "dd MMM yyyy", { locale: idLocale })}\n\nCatatan: ${editNotes}`
