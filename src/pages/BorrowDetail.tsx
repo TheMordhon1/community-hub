@@ -1,36 +1,21 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, Share2, Package, CheckCircle, XCircle, RotateCcw, Edit, Trash2, CalendarIcon } from "lucide-react";
-import { format, parse } from "date-fns";
+import { Loader2 } from "lucide-react";
+import { parse } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { ShareDialog } from "@/components/ShareDialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import { useNavigate } from "react-router-dom";
 
-function getStatusBadge(status: string) {
-  switch (status) {
-    case "pending": return <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-300">Menunggu</Badge>;
-    case "approved": return <Badge className="bg-blue-500/20 text-blue-700 border-blue-300">Disetujui</Badge>;
-    case "borrowed": return <Badge className="bg-purple-500/20 text-purple-700 border-purple-300">Dipinjam</Badge>;
-    case "returned": return <Badge className="bg-green-500/20 text-green-700 border-green-300">Dikembalikan</Badge>;
-    case "rejected": return <Badge variant="destructive">Ditolak</Badge>;
-    default: return <Badge variant="outline">{status}</Badge>;
-  }
-}
+// Sub-components
+import { BorrowDetailHeader } from "./borrow-detail/components/BorrowDetailHeader";
+import { BorrowDetailCard } from "./borrow-detail/components/BorrowDetailCard";
+import { BorrowEditDialog } from "./borrow-detail/components/BorrowEditDialog";
+import { BorrowRejectDialog } from "./borrow-detail/components/BorrowRejectDialog";
+import { InventoryItemRef, BorrowRequest, BorrowItem } from "./borrow-detail/types";
 
 export default function BorrowDetail() {
   const { id } = useParams<{ id: string }>();
@@ -40,22 +25,36 @@ export default function BorrowDetail() {
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editReturnDate, setEditReturnDate] = useState<Date>();
   const [editItems, setEditItems] = useState<Map<string, number>>(new Map());
 
+  // ─── Queries ────────────────────────────────────────────────────────────────
+
   const { data: borrow, isLoading: borrowLoading } = useQuery({
     queryKey: ["inventory-borrow", id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("inventory_borrows")
-        .select("*")
-        .eq("id", id)
-        .single();
-      
+      const { data, error } = await supabase.from("inventory_borrows").select("*").eq("id", id!).single();
       if (error) throw error;
-      return data;
+      return data as BorrowRequest;
     },
+    enabled: !!id,
+  });
+
+  const { data: userHouseId } = useQuery({
+    queryKey: ["user-house-id", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("house_members")
+        .select("house_id")
+        .eq("user_id", user?.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.house_id || null;
+    },
+    enabled: !!user?.id,
   });
 
   const { data: profiles = [] } = useQuery({
@@ -72,14 +71,10 @@ export default function BorrowDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inventory_borrow_items")
-        .select(`
-          *,
-          item:inventory_items(*)
-        `)
-        .eq("borrow_id", id);
-      
+        .select("*, item:inventory_items(*)")
+        .eq("borrow_id", id!);
       if (error) throw error;
-      return data;
+      return data as BorrowItem[];
     },
     enabled: !!id,
   });
@@ -89,12 +84,21 @@ export default function BorrowDetail() {
     queryFn: async () => {
       const { data, error } = await supabase.from("inventory_items").select("*").order("name");
       if (error) throw error;
-      return data;
+      return data as InventoryItemRef[];
     },
   });
 
-  const updateBorrowStatusMutation = useMutation({
-    mutationFn: async ({ id, status, currentStatus }: { id: string; status: string; currentStatus: string }) => {
+  // ─── Mutations ───────────────────────────────────────────────────────────────
+
+  const invalidateBorrow = () => {
+    queryClient.invalidateQueries({ queryKey: ["inventory-items"] });
+    queryClient.invalidateQueries({ queryKey: ["inventory-borrows"] });
+    queryClient.invalidateQueries({ queryKey: ["inventory-borrow", id] });
+    queryClient.invalidateQueries({ queryKey: ["inventory-borrow-items", id] });
+  };
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ status, currentStatus }: { status: string; currentStatus: string }) => {
       const updateData: Record<string, unknown> = { status };
       if (status === "approved") {
         updateData.approved_by = user?.id;
@@ -103,17 +107,18 @@ export default function BorrowDetail() {
       if (status === "returned") {
         updateData.return_date = new Date().toISOString();
       }
-      const { error } = await supabase.from("inventory_borrows").update(updateData).eq("id", id);
+      if (status === "pending") {
+        updateData.approved_by = null;
+        updateData.approved_at = null;
+      }
+      const { error } = await supabase.from("inventory_borrows").update(updateData).eq("id", id!);
       if (error) throw error;
 
-      // Ensure item quantity is managed only if we haven't already subtracted (e.g., jump from approved -> borrowed)
-      // For simplicity, we assume strict state machine: pending -> approved -> borrowed -> returned
       if (status === "borrowed" && currentStatus !== "borrowed") {
         for (const bi of bItems) {
-          const item = bi.item as { available_quantity: number, quantity: number, id: string } | null;
+          const item = bi.item;
           if (item) {
-            await supabase
-              .from("inventory_items")
+            await supabase.from("inventory_items")
               .update({ available_quantity: Math.max(0, item.available_quantity - bi.quantity) })
               .eq("id", bi.item_id);
           }
@@ -121,10 +126,9 @@ export default function BorrowDetail() {
       }
       if (status === "returned" && currentStatus === "borrowed") {
         for (const bi of bItems) {
-          const item = bi.item as { available_quantity: number, quantity: number, id: string } | null;
+          const item = bi.item;
           if (item) {
-            await supabase
-              .from("inventory_items")
+            await supabase.from("inventory_items")
               .update({ available_quantity: Math.min(item.quantity, item.available_quantity + bi.quantity) })
               .eq("id", bi.item_id);
           }
@@ -132,469 +136,203 @@ export default function BorrowDetail() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory-items"] });
-      queryClient.invalidateQueries({ queryKey: ["inventory-borrows"] });
-      queryClient.invalidateQueries({ queryKey: ["inventory-borrow", id] });
+      invalidateBorrow();
       toast({ title: "Berhasil", description: "Status peminjaman diperbarui" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  const deleteBorrowMutation = useMutation({
+  const rejectMutation = useMutation({
+    mutationFn: async (reason: string) => {
+      const notesWithReason = reason.trim()
+        ? `${borrow?.notes || ""}\n\n[Alasan Penolakan]: ${reason.trim()}`
+        : borrow?.notes || "";
+      const { error: notesError } = await supabase
+        .from("inventory_borrows")
+        .update({ notes: notesWithReason, status: "rejected" })
+        .eq("id", id!);
+      if (notesError) throw notesError;
+    },
+    onSuccess: () => {
+      invalidateBorrow();
+      toast({ title: "Berhasil", description: "Peminjaman ditolak" });
+      setRejectDialogOpen(false);
+      setRejectReason("");
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
     mutationFn: async () => {
-      // Delete borrow items first (FK constraint)
       const { error: itemsError } = await supabase.from("inventory_borrow_items").delete().eq("borrow_id", id!);
       if (itemsError) throw itemsError;
-      const { error } = await supabase.from("inventory_borrows").delete().eq("id", id);
+      const { error } = await supabase.from("inventory_borrows").delete().eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory-borrows"] });
-      queryClient.invalidateQueries({ queryKey: ["inventory-borrow-items"] });
       toast({ title: "Berhasil", description: "Peminjaman dibatalkan" });
       navigate("/inventory");
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  const updateBorrowMutation = useMutation({
+  const updateDetailsMutation = useMutation({
     mutationFn: async () => {
       if (!editReturnDate) throw new Error("Pilih estimasi tanggal pengembalian");
-      // Filter out zero-quantity items
       const validItems = new Map(Array.from(editItems.entries()).filter(([, qty]) => qty > 0));
       if (validItems.size === 0) throw new Error("Pilih minimal 1 barang");
 
-      const finalNotes = editNotes 
-        ? `Estimasi Pengembalian: ${format(editReturnDate, "dd MMM yyyy", { locale: idLocale })}\n\nCatatan: ${editNotes}`
-        : `Estimasi Pengembalian: ${format(editReturnDate, "dd MMM yyyy", { locale: idLocale })}`;
+      // Recalculate notes which includes the estimation date
+      const dateStr = parseReturnDateFromNotes(borrow?.notes || "");
+      const cleanNotes = borrow?.notes?.split("\n\nCatatan: ")[1] || "";
+      
+      const finalNotes = editNotes
+        ? `Estimasi Pengembalian: ${parseReturnDateFromDate(editReturnDate)}\n\nCatatan: ${editNotes}`
+        : `Estimasi Pengembalian: ${parseReturnDateFromDate(editReturnDate)}`;
 
       const { error: notesError } = await supabase
         .from("inventory_borrows")
         .update({ notes: finalNotes })
-        .eq("id", id);
-      
+        .eq("id", id!);
       if (notesError) throw notesError;
 
-      // Check if items have actually changed, or if the DB has duplicate rows (self-healing)
       const originalItems = new Map(bItems.map(bi => [bi.item_id, bi.quantity]));
-      const hasDuplicatesInDb = bItems.length !== originalItems.size;
-      const itemsChanged =
-        hasDuplicatesInDb ||
+      const itemsChanged = bItems.length !== originalItems.size ||
         validItems.size !== originalItems.size ||
-        Array.from(validItems.entries()).some(
-          ([itemId, qty]) => originalItems.get(itemId) !== qty
-        );
+        Array.from(validItems.entries()).some(([itemId, qty]) => originalItems.get(itemId) !== qty);
 
       if (itemsChanged) {
-        // Update items by deleting old ones and inserting new ones
-        const { error: deleteError } = await supabase
-          .from("inventory_borrow_items")
-          .delete()
-          .eq("borrow_id", id);
+        const { error: deleteError } = await supabase.from("inventory_borrow_items").delete().eq("borrow_id", id!);
         if (deleteError) throw deleteError;
-
-        const newItems = Array.from(validItems.entries()).map(([item_id, quantity]) => ({
-          borrow_id: id,
-          item_id,
-          quantity,
-        }));
-
-        const { error: insertError } = await supabase
-          .from("inventory_borrow_items")
-          .insert(newItems);
+        
+        const { error: insertError } = await supabase.from("inventory_borrow_items").insert(
+          Array.from(validItems.entries()).map(([item_id, quantity]) => ({ borrow_id: id!, item_id, quantity }))
+        );
         if (insertError) throw insertError;
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory-borrows"] });
-      queryClient.invalidateQueries({ queryKey: ["inventory-borrow", id] });
-      queryClient.invalidateQueries({ queryKey: ["inventory-borrow-items", id] });
+      invalidateBorrow();
       toast({ title: "Berhasil", description: "Peminjaman diperbarui" });
       setEditDialogOpen(false);
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  // ─── Helpers ────────────────────────────────────────────────────────────────
+
+  const parseReturnDateFromNotes = (notes: string) => {
+    if (!notes.startsWith("Estimasi Pengembalian:")) return null;
+    return notes.split("\n")[0].replace("Estimasi Pengembalian: ", "").trim();
+  };
+
+  const parseReturnDateFromDate = (date: Date) => {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = date.toLocaleString('id-ID', { month: 'short' });
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  };
+
   const openEditDialog = () => {
-    if (borrow?.notes && borrow.notes.startsWith("Estimasi Pengembalian:")) {
+    if (borrow?.notes?.startsWith("Estimasi Pengembalian:")) {
       const parts = borrow.notes.split("\n\nCatatan: ");
-      if (parts.length > 1) {
-        setEditNotes(parts[1]);
-      } else {
-        setEditNotes("");
-      }
+      setEditNotes(parts.length > 1 ? parts[1] : "");
       const dateStr = parts[0].replace("Estimasi Pengembalian: ", "").trim();
-      const parsedDate = parse(dateStr, "dd MMM yyyy", new Date(), { locale: idLocale });
-      if (!isNaN(parsedDate.getTime())) {
-        setEditReturnDate(parsedDate);
-      }
+      const parsed = parse(dateStr, "dd MMM yyyy", new Date(), { locale: idLocale });
+      if (!isNaN(parsed.getTime())) setEditReturnDate(parsed);
     } else {
       setEditNotes(borrow?.notes || "");
     }
-
-    const itemMap = new Map<string, number>();
-    bItems.forEach((bi) => {
-      itemMap.set(bi.item_id, bi.quantity);
-    });
-    setEditItems(itemMap);
+    setEditItems(new Map(bItems.map(bi => [bi.item_id, bi.quantity])));
     setEditDialogOpen(true);
   };
 
-  const updateEditQuantity = (itemId: string, qty: number | "", maxAvailable: number) => {
-    const newItems = new Map(editItems);
-    if (qty === "" || qty === 0) {
-      newItems.set(itemId, 0);
-    } else if (qty < 0) {
-      newItems.delete(itemId);
-    } else {
-      newItems.set(itemId, Math.min(qty, maxAvailable));
-    }
-    setEditItems(newItems);
-  };
-
-  const removeEditItem = (itemId: string) => {
-    const newItems = new Map(editItems);
-    newItems.delete(itemId);
-    setEditItems(newItems);
-  };
-
-  const finalizeEditQuantity = (itemId: string) => {
-    const current = editItems.get(itemId);
-    if (current === undefined || current < 1) {
-      const newItems = new Map(editItems);
-      newItems.set(itemId, 1);
-      setEditItems(newItems);
-    }
-  };
-
-  const remainingItemsToAdd = allItems.filter(i => i.available_quantity > 0 && i.condition !== "broken" && !editItems.has(i.id));
-
-  const shareUrl = `${window.location.origin}/inventory/borrow/${id}`;
-
   if (borrowLoading || itemsLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[50vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="flex justify-center items-center min-h-[50vh]"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
 
   if (!borrow) {
     return (
       <div className="p-6 text-center">
         <h2 className="text-xl font-semibold mb-4">Peminjaman tidak ditemukan</h2>
-        <Link to="/inventory">
-          <Button variant="outline">Kembali ke Inventaris</Button>
-        </Link>
+        <Link to="/inventory"><Button variant="outline">Kembali ke Inventaris</Button></Link>
       </div>
     );
   }
 
-  const profileMap = new Map(profiles.map(p => [p.id, p.full_name]));
-  const canManage = canManageContent() || isAdmin();
-  const borrowerName = profileMap.get(borrow.user_id) || "Unknown";
-  const approverName = borrow.approved_by ? profileMap.get(borrow.approved_by) : null;
-  const shareText = `📦 Peminjaman Inventaris oleh ${borrowerName}\n${bItems.map(bi => `• ${(bi.item as { name: string } | null)?.name || 'Item'} (${bi.quantity}x)`).join('\n')}`;
+  const profileMap     = new Map(profiles.map(p => [p.id, p.full_name]));
+  const canManage      = canManageContent() || isAdmin();
+  const isOwner        = user?.id === borrow.user_id;
+  const isHousemate    = userHouseId && borrow.house_id === userHouseId;
+  const canEdit        = borrow.status === "pending" && (isOwner || isHousemate || canManage);
+  const borrowerName   = profileMap.get(borrow.user_id) || "Unknown";
+  const approverName   = borrow.approved_by ? profileMap.get(borrow.approved_by) : null;
+  const shareUrl       = `${window.location.origin}/inventory/borrow/${id}`;
+  const shareText      = `📦 Peminjaman Inventaris oleh ${borrowerName}\n${bItems.map(bi => {
+    return `• ${bi.item?.name || "Item"} (${bi.quantity}x)`;
+  }).join("\n")}`;
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6 pb-24">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link to="/inventory">
-            <Button variant="outline" size="icon" className="h-9 w-9">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <h1 className="text-2xl font-bold">Detail Peminjaman</h1>
-        </div>
-        <div className="flex gap-2">
-          {borrow.status === "pending" && (user?.id === borrow.user_id || canManage) && (
-            <>
-              <Button variant="outline" size="sm" onClick={openEditDialog} className="gap-2 hidden sm:flex">
-                <Edit className="w-4 h-4" />
-                Edit
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 hidden sm:flex">
-                    <Trash2 className="w-4 h-4" />
-                    Batal
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Batalkan Peminjaman?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Tindakan ini akan menghapus permintaan peminjaman. Aksi ini tidak dapat dibatalkan.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Tutup</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => deleteBorrowMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                      Batalkan
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
-          )}
-          <Button variant="outline" size="sm" onClick={() => setShareDialogOpen(true)} className="gap-2">
-            <Share2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Bagikan</span>
-          </Button>
-        </div>
-      </div>
+      <BorrowDetailHeader
+        canEdit={canEdit}
+        onEdit={openEditDialog}
+        onCancel={() => deleteMutation.mutate()}
+        onShare={() => setShareDialogOpen(true)}
+        isDeleting={deleteMutation.isPending}
+      />
 
-      <Card className="shadow-lg border-2">
-        <CardHeader className="bg-muted/30 border-b">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <CardTitle className="text-xl">{borrowerName}</CardTitle>
-              <CardDescription>
-                Diajukan pada: {format(new Date(borrow.created_at), "dd MMM yyyy HH:mm", { locale: idLocale })}
-              </CardDescription>
-            </div>
-            {getStatusBadge(borrow.status)}
-          </div>
-        </CardHeader>
-        <CardContent className="p-6 space-y-6">
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Daftar Barang</h3>
-            <div className="space-y-3">
-              {bItems.map((bi) => {
-                const item = bi.item as { name: string, category: string, image_url: string } | null;
-                return (
-                  <div key={bi.id} className="flex items-center justify-between bg-muted/50 p-3 rounded-lg border">
-                    <div className="flex items-center gap-3">
-                      {item?.image_url ? (
-                        <div className="w-10 h-10 rounded overflow-hidden bg-background shrink-0">
-                          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 rounded bg-background border flex items-center justify-center shrink-0">
-                          <Package className="w-5 h-5 text-muted-foreground/50" />
-                        </div>
-                      )}
-                      <div>
-                        <p className="font-medium text-sm sm:text-base leading-tight">{item?.name || "Unknown"}</p>
-                        {item?.category && <p className="text-xs text-muted-foreground">{item.category}</p>}
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="font-bold sm:text-base px-3 py-1">{bi.quantity} unit</Badge>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+      <BorrowDetailCard
+        borrow={borrow}
+        borrowerName={borrowerName}
+        approverName={approverName}
+        bItems={bItems}
+        canManage={canManage}
+        canEdit={canEdit}
+        onEdit={openEditDialog}
+        onCancel={() => deleteMutation.mutate()}
+        onReject={() => setRejectDialogOpen(true)}
+        onStatusUpdate={(status) => updateStatusMutation.mutate({ status, currentStatus: borrow.status })}
+        isDeleting={deleteMutation.isPending}
+      />
 
-          <div className="grid sm:grid-cols-2 gap-6 bg-muted/20 p-4 rounded-xl border">
-            {borrow.notes && (
-              <div className="sm:col-span-2">
-                <h3 className="text-sm font-semibold text-muted-foreground mb-1">Informasi & Catatan</h3>
-                <p className="text-sm font-medium whitespace-pre-wrap leading-relaxed">
-                  {borrow.notes.startsWith("Estimasi Pengembalian:") ? borrow.notes : `Catatan: ${borrow.notes}`}
-                </p>
-              </div>
-            )}
-            
-            {approverName && (
-              <div>
-                <h3 className="text-sm font-semibold text-muted-foreground mb-1">Disetujui Oleh</h3>
-                <p className="text-sm font-medium">{approverName}</p>
-                {borrow.approved_at && (
-                  <p className="text-xs text-muted-foreground">
-                    Pada {format(new Date(borrow.approved_at), "dd MMM yyyy HH:mm", { locale: idLocale })}
-                  </p>
-                )}
-              </div>
-            )}
+      <BorrowEditDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        editItems={editItems}
+        editNotes={editNotes}
+        editReturnDate={editReturnDate}
+        allItems={allItems}
+        bItems={bItems}
+        isUpdating={updateDetailsMutation.isPending}
+        onUpdateNotes={setEditNotes}
+        onUpdateReturnDate={setEditReturnDate}
+        onUpdateQuantity={(itemId, qty, maxAvail) => {
+          setEditItems(prev => {
+            const next = new Map(prev);
+            if (qty === "" || qty === 0) next.set(itemId, 0);
+            else if (qty < 0) next.delete(itemId);
+            else next.set(itemId, Math.min(qty, maxAvail));
+            return next;
+          });
+        }}
+        onRemoveItem={(itemId) => setEditItems(prev => { const next = new Map(prev); next.delete(itemId); return next; })}
+        onFinalizeQuantity={(itemId) => {
+          const current = editItems.get(itemId);
+          if (current === undefined || current < 1) setEditItems(prev => new Map(prev).set(itemId, 1));
+        }}
+        onSave={() => updateDetailsMutation.mutate()}
+      />
 
-            {borrow.return_date && (
-              <div>
-                <h3 className="text-sm font-semibold text-muted-foreground mb-1">Dikembalikan Pada</h3>
-                <p className="text-sm font-medium">
-                  {format(new Date(borrow.return_date), "dd MMM yyyy HH:mm", { locale: idLocale })}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {canManage && (
-            <div className="flex flex-wrap items-center gap-3 pt-4 border-t">
-              {borrow.status === "pending" && (
-                <>
-                  <Button onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "approved", currentStatus: borrow.status })} className="gap-2">
-                    <CheckCircle className="w-4 h-4" /> Setujui
-                  </Button>
-                  <Button variant="destructive" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "rejected", currentStatus: borrow.status })} className="gap-2">
-                    <XCircle className="w-4 h-4" /> Tolak
-                  </Button>
-                </>
-              )}
-              {borrow.status === "approved" && (
-                <Button onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "borrowed", currentStatus: borrow.status })} className="gap-2">
-                  <Package className="w-4 h-4" /> Tandai Dipinjam (Keluar)
-                </Button>
-              )}
-              {borrow.status === "borrowed" && (
-                <Button onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "returned", currentStatus: borrow.status })} className="gap-2">
-                  <RotateCcw className="w-4 h-4" /> Tandai Dikembalikan
-                </Button>
-              )}
-            </div>
-          )}
-          
-          {/* Mobile action buttons for edit/cancel (stacked at bottom) */}
-          {borrow.status === "pending" && (user?.id === borrow.user_id || canManage) && (
-            <div className="flex sm:hidden gap-2 pt-4 border-t w-full">
-              <Button variant="outline" size="sm" onClick={openEditDialog} className="flex-1 gap-2">
-                <Edit className="w-4 h-4" /> Edit
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex-1 gap-2 text-destructive hover:bg-destructive/10">
-                    <Trash2 className="w-4 h-4" /> Batal
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Batalkan Peminjaman?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Tindakan ini akan menghapus permintaan peminjaman. Aksi ini tidak dapat dibatalkan.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Tutup</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => deleteBorrowMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                      Batalkan
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Peminjaman</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Daftar Barang *</label>
-              <div className="space-y-2 mb-3">
-                {Array.from(editItems.entries()).map(([itemId, qty]) => {
-                  const item = allItems.find(i => i.id === itemId);
-                  if (!item) return null;
-                  const alreadyRequested = bItems.find(bi => bi.item_id === itemId)?.quantity ?? 0;
-                  const maxAllowed = item.available_quantity + alreadyRequested;
-                  return (
-                    <div key={itemId} className="flex items-center justify-between p-2 rounded-lg border bg-muted/20">
-                      <span className="text-sm font-medium truncate flex-1">{item.name}</span>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min={1}
-                          max={maxAllowed}
-                          className="w-16 h-8 text-center text-xs"
-                          value={qty === 0 ? "" : qty}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            updateEditQuantity(itemId, val === "" ? "" : (parseInt(val) || 0), maxAllowed);
-                          }}
-                          onBlur={() => finalizeEditQuantity(itemId)}
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => removeEditItem(itemId)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-                {editItems.size === 0 && <p className="text-xs text-muted-foreground p-2 text-center border rounded-lg border-dashed">Belum ada barang dipilih.</p>}
-              </div>
-
-              {remainingItemsToAdd.length > 0 && (
-                <Select
-                  onValueChange={(val) => {
-                    if (val) {
-                      const item = allItems.find(i => i.id === val);
-                      if (item) {
-                        const alreadyRequested = bItems.find(bi => bi.item_id === item.id)?.quantity ?? 0;
-                        const maxAllowed = item.available_quantity + alreadyRequested;
-                        updateEditQuantity(val, 1, maxAllowed);
-                      }
-                    }
-                  }}
-                  value=""
-                >
-                  <SelectTrigger className="w-full text-sm h-9">
-                    <SelectValue placeholder="Tambah barang peminjaman..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {remainingItemsToAdd.map(item => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.name} ({item.available_quantity} tersedia)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-            
-            <div className="pt-2 border-t mt-2">
-              <label className="text-sm font-medium">Estimasi Tanggal Pengembalian *</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal mt-1",
-                      !editReturnDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {editReturnDate ? format(editReturnDate, "dd MMM yyyy", { locale: idLocale }) : <span>Pilih tanggal</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={editReturnDate}
-                    onSelect={setEditReturnDate}
-                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Catatan (opsional)</label>
-              <Textarea
-                value={editNotes}
-                onChange={(e) => setEditNotes(e.target.value)}
-                placeholder="Tujuan peminjaman, dll."
-                className="mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Tutup</Button>
-            <Button onClick={() => updateBorrowMutation.mutate()} disabled={updateBorrowMutation.isPending}>
-              {updateBorrowMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Simpan Perubahan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <BorrowRejectDialog
+        open={rejectDialogOpen}
+        onOpenChange={setRejectDialogOpen}
+        reason={rejectReason}
+        onUpdateReason={setRejectReason}
+        onConfirm={() => rejectMutation.mutate(rejectReason)}
+        isPending={rejectMutation.isPending}
+      />
 
       <ShareDialog
         open={shareDialogOpen}

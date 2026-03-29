@@ -88,6 +88,7 @@ interface InventoryItem {
 interface BorrowRequest {
   id: string;
   user_id: string;
+  house_id: string | null;
   status: string;
   notes: string | null;
   borrow_date: string;
@@ -364,10 +365,17 @@ export default function Inventory() {
         ? `Estimasi Pengembalian: ${format(expectedReturnDate, "dd MMM yyyy", { locale: idLocale })}\n\nCatatan: ${borrowNotes}`
         : `Estimasi Pengembalian: ${format(expectedReturnDate, "dd MMM yyyy", { locale: idLocale })}`;
 
+      const { data: userData } = await supabase
+        .from("house_members")
+        .select("house_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
       const { data: borrow, error: borrowError } = await supabase
         .from("inventory_borrows")
         .insert({
           user_id: user.id,
+          house_id: userData?.house_id || null,
           notes: finalNotes,
           status: "pending",
         })

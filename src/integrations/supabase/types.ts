@@ -860,6 +860,7 @@ export type Database = {
           approved_by: string | null
           borrow_date: string
           created_at: string
+          house_id: string | null
           id: string
           notes: string | null
           return_date: string | null
@@ -872,6 +873,7 @@ export type Database = {
           approved_by?: string | null
           borrow_date?: string
           created_at?: string
+          house_id?: string | null
           id?: string
           notes?: string | null
           return_date?: string | null
@@ -884,6 +886,7 @@ export type Database = {
           approved_by?: string | null
           borrow_date?: string
           created_at?: string
+          house_id?: string | null
           id?: string
           notes?: string | null
           return_date?: string | null
