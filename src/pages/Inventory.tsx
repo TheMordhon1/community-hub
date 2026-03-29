@@ -453,10 +453,24 @@ export default function Inventory() {
     setSelectedItems(newSelected);
   };
 
-  const updateSelectedQuantity = (itemId: string, qty: number, maxAvailable: number) => {
+  const updateSelectedQuantity = (itemId: string, qty: number | "", maxAvailable: number) => {
     const newSelected = new Map(selectedItems);
-    newSelected.set(itemId, Math.min(Math.max(1, qty), maxAvailable));
+    if (qty === "" || qty === 0) {
+      newSelected.set(itemId, 0);
+    } else {
+      newSelected.set(itemId, Math.min(Math.max(1, qty), maxAvailable));
+    }
     setSelectedItems(newSelected);
+  };
+
+  const finalizeSelectedQuantity = (itemId: string, maxAvailable: number) => {
+    const current = selectedItems.get(itemId);
+    if (!current || current < 1) {
+      const newSelected = new Map(selectedItems);
+      newSelected.set(itemId, 1);
+      setSelectedItems(newSelected);
+    }
+  };
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
