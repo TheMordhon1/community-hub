@@ -238,14 +238,31 @@ export default function BorrowDetail() {
     setEditDialogOpen(true);
   };
 
-  const updateEditQuantity = (itemId: string, qty: number, maxAvailable: number) => {
+  const updateEditQuantity = (itemId: string, qty: number | "", maxAvailable: number) => {
     const newItems = new Map(editItems);
-    if (qty <= 0) {
+    if (qty === "" || qty === 0) {
+      newItems.set(itemId, 0);
+    } else if (qty < 0) {
       newItems.delete(itemId);
     } else {
       newItems.set(itemId, Math.min(qty, maxAvailable));
     }
     setEditItems(newItems);
+  };
+
+  const removeEditItem = (itemId: string) => {
+    const newItems = new Map(editItems);
+    newItems.delete(itemId);
+    setEditItems(newItems);
+  };
+
+  const finalizeEditQuantity = (itemId: string) => {
+    const current = editItems.get(itemId);
+    if (current === undefined || current < 1) {
+      const newItems = new Map(editItems);
+      newItems.set(itemId, 1);
+      setEditItems(newItems);
+    }
   };
 
   const remainingItemsToAdd = allItems.filter(i => i.available_quantity > 0 && i.condition !== "broken" && !editItems.has(i.id));
