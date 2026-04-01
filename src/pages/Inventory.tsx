@@ -541,7 +541,7 @@ export default function Inventory() {
   const canManage = canManageContent() || isAdmin();
 
   return (
-    <section className="p-6 pb-32">
+    <section className="py-6 px-4 space-y-6 pb-32">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -989,76 +989,113 @@ export default function Inventory() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {borrows.map((borrow) => {
                   const bItems = borrowItems.filter((bi) => bi.borrow_id === borrow.id);
-                  const borrowerName = profileMap.get(borrow.user_id) || "Unknown";
+                  const borrowerName = profileMap.get(borrow.user_id) || "Unknown User";
                   const approverName = borrow.approved_by ? profileMap.get(borrow.approved_by) : null;
-
+                  
                   return (
-                    <Card key={borrow.id}>
-                      <CardHeader className="pb-2">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <CardTitle className="text-base">{borrowerName}</CardTitle>
-                            {getStatusBadge(borrow.status)}
-                          </div>
-                          <Link to={`/inventory/borrow/${borrow.id}`}>
-                            <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
-                              Lihat Detail
-                            </Button>
-                          </Link>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="space-y-1">
-                          {bItems.map((bi) => {
-                            const item = items.find((i) => i.id === bi.item_id);
-                            return (
-                              <p key={bi.id} className="text-sm">
-                                • {item?.name || "Unknown"} ({bi.quantity}x)
+                    <Card key={borrow.id} className="overflow-hidden hover:shadow-md transition-all duration-300 border-slate-100 group">
+                      <CardContent className="p-5">
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                              <User className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <Link to={`/inventory/borrow/${borrow.id}`} className="font-bold text-slate-800 hover:text-primary transition-colors block leading-tight">
+                                {borrowerName}
+                              </Link>
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mt-0.5">
+                                {format(new Date(borrow.created_at), "dd MMM yyyy • HH:mm", { locale: idLocale })}
                               </p>
-                            );
-                          })}
+                            </div>
+                          </div>
+                          {getStatusBadge(borrow.status)}
                         </div>
-                        {borrow.notes && (
-                          <div className="text-sm text-muted-foreground whitespace-pre-wrap pt-1">
-                            {borrow.notes.startsWith("Estimasi Pengembalian:") ? borrow.notes : `Catatan: ${borrow.notes}`}
-                          </div>
-                        )}
-                        {approverName && (
-                          <p className="text-xs text-muted-foreground">Disetujui oleh: {approverName}</p>
-                        )}
-                        {borrow.return_date && (
-                          <p className="text-xs text-muted-foreground">
-                            Dikembalikan: {format(new Date(borrow.return_date), "dd MMM yyyy HH:mm", { locale: idLocale })}
-                          </p>
-                        )}
 
-                        {canManage && (
-                          <div className="flex flex-wrap gap-2 pt-2 border-t">
-                            {borrow.status === "pending" && (
-                              <>
-                                <Button size="sm" variant="outline" className="gap-1" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "approved" })}>
-                                  <CheckCircle className="w-3.5 h-3.5" /> Setujui
-                                </Button>
-                                <Button size="sm" variant="outline" className="gap-1 text-destructive" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "rejected" })}>
-                                  <XCircle className="w-3.5 h-3.5" /> Tolak
-                                </Button>
-                              </>
+                        <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-100/50 space-y-3">
+                          <div className="space-y-2">
+                            {bItems.map((bi) => {
+                              const item = items.find((i) => i.id === bi.item_id);
+                              return (
+                                <div key={bi.id} className="flex items-center justify-between text-sm">
+                                  <span className="text-slate-600 font-medium">• {item?.name || "Unknown"}</span>
+                                  <span className="text-slate-400 font-bold bg-white px-2 py-0.5 rounded-lg border border-slate-100 text-[10px]">{bi.quantity}x</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          
+                          {borrow.notes && (
+                            <div className="text-[11px] text-slate-500 bg-white/80 p-2.5 rounded-lg border border-slate-100 italic leading-relaxed">
+                              {borrow.notes.startsWith("Estimasi Pengembalian:") ? (
+                                <div className="space-y-1">
+                                  <span className="font-bold text-primary not-italic">{borrow.notes.split("\n\n")[0]}</span>
+                                  {borrow.notes.includes("Catatan:") && (
+                                    <p className="pt-1 border-t border-slate-50 mt-1">{borrow.notes.split("Catatan:")[1]?.trim()}</p>
+                                  )}
+                                </div>
+                              ) : borrow.notes}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex flex-col gap-1">
+                            {approverName && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                                <CheckCircle className="w-3 h-3 text-emerald-500" />
+                                <span>Oleh: <span className="font-bold text-slate-600">{approverName}</span></span>
+                              </div>
                             )}
-                            {borrow.status === "approved" && (
-                              <Button size="sm" variant="outline" className="gap-1" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "borrowed" })}>
-                                <Package className="w-3.5 h-3.5" /> Tandai Dipinjam
-                              </Button>
-                            )}
-                            {borrow.status === "borrowed" && (
-                              <Button size="sm" variant="outline" className="gap-1" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "returned" })}>
-                                <RotateCcw className="w-3.5 h-3.5" /> Tandai Dikembalikan
-                              </Button>
+                            {borrow.return_date && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                                <RotateCcw className="w-3 h-3 text-emerald-500" />
+                                <span>Kembali: <span className="font-bold text-slate-600">{format(new Date(borrow.return_date), "dd MMM yyyy", { locale: idLocale })}</span></span>
+                              </div>
                             )}
                           </div>
-                        )}
+
+                          {canManage && (
+                            <div className="flex items-center gap-1.5">
+                              {borrow.status === "pending" && (
+                                <>
+                                  <Button size="sm" variant="outline" className="h-8 text-xs font-bold border-emerald-100 text-emerald-600 hover:bg-emerald-50 grayscale hover:grayscale-0 transition-all" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "approved" })}>
+                                    Setujui
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="h-8 text-xs font-bold text-destructive hover:bg-destructive/5" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "rejected" })}>
+                                    Tolak
+                                  </Button>
+                                </>
+                              )}
+                              {(borrow.status === "approved" || borrow.status === "rejected") && (
+                                <Button size="sm" variant="ghost" className="h-8 text-[10px] font-bold text-slate-400 hover:text-slate-600" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "pending" })}>
+                                  Batalkan
+                                </Button>
+                              )}
+                              {borrow.status === "approved" && (
+                                <Button size="sm" variant="default" className="h-8 text-xs font-bold shadow-md shadow-primary/20" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "borrowed" })}>
+                                  Pinjamkan
+                                </Button>
+                              )}
+                              {borrow.status === "borrowed" && (
+                                <Button size="sm" variant="outline" className="h-8 text-xs font-bold border-primary text-primary hover:bg-primary/5" onClick={() => updateBorrowStatusMutation.mutate({ id: borrow.id, status: "returned" })}>
+                                  Kembalikan
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                          
+                          {!canManage && (
+                            <Link to={`/inventory/borrow/${borrow.id}`}>
+                              <Button size="sm" variant="ghost" className="h-8 text-xs text-primary font-bold hover:bg-primary/5">
+                                Detail <ArrowLeft className="w-3 h-3 ml-1 rotate-180" />
+                              </Button>
+                            </Link>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   );

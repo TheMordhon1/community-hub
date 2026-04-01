@@ -9,13 +9,14 @@ import { id as idLocale } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { ShareDialog } from "@/components/ShareDialog";
+import { ArrowLeft } from "lucide-react";
 
 // Sub-components
 import { BorrowDetailHeader } from "./borrow-detail/components/BorrowDetailHeader";
 import { BorrowDetailCard } from "./borrow-detail/components/BorrowDetailCard";
 import { BorrowEditDialog } from "./borrow-detail/components/BorrowEditDialog";
 import { BorrowRejectDialog } from "./borrow-detail/components/BorrowRejectDialog";
-import { InventoryItemRef, BorrowRequest, BorrowItem } from "./borrow-detail/types";
+import { InventoryItemRef, BorrowRequest, BorrowItem, BorrowStatus } from "./borrow-detail/types";
 
 export default function BorrowDetail() {
   const { id } = useParams<{ id: string }>();
@@ -98,7 +99,7 @@ export default function BorrowDetail() {
   };
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ status, currentStatus }: { status: string; currentStatus: string }) => {
+    mutationFn: async ({ status, currentStatus }: { status: BorrowStatus; currentStatus: BorrowStatus }) => {
       const updateData: Record<string, unknown> = { status };
       if (status === "approved") {
         updateData.approved_by = user?.id;
@@ -274,7 +275,7 @@ export default function BorrowDetail() {
   }).join("\n")}`;
 
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6 pb-24">
+    <section className="py-6 px-4 space-y-6 pb-24">
       <BorrowDetailHeader
         canEdit={canEdit}
         onEdit={openEditDialog}
@@ -293,7 +294,7 @@ export default function BorrowDetail() {
         onEdit={openEditDialog}
         onCancel={() => deleteMutation.mutate()}
         onReject={() => setRejectDialogOpen(true)}
-        onStatusUpdate={(status) => updateStatusMutation.mutate({ status, currentStatus: borrow.status })}
+        onStatusUpdate={(status: BorrowStatus) => updateStatusMutation.mutate({ status, currentStatus: borrow.status as BorrowStatus })}
         isDeleting={deleteMutation.isPending}
       />
 
@@ -342,6 +343,6 @@ export default function BorrowDetail() {
         url={shareUrl}
         shareText={shareText}
       />
-    </div>
+    </section>
   );
 }

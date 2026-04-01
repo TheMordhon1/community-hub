@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Store, Search, Phone, MapPin, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Store, Search, Phone, MapPin, Clock, CheckCircle, XCircle, ArrowLeft, Globe, Power } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { CreateStoreDialog } from "@/components/stores/CreateStoreDialog";
+import { InventoryItemRef, BorrowRequest, BorrowItem, BorrowStatus } from "./borrow-detail/types";
+import { StoreFormDialog } from "@/components/stores/StoreFormDialog";
 
 export default function Stores() {
   const { profile, isAdmin, isPengurus, canManageContent } = useAuth();
@@ -59,27 +60,39 @@ export default function Stores() {
     },
   });
 
-  const filtered = stores.filter((s: any) =>
+  const filtered = stores.filter((s) =>
     s.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "approved":
-        return <Badge className="bg-success text-success-foreground"><CheckCircle className="w-3 h-3 mr-1" />Terverifikasi</Badge>;
-      case "rejected":
-        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Ditolak</Badge>;
-      default:
-        return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Menunggu Verifikasi</Badge>;
+  const getStatusBadge = (status: string, isOpen: boolean = true) => {
+    if (status === "approved" && isOpen) {
+      return (
+        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-none shadow-sm px-3 py-1 rounded-full text-[10px] font-bold">
+          <CheckCircle className="w-3 h-3 mr-1" />Buka
+        </Badge>
+      );
     }
+    
+    return (
+      <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 shadow-sm px-3 py-1 rounded-full text-[10px] font-bold">
+        <Power className="w-3 h-3 mr-1" />Tutup
+      </Badge>
+    );
   };
 
   return (
-    <div className="space-y-6">
+    <section className="py-6 px-4 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Toko Warga</h1>
-          <p className="text-muted-foreground text-sm">Daftar toko dan usaha warga perumahan</p>
+        <div className="flex items-center gap-4">
+          <Link to="/dashboard">
+            <Button variant="outline" size="icon" className="h-10 w-10 rounded-full shadow-sm">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Toko Warga</h1>
+            <p className="text-muted-foreground text-sm">Daftar toko dan usaha warga perumahan</p>
+          </div>
         </div>
         {/* Add store from Profile page */}
       </div>
@@ -109,28 +122,52 @@ export default function Stores() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((store: any) => (
+          {filtered.map((store) => (
             <Link key={store.id} to={`/stores/${store.id}`}>
               <Card className="hover:shadow-md transition-shadow h-full">
                 <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-xl bg-muted border overflow-hidden flex-shrink-0">
+                      {store.logo_url ? (
+                        <img src={store.logo_url} alt={store.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Store className="w-6 h-6 text-muted-foreground/50" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <h3 className="font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">{store.name}</h3>
+                        {getStatusBadge(store.status, store.is_open)}
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                        <MapPin className="w-3 h-3" />
+                        <span>Blok {store.houses?.block} No. {store.houses?.number}</span>
+                      </div>
+                    </div>
+                  </div>
+
                   {store.image_url && (
                     <img src={store.image_url} alt={store.name} className="w-full h-32 object-cover rounded-lg" />
                   )}
+
                   <div className="space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-semibold text-foreground line-clamp-1">{store.name}</h3>
-                      {getStatusBadge(store.status)}
-                    </div>
                     {store.description && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">{store.description}</p>
+                      <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">{store.description}</p>
                     )}
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <MapPin className="w-3 h-3" />
-                      <span>Blok {store.houses?.block} No. {store.houses?.number}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Phone className="w-3 h-3" />
-                      <span>{store.wa_number}</span>
+                    
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Phone className="w-3 h-3" />
+                        <span className="font-medium">{store.wa_number}</span>
+                      </div>
+                      {store.website_url && (
+                        <div className="flex items-center gap-1 text-xs text-primary font-semibold">
+                          <Globe className="w-3 h-3" />
+                          <span>Website</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   {canManageContent() && store.status === "pending" && (
@@ -150,11 +187,12 @@ export default function Stores() {
         </div>
       )}
 
-      <CreateStoreDialog
+      <StoreFormDialog
         open={showCreate}
         onOpenChange={setShowCreate}
         houseId={userHouse?.house_id || ""}
+        mode="create"
       />
-    </div>
+    </section>
   );
 }

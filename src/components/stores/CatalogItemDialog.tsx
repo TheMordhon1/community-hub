@@ -11,12 +11,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { Tables } from "@/integrations/supabase/types";
+
+type CatalogItem = Tables<"store_catalog_items">;
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   storeId: string;
-  item?: any;
+  item?: CatalogItem;
 }
 
 export function CatalogItemDialog({ open, onOpenChange, storeId, item }: Props) {
@@ -62,7 +65,7 @@ export function CatalogItemDialog({ open, onOpenChange, storeId, item }: Props) 
       queryClient.invalidateQueries({ queryKey: ["store-catalog", storeId] });
       onOpenChange(false);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (error: Error) => toast.error(error.message),
   });
 
   return (

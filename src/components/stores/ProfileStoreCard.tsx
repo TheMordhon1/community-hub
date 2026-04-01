@@ -3,10 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Store, Plus, ExternalLink, CheckCircle, Clock, XCircle } from "lucide-react";
+import { Store, Plus, ExternalLink, CheckCircle, Clock, XCircle, Power, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import { CreateStoreDialog } from "./CreateStoreDialog";
+import { StoreFormDialog } from "./StoreFormDialog";
+import { differenceInDays } from "date-fns";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ProfileStoreCardProps {
   houseId: string;
@@ -21,7 +23,7 @@ export function ProfileStoreCard({ houseId, userId }: ProfileStoreCardProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("stores")
-        .select("id, name, status, wa_number")
+        .select("id, name, status, wa_number, is_open, status_changed_at")
         .eq("house_id", houseId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -30,16 +32,39 @@ export function ProfileStoreCard({ houseId, userId }: ProfileStoreCardProps) {
     enabled: !!houseId,
   });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "approved":
-        return <Badge className="bg-success text-success-foreground text-[9px] h-5"><CheckCircle className="w-2.5 h-2.5 mr-1" />Terverifikasi</Badge>;
-      case "rejected":
-        return <Badge variant="destructive" className="text-[9px] h-5"><XCircle className="w-2.5 h-2.5 mr-1" />Ditolak</Badge>;
-      default:
-        return <Badge variant="secondary" className="text-[9px] h-5"><Clock className="w-2.5 h-2.5 mr-1" />Menunggu</Badge>;
+  const getStatusBadge = (status: string, isOpen: boolean = true) => {
+    if (status === "approved" && isOpen) {
+      return (
+        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-none shadow-sm px-2 py-0.5 rounded-full text-[9px] font-bold">
+          <CheckCircle className="w-2.5 h-2.5 mr-1" />Buka
+        </Badge>
+      );
     }
+    
+    if (status === "rejected") {
+      return (
+        <Badge variant="destructive" className="shadow-sm text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full">
+          <XCircle className="w-2.5 h-2.5 mr-1" />Ditolak
+        </Badge>
+      );
+    }
+
+    if (status === "pending") {
+      return (
+        <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-200 shadow-sm px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter">
+          <Clock className="w-2.5 h-2.5 mr-1" />Menunggu
+        </Badge>
+      );
+    }
+
+    return (
+      <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 shadow-sm px-2 py-0.5 rounded-full text-[9px] font-bold">
+        <Power className="w-2.5 h-2.5 mr-1" />Tutup
+      </Badge>
+    );
   };
+
+  const storesToWarn = stores.filter(s => !s.is_open && s.status_changed_at && differenceInDays(new Date(), new Date(s.status_changed_at)) >= 7);
 
   return (
     <>
@@ -59,7 +84,17 @@ export function ProfileStoreCard({ houseId, userId }: ProfileStoreCardProps) {
             Tambah
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {storesToWarn.length > 0 && (
+            <Alert className="bg-amber-50 border-amber-200 py-2">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-xs font-bold text-amber-900">Pemberitahuan</AlertTitle>
+              <AlertDescription className="text-[10px] text-amber-800">
+                Ada toko yang tutup lebih dari 7 hari. Cek status toko Anda.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Memuat...</p>
           ) : stores.length === 0 ? (
@@ -83,7 +118,7 @@ export function ProfileStoreCard({ houseId, userId }: ProfileStoreCardProps) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {getStatusBadge(store.status)}
+                      {getStatusBadge(store.status, store.is_open)}
                       <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
                     </div>
                   </div>
@@ -94,10 +129,11 @@ export function ProfileStoreCard({ houseId, userId }: ProfileStoreCardProps) {
         </CardContent>
       </Card>
 
-      <CreateStoreDialog
+      <StoreFormDialog
         open={showCreate}
         onOpenChange={setShowCreate}
         houseId={houseId}
+        mode="create"
       />
     </>
   );

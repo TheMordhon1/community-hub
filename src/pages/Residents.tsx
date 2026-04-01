@@ -83,6 +83,7 @@ interface HouseResident {
     phone: string | null;
     avatar_url: string | null;
   } | null;
+  store_id?: string;
 }
 
 interface HouseWithResidents {
@@ -187,12 +188,13 @@ export default function Residents() {
       // Fetch stores to know which houses have stores
       const { data: storesData, error: storesError } = await supabase
         .from("stores")
-        .select("house_id")
+        .select("id, house_id, created_by")
         .eq("status", "approved");
 
       if (storesError) throw storesError;
 
       const houseIdsWithStore = new Set((storesData || []).map(s => s.house_id));
+      const userIdsWithStore = new Map((storesData || []).filter(s => s.created_by).map(s => [s.created_by, s.id]));
 
       // Fetch profiles for registered residents
       const userIds = [...new Set((membersData || []).filter(m => m.user_id).map((r) => r.user_id as string))];
@@ -223,6 +225,7 @@ export default function Residents() {
             .map((r) => ({
               ...r,
               profiles: r.user_id ? profilesMap.get(r.user_id) : null,
+              store_id: r.user_id ? userIdsWithStore.get(r.user_id) : undefined,
             })),
         })
       );
@@ -387,138 +390,114 @@ export default function Residents() {
   }
 
   return (
-    <div className="py-6 px-4 space-y-6">
-      <div className="flex w-full flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Link to="/dashboard">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Daftar Rumah & Penghuni</h1>
-            <p className="text-muted-foreground">
-              Lihat nomer rumah dan penghuni PKT
-            </p>
+    <section className="py-6 px-4 space-y-6">
+      {/* Header & Toolbar */}
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link to="/dashboard">
+              <Button variant="outline" size="icon" className="h-10 w-10 rounded-full shadow-sm">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Daftar Rumah & Penghuni</h1>
+              <p className="text-sm sm:text-base text-muted-foreground font-medium">
+                Kelola data hunian dan informasi warga PKT
+              </p>
+            </div>
+          </div>
+          <div className="hidden lg:block">
+            <ExportDropdown onExcel={exportToExcel} onPDF={exportToPDF} />
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-          <div className="relative w-full sm:w-64">
+
+        <div className="bg-background/50 backdrop-blur-md border rounded-2xl p-4 shadow-sm space-y-4 lg:space-y-0 lg:flex lg:items-center lg:gap-4">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Cari rumah atau penghuni..."
+              placeholder="Cari rumah, blok, atau nama penghuni..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-10 h-11 bg-white/50 border-muted-foreground/20 focus:ring-primary/20 rounded-xl"
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <Select
-              value={filterType}
-              onValueChange={(value: HouseType) => setFilterType(value)}
-            >
-              <SelectTrigger className="w-[160px] text-left">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Pendaftaran</SelectItem>
-                <SelectItem value="registered">Terdaftar</SelectItem>
-                <SelectItem value="unregistered">Belum Terdaftar</SelectItem>
-              </SelectContent>
-            </Select>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 flex-1 sm:flex-none">
+              <Select value={filterType} onValueChange={(value: HouseType) => setFilterType(value)}>
+                <SelectTrigger className="h-11 w-full sm:w-[180px] bg-white/50 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-muted-foreground" />
+                    <SelectValue className="w-full block line-clamp-1" placeholder="Semua Warga" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent rounded-xl>
+                  <SelectItem value="all">Semua Warga</SelectItem>
+                  <SelectItem value="registered">Terdaftar</SelectItem>
+                  <SelectItem value="unregistered">Belum Terdaftar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select
-              value={occupancyFilter}
-              onValueChange={(value: OccupancyFilter) => setOccupancyFilter(value)}
-            >
-              <SelectTrigger className="w-[140px] text-left">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="occupied">Terisi</SelectItem>
-                <SelectItem value="empty">Kosong</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2 flex-1 sm:flex-none">
+              <Select value={occupancyFilter} onValueChange={(value: OccupancyFilter) => setOccupancyFilter(value)}>
+                <SelectTrigger className="h-11 w-full sm:w-[150px] bg-white/50 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Home className="w-4 h-4 text-muted-foreground" />
+                    <SelectValue className="line-clamp-1" placeholder="Semua Status" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent rounded-xl>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="occupied">Terisi</SelectItem>
+                  <SelectItem value="empty">Kosong</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select
-              value={storeFilter}
-              onValueChange={(value: StoreFilter) => setStoreFilter(value)}
-            >
-              <SelectTrigger className="w-[140px] text-left">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Toko</SelectItem>
-                <SelectItem value="has_store">Punya Toko</SelectItem>
-                <SelectItem value="no_store">Tanpa Toko</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2 flex-1 sm:flex-none">
+              <Select value={storeFilter} onValueChange={(value: StoreFilter) => setStoreFilter(value)}>
+                <SelectTrigger className="h-11 w-full sm:w-[150px] bg-white/50 rounded-xl border-emerald-200 focus:ring-emerald-500/20">
+                  <div className="flex items-center gap-2 text-emerald-700">
+                    <Store className="w-4 h-4" />
+                    <SelectValue placeholder="Semua Toko" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent rounded-xl>
+                  <SelectItem value="all">Semua Toko</SelectItem>
+                  <SelectItem value="has_store">Punya Toko</SelectItem>
+                  <SelectItem value="no_store">Tanpa Toko</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Download className="h-4 w-4" />
-                  <span>Export</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={exportToExcel} className="cursor-pointer">
-                  <FileSpreadsheet className="mr-2 h-4 w-4" />
-                  Excel
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={exportToPDF} className="cursor-pointer">
-                  <FileText className="mr-2 h-4 w-4" />
-                  PDF
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="lg:hidden w-full pt-2 border-t">
+              <ExportDropdown onExcel={exportToExcel} onPDF={exportToPDF} fullWidth />
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Rumah</p>
-                <p className="text-3xl font-bold text-blue-600">
-                  {totalHouses}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Total Rumah", value: totalHouses, icon: Home, color: "text-blue-600", bg: "from-blue-50 to-blue-100", border: "border-blue-200", iconBg: "text-blue-200" },
+          { label: "Terisi", value: registeredHouses, icon: UserCheck, color: "text-emerald-600", bg: "from-emerald-50 to-emerald-100", border: "border-emerald-200", iconBg: "text-emerald-200" },
+          { label: "Total Penghuni", value: totalUsers, icon: Users, color: "text-purple-600", bg: "from-purple-50 to-purple-100", border: "border-purple-200", iconBg: "text-purple-200" },
+          { label: "Total Toko", value: storeHouses, icon: Store, color: "text-amber-600", bg: "from-amber-50 to-amber-100", border: "border-amber-200", iconBg: "text-amber-200" },
+        ].map((stat, i) => (
+          <Card key={stat.label} className={cn("bg-gradient-to-br shadow-sm transition-transform hover:scale-[1.02] cursor-default overflow-hidden relative", stat.bg, stat.border)}>
+            <CardContent className="p-5 flex items-center justify-between">
+              <div className="z-10">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 mb-1">{stat.label}</p>
+                <p className={cn("text-3xl font-black tracking-tighter", stat.color)}>
+                  {stat.value}
                 </p>
               </div>
-              <Home className="h-10 w-10 text-blue-200" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Rumah Sudah Berpenghuni
-                </p>
-                <p className="text-3xl font-bold text-green-600">
-                  {registeredHouses}
-                </p>
-              </div>
-              <Home className="h-10 w-10 text-green-200" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Penghuni</p>
-                <p className="text-3xl font-bold text-purple-600">
-                  {totalUsers}
-                </p>
-              </div>
-              <Users className="h-10 w-10 text-purple-200" />
-            </div>
-          </CardContent>
-        </Card>
+              <stat.icon className={cn("h-12 w-12 opacity-50 shrink-0", stat.iconBg)} />
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
@@ -753,6 +732,18 @@ export default function Residents() {
                         </p>
                       )}
                     </div>
+                    {resident.store_id && (
+                      <Link to={`/stores/${resident.store_id}`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2 border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 bg-white shadow-sm gap-1.5 font-bold text-[10px]"
+                        >
+                          <Store className="w-3.5 h-3.5" />
+                          Toko
+                        </Button>
+                      </Link>
+                    )}
                   </div>
                 ))}
               </div>
@@ -760,6 +751,30 @@ export default function Residents() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </section>
   );
 }
+
+function ExportDropdown({ onExcel, onPDF, fullWidth }: { onExcel: () => void; onPDF: () => void; fullWidth?: boolean }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className={cn("gap-2 hover:bg-muted font-semibold", fullWidth ? "w-full" : "h-11 px-6 bg-white/50")}>
+          <Download className="h-4 w-4" />
+          <span>Export Data</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-[160px] rounded-xl p-1 shadow-lg">
+        <DropdownMenuItem onClick={onExcel} className="cursor-pointer gap-2 py-2 rounded-lg">
+          <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+          <span className="font-medium">Excel</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onPDF} className="cursor-pointer gap-2 py-2 rounded-lg">
+          <FileText className="h-4 w-4 text-rose-600" />
+          <span className="font-medium">PDF Document</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+

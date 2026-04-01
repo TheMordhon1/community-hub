@@ -1331,12 +1331,16 @@ export type Database = {
           house_id: string
           id: string
           image_url: string | null
+          is_open: boolean
+          logo_url: string | null
           name: string
           status: string
+          status_changed_at: string
           updated_at: string
           verified_at: string | null
           verified_by: string | null
           wa_number: string
+          website_url: string | null
         }
         Insert: {
           created_at?: string
@@ -1345,12 +1349,16 @@ export type Database = {
           house_id: string
           id?: string
           image_url?: string | null
+          is_open?: boolean
+          logo_url?: string | null
           name: string
           status?: string
+          status_changed_at?: string
           updated_at?: string
           verified_at?: string | null
           verified_by?: string | null
           wa_number: string
+          website_url?: string | null
         }
         Update: {
           created_at?: string
@@ -1359,12 +1367,16 @@ export type Database = {
           house_id?: string
           id?: string
           image_url?: string | null
+          is_open?: boolean
+          logo_url?: string | null
           name?: string
           status?: string
+          status_changed_at?: string
           updated_at?: string
           verified_at?: string | null
           verified_by?: string | null
           wa_number?: string
+          website_url?: string | null
         }
         Relationships: [
           {
