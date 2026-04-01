@@ -9,6 +9,8 @@ import { useState } from "react";
 import { StoreFormDialog } from "./StoreFormDialog";
 import { differenceInDays } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { StoreCategoryBadge } from "./StoreCategoryBadge";
+import { StoreStatusBadge } from "./StoreStatusBadge";
 
 interface ProfileStoreCardProps {
   houseId: string;
@@ -32,37 +34,6 @@ export function ProfileStoreCard({ houseId, userId }: ProfileStoreCardProps) {
     enabled: !!houseId,
   });
 
-  const getStatusBadge = (status: string, isOpen: boolean = true) => {
-    if (status === "approved" && isOpen) {
-      return (
-        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-none shadow-sm px-2 py-0.5 rounded-full text-[9px] font-bold">
-          <CheckCircle className="w-2.5 h-2.5 mr-1" />Buka
-        </Badge>
-      );
-    }
-    
-    if (status === "rejected") {
-      return (
-        <Badge variant="destructive" className="shadow-sm text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full">
-          <XCircle className="w-2.5 h-2.5 mr-1" />Ditolak
-        </Badge>
-      );
-    }
-
-    if (status === "pending") {
-      return (
-        <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-200 shadow-sm px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter">
-          <Clock className="w-2.5 h-2.5 mr-1" />Menunggu
-        </Badge>
-      );
-    }
-
-    return (
-      <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 shadow-sm px-2 py-0.5 rounded-full text-[9px] font-bold">
-        <Power className="w-2.5 h-2.5 mr-1" />Tutup
-      </Badge>
-    );
-  };
 
   const storesToWarn = stores.filter(s => !s.is_open && s.status_changed_at && differenceInDays(new Date(), new Date(s.status_changed_at)) >= 7);
 
@@ -119,11 +90,9 @@ export function ProfileStoreCard({ houseId, userId }: ProfileStoreCardProps) {
                     </div>
                     <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end max-w-[200px]">
                       {store.categories?.map((cat) => (
-                        <Badge key={cat} variant="secondary" className="text-[9px] h-4 px-1.5 bg-primary/10 text-primary border-none uppercase font-black">
-                          <Tag className="w-2.5 h-2.5 mr-1" />{cat}
-                        </Badge>
+                        <StoreCategoryBadge key={cat} category={cat} size="sm" />
                       ))}
-                      {getStatusBadge(store.status, store.is_open)}
+                      <StoreStatusBadge status={store.status} isOpen={store.is_open} />
                       <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
                     </div>
                   </div>

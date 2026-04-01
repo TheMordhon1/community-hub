@@ -527,7 +527,7 @@ export default function Residents() {
                 )}
                 {house.hasStore && (
                   <div className="absolute top-0 left-0 p-1">
-                    <Badge className="h-4 sm:h-5 text-[8px] sm:text-[9px] px-1 sm:px-1.5 bg-emerald-500 hover:bg-emerald-600 font-bold tracking-tighter">
+                    <Badge className="h-4 sm:h-5 text-[8px] sm:text-[9px] px-1 sm:px-1.5 bg-emerald-500 font-bold tracking-tighter">
                       <Store className="w-2.5 h-2.5 mr-0.5" />
                       Toko
                     </Badge>

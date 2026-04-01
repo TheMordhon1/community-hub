@@ -10,8 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Store, Search, Phone, MapPin, Clock, CheckCircle, XCircle, ArrowLeft, Globe, Power, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { InventoryItemRef, BorrowRequest, BorrowItem, BorrowStatus } from "./borrow-detail/types";
 import { StoreFormDialog } from "@/components/stores/StoreFormDialog";
+import { StoreCategoryBadge } from "@/components/stores/StoreCategoryBadge";
+import { StoreStatusBadge } from "@/components/stores/StoreStatusBadge";
 
 export default function Stores() {
   const { profile, isAdmin, isPengurus, canManageContent } = useAuth();
@@ -64,21 +65,6 @@ export default function Stores() {
     s.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const getStatusBadge = (status: string, isOpen: boolean = true) => {
-    if (status === "approved" && isOpen) {
-      return (
-        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-none shadow-sm px-3 py-1 rounded-full text-[10px] font-bold">
-          <CheckCircle className="w-3 h-3 mr-1" />Buka
-        </Badge>
-      );
-    }
-    
-    return (
-      <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 shadow-sm px-3 py-1 rounded-full text-[10px] font-bold">
-        <Power className="w-3 h-3 mr-1" />Tutup
-      </Badge>
-    );
-  };
 
   return (
     <section className="py-6 px-4 space-y-6">
@@ -141,12 +127,10 @@ export default function Stores() {
                         <h3 className="font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">{store.name}</h3>
                         <div className="flex flex-wrap gap-1">
                           {store.categories?.map((cat) => (
-                            <Badge key={cat} variant="secondary" className="text-[9px] h-4 px-1.5 bg-primary/10 text-primary border-none uppercase font-black">
-                              <Tag className="w-2.5 h-2.5 mr-1" />{cat}
-                            </Badge>
+                            <StoreCategoryBadge key={cat} category={cat} size="sm" />
                           ))}
                         </div>
-                        {getStatusBadge(store.status, store.is_open)}
+                        <StoreStatusBadge status={store.status} isOpen={store.is_open} />
                       </div>
                       <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
                         <MapPin className="w-3 h-3" />

@@ -252,9 +252,9 @@ export default function Finance() {
         <Badge
           variant={row.type === "outcome" ? "destructive" : "default"}
           className={`${row.isChild ? "scale-90 opacity-80" : ""} ${
-            row.type === "income" ? "bg-emerald-500/10 hover:bg-emerald-500/10 text-emerald-600 border-none"
-            : row.type === "donation" ? "bg-blue-500/10 hover:bg-blue-500/10 text-blue-600 border-none"
-            : "bg-red-500/10 hover:bg-red-500/10 text-red-600 border-none"
+            row.type === "income" ? "bg-emerald-500/10 text-emerald-600 border-none"
+            : row.type === "donation" ? "bg-blue-500/10 text-blue-600 border-none"
+            : "bg-red-500/10 text-red-600 border-none"
           }`}
         >
           {row.type === "income" ? "Masuk" : row.type === "outcome" ? "Keluar" : "Donasi"}

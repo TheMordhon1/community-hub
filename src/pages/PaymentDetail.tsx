@@ -71,9 +71,9 @@ const MONTHS = [
 
 const STATUS_COLORS = {
   pending:
-    "bg-yellow-500/20 hover:bg-yellow-500/20 text-yellow-700 border-yellow-500/30",
-  paid: "bg-green-500/20 hover:bg-green-500/20 text-green-700 border-green-500/30",
-  overdue: "bg-red-500/20 hover:bg-red-500/20 text-red-700 border-red-500/30",
+    "bg-yellow-500/20 text-yellow-700 border-yellow-500/30",
+  paid: "bg-green-500/20 text-green-700 border-green-500/30",
+  overdue: "bg-red-500/20 text-red-700 border-red-500/30",
 };
 
 const STATUS_LABELS = {

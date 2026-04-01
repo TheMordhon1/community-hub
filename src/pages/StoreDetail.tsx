@@ -20,6 +20,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Tables } from "@/integrations/supabase/types";
+import { StoreCategoryBadge } from "@/components/stores/StoreCategoryBadge";
+import { StoreStatusBadge } from "@/components/stores/StoreStatusBadge";
 
 type CatalogItem = Tables<"store_catalog_items">;
 
@@ -187,11 +189,9 @@ export default function StoreDetail() {
             <div className="min-w-0 space-y-1">
               <h1 className="text-2xl font-black text-foreground tracking-tight truncate leading-tight">{store.name}</h1>
               <div className="flex items-center gap-2 flex-wrap">
-                {getStatusBadge(store.status, store.is_open)}
+                <StoreStatusBadge status={store.status} isOpen={store.is_open} />
                 {store.categories?.map((cat) => (
-                  <Badge key={cat} variant="secondary" className="text-[10px] uppercase tracking-tighter bg-primary/10 text-primary border-primary/20">
-                    <Tag className="w-3 h-3 mr-1" />{cat}
-                  </Badge>
+                  <StoreCategoryBadge key={cat} category={cat} size="md" />
                 ))}
                 <Badge variant="outline" className="text-[10px] uppercase tracking-tighter bg-slate-50 border-slate-200">
                   <MapPin className="w-3 h-3 mr-1" />Blok {store.houses?.block} No. {store.houses?.number}
@@ -311,7 +311,7 @@ export default function StoreDetail() {
                     <Button 
                       size="sm" 
                       variant="outline" 
-                      className="h-8 px-4 border-slate-200 text-slate-600 hover:bg-slate-50"
+                      className="h-8 px-4 border-slate-200 text-slate-600 hover:bg-slate-50 transition-all font-semibold"
                       onClick={() => verifyMutation.mutate("pending")}
                       disabled={verifyMutation.isPending}
                     >
@@ -344,7 +344,7 @@ export default function StoreDetail() {
                   <Button 
                     size="sm" 
                     variant="outline" 
-                    className="h-8 px-4 border-slate-200 text-slate-600 hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all shadow-sm"
+                    className="h-8 px-4 border-slate-200 text-slate-600 hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all shadow-sm font-semibold"
                     onClick={() => setIsEditDialogOpen(true)}
                   >
                     <Edit className="w-3.5 h-3.5 mr-2" />
