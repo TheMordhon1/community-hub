@@ -36,6 +36,8 @@ import {
   Loader2,
   Trash2,
   Camera,
+  Store,
+  ExternalLink,
 } from "lucide-react";
 import {
   Popover,
@@ -66,6 +68,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { getInitials } from "@/lib/utils";
+import { ProfileStoreCard } from "@/components/stores/ProfileStoreCard";
 import { useNaturalSort } from "@/hooks/useNaturalSort";
 
 const profileSchema = z.object({
@@ -1245,11 +1248,22 @@ export default function Profile() {
           </DialogContent>
         </Dialog>
 
+        {/* Toko Saya Section */}
+        {userHouse?.house_id && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+          >
+            <ProfileStoreCard houseId={userHouse.house_id} userId={user?.id || ""} />
+          </motion.div>
+        )}
+
         {userHouse?.houses && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ delay: 0.3 }}
           >
             <Card>
               <CardHeader className="pb-3">

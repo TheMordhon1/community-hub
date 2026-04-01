@@ -81,12 +81,7 @@ export default function Stores() {
           <h1 className="text-2xl font-bold text-foreground">Toko Warga</h1>
           <p className="text-muted-foreground text-sm">Daftar toko dan usaha warga perumahan</p>
         </div>
-        {userHouse?.house_id && (
-          <Button onClick={() => setShowCreate(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Tambah Toko
-          </Button>
-        )}
+        {/* Add store from Profile page */}
       </div>
 
       <div className="relative">

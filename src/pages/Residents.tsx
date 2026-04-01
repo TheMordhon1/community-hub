@@ -22,6 +22,7 @@ import {
   User,
   Pencil,
   Loader2,
+  Store,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -93,10 +94,12 @@ interface HouseWithResidents {
   vacancy_reason?: string | null;
   estimated_return_date?: string | null;
   residents: HouseResident[];
+  hasStore?: boolean;
 }
 
 type HouseType = "all" | "registered" | "unregistered";
 type OccupancyFilter = "all" | "occupied" | "empty";
+type StoreFilter = "all" | "has_store" | "no_store";
 
 export default function Residents() {
   const { canManageContent } = useAuth();
@@ -117,6 +120,7 @@ export default function Residents() {
   );
   const [filterType, setFilterType] = useState<HouseType>("all");
   const [occupancyFilter, setOccupancyFilter] = useState<OccupancyFilter>("all");
+  const [storeFilter, setStoreFilter] = useState<StoreFilter>("all");
   const [isEditingStatus, setIsEditingStatus] = useState(false);
   const [editOccupancy, setEditOccupancy] = useState<"occupied" | "empty">("occupied");
   const [editVacancyReason, setEditVacancyReason] = useState("");
@@ -180,6 +184,16 @@ export default function Residents() {
 
       if (membersError) throw membersError;
 
+      // Fetch stores to know which houses have stores
+      const { data: storesData, error: storesError } = await supabase
+        .from("stores")
+        .select("house_id")
+        .eq("status", "approved");
+
+      if (storesError) throw storesError;
+
+      const houseIdsWithStore = new Set((storesData || []).map(s => s.house_id));
+
       // Fetch profiles for registered residents
       const userIds = [...new Set((membersData || []).filter(m => m.user_id).map((r) => r.user_id as string))];
       let profilesMap = new Map();
@@ -203,6 +217,7 @@ export default function Residents() {
           occupancy_status: house.occupancy_status || "occupied",
           vacancy_reason: house.vacancy_reason || null,
           estimated_return_date: house.estimated_return_date || null,
+          hasStore: houseIdsWithStore.has(house.id),
           residents: (membersData || [])
             .filter((r) => r.house_id === house.id)
             .map((r) => ({
@@ -241,7 +256,14 @@ export default function Residents() {
         matchesOccupancy = house.occupancy_status === "empty";
       }
 
-      return matchesSearch && matchesFilter && matchesOccupancy;
+      let matchesStore = true;
+      if (storeFilter === "has_store") {
+        matchesStore = !!house.hasStore;
+      } else if (storeFilter === "no_store") {
+        matchesStore = !house.hasStore;
+      }
+
+      return matchesSearch && matchesFilter && matchesOccupancy && matchesStore;
     })
     .sort((a, b) => {
       const blockSort = naturalSort(a.block, b.block);
@@ -254,6 +276,8 @@ export default function Residents() {
     houses?.filter((h) => h.residents.length > 0).length || 0;
   const totalUsers =
     houses?.reduce((sum, h) => sum + h.residents.length, 0) || 0;
+  const storeHouses =
+    houses?.filter((h) => h.hasStore).length || 0;
 
 
 
@@ -415,6 +439,20 @@ export default function Residents() {
               </SelectContent>
             </Select>
 
+            <Select
+              value={storeFilter}
+              onValueChange={(value: StoreFilter) => setStoreFilter(value)}
+            >
+              <SelectTrigger className="w-[140px] text-left">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Toko</SelectItem>
+                <SelectItem value="has_store">Punya Toko</SelectItem>
+                <SelectItem value="no_store">Tanpa Toko</SelectItem>
+              </SelectContent>
+            </Select>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-2">
@@ -505,6 +543,14 @@ export default function Residents() {
                   <div className="absolute top-0 right-0 p-1">
                     <Badge variant="destructive" className="h-4 sm:h-5 text-[8px] sm:text-[9px] px-1 sm:px-1.5 uppercase font-bold tracking-tighter">
                       Kosong
+                    </Badge>
+                  </div>
+                )}
+                {house.hasStore && (
+                  <div className="absolute top-0 left-0 p-1">
+                    <Badge className="h-4 sm:h-5 text-[8px] sm:text-[9px] px-1 sm:px-1.5 bg-emerald-500 hover:bg-emerald-600 font-bold tracking-tighter">
+                      <Store className="w-2.5 h-2.5 mr-0.5" />
+                      Toko
                     </Badge>
                   </div>
                 )}
