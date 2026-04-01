@@ -120,6 +120,7 @@ export default function Residents() {
   );
   const [filterType, setFilterType] = useState<HouseType>("all");
   const [occupancyFilter, setOccupancyFilter] = useState<OccupancyFilter>("all");
+  const [storeFilter, setStoreFilter] = useState<StoreFilter>("all");
   const [isEditingStatus, setIsEditingStatus] = useState(false);
   const [editOccupancy, setEditOccupancy] = useState<"occupied" | "empty">("occupied");
   const [editVacancyReason, setEditVacancyReason] = useState("");
