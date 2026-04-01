@@ -98,8 +98,8 @@ export default function Stores() {
             </Button>
           </Link>
           <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">Toko Warga</h1>
-            <p className="text-muted-foreground text-sm truncate">Daftar toko dan usaha warga PKT</p>
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">UMKM</h1>
+            <p className="text-muted-foreground text-sm truncate">Daftar UMKM warga PKT</p>
           </div>
         </div>
       </div>
