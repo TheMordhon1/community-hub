@@ -68,6 +68,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { getInitials } from "@/lib/utils";
+import { ProfileStoreCard } from "@/components/stores/ProfileStoreCard";
 import { useNaturalSort } from "@/hooks/useNaturalSort";
 
 const profileSchema = z.object({
