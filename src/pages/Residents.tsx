@@ -94,10 +94,12 @@ interface HouseWithResidents {
   vacancy_reason?: string | null;
   estimated_return_date?: string | null;
   residents: HouseResident[];
+  hasStore?: boolean;
 }
 
 type HouseType = "all" | "registered" | "unregistered";
 type OccupancyFilter = "all" | "occupied" | "empty";
+type StoreFilter = "all" | "has_store" | "no_store";
 
 export default function Residents() {
   const { canManageContent } = useAuth();
