@@ -1479,6 +1479,12 @@ export type Database = {
         Returns: boolean
       }
       is_menteri_sisdigi: { Args: { _user_id: string }; Returns: boolean }
+      update_menu_orders: {
+        Args: {
+          p_orders: Json
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "pengurus" | "warga"
