@@ -71,7 +71,24 @@ export default function StoreDetail() {
     enabled: !!store?.verified_by,
   });
 
+  const { data: houseMembers } = useQuery({
+    queryKey: ["house-members", store?.house_id],
+    queryFn: async () => {
+      if (!store?.house_id) return [];
+      const { data, error } = await supabase
+        .from("house_members")
+        .select("user_id")
+        .eq("house_id", store.house_id)
+        .eq("status", "approved");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!store?.house_id,
+  });
+
   const isOwner = store?.created_by === profile?.id;
+  const isHouseMember = houseMembers?.some(m => m.user_id === profile?.id);
+  const canManageStore = isOwner || isHouseMember || canManageContent();
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -162,7 +179,7 @@ export default function StoreDetail() {
   const daysSinceStatusChange = store.status_changed_at 
     ? differenceInDays(new Date(), new Date(store.status_changed_at)) 
     : 0;
-  const showInactivityWarning = isOwner && !store.is_open && daysSinceStatusChange >= 7;
+  const showInactivityWarning = canManageStore && !store.is_open && daysSinceStatusChange >= 7;
 
   return (
     <section className="py-6 px-4 space-y-6">
@@ -270,11 +287,6 @@ export default function StoreDetail() {
               </div>
             )}
           </div>
-          {store.status === "approved" && verifier && (
-            <p className="text-xs text-muted-foreground">
-              Diverifikasi oleh {verifier.full_name} pada {new Date(store.verified_at).toLocaleDateString("id-ID")}
-            </p>
-          )}
 
           <div className="flex flex-col gap-6 pt-4 border-t border-slate-100">
             {canManageContent() && (
@@ -323,7 +335,7 @@ export default function StoreDetail() {
               </div>
             )}
 
-            {isOwner && (
+            {canManageStore && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-slate-400 tracking-wider pl-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -387,7 +399,7 @@ export default function StoreDetail() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-lg">Katalog Produk</CardTitle>
-          {isOwner && (
+          {canManageStore && (
             <Button size="sm" onClick={() => setCatalogDialog({ open: true })}>
               <Plus className="w-3 h-3 mr-1" />Tambah
             </Button>
@@ -441,7 +453,7 @@ export default function StoreDetail() {
                           <p className="text-[10px] text-slate-300 font-medium">Harga tidak dicantumkan</p>
                         )}
                         
-                        {isOwner && (
+                        {canManageStore && (
                           <div className="flex gap-1 animate-in fade-in slide-in-from-right-2 duration-300">
                             <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full hover:bg-primary/10 hover:text-primary" onClick={() => setCatalogDialog({ open: true, item })}>
                               <Edit className="w-3.5 h-3.5" />
