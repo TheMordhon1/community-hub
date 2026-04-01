@@ -461,13 +461,13 @@ export default function Residents() {
                 <SelectTrigger className="h-11 w-full sm:w-[150px] bg-white/50 rounded-xl border-emerald-200 focus:ring-emerald-500/20">
                   <div className="flex items-center gap-2 text-emerald-700">
                     <Store className="w-4 h-4" />
-                    <SelectValue placeholder="Semua Toko" />
+                    <SelectValue placeholder="Semua UMKM" />
                   </div>
                 </SelectTrigger>
                 <SelectContent rounded-xl>
-                  <SelectItem value="all">Semua Toko</SelectItem>
-                  <SelectItem value="has_store">Punya Toko</SelectItem>
-                  <SelectItem value="no_store">Tanpa Toko</SelectItem>
+                  <SelectItem value="all">Semua UMKM</SelectItem>
+                  <SelectItem value="has_store">Punya UMKM</SelectItem>
+                  <SelectItem value="no_store">Tanpa UMKM</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -484,7 +484,7 @@ export default function Residents() {
           { label: "Total Rumah", value: totalHouses, icon: Home, color: "text-blue-600", bg: "from-blue-50 to-blue-100", border: "border-blue-200", iconBg: "text-blue-200" },
           { label: "Terisi", value: registeredHouses, icon: UserCheck, color: "text-emerald-600", bg: "from-emerald-50 to-emerald-100", border: "border-emerald-200", iconBg: "text-emerald-200" },
           { label: "Total Penghuni", value: totalUsers, icon: Users, color: "text-purple-600", bg: "from-purple-50 to-purple-100", border: "border-purple-200", iconBg: "text-purple-200" },
-          { label: "Total Toko", value: storeHouses, icon: Store, color: "text-amber-600", bg: "from-amber-50 to-amber-100", border: "border-amber-200", iconBg: "text-amber-200" },
+          { label: "Total UMKM", value: storeHouses, icon: Store, color: "text-amber-600", bg: "from-amber-50 to-amber-100", border: "border-amber-200", iconBg: "text-amber-200" },
         ].map((stat, i) => (
           <Card key={stat.label} className={cn("bg-gradient-to-br shadow-sm transition-transform hover:scale-[1.02] cursor-default overflow-hidden relative", stat.bg, stat.border)}>
             <CardContent className="p-5 flex items-center justify-between">
@@ -526,12 +526,12 @@ export default function Residents() {
                   </div>
                 )}
                 {house.hasStore && (
-                  <div className="absolute top-0 left-0 p-1">
+                  <Link to={`/stores`} className="absolute top-0 left-0 p-1">
                     <Badge className="h-4 sm:h-5 text-[8px] sm:text-[9px] px-1 sm:px-1.5 bg-emerald-500 font-bold tracking-tighter">
                       <Store className="w-2.5 h-2.5 mr-0.5" />
-                      Toko
+                      UMKM
                     </Badge>
-                  </div>
+                  </Link>
                 )}
                 
                 <div className="text-xl sm:text-2xl font-black text-primary tracking-tighter group-hover:scale-110 transition-transform">
@@ -686,67 +686,57 @@ export default function Residents() {
                 <p>Belum ada penghuni terdaftar</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {[...(selectedHouse?.residents || [])]
-                  .sort((a, b) => {
-                    if (a.is_head !== b.is_head) return b.is_head ? 1 : -1;
-                    const priorityA = MEMBER_SORT_PRIORITY[a.member_type || ""] || 99;
-                    const priorityB = MEMBER_SORT_PRIORITY[b.member_type || ""] || 99;
-                    if (priorityA !== priorityB) return priorityA - priorityB;
-                    return (a.full_name || "").localeCompare(b.full_name || "");
-                  })
-                  .map((resident) => (
-                  <div
-                    key={resident.id}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
-                  >
-                  <Avatar className="h-10 w-10">
-                      <AvatarImage src={resident.profiles?.avatar_url || ""} />
-                      <AvatarFallback>
-                        {getInitials(resident.profiles?.full_name || resident.full_name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0 py-0.5">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
-                        <span className="font-bold text-sm sm:text-base line-clamp-1">
-                          {resident.profiles?.full_name || resident.full_name}
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {resident.is_head && (
-                               <Badge variant="secondary" className="px-1.5 h-4 text-[8px] bg-amber-500/10 text-amber-600 border-amber-200/50 font-bold uppercase tracking-wider shadow-sm ring-1 ring-amber-500/20">
-                                <Crown className="w-2 h-2 mr-1" />
-                                KK
-                              </Badge>
-                            )}
-                            {resident.member_type && (
-                              <Badge variant="outline" className="px-1.5 h-4 text-[8px] font-bold uppercase tracking-wider shadow-sm">
-                                {MEMBER_TYPE_LABELS[resident.member_type as MemberType]}
-                              </Badge>
-                            )}
-                           
+              <>
+                <div className="space-y-3">
+                  {[...(selectedHouse?.residents || [])]
+                    .sort((a, b) => {
+                      if (a.is_head !== b.is_head) return b.is_head ? 1 : -1;
+                      const priorityA = MEMBER_SORT_PRIORITY[a.member_type || ""] || 99;
+                      const priorityB = MEMBER_SORT_PRIORITY[b.member_type || ""] || 99;
+                      if (priorityA !== priorityB) return priorityA - priorityB;
+                      return (a.full_name || "").localeCompare(b.full_name || "");
+                    })
+                    .map((resident) => (
+                    <div
+                      key={resident.id}
+                      className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
+                    >
+                    <Avatar className="h-10 w-10">
+                        <AvatarImage src={resident.profiles?.avatar_url || ""} />
+                        <AvatarFallback>
+                          {getInitials(resident.profiles?.full_name || resident.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0 py-0.5">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
+                          <span className="font-bold text-sm sm:text-base line-clamp-1">
+                            {resident.profiles?.full_name || resident.full_name}
+                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {resident.is_head && (
+                                <Badge variant="secondary" className="px-1.5 h-4 text-[8px] bg-amber-500/10 text-amber-600 border-amber-200/50 font-bold uppercase tracking-wider shadow-sm ring-1 ring-amber-500/20">
+                                  <Crown className="w-2 h-2 mr-1" />
+                                  KK
+                                </Badge>
+                              )}
+                              {resident.member_type && (
+                                <Badge variant="outline" className="px-1.5 h-4 text-[8px] font-bold uppercase tracking-wider shadow-sm">
+                                  {MEMBER_TYPE_LABELS[resident.member_type as MemberType]}
+                                </Badge>
+                              )}
+                            
+                          </div>
                         </div>
+                        {resident.profiles?.phone && (
+                          <p className="text-sm text-muted-foreground line-clamp-1">
+                            {resident.profiles.phone}
+                          </p>
+                        )}
                       </div>
-                      {resident.profiles?.phone && (
-                        <p className="text-sm text-muted-foreground line-clamp-1">
-                          {resident.profiles.phone}
-                        </p>
-                      )}
                     </div>
-                    {resident.store_id && (
-                      <Link to={`/stores/${resident.store_id}`}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-2 border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 bg-white shadow-sm gap-1.5 font-bold text-[10px]"
-                        >
-                          <Store className="w-3.5 h-3.5" />
-                          Toko
-                        </Button>
-                      </Link>
-                    )}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </DialogContent>

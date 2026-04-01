@@ -1157,13 +1157,12 @@ _Paguyuban Nijuuroku_`;
                   <Label>Bukti Pembayaran</Label>
                   <Input
                     type="file"
-                    accept="image/*"
-                    multiple={false}
+                    accept="image/*,application/pdf,image/png,image/jpeg,image/jpg"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        if (!file.type.startsWith("image/")) {
-                          toast.error("Hanya file gambar yang diperbolehkan");
+                        if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
+                          toast.error("Hanya file gambar atau PDF yang diperbolehkan");
                           e.target.value = "";
                           setProofFile(null);
                           return;
@@ -1322,13 +1321,12 @@ _Paguyuban Nijuuroku_`;
                 <Label>Bukti Pembayaran (Opsional)</Label>
                 <Input
                   type="file"
-                  accept="image/*"
-                  multiple={false}
+                  accept="image/*,application/pdf,image/png,image/jpeg,image/jpg"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      if (!file.type.startsWith("image/")) {
-                        toast.error("Hanya file gambar yang diperbolehkan");
+                      if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
+                        toast.error("Hanya file gambar atau PDF yang diperbolehkan");
                         e.target.value = "";
                         setEditProofFile(null);
                         return;
