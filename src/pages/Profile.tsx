@@ -36,6 +36,8 @@ import {
   Loader2,
   Trash2,
   Camera,
+  Store,
+  ExternalLink,
 } from "lucide-react";
 import {
   Popover,
