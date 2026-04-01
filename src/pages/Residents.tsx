@@ -184,6 +184,16 @@ export default function Residents() {
 
       if (membersError) throw membersError;
 
+      // Fetch stores to know which houses have stores
+      const { data: storesData, error: storesError } = await supabase
+        .from("stores")
+        .select("house_id")
+        .eq("status", "approved");
+
+      if (storesError) throw storesError;
+
+      const houseIdsWithStore = new Set((storesData || []).map(s => s.house_id));
+
       // Fetch profiles for registered residents
       const userIds = [...new Set((membersData || []).filter(m => m.user_id).map((r) => r.user_id as string))];
       let profilesMap = new Map();
@@ -207,6 +217,7 @@ export default function Residents() {
           occupancy_status: house.occupancy_status || "occupied",
           vacancy_reason: house.vacancy_reason || null,
           estimated_return_date: house.estimated_return_date || null,
+          hasStore: houseIdsWithStore.has(house.id),
           residents: (membersData || [])
             .filter((r) => r.house_id === house.id)
             .map((r) => ({
