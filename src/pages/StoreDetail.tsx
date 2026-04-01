@@ -11,6 +11,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { 
   Store, MapPin, Phone, Globe, ExternalLink, Edit, Trash2, Plus, 
   Package, CheckCircle, XCircle, Clock, Power, AlertCircle, ShoppingCart, 
@@ -162,7 +169,7 @@ export default function StoreDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const waLink = `https://wa.me/${store?.wa_number?.replace(/[^0-9]/g, "")}`;
+  const waLink = `https://wa.me/${store?.wa_number?.replace(/[^0-9]/g, "").replace(/^0/, "62")}`;
   
   const handleCheckout = () => {
     if (!store || !profile) return;
@@ -190,7 +197,6 @@ export default function StoreDetail() {
 
   const addToCart = (itemId: string) => {
     setCart(prev => ({ ...prev, [itemId]: (prev[itemId] || 0) + 1 }));
-    setShowCart(true);
   };
 
   const removeFromCart = (itemId: string) => {
@@ -542,75 +548,97 @@ export default function StoreDetail() {
                       <p className="text-xs text-slate-400 mt-1">Silakan tambahkan produk baru untuk mulai berjualan</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {catalogItems.map((item: CatalogItem) => (
-                        <Card key={item.id} className="overflow-hidden group hover:shadow-xl hover:border-primary/20 transition-all duration-300 border-slate-100 rounded-2xl">
-                          <CardContent className="p-4 flex gap-4">
-                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden flex-shrink-0 shadow-sm border border-slate-50 relative">
+                    <div className="flex flex-wrap gap-6 pb-40">
+                      {catalogItems.map((item) => (
+                        <Card key={item.id} className="overflow-hidden group hover:shadow-xl hover:border-primary/20 transition-all duration-500 border-slate-100 rounded-[2.5rem] bg-white">
+                          <CardContent className="p-0 flex flex-col sm:flex-row h-full">
+                            {/* Image Section */}
+                            <div className="w-full sm:w-32 h-56 sm:h-auto bg-slate-50 flex items-center justify-center overflow-hidden flex-shrink-0 border-b sm:border-b-0 sm:border-r border-slate-100 relative">
                               {item.image_url ? (
-                                <img src={item.image_url} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                <img src={item.image_url} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                               ) : (
-                                <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-200">
-                                  <Package className="w-8 h-8" />
+                                <div className="text-center p-4">
+                                  <Package className="w-10 h-10 text-slate-200 mx-auto" />
                                 </div>
                               )}
                               {!item.is_available && (
                                 <div className="absolute inset-0 bg-white/80 backdrop-blur-[1px] flex items-center justify-center">
-                                  <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest -rotate-12 border-2 border-slate-200 px-2 py-0.5 rounded">Habis</span>
+                                  <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest -rotate-12 border-2 border-slate-200 px-2 py-0.5 rounded-lg bg-white/50 shadow-sm">Habis</span>
                                 </div>
                               )}
                             </div>
-                            <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                              <div className="space-y-1">
-                                <div className="flex items-start justify-between gap-2">
-                                  <h4 className="font-bold text-slate-800 text-sm sm:text-base leading-tight group-hover:text-primary transition-colors line-clamp-2">{item.name}</h4>
-                                </div>
+
+                            {/* Content Section */}
+                            <div className="flex-1 p-5 sm:p-6 flex flex-col min-w-0">
+                              <div className="flex-1 min-w-0 space-y-1.5">
+                                <h4 className="font-black text-slate-800 text-lg sm:text-base leading-tight group-hover:text-primary transition-colors line-clamp-2">{item.name}</h4>
                                 {item.description && (
-                                  <p className="text-[11px] text-slate-400 line-clamp-1 leading-relaxed italic pr-2">
+                                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed italic pr-2 font-medium">
                                     {item.description}
                                   </p>
                                 )}
                               </div>
                               
-                              <div className="flex items-end justify-between mt-2">
-                                <div className="space-y-0.5">
-                                  {item.price != null ? (
-                                    <p className="text-base font-black text-emerald-600">
-                                      Rp {Number(item.price).toLocaleString("id-ID")}
-                                    </p>
-                                  ) : (
-                                    <p className="text-[10px] text-slate-300 font-black uppercase tracking-tighter">Tanya Harga</p>
+                              <div className="mt-6 pt-4 flex flex-col gap-4 border-t border-slate-50/80">
+                                <div className="flex items-center justify-between">
+                                  <div className="space-y-0.5">
+                                    {item.price != null ? (
+                                      <p className="text-xl font-black text-emerald-600 tracking-tighter leading-none">
+                                        <span className="text-xs opacity-50 mr-1 italic">Rp</span>
+                                        {Number(item.price).toLocaleString("id-ID")}
+                                      </p>
+                                    ) : (
+                                      <p className="text-[10px] text-slate-300 font-black uppercase tracking-tighter">Tanya Harga</p>
+                                    )}
+                                  </div>
+                                  
+                                  {canManageStore && (
+                                    <div className="flex gap-1.5 animate-in fade-in slide-in-from-right-2 duration-500">
+                                      <Button 
+                                        size="icon" 
+                                        variant="ghost" 
+                                        className="h-9 w-9 rounded-2xl text-slate-400 hover:bg-primary/5 hover:text-primary transition-all shadow-sm bg-slate-50/50" 
+                                        onClick={(e) => { e.stopPropagation(); setCatalogDialog({ open: true, item }); }}
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                      <Button 
+                                        size="icon" 
+                                        variant="ghost" 
+                                        className="h-9 w-9 rounded-2xl text-slate-400 hover:bg-destructive/5 hover:text-destructive transition-all shadow-sm bg-slate-50/50" 
+                                        onClick={(e) => { e.stopPropagation(); deleteCatalogMutation.mutate(item.id); }}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
                                   )}
                                 </div>
-                                
-                                {canManageStore && (
-                                  <div className="flex gap-1 animate-in fade-in slide-in-from-right-2 duration-300">
-                                    <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl hover:bg-primary/10 hover:text-primary" onClick={() => setCatalogDialog({ open: true, item })}>
-                                      <Edit className="w-4 h-4" />
-                                    </Button>
-                                    <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl hover:bg-destructive/10 hover:text-destructive" onClick={() => deleteCatalogMutation.mutate(item.id)}>
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-                                )}
 
-                                {!canManageStore && store.is_open && item.is_available && (
-                                  <div className="flex items-center gap-2">
-                                     {cart[item.id] > 0 ? (
-                                       <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-300 bg-slate-50 rounded-full p-1 border border-slate-100">
-                                         <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full bg-white shadow-sm border border-slate-100 text-slate-600 hover:text-primary" onClick={() => removeFromCart(item.id)}>
-                                           <Minus className="w-3 h-3" />
-                                         </Button>
-                                         <span className="text-xs font-black w-4 text-center text-slate-800">{cart[item.id]}</span>
-                                         <Button size="icon" variant="default" className="h-7 w-7 rounded-full shadow-sm" onClick={() => addToCart(item.id)}>
-                                           <Plus className="w-3 h-3" />
-                                         </Button>
-                                       </div>
-                                     ) : (
-                                       <Button size="sm" variant="outline" className="h-8 px-4 rounded-xl border-primary/20 text-primary hover:bg-primary/5 transition-all text-[11px] font-black uppercase tracking-wider" onClick={() => addToCart(item.id)}>
-                                         <Plus className="w-3.5 h-3.5 mr-1.5" /> Beli
-                                       </Button>
-                                     )}
+                                {store.is_open && item.is_available && (
+                                  <div className="w-full">
+                                    {cart[item.id] > 0 ? (
+                                      <div className="flex items-center justify-between animate-in fade-in zoom-in duration-500 bg-emerald-50 rounded-[1.25rem] p-2 border border-emerald-100 shadow-inner w-full ring-4 ring-emerald-50/30">
+                                        <Button size="icon" variant="ghost" className="h-9 w-9 rounded-2xl bg-white shadow-sm border border-emerald-100 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all hover:rotate-[-5deg]" onClick={() => removeFromCart(item.id)}>
+                                          <Minus className="w-4 h-4" />
+                                        </Button>
+                                        <div className="flex flex-col items-center">
+                                          <span className="text-lg font-black text-emerald-700 leading-none">{cart[item.id]}</span>
+                                        </div>
+                                        <Button size="icon" variant="default" className="h-9 w-9 rounded-2xl bg-emerald-600 hover:bg-emerald-700 shadow-md border-none transition-all hover:scale-110 active:scale-90 hover:rotate-[5deg]" onClick={() => addToCart(item.id)}>
+                                          <Plus className="w-4 h-4" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="w-full h-12 rounded-[1.25rem] border-2 border-primary/10 text-primary font-black text-xs uppercase tracking-[0.15em] hover:bg-primary hover:text-white hover:border-primary hover:shadow-xl hover:shadow-primary/20 transition-all duration-300 group/btn active:scale-95 space-x-3 bg-primary/[0.02]" 
+                                        onClick={() => addToCart(item.id)}
+                                      >
+                                        <Plus className="w-5 h-5 transition-transform group-hover/btn:rotate-90 group-hover/btn:scale-125" /> 
+                                        <span>Beli Produk</span>
+                                      </Button>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -627,32 +655,116 @@ export default function StoreDetail() {
         </div>
       </div>
 
-      {/* Floating Cart Button */}
-      {!canManageStore && cartTotalItems > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm px-4 animate-in slide-in-from-bottom-10 fade-in duration-500">
-          <Button 
-            className="w-full h-16 rounded-3xl shadow-2xl bg-primary hover:bg-primary/95 text-white flex items-center justify-between px-6 border-4 border-white/20 backdrop-blur-xl ring-2 ring-primary/20"
-            onClick={handleCheckout}
-          >
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center animate-pulse">
-                  <ShoppingCart className="w-6 h-6" />
+      {/* Floating Cart Button & Review Sheet */}
+      {cartTotalItems > 0 && (
+        <Sheet open={showCart} onOpenChange={setShowCart}>
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm px-4 animate-in slide-in-from-bottom-10 fade-in duration-500">
+            <SheetTrigger asChild>
+              <Button 
+                className="w-full h-16 rounded-3xl shadow-2xl bg-primary hover:bg-primary/95 text-white flex items-center justify-between px-6 border-4 border-white/20 backdrop-blur-xl ring-2 ring-primary/20 group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <ShoppingCart className="w-6 h-6" />
+                    </div>
+                    <Badge className="absolute -top-2 -right-2 h-6 w-6 flex items-center justify-center p-0 text-[11px] bg-rose-500 text-white border-2 border-white shadow-md font-black rounded-full">
+                      {cartTotalItems}
+                    </Badge>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] uppercase font-black opacity-80 tracking-widest leading-none mb-1">Daftar Belanja</p>
+                    <p className="text-lg font-black tracking-tight">Rp {cartTotalPrice.toLocaleString("id-ID")}</p>
+                  </div>
                 </div>
-                <Badge className="absolute -top-2 -right-2 h-6 w-6 flex items-center justify-center p-0 text-[11px] bg-rose-500 text-white border-2 border-white shadow-md font-black rounded-full">
-                  {cartTotalItems}
-                </Badge>
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center group-hover:translate-x-1 transition-transform">
+                  <ArrowRight className="w-6 h-6" />
+                </div>
+              </Button>
+            </SheetTrigger>
+          </div>
+
+          <SheetContent side="bottom" className="h-[80vh] rounded-t-[32px] border-t-4 border-white/20 shadow-2xl p-0 overflow-hidden bg-slate-50/95 backdrop-blur-xl">
+            <div className="h-full flex flex-col">
+              <SheetHeader className="p-6 pb-4 bg-white shadow-sm shrink-0">
+                <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-4" />
+                <SheetTitle className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-xl">
+                    <ShoppingCart className="w-6 h-6 text-primary" />
+                  </div>
+                  Review Pesanan
+                </SheetTitle>
+              </SheetHeader>
+
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                {catalogItems.filter(item => cart[item.id] > 0).map(item => (
+                  <div key={item.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 animate-in slide-in-from-right-4 duration-300">
+                    <div className="w-16 h-16 rounded-xl bg-slate-50 overflow-hidden flex-shrink-0 border border-slate-50">
+                      {item.image_url ? (
+                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-200">
+                          <Package className="w-6 h-6" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-slate-800 text-sm truncate">{item.name}</h4>
+                      <p className="text-emerald-600 font-black text-xs">
+                        Rp {Number(item.price || 0).toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 bg-slate-50 rounded-xl p-1 border border-slate-100">
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-8 w-8 rounded-lg bg-white shadow-sm" 
+                        onClick={() => removeFromCart(item.id)}
+                      >
+                        <Minus className="w-3.5 h-3.5 text-slate-600" />
+                      </Button>
+                      <span className="text-sm font-black w-6 text-center text-slate-800">{cart[item.id]}</span>
+                      <Button 
+                        size="icon" 
+                        variant="default" 
+                        className="h-8 w-8 rounded-lg shadow-sm" 
+                        onClick={() => addToCart(item.id)}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="text-left">
-                <p className="text-[10px] uppercase font-black opacity-80 tracking-widest leading-none mb-1">Checkout Order</p>
-                <p className="text-lg font-black tracking-tight">Rp {cartTotalPrice.toLocaleString("id-ID")}</p>
+
+              <div className="p-6 bg-white border-t border-slate-100 space-y-4 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)] shrink-0">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-slate-500 font-bold text-sm px-1">
+                    <span>Total Barang</span>
+                    <span>{cartTotalItems} item</span>
+                  </div>
+                  <div className="flex justify-between items-end px-1">
+                    <span className="text-slate-800 font-black text-lg">Total Pembayaran</span>
+                    <span className="text-3xl font-black text-emerald-600 tracking-tighter">
+                      Rp {cartTotalPrice.toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                </div>
+
+                <Button 
+                  className="w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg shadow-xl shadow-emerald-100 group transition-all"
+                  onClick={handleCheckout}
+                >
+                  Kirim ke WhatsApp 
+                  <Phone className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Button>
+                <p className="text-[11px] text-center text-slate-400 font-bold uppercase tracking-widest">
+                  Pesanan akan diteruskan ke penjual
+                </p>
               </div>
             </div>
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center group-hover:translate-x-1 transition-transform">
-              <ArrowRight className="w-6 h-6" />
-            </div>
-          </Button>
-        </div>
+          </SheetContent>
+        </Sheet>
       )}
 
       <CatalogItemDialog
