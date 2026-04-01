@@ -256,7 +256,14 @@ export default function Residents() {
         matchesOccupancy = house.occupancy_status === "empty";
       }
 
-      return matchesSearch && matchesFilter && matchesOccupancy;
+      let matchesStore = true;
+      if (storeFilter === "has_store") {
+        matchesStore = !!house.hasStore;
+      } else if (storeFilter === "no_store") {
+        matchesStore = !house.hasStore;
+      }
+
+      return matchesSearch && matchesFilter && matchesOccupancy && matchesStore;
     })
     .sort((a, b) => {
       const blockSort = naturalSort(a.block, b.block);
@@ -269,6 +276,8 @@ export default function Residents() {
     houses?.filter((h) => h.residents.length > 0).length || 0;
   const totalUsers =
     houses?.reduce((sum, h) => sum + h.residents.length, 0) || 0;
+  const storeHouses =
+    houses?.filter((h) => h.hasStore).length || 0;
 
 
 
