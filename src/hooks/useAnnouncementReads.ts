@@ -35,6 +35,7 @@ export function useAnnouncementReads(announcementIds: string[]) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["announcement-reads"] });
+      queryClient.invalidateQueries({ queryKey: ["announcements", "count"] });
     },
   });
 
