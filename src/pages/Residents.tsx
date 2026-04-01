@@ -22,6 +22,7 @@ import {
   User,
   Pencil,
   Loader2,
+  Store,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
