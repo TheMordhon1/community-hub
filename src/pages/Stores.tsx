@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Store, Search, Phone, MapPin, Clock, CheckCircle, XCircle, ArrowLeft, Globe, Power } from "lucide-react";
+import { Plus, Store, Search, Phone, MapPin, Clock, CheckCircle, XCircle, ArrowLeft, Globe, Power, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { InventoryItemRef, BorrowRequest, BorrowItem, BorrowStatus } from "./borrow-detail/types";
@@ -139,6 +139,13 @@ export default function Stores() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
                         <h3 className="font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">{store.name}</h3>
+                        <div className="flex flex-wrap gap-1">
+                          {store.categories?.map((cat) => (
+                            <Badge key={cat} variant="secondary" className="text-[9px] h-4 px-1.5 bg-primary/10 text-primary border-none uppercase font-black">
+                              <Tag className="w-2.5 h-2.5 mr-1" />{cat}
+                            </Badge>
+                          ))}
+                        </div>
                         {getStatusBadge(store.status, store.is_open)}
                       </div>
                       <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">

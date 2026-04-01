@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Image as ImageIcon, X, Globe, Plus } from "lucide-react";
+import { Loader2, Image as ImageIcon, X, Globe, Plus, Tag } from "lucide-react";
 import { useRef } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Props {
   open: boolean;
@@ -25,8 +26,19 @@ interface Props {
     description: string | null;
     website_url: string | null;
     logo_url: string | null;
+    categories?: string[] | null;
   };
 }
+
+const CATEGORIES = [
+  "Sembako",
+  "Jajanan",
+  "Makanan & Minuman",
+  "Jasa",
+  "Fashion",
+  "Warung",
+  "Lainnya"
+];
 
 export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", initialData }: Props) {
   const { profile } = useAuth();
@@ -36,6 +48,7 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
   const [description, setDescription] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,14 +59,22 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
       setDescription(initialData.description || "");
       setWebsiteUrl(initialData.website_url || "");
       setLogoUrl(initialData.logo_url || "");
+      setSelectedCategories(initialData.categories || []);
     } else if (open && mode === "create") {
       setName("");
       setWaNumber("");
       setDescription("");
       setWebsiteUrl("");
       setLogoUrl("");
+      setSelectedCategories([]);
     }
   }, [open, mode, initialData]);
+
+  const toggleCategory = (cat: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  };
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -65,6 +86,7 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
           description: description || null,
           website_url: websiteUrl || null,
           logo_url: logoUrl || null,
+          categories: selectedCategories,
           created_by: profile!.id,
         });
         if (error) throw error;
@@ -75,6 +97,7 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
           description: description || null,
           website_url: websiteUrl || null,
           logo_url: logoUrl || null,
+          categories: selectedCategories,
           updated_at: new Date().toISOString(),
         }).eq("id", initialData.id);
         if (error) throw error;
@@ -132,11 +155,11 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{mode === "create" ? "Tambah Toko Baru" : "Edit Toko"}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+        <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 py-2">
           <div className="flex flex-col items-center gap-4 py-2">
             <div className="relative group">
               <div className="w-24 h-24 rounded-2xl bg-muted border-2 border-dashed border-muted-foreground/20 flex items-center justify-center overflow-hidden transition-all group-hover:border-primary/50">
@@ -186,14 +209,37 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
             </p>
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="name">Nama Toko *</Label>
-            <Input 
-              id="name"
-              value={name} 
-              onChange={(e) => setName(e.target.value)} 
-              placeholder="Contoh: Warung Berkah" 
-            />
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nama Toko *</Label>
+              <Input 
+                id="name"
+                value={name} 
+                onChange={(e) => setName(e.target.value)} 
+                placeholder="Contoh: Warung Berkah" 
+              />
+            </div>
+
+            <div className="grid gap-3">
+              <Label>Kategori *</Label>
+              <div className="grid grid-cols-2 gap-3 p-3 rounded-lg border bg-slate-50/50">
+                {CATEGORIES.map((cat) => (
+                  <div key={cat} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`cat-${cat}`}
+                      checked={selectedCategories.includes(cat)}
+                      onCheckedChange={() => toggleCategory(cat)}
+                    />
+                    <label 
+                      htmlFor={`cat-${cat}`}
+                      className="text-xs font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      {cat}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-2">
@@ -233,7 +279,7 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button onClick={() => mutation.mutate()} disabled={!name.trim() || !waNumber.trim() || mutation.isPending}>
+          <Button onClick={() => mutation.mutate()} disabled={!name.trim() || !waNumber.trim() || selectedCategories.length === 0 || mutation.isPending}>
             {mutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {mode === "create" ? "Simpan" : "Simpan Perubahan"}
           </Button>

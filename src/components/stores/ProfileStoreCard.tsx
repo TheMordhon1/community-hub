@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Store, Plus, ExternalLink, CheckCircle, Clock, XCircle, Power, AlertCircle } from "lucide-react";
+import { Store, Plus, ExternalLink, CheckCircle, Clock, XCircle, Power, AlertCircle, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { StoreFormDialog } from "./StoreFormDialog";
@@ -23,7 +23,7 @@ export function ProfileStoreCard({ houseId, userId }: ProfileStoreCardProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("stores")
-        .select("id, name, status, wa_number, is_open, status_changed_at")
+        .select("id, name, status, wa_number, is_open, status_changed_at, categories")
         .eq("house_id", houseId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -117,7 +117,12 @@ export function ProfileStoreCard({ houseId, userId }: ProfileStoreCardProps) {
                         <p className="text-xs text-muted-foreground">{store.wa_number}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end max-w-[200px]">
+                      {store.categories?.map((cat) => (
+                        <Badge key={cat} variant="secondary" className="text-[9px] h-4 px-1.5 bg-primary/10 text-primary border-none uppercase font-black">
+                          <Tag className="w-2.5 h-2.5 mr-1" />{cat}
+                        </Badge>
+                      ))}
                       {getStatusBadge(store.status, store.is_open)}
                       <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
                     </div>

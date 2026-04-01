@@ -11,7 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Phone, MapPin, CheckCircle, Clock, XCircle, Trash2, Plus, Edit, Package, Globe, ExternalLink, Store, Power, AlertCircle } from "lucide-react";
+import { ArrowLeft, Phone, MapPin, CheckCircle, Clock, XCircle, Trash2, Plus, Edit, Package, Globe, ExternalLink, Store, Power, AlertCircle, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { CatalogItemDialog } from "@/components/stores/CatalogItemDialog";
 import { StoreFormDialog } from "@/components/stores/StoreFormDialog";
@@ -188,6 +188,11 @@ export default function StoreDetail() {
               <h1 className="text-2xl font-black text-foreground tracking-tight truncate leading-tight">{store.name}</h1>
               <div className="flex items-center gap-2 flex-wrap">
                 {getStatusBadge(store.status, store.is_open)}
+                {store.categories?.map((cat) => (
+                  <Badge key={cat} variant="secondary" className="text-[10px] uppercase tracking-tighter bg-primary/10 text-primary border-primary/20">
+                    <Tag className="w-3 h-3 mr-1" />{cat}
+                  </Badge>
+                ))}
                 <Badge variant="outline" className="text-[10px] uppercase tracking-tighter bg-slate-50 border-slate-200">
                   <MapPin className="w-3 h-3 mr-1" />Blok {store.houses?.block} No. {store.houses?.number}
                 </Badge>
@@ -271,60 +276,108 @@ export default function StoreDetail() {
             </p>
           )}
 
-          <div className="flex gap-2 flex-wrap items-center">
-            {isOwner && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 border mr-auto">
-                <Power className={cn("w-3.5 h-3.5", store.is_open ? "text-success" : "text-slate-400")} />
-                <span className="text-xs font-medium">{store.is_open ? "Toko Buka" : "Toko Tutup"}</span>
-                <Switch 
-                  checked={store.is_open} 
-                  onCheckedChange={(checked) => toggleOpenMutation.mutate(checked)}
-                  disabled={toggleOpenMutation.isPending}
-                />
+          <div className="flex flex-col gap-6 pt-4 border-t border-slate-100">
+            {canManageContent() && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-slate-400 tracking-wider pl-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                  Manajemen Admin
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {store.status !== "approved" && (
+                    <Button 
+                      size="sm" 
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm border-none h-8 px-4"
+                      onClick={() => verifyMutation.mutate("approved")}
+                      disabled={verifyMutation.isPending}
+                    >
+                      <CheckCircle className="w-3.5 h-3.5 mr-2" />
+                      Setujui
+                    </Button>
+                  )}
+                  {store.status !== "rejected" && (
+                    <Button 
+                      size="sm" 
+                      variant="destructive" 
+                      className="h-8 px-4 shadow-sm"
+                      onClick={() => verifyMutation.mutate("rejected")}
+                      disabled={verifyMutation.isPending}
+                    >
+                      <XCircle className="w-3.5 h-3.5 mr-2" />
+                      Tolak
+                    </Button>
+                  )}
+                  {store.status !== "pending" && (
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-8 px-4 border-slate-200 text-slate-600 hover:bg-slate-50"
+                      onClick={() => verifyMutation.mutate("pending")}
+                      disabled={verifyMutation.isPending}
+                    >
+                      <Clock className="w-3.5 h-3.5 mr-2" />
+                      Reset ke Pending
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
-            {canManageContent() && (
-              <>
-                {store.status !== "approved" && (
-                  <Button size="sm" onClick={() => verifyMutation.mutate("approved")}>
-                    <CheckCircle className="w-3 h-3 mr-1" />Setujui
-                  </Button>
-                )}
-                {store.status !== "rejected" && (
-                  <Button size="sm" variant="destructive" onClick={() => verifyMutation.mutate("rejected")}>
-                    <XCircle className="w-3 h-3 mr-1" />Tolak
-                  </Button>
-                )}
-                {store.status !== "pending" && (
-                  <Button size="sm" variant="outline" className="text-muted-foreground" onClick={() => verifyMutation.mutate("pending")}>
-                    <Clock className="w-3 h-3 mr-1" />Batalkan
-                  </Button>
-                )}
-              </>
-            )}
+
             {isOwner && (
-              <>
-                <Button size="sm" variant="outline" onClick={() => setIsEditDialogOpen(true)}>
-                  <Edit className="w-3 h-3 mr-1" />Edit Info
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button size="sm" variant="destructive">
-                      <Trash2 className="w-3 h-3 mr-1" />Hapus Toko
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Hapus Toko?</AlertDialogTitle>
-                      <AlertDialogDescription>Tindakan ini tidak bisa dibatalkan. Semua data toko dan katalog akan dihapus.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Batal</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => deleteMutation.mutate()}>Hapus</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-slate-400 tracking-wider pl-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  Pengaturan Toko
+                </div>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <div className="flex items-center gap-2 px-3 py-1 h-8 rounded-full bg-slate-50 border border-slate-100 mr-2 shadow-sm">
+                    <Power className={cn("w-3 h-3", store.is_open ? "text-emerald-500" : "text-slate-400")} />
+                    <span className="text-[11px] font-bold text-slate-600">{store.is_open ? "Buka" : "Tutup"}</span>
+                    <Switch 
+                      checked={store.is_open} 
+                      onCheckedChange={(checked) => toggleOpenMutation.mutate(checked)}
+                      disabled={toggleOpenMutation.isPending}
+                      className="scale-75"
+                    />
+                  </div>
+                  
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="h-8 px-4 border-slate-200 text-slate-600 hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all shadow-sm"
+                    onClick={() => setIsEditDialogOpen(true)}
+                  >
+                    <Edit className="w-3.5 h-3.5 mr-2" />
+                    Edit Info
+                  </Button>
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="ghost" className="h-8 px-4 text-slate-400 hover:text-destructive hover:bg-destructive/5 transition-all">
+                        <Trash2 className="w-3.5 h-3.5 mr-2" />
+                        Hapus Toko
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Hapus Toko?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tindakan ini tidak bisa dibatalkan. Semua data toko dan katalog produk akan dihapus secara permanen.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction 
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={() => deleteMutation.mutate()}
+                        >
+                          Hapus Permanen
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
             )}
           </div>
         </CardContent>
