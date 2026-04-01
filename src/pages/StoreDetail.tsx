@@ -219,7 +219,7 @@ export default function StoreDetail() {
   const showInactivityWarning = canManageStore && !store.is_open && daysSinceStatusChange >= 7;
 
   return (
-    <section className="py-6 px-4 sm:px-6 md:px-8 space-y-6">
+    <section className={`py-6 px-4 sm:px-6 md:px-8 space-y-6 ${catalogItems.length > 0 ? 'pb-28' : ''}`}>
       <div className="flex items-center gap-3 sm:gap-4">
         <Button 
           variant="outline" 
@@ -548,7 +548,7 @@ export default function StoreDetail() {
                       <p className="text-xs text-slate-400 mt-1">Silakan tambahkan produk baru untuk mulai berjualan</p>
                     </div>
                   ) : (
-                    <div className="flex flex-wrap gap-6 pb-40">
+                    <div className="flex flex-wrap gap-6 ">
                       {catalogItems.map((item) => (
                         <Card key={item.id} className="overflow-hidden group hover:shadow-xl hover:border-primary/20 transition-all duration-500 border-slate-100 rounded-[2.5rem] bg-white">
                           <CardContent className="p-0 flex flex-col sm:flex-row h-full">
