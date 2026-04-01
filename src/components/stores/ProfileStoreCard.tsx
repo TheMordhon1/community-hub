@@ -9,7 +9,6 @@ import { useState } from "react";
 import { StoreFormDialog } from "./StoreFormDialog";
 import { differenceInDays } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { StoreCategoryBadge } from "./StoreCategoryBadge";
 import { StoreStatusBadge } from "./StoreStatusBadge";
 
 interface ProfileStoreCardProps {
@@ -88,10 +87,7 @@ export function ProfileStoreCard({ houseId, userId }: ProfileStoreCardProps) {
                         <p className="text-xs text-muted-foreground">{store.wa_number}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end max-w-[200px]">
-                      {store.categories?.map((cat) => (
-                        <StoreCategoryBadge key={cat} category={cat} size="sm" />
-                      ))}
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end max-w-[100px]">
                       <StoreStatusBadge status={store.status} isOpen={store.is_open} />
                       <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
                     </div>

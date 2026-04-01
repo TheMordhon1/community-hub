@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Loader2, Image as ImageIcon, X, Globe, Plus, Tag } from "lucide-react";
 import { useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 
 interface Props {
   open: boolean;
@@ -26,6 +27,9 @@ interface Props {
     description: string | null;
     website_url: string | null;
     logo_url: string | null;
+    image_url?: string | null;
+    order_template?: string | null;
+    use_external_website?: boolean;
     categories?: string[] | null;
   };
 }
@@ -48,9 +52,14 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
   const [description, setDescription] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [orderTemplate, setOrderTemplate] = useState("");
+  const [useExternalWebsite, setUseExternalWebsite] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open && mode === "edit" && initialData) {
@@ -59,6 +68,9 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
       setDescription(initialData.description || "");
       setWebsiteUrl(initialData.website_url || "");
       setLogoUrl(initialData.logo_url || "");
+      setImageUrl(initialData.image_url || "");
+      setOrderTemplate(initialData.order_template || "Halo {nama_toko}, saya {nama_pembeli} dari rumah {no_rumah}. Saya ingin memesan:\n{daftar_pesanan}\n\nTotal: {total_harga}\nTerima kasih!");
+      setUseExternalWebsite(initialData.use_external_website || false);
       setSelectedCategories(initialData.categories || []);
     } else if (open && mode === "create") {
       setName("");
@@ -66,6 +78,9 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
       setDescription("");
       setWebsiteUrl("");
       setLogoUrl("");
+      setImageUrl("");
+      setOrderTemplate("Halo {nama_toko}, saya {nama_pembeli} dari rumah {no_rumah}. Saya ingin memesan:\n{daftar_pesanan}\n\nTotal: {total_harga}\nTerima kasih!");
+      setUseExternalWebsite(false);
       setSelectedCategories([]);
     }
   }, [open, mode, initialData]);
@@ -86,6 +101,9 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
           description: description || null,
           website_url: websiteUrl || null,
           logo_url: logoUrl || null,
+          image_url: imageUrl || null,
+          order_template: orderTemplate || null,
+          use_external_website: useExternalWebsite,
           categories: selectedCategories,
           created_by: profile!.id,
         });
@@ -97,6 +115,9 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
           description: description || null,
           website_url: websiteUrl || null,
           logo_url: logoUrl || null,
+          image_url: imageUrl || null,
+          order_template: orderTemplate || null,
+          use_external_website: useExternalWebsite,
           categories: selectedCategories,
           updated_at: new Date().toISOString(),
         }).eq("id", initialData.id);
@@ -150,6 +171,46 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
       toast.error("Gagal mengunggah logo: " + message);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile?.id) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("File tidak valid. Pilih file gambar.");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("File terlalu besar. Maksimal 2MB.");
+      return;
+    }
+
+    setIsUploadingBanner(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${profile.id}/banner-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `banners/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("resident-stores")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("resident-stores")
+        .getPublicUrl(filePath);
+
+      setImageUrl(urlData.publicUrl);
+      toast.success("Banner berhasil diunggah");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Terjadi kesalahan";
+      toast.error("Gagal mengunggah banner: " + message);
+    } finally {
+      setIsUploadingBanner(false);
     }
   };
 
@@ -209,6 +270,51 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
             </p>
           </div>
 
+          <div className="space-y-2">
+            <Label>Banner Toko (Optional, Max 2MB)</Label>
+            <div className="relative w-full aspect-[21/9] rounded-xl bg-muted border-2 border-dashed border-muted-foreground/20 flex items-center justify-center overflow-hidden transition-all hover:border-primary/50 group">
+              {imageUrl ? (
+                <img src={imageUrl} alt="Banner preview" className="w-full h-full object-cover" />
+              ) : (
+                <div className="text-center">
+                  {isUploadingBanner ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mx-auto" />
+                  ) : (
+                    <ImageIcon className="w-8 h-8 text-muted-foreground/50 mx-auto" />
+                  )}
+                </div>
+              )}
+              <input
+                type="file"
+                ref={bannerInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleBannerUpload}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="absolute bottom-2 right-2 shadow-lg border"
+                onClick={() => bannerInputRef.current?.click()}
+                disabled={isUploadingBanner}
+              >
+                <Plus className="h-3 w-3 mr-1" /> Ganti Banner
+              </Button>
+              {imageUrl && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2 h-7 w-7 rounded-full shadow-lg"
+                  onClick={() => setImageUrl("")}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          </div>
+
           <div className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="name">Nama Toko *</Label>
@@ -264,6 +370,19 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
                 className="pl-9"
               />
             </div>
+            {websiteUrl && (
+              <div className="flex items-center justify-between p-3 rounded-lg border bg-blue-50/50 mt-1">
+                <div className="space-y-0.5">
+                  <Label htmlFor="redirect" className="text-xs font-bold text-blue-900">Gunakan Website sebagai Katalog Utama</Label>
+                  <p className="text-[10px] text-blue-700">Jika aktif, pelanggan akan diarahkan ke website Anda.</p>
+                </div>
+                <Switch 
+                  id="redirect"
+                  checked={useExternalWebsite}
+                  onCheckedChange={setUseExternalWebsite}
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -275,6 +394,20 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
               placeholder="Ceritakan sedikit tentang toko Anda" 
               className="resize-none h-20"
             />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="template">Template Pesanan WhatsApp</Label>
+            <Textarea 
+              id="template"
+              value={orderTemplate} 
+              onChange={(e) => setOrderTemplate(e.target.value)} 
+              placeholder="Halo {nama_toko}, saya {nama_pembeli} dari rumah {no_rumah}..." 
+              className="resize-none h-32"
+            />
+            <p className="text-[10px] text-muted-foreground italic leading-relaxed">
+              Gunakan variabel: <span className="font-bold text-primary">{`{nama_pembeli}, {no_rumah}, {daftar_pesanan}, {total_harga}, {nama_toko}`}</span>
+            </p>
           </div>
         </div>
         <DialogFooter>

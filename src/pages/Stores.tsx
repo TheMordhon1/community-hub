@@ -18,7 +18,18 @@ export default function Stores() {
   const { profile, isAdmin, isPengurus, canManageContent } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+
+  const CATEGORIES = [
+    "Sembako",
+    "Jajanan",
+    "Makanan & Minuman",
+    "Jasa",
+    "Fashion",
+    "Warung",
+    "Lainnya"
+  ];
 
   const { data: stores = [], isLoading } = useQuery({
     queryKey: ["stores"],
@@ -61,9 +72,13 @@ export default function Stores() {
     },
   });
 
-  const filtered = stores.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = stores.filter((s) => {
+    const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || 
+                         (s.description?.toLowerCase() || "").includes(search.toLowerCase()) ||
+                         s.categories?.some((cat: string) => cat.toLowerCase().includes(search.toLowerCase()));
+    const matchesCategory = !selectedCategory || s.categories?.includes(selectedCategory);
+    return matchesSearch && matchesCategory;
+  });
 
 
   return (
@@ -83,14 +98,38 @@ export default function Stores() {
         {/* Add store from Profile page */}
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Cari toko..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      <div className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari toko atau kategori..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-white shadow-sm border-slate-200"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <Button
+            variant={selectedCategory === null ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSelectedCategory(null)}
+            className="rounded-full h-8 px-4 text-[11px] font-bold uppercase tracking-wider transition-all"
+          >
+            Semua
+          </Button>
+          {CATEGORIES.map((cat) => (
+            <Button
+              key={cat}
+              variant={selectedCategory === cat ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
+              className="rounded-full h-8 px-4 text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all"
+            >
+              {cat}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {isLoading ? (
@@ -125,11 +164,6 @@ export default function Stores() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
                         <h3 className="font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">{store.name}</h3>
-                        <div className="flex flex-wrap gap-1">
-                          {store.categories?.map((cat) => (
-                            <StoreCategoryBadge key={cat} category={cat} size="sm" />
-                          ))}
-                        </div>
                         <StoreStatusBadge status={store.status} isOpen={store.is_open} />
                       </div>
                       <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">

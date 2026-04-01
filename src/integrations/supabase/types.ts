@@ -1342,6 +1342,8 @@ export type Database = {
           verified_by: string | null
           wa_number: string
           website_url: string | null
+          order_template: string | null
+          use_external_website: boolean
         }
         Insert: {
           categories?: string[] | null
@@ -1361,6 +1363,8 @@ export type Database = {
           verified_by?: string | null
           wa_number: string
           website_url?: string | null
+          order_template?: string | null
+          use_external_website?: boolean
         }
         Update: {
           categories?: string[] | null
@@ -1380,6 +1384,8 @@ export type Database = {
           verified_by?: string | null
           wa_number?: string
           website_url?: string | null
+          order_template?: string | null
+          use_external_website?: boolean
         }
         Relationships: [
           {
