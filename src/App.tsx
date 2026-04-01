@@ -37,6 +37,8 @@ import BorrowDetail from "@/pages/BorrowDetail";
 import Maintenance from "@/pages/admin/Maintenance";
 import Schedule from "@/pages/Schedule";
 import ScheduleDetail from "@/pages/ScheduleDetail";
+import Stores from "@/pages/Stores";
+import StoreDetail from "@/pages/StoreDetail";
 
 const queryClient = new QueryClient();
 
