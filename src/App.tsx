@@ -109,6 +109,8 @@ function AppRoutes() {
           <Route path="/emergency-contacts" element={<EmergencyContacts />} />
           <Route path="/schedule" element={<Schedule />} />
           <Route path="/schedule/:id" element={<ScheduleDetail />} />
+          <Route path="/stores" element={<Stores />} />
+          <Route path="/stores/:id" element={<StoreDetail />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFound />} />
