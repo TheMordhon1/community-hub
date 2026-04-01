@@ -439,6 +439,20 @@ export default function Residents() {
               </SelectContent>
             </Select>
 
+            <Select
+              value={storeFilter}
+              onValueChange={(value: StoreFilter) => setStoreFilter(value)}
+            >
+              <SelectTrigger className="w-[140px] text-left">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Toko</SelectItem>
+                <SelectItem value="has_store">Punya Toko</SelectItem>
+                <SelectItem value="no_store">Tanpa Toko</SelectItem>
+              </SelectContent>
+            </Select>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-2">
