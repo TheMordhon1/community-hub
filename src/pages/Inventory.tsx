@@ -709,12 +709,12 @@ export default function Inventory() {
                       <Card key={item.id} className={`overflow-hidden transition-all duration-300 ${isSelected ? "ring-2 ring-primary shadow-lg scale-[1.02]" : "shadow-sm"}`}>
                         <div className="relative">
                           {/* Selection Checkbox - Absolute Top Left */}
-                          {item.available_quantity > 0 && item.condition !== "broken" && (
+                          {getAvailable(item) > 0 && item.condition !== "broken" && (
                             <div className="absolute top-3 left-3 z-20">
                               <div className="bg-background/90 backdrop-blur-md p-1.5 rounded-full shadow-md border border-primary/20 flex items-center justify-center">
                                 <Checkbox
                                   checked={isSelected}
-                                  onCheckedChange={() => toggleItemSelection(item.id, item.available_quantity)}
+                                  onCheckedChange={() => toggleItemSelection(item.id, getAvailable(item))}
                                   className="h-5 w-5 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                                 />
                               </div>
@@ -760,8 +760,8 @@ export default function Inventory() {
                               <div className="space-y-0.5">
                                 <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Status Stok</p>
                                 <p className="text-sm font-bold">
-                                  <span className={item.available_quantity === 0 ? "text-destructive" : "text-green-600"}>
-                                    {item.available_quantity} Tersedia
+                                  <span className={getAvailable(item) === 0 ? "text-destructive" : "text-green-600"}>
+                                    {getAvailable(item)} Tersedia
                                   </span>
                                   <span className="text-muted-foreground font-normal ml-1">/ {item.quantity} Total</span>
                                 </p>
@@ -770,11 +770,11 @@ export default function Inventory() {
                                 <div 
                                   className="absolute inset-0 rounded-full border-4 border-primary transition-all duration-500" 
                                   style={{ 
-                                    clipPath: `inset(${100 - (item.available_quantity / item.quantity) * 100}% 0 0 0)`,
-                                    borderColor: item.available_quantity === 0 ? 'rgb(239 68 68)' : 'rgb(34 197 94)'
+                                    clipPath: `inset(${100 - (getAvailable(item) / item.quantity) * 100}% 0 0 0)`,
+                                    borderColor: getAvailable(item) === 0 ? 'rgb(239 68 68)' : 'rgb(34 197 94)'
                                   }}
                                 />
-                                <span className="text-[10px] font-black">{Math.round((item.available_quantity / item.quantity) * 100)}%</span>
+                                <span className="text-[10px] font-black">{Math.round((getAvailable(item) / item.quantity) * 100)}%</span>
                               </div>
                             </div>
 
@@ -787,11 +787,11 @@ export default function Inventory() {
                                 <Input
                                   type="number"
                                   min={1}
-                                  max={item.available_quantity}
+                                  max={getAvailable(item)}
                                   className="h-12 text-lg font-bold text-center appearance-none"
                                   value={selectedItems.get(item.id) === 0 ? "" : (selectedItems.get(item.id) || 1)}
-                                  onChange={(e) => { const v = e.target.value; updateSelectedQuantity(item.id, v === "" ? "" : (parseInt(v) || 0), item.available_quantity); }}
-                                  onBlur={() => finalizeSelectedQuantity(item.id, item.available_quantity)}
+                                  onChange={(e) => { const v = e.target.value; updateSelectedQuantity(item.id, v === "" ? "" : (parseInt(v) || 0), getAvailable(item)); }}
+                                  onBlur={() => finalizeSelectedQuantity(item.id, getAvailable(item))}
                                 />
                               </div>
                             )}
