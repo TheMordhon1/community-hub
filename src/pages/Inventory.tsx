@@ -269,6 +269,17 @@ export default function Inventory() {
       });
     });
 
+  // Compute effective available quantity dynamically from active borrows
+  const computedAvailableQuantity = new Map<string, number>();
+  items.forEach((item) => {
+    const activeBorrows = activeBorrowsByItem.get(item.id) || [];
+    const totalBorrowed = activeBorrows.reduce((sum, b) => sum + b.quantity, 0);
+    computedAvailableQuantity.set(item.id, Math.max(0, item.quantity - totalBorrowed));
+  });
+
+  // Helper to get effective available quantity
+  const getAvailable = (item: InventoryItem) => computedAvailableQuantity.get(item.id) ?? item.available_quantity;
+
   // Mutations
   const createItemMutation = useMutation({
     mutationFn: async (form: typeof itemForm) => {
