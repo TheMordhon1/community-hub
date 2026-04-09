@@ -879,10 +879,10 @@ export default function Inventory() {
                           return (
                             <TableRow key={item.id} className={isSelected ? "bg-primary/5" : ""}>
                               <TableCell>
-                                {item.available_quantity > 0 && item.condition !== "broken" && (
+                                {getAvailable(item) > 0 && item.condition !== "broken" && (
                                   <Checkbox
                                     checked={isSelected}
-                                    onCheckedChange={() => toggleItemSelection(item.id, item.available_quantity)}
+                                    onCheckedChange={() => toggleItemSelection(item.id, getAvailable(item))}
                                   />
                                 )}
                               </TableCell>
@@ -911,10 +911,10 @@ export default function Inventory() {
                                     <Input
                                       type="number"
                                       min={1}
-                                      max={item.available_quantity}
+                                      max={getAvailable(item)}
                                       value={selectedItems.get(item.id) === 0 ? "" : (selectedItems.get(item.id) || 1)}
-                                      onChange={(e) => { const v = e.target.value; updateSelectedQuantity(item.id, v === "" ? "" : (parseInt(v) || 0), item.available_quantity); }}
-                                      onBlur={() => finalizeSelectedQuantity(item.id, item.available_quantity)}
+                                      onChange={(e) => { const v = e.target.value; updateSelectedQuantity(item.id, v === "" ? "" : (parseInt(v) || 0), getAvailable(item)); }}
+                                      onBlur={() => finalizeSelectedQuantity(item.id, getAvailable(item))}
                                       className="w-16 h-7 text-xs"
                                     />
                                   </div>
@@ -926,8 +926,8 @@ export default function Inventory() {
                               <TableCell>{getConditionBadge(item.condition)}</TableCell>
                               <TableCell className="text-center">{item.quantity}</TableCell>
                               <TableCell className="text-center">
-                                <span className={item.available_quantity === 0 ? "text-destructive font-bold" : "text-green-600 font-bold"}>
-                                  {item.available_quantity}
+                                <span className={getAvailable(item) === 0 ? "text-destructive font-bold" : "text-green-600 font-bold"}>
+                                  {getAvailable(item)}
                                 </span>
                               </TableCell>
                               <TableCell>
