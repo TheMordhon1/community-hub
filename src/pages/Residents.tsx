@@ -526,11 +526,8 @@ export default function Residents() {
                   </div>
                 )}
                 {house.hasStore && (
-                  <Link to={`/stores`} className="absolute top-0 left-0 p-1">
-                    <Badge className="h-4 sm:h-5 text-[8px] sm:text-[9px] px-1 sm:px-1.5 bg-emerald-500 font-bold tracking-tighter">
-                      <Store className="w-2.5 h-2.5 mr-0.5" />
-                      UMKM
-                    </Badge>
+                  <Link to={`/stores`} className="absolute top-1 left-0 p-1">
+                    <Store className="w-4 h-4 mr-0.5 text-emerald-500" />
                   </Link>
                 )}
                 
