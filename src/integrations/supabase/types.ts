@@ -1332,18 +1332,18 @@ export type Database = {
           house_id: string
           id: string
           image_url: string | null
-          is_open: boolean
+          is_open: boolean | null
           logo_url: string | null
           name: string
+          order_template: string | null
           status: string
-          status_changed_at: string
+          status_changed_at: string | null
           updated_at: string
+          use_external_website: boolean | null
           verified_at: string | null
           verified_by: string | null
           wa_number: string
           website_url: string | null
-          order_template: string | null
-          use_external_website: boolean
         }
         Insert: {
           categories?: string[] | null
@@ -1353,18 +1353,18 @@ export type Database = {
           house_id: string
           id?: string
           image_url?: string | null
-          is_open?: boolean
+          is_open?: boolean | null
           logo_url?: string | null
           name: string
+          order_template?: string | null
           status?: string
-          status_changed_at?: string
+          status_changed_at?: string | null
           updated_at?: string
+          use_external_website?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
           wa_number: string
           website_url?: string | null
-          order_template?: string | null
-          use_external_website?: boolean
         }
         Update: {
           categories?: string[] | null
@@ -1374,18 +1374,18 @@ export type Database = {
           house_id?: string
           id?: string
           image_url?: string | null
-          is_open?: boolean
+          is_open?: boolean | null
           logo_url?: string | null
           name?: string
+          order_template?: string | null
           status?: string
-          status_changed_at?: string
+          status_changed_at?: string | null
           updated_at?: string
+          use_external_website?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
           wa_number?: string
           website_url?: string | null
-          order_template?: string | null
-          use_external_website?: boolean
         }
         Relationships: [
           {
@@ -1488,12 +1488,7 @@ export type Database = {
         Returns: boolean
       }
       is_menteri_sisdigi: { Args: { _user_id: string }; Returns: boolean }
-      update_menu_orders: {
-        Args: {
-          p_orders: Json
-        }
-        Returns: undefined
-      }
+      update_menu_orders: { Args: { p_orders: Json }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "pengurus" | "warga"
