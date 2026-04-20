@@ -86,7 +86,7 @@ export default function MapPage() {
             <div className="h-[60vh] w-full rounded-md overflow-hidden border">
               <MapContainer
                 center={center}
-                zoom={pinned.length > 0 ? 16 : 12}
+                zoom={pinned.length > 0 ? 18 : FALLBACK_ZOOM}
                 style={{ height: "100%", width: "100%" }}
               >
                 <TileLayer
