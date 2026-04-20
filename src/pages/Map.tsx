@@ -332,18 +332,20 @@ export default function MapPage() {
 
       {/* Admin/Pengurus location picker dialog */}
       <Dialog open={!!pickerHouseId} onOpenChange={(o) => !o && closePicker()}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-primary" />
-              Atur Lokasi Blok {pickerHouse?.block} No. {pickerHouse?.number}
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <MapPin className="w-5 h-5 text-primary shrink-0" />
+              <span className="truncate">
+                Atur Lokasi Blok {pickerHouse?.block} No. {pickerHouse?.number}
+              </span>
             </DialogTitle>
             <DialogDescription className="text-xs">
               Klik pada peta untuk menentukan posisi rumah
             </DialogDescription>
           </DialogHeader>
 
-          <div className="h-[50vh] w-full rounded-md overflow-hidden border">
+          <div className="h-[40vh] sm:h-[50vh] w-full rounded-md overflow-hidden border relative z-0 leaflet-container-isolated">
             <MapContainer
               center={pickerPoint || center}
               zoom={pickerPoint ? 18 : 17}
