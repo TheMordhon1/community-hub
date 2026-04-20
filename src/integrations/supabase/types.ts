@@ -773,6 +773,7 @@ export type Database = {
           height: number
           id: string
           is_occupied: boolean | null
+          location: Json | null
           number: string
           occupancy_status: string | null
           updated_at: string
@@ -789,6 +790,7 @@ export type Database = {
           height?: number
           id?: string
           is_occupied?: boolean | null
+          location?: Json | null
           number: string
           occupancy_status?: string | null
           updated_at?: string
@@ -805,6 +807,7 @@ export type Database = {
           height?: number
           id?: string
           is_occupied?: boolean | null
+          location?: Json | null
           number?: string
           occupancy_status?: string | null
           updated_at?: string
