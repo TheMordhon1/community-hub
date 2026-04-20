@@ -60,6 +60,7 @@ function Recenter({ center, zoom }: { center: [number, number]; zoom?: number })
 export default function MapPage() {
   const { isAdmin, isPengurus } = useAuth();
   const queryClient = useQueryClient();
+  const { naturalSort } = useNaturalSort();
   const canManageAny = isAdmin || isPengurus;
 
   const [selectedHouseId, setSelectedHouseId] = useState<string | null>(null);
