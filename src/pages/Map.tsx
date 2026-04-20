@@ -109,6 +109,14 @@ export default function MapPage() {
     [houses]
   );
 
+  const sortedHouses = useMemo(() => {
+    return [...(houses || [])].sort((a, b) => {
+      const blockSort = naturalSort(a.block, b.block);
+      if (blockSort !== 0) return blockSort;
+      return naturalSort(a.number, b.number);
+    });
+  }, [houses, naturalSort]);
+
   const center = useMemo<[number, number]>(() => {
     if (pinned.length === 0) return FALLBACK_CENTER;
     const lats = pinned.map((h) => h.location!.coordinates[1]);
