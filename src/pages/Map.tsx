@@ -24,7 +24,8 @@ interface HouseRow {
   occupancy_status: string | null;
 }
 
-const FALLBACK_CENTER: [number, number] = [-6.2, 106.816];
+const FALLBACK_CENTER: [number, number] = [-6.4716656, 106.7561462];
+const FALLBACK_ZOOM = 18;
 
 export default function MapPage() {
   const { data: houses, isLoading } = useQuery({
