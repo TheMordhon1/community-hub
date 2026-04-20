@@ -5,7 +5,7 @@ import "leaflet/dist/leaflet.css";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, MapPin, Crown, Users, Crosshair, Save, Trash2, Pencil } from "lucide-react";
+import { Loader2, MapPin, Crown, Users, Crosshair, Save, Trash2, Pencil, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -291,7 +291,7 @@ export default function MapPage() {
                     className="flex items-center gap-2 p-2 rounded-md border bg-muted/30"
                   >
                     {m.is_head ? (
-                      <Crown className="w-4 h-4 text-yellow-600 shrink-0" />
+                      <Crown className="w-4 h-4 text-primary shrink-0" />
                     ) : (
                       <Users className="w-4 h-4 text-muted-foreground shrink-0" />
                     )}
@@ -406,11 +406,6 @@ export default function MapPage() {
   );
 }
 
-function Home(props: React.SVGProps<SVGSVGElement>) {
-  return <MapPin {...props} />;
-}
-
-// Inline click handler (avoids extra import scope)
 import { useMapEvents } from "react-leaflet";
 function PickerClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }) {
   useMapEvents({
