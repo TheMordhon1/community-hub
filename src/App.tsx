@@ -39,6 +39,7 @@ import Schedule from "@/pages/Schedule";
 import ScheduleDetail from "@/pages/ScheduleDetail";
 import Stores from "@/pages/Stores";
 import StoreDetail from "@/pages/StoreDetail";
+import MapPage from "@/pages/Map";
 
 const queryClient = new QueryClient();
 
@@ -111,6 +112,7 @@ function AppRoutes() {
           <Route path="/schedule/:id" element={<ScheduleDetail />} />
           <Route path="/stores" element={<Stores />} />
           <Route path="/stores/:id" element={<StoreDetail />} />
+          <Route path="/map" element={<MapPage />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFound />} />

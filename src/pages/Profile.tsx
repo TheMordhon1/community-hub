@@ -69,6 +69,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { getInitials } from "@/lib/utils";
 import { ProfileStoreCard } from "@/components/stores/ProfileStoreCard";
+import { HouseLocationPicker } from "@/components/map/HouseLocationPicker";
 import { useNaturalSort } from "@/hooks/useNaturalSort";
 
 const profileSchema = z.object({
@@ -1255,6 +1256,23 @@ export default function Profile() {
             transition={{ delay: 0.25 }}
           >
             <ProfileStoreCard houseId={userHouse.house_id} userId={user?.id || ""} />
+          </motion.div>
+        )}
+
+        {userHouse?.house_id && userHouse?.houses && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.27 }}
+          >
+            <HouseLocationPicker
+              houseId={userHouse.house_id}
+              initialLocation={
+                ((userHouse.houses as unknown as { location?: GeoJSON.Point | null })
+                  ?.location) ?? null
+              }
+              houseLabel={getHouseDisplay()}
+            />
           </motion.div>
         )}
 
