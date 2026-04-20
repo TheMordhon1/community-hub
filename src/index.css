@@ -223,3 +223,20 @@
     }
   }
 }
+
+/* Leaflet z-index fix — keep map below Radix overlays/dialogs */
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom,
+.leaflet-control {
+  z-index: 1 !important;
+}
+.leaflet-pane.leaflet-marker-pane,
+.leaflet-pane.leaflet-popup-pane,
+.leaflet-pane.leaflet-tooltip-pane {
+  z-index: 2 !important;
+}
+.leaflet-control-attribution {
+  z-index: 3 !important;
+}
+

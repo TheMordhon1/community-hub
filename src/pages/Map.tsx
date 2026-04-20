@@ -386,13 +386,14 @@ export default function MapPage() {
             )}
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={closePicker}>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={closePicker} className="w-full sm:w-auto">
               Batal
             </Button>
             <Button
               disabled={saveMutation.isPending}
               onClick={() => saveMutation.mutate()}
+              className="w-full sm:w-auto"
             >
               {saveMutation.isPending ? (
                 <Loader2 className="w-4 h-4 mr-1 animate-spin" />
