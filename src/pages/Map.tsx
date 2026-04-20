@@ -24,7 +24,8 @@ interface HouseRow {
   occupancy_status: string | null;
 }
 
-const FALLBACK_CENTER: [number, number] = [-6.2, 106.816];
+const FALLBACK_CENTER: [number, number] = [-6.4716656, 106.7561462];
+const FALLBACK_ZOOM = 18;
 
 export default function MapPage() {
   const { data: houses, isLoading } = useQuery({
@@ -85,7 +86,7 @@ export default function MapPage() {
             <div className="h-[60vh] w-full rounded-md overflow-hidden border">
               <MapContainer
                 center={center}
-                zoom={pinned.length > 0 ? 16 : 12}
+                zoom={pinned.length > 0 ? 18 : FALLBACK_ZOOM}
                 style={{ height: "100%", width: "100%" }}
               >
                 <TileLayer

@@ -23,7 +23,7 @@ interface Props {
   houseLabel: string;
 }
 
-const DEFAULT_CENTER: [number, number] = [-6.2, 106.816]; // Jakarta fallback
+const DEFAULT_CENTER: [number, number] = [-6.4716656, 106.7561462]; // Pesona Kenari Townhouse
 
 function ClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }) {
   useMapEvents({
@@ -99,7 +99,7 @@ export function HouseLocationPicker({ houseId, initialLocation, houseLabel }: Pr
         <div className="h-64 sm:h-80 w-full rounded-md overflow-hidden border">
           <MapContainer
             center={center}
-            zoom={point ? 17 : 13}
+            zoom={point ? 18 : 18}
             style={{ height: "100%", width: "100%" }}
             ref={(m) => {
               if (m) mapRef.current = m;
