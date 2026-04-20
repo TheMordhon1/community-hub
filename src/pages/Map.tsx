@@ -261,7 +261,7 @@ export default function MapPage() {
         open={!!selectedHouseId}
         onOpenChange={(o) => !o && setSelectedHouseId(null)}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Home className="w-5 h-5 text-primary" />
