@@ -3,6 +3,9 @@ import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-lea
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { useNaturalSort } from "@/hooks/useNaturalSort";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, MapPin, Crown, Users, Crosshair, Save, Trash2, Pencil, Home } from "lucide-react";
@@ -232,25 +235,51 @@ export default function MapPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-72 overflow-y-auto">
-              {houses.map((h) => (
-                <Button
-                  key={h.id}
-                  variant="outline"
-                  size="sm"
-                  className="justify-between"
-                  onClick={() => openPicker(h)}
-                >
-                  <span className="truncate">
-                    Blok {h.block}/{h.number}
-                  </span>
-                  {h.location ? (
-                    <MapPin className="w-3 h-3 text-primary shrink-0" />
-                  ) : (
-                    <Pencil className="w-3 h-3 text-muted-foreground shrink-0" />
-                  )}
-                </Button>
-              ))}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
+              {sortedHouses.map((h, index) => {
+                const hasPin = !!h.location;
+                return (
+                  <motion.div
+                    key={h.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.01 }}
+                  >
+                    <Card
+                      className={cn(
+                        "group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden relative aspect-square flex items-center justify-center",
+                        hasPin
+                          ? "border-primary/20 bg-gradient-to-br from-white to-primary/5 hover:border-primary/50"
+                          : "border-muted bg-muted/20 hover:opacity-100"
+                      )}
+                      onClick={() => openPicker(h)}
+                    >
+                      <CardContent className="p-3 sm:p-4 text-center flex flex-col items-center justify-center w-full h-full relative z-10">
+                        <div className="absolute top-1 right-1">
+                          {hasPin ? (
+                            <MapPin className="w-3.5 h-3.5 text-primary" />
+                          ) : (
+                            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="text-xl sm:text-2xl font-black text-primary tracking-tighter group-hover:scale-110 transition-transform">
+                          {h.block}
+                          <span className="text-primary/40 font-normal mx-0.5">-</span>
+                          {h.number}
+                        </div>
+                        <div className="mt-1.5 sm:mt-2 py-0.5 px-2 rounded-full bg-background/50 border border-border/50 backdrop-blur-sm shadow-sm">
+                          <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground whitespace-nowrap">
+                            {hasPin ? "Terpasang" : "Belum"}
+                          </span>
+                        </div>
+                      </CardContent>
+                      <div className="absolute -bottom-2 -right-2 opacity-[0.04] group-hover:opacity-[0.08] transition-opacity">
+                        <MapPin className="h-16 w-16 sm:h-20 sm:w-20" />
+                      </div>
+                    </Card>
+                  </motion.div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
