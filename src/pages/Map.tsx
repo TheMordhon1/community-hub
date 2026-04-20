@@ -66,7 +66,7 @@ export default function MapPage() {
   const { isAdmin, isPengurus } = useAuth();
   const queryClient = useQueryClient();
   const { naturalSort } = useNaturalSort();
-  const canManageAny = isAdmin || isPengurus;
+  const canManageAny = isAdmin() || isPengurus();
 
   const [selectedHouseId, setSelectedHouseId] = useState<string | null>(null);
   const [pickerHouseId, setPickerHouseId] = useState<string | null>(null);
