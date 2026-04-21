@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { StreetsLayer } from "@/components/map/StreetsLayer";
 
 export const houseIcon = L.divIcon({
   className: "",
