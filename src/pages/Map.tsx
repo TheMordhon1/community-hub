@@ -72,13 +72,28 @@ function Recenter({ center, zoom }: { center: [number, number]; zoom?: number })
 }
 
 export default function MapPage() {
-  const { isAdmin, isPengurus } = useAuth();
+  const { user, isAdmin, isPengurus } = useAuth();
   const queryClient = useQueryClient();
   const { naturalSort } = useNaturalSort();
   const canManageAny = isAdmin() || isPengurus();
 
   const [selectedHouseId, setSelectedHouseId] = useState<string | null>(null);
   const [pickerHouseId, setPickerHouseId] = useState<string | null>(null);
+
+  const { data: userHouseId } = useQuery({
+    queryKey: ["user-house-id-map", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("house_members")
+        .select("house_id")
+        .eq("user_id", user!.id)
+        .eq("status", "approved")
+        .maybeSingle();
+      if (error) throw error;
+      return data?.house_id ?? null;
+    },
+  });
 
   const { data: houses, isLoading } = useQuery({
     queryKey: ["map-houses"],
