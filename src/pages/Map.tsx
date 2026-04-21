@@ -315,10 +315,78 @@ export default function MapPage() {
         </p>
       </div>
 
+      {/* Filter card */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Search className="w-4 h-4 text-primary" /> Filter Rumah
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Cari berdasarkan blok, nomor rumah, nama anggota, atau jalan
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Cari blok, nomor rumah, atau nama anggota..."
+                className="pl-8 pr-8"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Hapus pencarian"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <Select value={streetFilter} onValueChange={setStreetFilter}>
+              <SelectTrigger className="w-full sm:w-56">
+                <SelectValue placeholder="Semua jalan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua jalan</SelectItem>
+                {STREETS.map((s) => (
+                  <SelectItem key={s.name} value={s.name}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {isFiltering && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="gap-1"
+              >
+                <X className="w-4 h-4" /> Reset
+              </Button>
+            )}
+          </div>
+          {isFiltering && (
+            <p className="text-xs text-muted-foreground mt-2">
+              {filteredHouseIds.size} rumah cocok dengan filter
+              {filteredPinned.length < filteredHouseIds.size &&
+                ` (${filteredPinned.length} terpasang di peta)`}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">
-            {pinned.length} rumah terpasang di peta
+            {isFiltering
+              ? `${filteredPinned.length} dari ${pinned.length} rumah ditampilkan`
+              : `${pinned.length} rumah terpasang di peta`}
           </CardTitle>
           <CardDescription className="text-xs">
             {canManageAny
@@ -367,10 +435,10 @@ export default function MapPage() {
                   maxZoom={22}
                 />
                 <StreetsLayer
-                  houses={housesWithCoords}
+                  houses={filteredHousesWithCoords}
                   onHouseClick={(id) => setSelectedHouseId(id)}
                 />
-                {pinned.map((h) => {
+                {filteredPinned.map((h) => {
                   const [lng, lat] = h.location!.coordinates;
                   return (
                     <Marker
