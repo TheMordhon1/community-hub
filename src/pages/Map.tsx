@@ -8,7 +8,15 @@ import { cn } from "@/lib/utils";
 import { useNaturalSort } from "@/hooks/useNaturalSort";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, MapPin, Crown, Users, Crosshair, Save, Trash2, Pencil, Home } from "lucide-react";
+import { Loader2, MapPin, Crown, Users, Crosshair, Save, Trash2, Pencil, Home, Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,7 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { StreetsLayer } from "@/components/map/StreetsLayer";
+import { StreetsLayer, STREETS, getStreetForPoint } from "@/components/map/StreetsLayer";
 
 export const houseIcon = L.divIcon({
   className: "",
@@ -79,6 +87,8 @@ export default function MapPage() {
 
   const [selectedHouseId, setSelectedHouseId] = useState<string | null>(null);
   const [pickerHouseId, setPickerHouseId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [streetFilter, setStreetFilter] = useState<string>("all");
 
   const { data: userHouseId } = useQuery({
     queryKey: ["user-house-id-map", user?.id],
@@ -174,6 +184,74 @@ export default function MapPage() {
     [houses, userHouseId]
   );
 
+  // Map house id -> nearest street name
+  const streetByHouseId = useMemo(() => {
+    const map = new Map<string, string | null>();
+    housesWithCoords.forEach((h) => {
+      map.set(h.id, getStreetForPoint(h.lat, h.lng));
+    });
+    return map;
+  }, [housesWithCoords]);
+
+  // Apply filters: search (block, number, member name) + street
+  const filteredHouseIds = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    const ids = new Set<string>();
+    (houses || []).forEach((h) => {
+      // street filter
+      if (streetFilter !== "all") {
+        const s = streetByHouseId.get(h.id);
+        if (s !== streetFilter) return;
+      }
+      if (!term) {
+        ids.add(h.id);
+        return;
+      }
+      const label = `${h.block}-${h.number}`.toLowerCase();
+      if (
+        h.block.toLowerCase().includes(term) ||
+        h.number.toLowerCase().includes(term) ||
+        label.includes(term)
+      ) {
+        ids.add(h.id);
+        return;
+      }
+      const mems = membersByHouse.get(h.id) || [];
+      if (mems.some((m) => m.full_name.toLowerCase().includes(term))) {
+        ids.add(h.id);
+      }
+    });
+    return ids;
+  }, [houses, membersByHouse, searchTerm, streetFilter, streetByHouseId]);
+
+  const isFiltering = searchTerm.trim() !== "" || streetFilter !== "all";
+
+  const filteredPinned = useMemo(
+    () => (isFiltering ? pinned.filter((h) => filteredHouseIds.has(h.id)) : pinned),
+    [pinned, filteredHouseIds, isFiltering]
+  );
+
+  const filteredHousesWithCoords = useMemo(
+    () =>
+      isFiltering
+        ? housesWithCoords.filter((h) => filteredHouseIds.has(h.id))
+        : housesWithCoords,
+    [housesWithCoords, filteredHouseIds, isFiltering]
+  );
+
+  const filteredSortedHouses = useMemo(
+    () =>
+      isFiltering
+        ? sortedHouses.filter((h) => filteredHouseIds.has(h.id))
+        : sortedHouses,
+    [sortedHouses, filteredHouseIds, isFiltering]
+  );
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setStreetFilter("all");
+  };
+
   const selectedHouse = houses?.find((h) => h.id === selectedHouseId) || null;
   const selectedMembers = selectedHouseId ? membersByHouse.get(selectedHouseId) || [] : [];
 
@@ -237,10 +315,78 @@ export default function MapPage() {
         </p>
       </div>
 
+      {/* Filter card */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Search className="w-4 h-4 text-primary" /> Filter Rumah
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Cari berdasarkan blok, nomor rumah, nama anggota, atau jalan
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Cari blok, nomor rumah, atau nama anggota..."
+                className="pl-8 pr-8"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Hapus pencarian"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <Select value={streetFilter} onValueChange={setStreetFilter}>
+              <SelectTrigger className="w-full sm:w-56">
+                <SelectValue placeholder="Semua jalan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua jalan</SelectItem>
+                {STREETS.map((s) => (
+                  <SelectItem key={s.name} value={s.name}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {isFiltering && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="gap-1"
+              >
+                <X className="w-4 h-4" /> Reset
+              </Button>
+            )}
+          </div>
+          {isFiltering && (
+            <p className="text-xs text-muted-foreground mt-2">
+              {filteredHouseIds.size} rumah cocok dengan filter
+              {filteredPinned.length < filteredHouseIds.size &&
+                ` (${filteredPinned.length} terpasang di peta)`}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">
-            {pinned.length} rumah terpasang di peta
+            {isFiltering
+              ? `${filteredPinned.length} dari ${pinned.length} rumah ditampilkan`
+              : `${pinned.length} rumah terpasang di peta`}
           </CardTitle>
           <CardDescription className="text-xs">
             {canManageAny
@@ -289,10 +435,10 @@ export default function MapPage() {
                   maxZoom={22}
                 />
                 <StreetsLayer
-                  houses={housesWithCoords}
+                  houses={filteredHousesWithCoords}
                   onHouseClick={(id) => setSelectedHouseId(id)}
                 />
-                {pinned.map((h) => {
+                {filteredPinned.map((h) => {
                   const [lng, lat] = h.location!.coordinates;
                   return (
                     <Marker
@@ -321,7 +467,7 @@ export default function MapPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
-              {sortedHouses.map((h, index) => {
+              {filteredSortedHouses.map((h, index) => {
                 const hasPin = !!h.location;
                 return (
                   <motion.div

@@ -99,7 +99,20 @@ function distToSegment(
   return Math.hypot(px - cx, py - cy);
 }
 
-const NEARBY_THRESHOLD_M = 30;
+export const NEARBY_THRESHOLD_M = 30;
+
+export function getStreetForPoint(lat: number, lng: number): string | null {
+  let best: { name: string; d: number } | null = null;
+  for (const s of STREETS) {
+    for (let i = 0; i < s.path.length - 1; i++) {
+      const d = distToSegment([lat, lng], s.path[i], s.path[i + 1]);
+      if (d <= NEARBY_THRESHOLD_M && (!best || d < best.d)) {
+        best = { name: s.name, d };
+      }
+    }
+  }
+  return best?.name ?? null;
+}
 
 export function StreetsLayer({ houses, onHouseClick }: Props) {
   return (
