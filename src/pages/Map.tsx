@@ -251,6 +251,8 @@ export default function MapPage() {
     setSearchTerm("");
     setStreetFilter("all");
   };
+
+  const selectedHouse = houses?.find((h) => h.id === selectedHouseId) || null;
   const selectedMembers = selectedHouseId ? membersByHouse.get(selectedHouseId) || [] : [];
 
   // Picker state for admin/pengurus to set any house location
