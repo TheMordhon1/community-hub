@@ -87,6 +87,8 @@ export default function MapPage() {
 
   const [selectedHouseId, setSelectedHouseId] = useState<string | null>(null);
   const [pickerHouseId, setPickerHouseId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [streetFilter, setStreetFilter] = useState<string>("all");
 
   const { data: userHouseId } = useQuery({
     queryKey: ["user-house-id-map", user?.id],
@@ -182,7 +184,73 @@ export default function MapPage() {
     [houses, userHouseId]
   );
 
-  const selectedHouse = houses?.find((h) => h.id === selectedHouseId) || null;
+  // Map house id -> nearest street name
+  const streetByHouseId = useMemo(() => {
+    const map = new Map<string, string | null>();
+    housesWithCoords.forEach((h) => {
+      map.set(h.id, getStreetForPoint(h.lat, h.lng));
+    });
+    return map;
+  }, [housesWithCoords]);
+
+  // Apply filters: search (block, number, member name) + street
+  const filteredHouseIds = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    const ids = new Set<string>();
+    (houses || []).forEach((h) => {
+      // street filter
+      if (streetFilter !== "all") {
+        const s = streetByHouseId.get(h.id);
+        if (s !== streetFilter) return;
+      }
+      if (!term) {
+        ids.add(h.id);
+        return;
+      }
+      const label = `${h.block}-${h.number}`.toLowerCase();
+      if (
+        h.block.toLowerCase().includes(term) ||
+        h.number.toLowerCase().includes(term) ||
+        label.includes(term)
+      ) {
+        ids.add(h.id);
+        return;
+      }
+      const mems = membersByHouse.get(h.id) || [];
+      if (mems.some((m) => m.full_name.toLowerCase().includes(term))) {
+        ids.add(h.id);
+      }
+    });
+    return ids;
+  }, [houses, membersByHouse, searchTerm, streetFilter, streetByHouseId]);
+
+  const isFiltering = searchTerm.trim() !== "" || streetFilter !== "all";
+
+  const filteredPinned = useMemo(
+    () => (isFiltering ? pinned.filter((h) => filteredHouseIds.has(h.id)) : pinned),
+    [pinned, filteredHouseIds, isFiltering]
+  );
+
+  const filteredHousesWithCoords = useMemo(
+    () =>
+      isFiltering
+        ? housesWithCoords.filter((h) => filteredHouseIds.has(h.id))
+        : housesWithCoords,
+    [housesWithCoords, filteredHouseIds, isFiltering]
+  );
+
+  const filteredSortedHouses = useMemo(
+    () =>
+      isFiltering
+        ? sortedHouses.filter((h) => filteredHouseIds.has(h.id))
+        : sortedHouses,
+    [sortedHouses, filteredHouseIds, isFiltering]
+  );
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setStreetFilter("all");
+  };
   const selectedMembers = selectedHouseId ? membersByHouse.get(selectedHouseId) || [] : [];
 
   // Picker state for admin/pengurus to set any house location
