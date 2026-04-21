@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-const houseIcon = L.divIcon({
+export const houseIcon = L.divIcon({
   className: "",
   html: `<div style="
     display:flex;align-items:center;justify-content:center;

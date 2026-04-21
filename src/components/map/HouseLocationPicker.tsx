@@ -8,6 +8,7 @@ import { MapPin, Save, Loader2, Crosshair, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { houseIcon } from "@/pages/Map";
 
 // Fix default marker icons (vite/leaflet bundling issue)
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
@@ -42,7 +43,7 @@ function ClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }
 function Recenter({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, map.getZoom() < 15 ? 17 : map.getZoom());
+    map.setView(center, map.getZoom() < 19 ? 19 : map.getZoom());
   }, [center, map]);
   return null;
 }
@@ -104,7 +105,8 @@ export function HouseLocationPicker({ houseId, initialLocation, houseLabel }: Pr
         <div className="h-64 sm:h-80 w-full rounded-md overflow-hidden border">
           <MapContainer
             center={center}
-            zoom={point ? 18 : 18}
+            zoom={point ? 19 : 19}
+            maxZoom={22}
             style={{ height: "100%", width: "100%" }}
             ref={(m) => {
               if (m) mapRef.current = m;
@@ -113,10 +115,12 @@ export function HouseLocationPicker({ houseId, initialLocation, houseLabel }: Pr
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxNativeZoom={19}
+              maxZoom={22}
             />
             <ClickHandler onPick={(lat, lng) => setPoint([lat, lng])} />
             <Recenter center={center} />
-            {point && <Marker position={point} />}
+            {point && <Marker position={point} icon={houseIcon} />}
           </MapContainer>
         </div>
 
