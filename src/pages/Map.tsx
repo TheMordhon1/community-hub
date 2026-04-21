@@ -8,7 +8,15 @@ import { cn } from "@/lib/utils";
 import { useNaturalSort } from "@/hooks/useNaturalSort";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, MapPin, Crown, Users, Crosshair, Save, Trash2, Pencil, Home } from "lucide-react";
+import { Loader2, MapPin, Crown, Users, Crosshair, Save, Trash2, Pencil, Home, Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,7 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { StreetsLayer } from "@/components/map/StreetsLayer";
+import { StreetsLayer, STREETS, getStreetForPoint } from "@/components/map/StreetsLayer";
 
 export const houseIcon = L.divIcon({
   className: "",
