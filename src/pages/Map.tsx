@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { StreetsLayer } from "@/components/map/StreetsLayer";
 
 export const houseIcon = L.divIcon({
   className: "",
@@ -71,13 +72,28 @@ function Recenter({ center, zoom }: { center: [number, number]; zoom?: number })
 }
 
 export default function MapPage() {
-  const { isAdmin, isPengurus } = useAuth();
+  const { user, isAdmin, isPengurus } = useAuth();
   const queryClient = useQueryClient();
   const { naturalSort } = useNaturalSort();
   const canManageAny = isAdmin() || isPengurus();
 
   const [selectedHouseId, setSelectedHouseId] = useState<string | null>(null);
   const [pickerHouseId, setPickerHouseId] = useState<string | null>(null);
+
+  const { data: userHouseId } = useQuery({
+    queryKey: ["user-house-id-map", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("house_members")
+        .select("house_id")
+        .eq("user_id", user!.id)
+        .eq("status", "approved")
+        .maybeSingle();
+      if (error) throw error;
+      return data?.house_id ?? null;
+    },
+  });
 
   const { data: houses, isLoading } = useQuery({
     queryKey: ["map-houses"],
@@ -139,6 +155,24 @@ export default function MapPage() {
       lngs.reduce((a, b) => a + b, 0) / lngs.length,
     ];
   }, [pinned]);
+
+  // Houses with coords for street nearby calc
+  const housesWithCoords = useMemo(
+    () =>
+      pinned.map((h) => ({
+        id: h.id,
+        block: h.block,
+        number: h.number,
+        lat: h.location!.coordinates[1],
+        lng: h.location!.coordinates[0],
+      })),
+    [pinned]
+  );
+
+  const userHouse = useMemo(
+    () => (userHouseId ? houses?.find((h) => h.id === userHouseId) ?? null : null),
+    [houses, userHouseId]
+  );
 
   const selectedHouse = houses?.find((h) => h.id === selectedHouseId) || null;
   const selectedMembers = selectedHouseId ? membersByHouse.get(selectedHouseId) || [] : [];
@@ -211,8 +245,29 @@ export default function MapPage() {
           <CardDescription className="text-xs">
             {canManageAny
               ? "Sebagai Admin/Pengurus, Anda dapat mengatur lokasi rumah mana pun."
-              : "Atur lokasi rumah Anda di halaman Profil."}
+              : userHouseId
+                ? "Anda dapat mengatur atau memperbarui lokasi rumah Anda dari sini."
+                : "Anda belum terdaftar sebagai anggota rumah."}
           </CardDescription>
+          {userHouseId && userHouse && (
+            <div className="pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openPicker(userHouse)}
+                className="gap-1.5"
+              >
+                {userHouse.location ? (
+                  <Pencil className="w-4 h-4" />
+                ) : (
+                  <MapPin className="w-4 h-4" />
+                )}
+                {userHouse.location
+                  ? `Edit Lokasi Rumah Saya (${userHouse.block}-${userHouse.number})`
+                  : `Tambahkan Lokasi Rumah Saya (${userHouse.block}-${userHouse.number})`}
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -232,6 +287,10 @@ export default function MapPage() {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   maxNativeZoom={19}
                   maxZoom={22}
+                />
+                <StreetsLayer
+                  houses={housesWithCoords}
+                  onHouseClick={(id) => setSelectedHouseId(id)}
                 />
                 {pinned.map((h) => {
                   const [lng, lat] = h.location!.coordinates;
