@@ -130,12 +130,12 @@ export function StreetsLayer({ houses, onHouseClick }: Props) {
             </Tooltip>
             <Popup>
               <div className="min-w-[180px]">
-                <div className="font-bold text-sm mb-1.5">{s.name}</div>
-                <div className="text-xs text-gray-600 mb-2">
+                <div className="font-bold text-sm mb-1.5 text-foreground">{s.name}</div>
+                <div className="text-xs text-muted-foreground mb-2">
                   {nearby.length} rumah di sekitar
                 </div>
                 {nearby.length === 0 ? (
-                  <div className="text-xs text-gray-500 italic">
+                  <div className="text-xs text-muted-foreground italic">
                     Belum ada rumah terpasang
                   </div>
                 ) : (
