@@ -123,17 +123,23 @@ export function getStreetForPoint(lat: number, lng: number): string | null {
 }
 
 export function StreetsLayer({ houses, onHouseClick }: Props) {
+  // Assign each house to its single nearest street (same logic as filter)
+  const housesByStreet = (() => {
+    const map = new Map<string, NearbyHouse[]>();
+    STREETS.forEach((s) => map.set(s.name, []));
+    houses.forEach((h) => {
+      const street = getStreetForPoint(h.lat, h.lng);
+      if (street && map.has(street)) {
+        map.get(street)!.push(h);
+      }
+    });
+    return map;
+  })();
+
   return (
     <>
       {STREETS.map((s) => {
-        // find nearby houses (within threshold of any segment)
-        const nearby = houses.filter((h) => {
-          for (let i = 0; i < s.path.length - 1; i++) {
-            const d = distToSegment([h.lat, h.lng], s.path[i], s.path[i + 1]);
-            if (d <= NEARBY_THRESHOLD_M) return true;
-          }
-          return false;
-        });
+        const nearby = housesByStreet.get(s.name) || [];
 
         return (
           <Polyline
