@@ -22,16 +22,24 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [14, 24],
-  iconAnchor: [7, 24],
-  popupAnchor: [0, -24],
-  shadowSize: [24, 24],
-  shadowAnchor: [7, 24]
+const houseIcon = L.divIcon({
+  className: "",
+  html: `<div style="
+    display:flex;align-items:center;justify-content:center;
+    width:32px;height:32px;
+    background:white;
+    border:2px solid #6366f1;
+    border-radius:50%;
+    box-shadow:0 2px 6px rgba(0,0,0,0.25);
+  ">
+    <svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#6366f1' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'>
+      <path d='m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/>
+      <polyline points='9 22 9 12 15 12 15 22'/>
+    </svg>
+  </div>`,
+  iconSize: [15, 15],
+  iconAnchor: [16, 32],
+  popupAnchor: [0, -34],
 });
 
 interface HouseRow {
@@ -52,7 +60,7 @@ interface MemberRow {
 }
 
 const FALLBACK_CENTER: [number, number] = [-6.4716656, 106.7561462];
-const FALLBACK_ZOOM = 18;
+const FALLBACK_ZOOM = 19;
 
 function Recenter({ center, zoom }: { center: [number, number]; zoom?: number }) {
   const map = useMap();
@@ -215,12 +223,15 @@ export default function MapPage() {
             <div className="h-[60vh] w-full rounded-md overflow-hidden border">
               <MapContainer
                 center={center}
-                zoom={pinned.length > 0 ? 18 : FALLBACK_ZOOM}
+                zoom={pinned.length > 0 ? 19 : FALLBACK_ZOOM}
+                maxZoom={22}
                 style={{ height: "100%", width: "100%" }}
               >
                 <TileLayer
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  maxNativeZoom={19}
+                  maxZoom={22}
                 />
                 {pinned.map((h) => {
                   const [lng, lat] = h.location!.coordinates;
@@ -228,6 +239,7 @@ export default function MapPage() {
                     <Marker
                       key={h.id}
                       position={[lat, lng]}
+                      icon={houseIcon}
                       eventHandlers={{
                         click: () => setSelectedHouseId(h.id),
                       }}
@@ -391,17 +403,20 @@ export default function MapPage() {
           <div className="h-[40vh] sm:h-[50vh] w-full rounded-md overflow-hidden border relative z-0 leaflet-container-isolated">
             <MapContainer
               center={pickerPoint || center}
-              zoom={pickerPoint ? 18 : 17}
+              zoom={pickerPoint ? 19 : 17}
+              maxZoom={22}
               style={{ height: "100%", width: "100%" }}
             >
               <TileLayer
                 attribution='&copy; OpenStreetMap'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                maxNativeZoom={19}
+                maxZoom={22}
               />
               <PickerClickHandler onPick={(lat, lng) => setPickerPoint([lat, lng])} />
               {pickerPoint && (
                 <>
-                  <Recenter center={pickerPoint} zoom={18} />
+                  <Recenter center={pickerPoint} zoom={19} />
                   <Marker position={pickerPoint} />
                 </>
               )}
