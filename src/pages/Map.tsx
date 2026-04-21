@@ -467,7 +467,7 @@ export default function MapPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
-              {sortedHouses.map((h, index) => {
+              {filteredSortedHouses.map((h, index) => {
                 const hasPin = !!h.location;
                 return (
                   <motion.div
