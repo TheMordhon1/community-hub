@@ -292,23 +292,6 @@ export default function MapPage() {
                   houses={housesWithCoords}
                   onHouseClick={(id) => setSelectedHouseId(id)}
                 />
-            <div className="h-[60vh] flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="h-[60vh] w-full rounded-md overflow-hidden border">
-              <MapContainer
-                center={center}
-                zoom={pinned.length > 0 ? 19 : FALLBACK_ZOOM}
-                maxZoom={22}
-                style={{ height: "100%", width: "100%" }}
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  maxNativeZoom={19}
-                  maxZoom={22}
-                />
                 {pinned.map((h) => {
                   const [lng, lat] = h.location!.coordinates;
                   return (
