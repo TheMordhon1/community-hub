@@ -156,6 +156,24 @@ export default function MapPage() {
     ];
   }, [pinned]);
 
+  // Houses with coords for street nearby calc
+  const housesWithCoords = useMemo(
+    () =>
+      pinned.map((h) => ({
+        id: h.id,
+        block: h.block,
+        number: h.number,
+        lat: h.location!.coordinates[1],
+        lng: h.location!.coordinates[0],
+      })),
+    [pinned]
+  );
+
+  const userHouse = useMemo(
+    () => (userHouseId ? houses?.find((h) => h.id === userHouseId) ?? null : null),
+    [houses, userHouseId]
+  );
+
   const selectedHouse = houses?.find((h) => h.id === selectedHouseId) || null;
   const selectedMembers = selectedHouseId ? membersByHouse.get(selectedHouseId) || [] : [];
 
@@ -227,11 +245,53 @@ export default function MapPage() {
           <CardDescription className="text-xs">
             {canManageAny
               ? "Sebagai Admin/Pengurus, Anda dapat mengatur lokasi rumah mana pun."
-              : "Atur lokasi rumah Anda di halaman Profil."}
+              : userHouseId
+                ? "Anda dapat mengatur atau memperbarui lokasi rumah Anda dari sini."
+                : "Anda belum terdaftar sebagai anggota rumah."}
           </CardDescription>
+          {userHouseId && userHouse && (
+            <div className="pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openPicker(userHouse)}
+                className="gap-1.5"
+              >
+                {userHouse.location ? (
+                  <Pencil className="w-4 h-4" />
+                ) : (
+                  <MapPin className="w-4 h-4" />
+                )}
+                {userHouse.location
+                  ? `Edit Lokasi Rumah Saya (${userHouse.block}-${userHouse.number})`
+                  : `Tambahkan Lokasi Rumah Saya (${userHouse.block}-${userHouse.number})`}
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
+            <div className="h-[60vh] flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="h-[60vh] w-full rounded-md overflow-hidden border">
+              <MapContainer
+                center={center}
+                zoom={pinned.length > 0 ? 19 : FALLBACK_ZOOM}
+                maxZoom={22}
+                style={{ height: "100%", width: "100%" }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  maxNativeZoom={19}
+                  maxZoom={22}
+                />
+                <StreetsLayer
+                  houses={housesWithCoords}
+                  onHouseClick={(id) => setSelectedHouseId(id)}
+                />
             <div className="h-[60vh] flex items-center justify-center">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
             </div>
