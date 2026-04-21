@@ -10,37 +10,45 @@ export interface StreetDef {
 
 // Approximate paths around Pesona Kenari Townhouse (-6.4716656, 106.7561462)
 // These are rough local roads — admin can refine later via DB.
+// Real road geometry from OpenStreetMap (Pesona Kenari Townhouse area)
+// 4 parallel internal residential streets that go diagonally from SW → NE
 export const STREETS: StreetDef[] = [
   {
     name: "Jln. Sakura 1",
     color: "#22c55e",
     path: [
-      [-6.47135, 106.75575],
-      [-6.47150, 106.75640],
+      [-6.4715144, 106.7564048],
+      [-6.4716751, 106.7560504],
+      [-6.4718782, 106.7556618],
     ],
   },
   {
     name: "Jln. Sakura 2",
     color: "#22c55e",
     path: [
-      [-6.47165, 106.75575],
-      [-6.47180, 106.75645],
+      [-6.4717520, 106.7565311],
+      [-6.4719200, 106.7561606],
+      [-6.4720676, 106.7558585],
     ],
   },
   {
     name: "Jln. Lotus 1",
     color: "#16a34a",
     path: [
-      [-6.47195, 106.75575],
-      [-6.47210, 106.75645],
+      [-6.4719667, 106.7566317],
+      [-6.4721362, 106.7562782],
+      [-6.4722513, 106.7560427],
     ],
   },
   {
     name: "Jln. Lotus 2",
     color: "#16a34a",
     path: [
-      [-6.47225, 106.75580],
-      [-6.47240, 106.75650],
+      [-6.4721738, 106.7567203],
+      [-6.4721953, 106.7566878],
+      [-6.4723073, 106.7564665],
+      [-6.4723243, 106.7564221],
+      [-6.4723099, 106.7563941],
     ],
   },
 ];
