@@ -53,6 +53,7 @@ import {
   X,
   ImageIcon,
   ThumbsUp,
+  Search,
 } from "lucide-react";
 import { useAnnouncementLikes } from "@/hooks/useAnnouncementLikes";
 import { useAnnouncementReads } from "@/hooks/useAnnouncementReads";
@@ -92,6 +93,8 @@ export default function Announcements() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchCategory, setSearchCategory] = useState<string>("all");
 
   const { data: announcementData, isLoading } = useQuery({
     queryKey: ["announcements", currentPage, itemsPerPage],
@@ -378,13 +381,26 @@ export default function Announcements() {
   const totalCount = announcementData?.totalCount || 0;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
+  const filteredAnnouncements = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return announcements.filter((a) => {
+      if (searchCategory !== "all" && a.category !== searchCategory) return false;
+      if (!q) return true;
+      return (
+        a.title.toLowerCase().includes(q) ||
+        a.content.toLowerCase().includes(q) ||
+        (a.category || "").toLowerCase().includes(q)
+      );
+    });
+  }, [announcements, searchQuery, searchCategory]);
+
   const publishedAnnouncements = useMemo(
-    () => announcements.filter((a) => a.is_published) || [],
-    [announcements]
+    () => filteredAnnouncements.filter((a) => a.is_published) || [],
+    [filteredAnnouncements]
   );
   const draftAnnouncements = useMemo(
-    () => announcements.filter((a) => !a.is_published) || [],
-    [announcements]
+    () => filteredAnnouncements.filter((a) => !a.is_published) || [],
+    [filteredAnnouncements]
   );
 
   const announcementIds = useMemo(
