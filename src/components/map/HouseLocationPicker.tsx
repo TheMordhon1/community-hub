@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HouseIcon } from "@/pages/Map";
+import { StreetsLayer } from "@/components/map/StreetsLayer";
 
 // Fix default marker icons (vite/leaflet bundling issue)
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
@@ -120,6 +121,7 @@ export function HouseLocationPicker({ houseId, initialLocation, houseLabel }: Pr
             />
             <ClickHandler onPick={(lat, lng) => setPoint([lat, lng])} />
             <Recenter center={center} />
+            <StreetsLayer houses={[]} />
             {point && <Marker position={point} icon={HouseIcon} />}
           </MapContainer>
         </div>
