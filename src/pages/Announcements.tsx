@@ -83,7 +83,7 @@ export default function Announcements() {
     useState<Announcement | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [relatedUrl, setRelatedUrl] = useState("");
+  const [relatedUrls, setRelatedUrls] = useState<string[]>([""]);
   const [isPublished, setIsPublished] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
