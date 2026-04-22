@@ -298,7 +298,12 @@ export default function Announcements() {
     setEditingAnnouncement(announcement);
     setTitle(announcement.title);
     setContent(announcement.content);
-    setRelatedUrl(announcement.related_url || "");
+    const urls = announcement.related_urls && announcement.related_urls.length > 0
+      ? announcement.related_urls
+      : announcement.related_url
+        ? [announcement.related_url]
+        : [""];
+    setRelatedUrls(urls);
     setIsPublished(announcement.is_published);
     setImagePreview(announcement.image_url || null);
     setImageFile(null);
