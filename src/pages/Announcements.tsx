@@ -514,16 +514,49 @@ export default function Announcements() {
 
                     <div className="space-y-4 pt-2">
                       <div className="space-y-2">
-                        <Label htmlFor="relatedUrl" className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5">
-                          Link Terkait <span className="text-[10px] font-normal text-muted-foreground">(Opsional)</span>
+                        <Label className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5">
+                          Link Terkait <span className="text-[10px] font-normal text-muted-foreground">(Opsional, bisa lebih dari satu)</span>
                         </Label>
-                        <Input
-                          id="relatedUrl"
-                          placeholder="https://contoh.com/informasi-lanjutan"
-                          value={relatedUrl}
-                          onChange={(e) => setRelatedUrl(e.target.value)}
-                          className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
-                        />
+                        <div className="space-y-2">
+                          {relatedUrls.map((url, idx) => (
+                            <div key={idx} className="flex gap-2">
+                              <Input
+                                placeholder="https://contoh.com/informasi-lanjutan"
+                                value={url}
+                                onChange={(e) => {
+                                  const next = [...relatedUrls];
+                                  next[idx] = e.target.value;
+                                  setRelatedUrls(next);
+                                }}
+                                className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
+                              />
+                              {relatedUrls.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-10 w-10 shrink-0"
+                                  onClick={() =>
+                                    setRelatedUrls(relatedUrls.filter((_, i) => i !== idx))
+                                  }
+                                  aria-label="Hapus link"
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setRelatedUrls([...relatedUrls, ""])}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Tambah Link
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="flex items-center justify-between p-4 rounded-xl border bg-primary/5 border-primary/10">
