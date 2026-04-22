@@ -75,12 +75,30 @@ export default function AnnouncementDetail() {
   const [showReaders, setShowReaders] = useState(false);
   const [showAllEmojis, setShowAllEmojis] = useState(false);
   const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const announcementIds = id ? [id] : [];
   const { reactionCounts, userReactions, toggleReaction } = useAnnouncementLikes(announcementIds);
   const { data: likers = [] } = useAnnouncementLikers(id, showLikers);
   const { readSet, markAsRead } = useAnnouncementReads(announcementIds);
   const { data: readers = [] } = useAnnouncementReaders(id, showReaders);
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) return;
+      const { error } = await supabase.from("announcements").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["announcements"] });
+      toast.success("Pengumuman berhasil dihapus");
+      navigate("/announcements");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Gagal menghapus pengumuman");
+    },
+  });
 
   const handleCopyLink = async (url: string) => {
     try {
