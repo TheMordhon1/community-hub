@@ -346,10 +346,11 @@ export default function Announcements() {
       imageUrl = null;
     }
 
+    const cleanedUrls = relatedUrls.map((u) => u.trim()).filter((u) => u.length > 0);
     const payload = {
       title,
       content,
-      related_url: relatedUrl.trim() || null,
+      related_urls: cleanedUrls,
       is_published: isPublished,
       image_url: imageUrl,
     };
