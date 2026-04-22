@@ -111,6 +111,7 @@ export interface Announcement {
   published_at: string | null;
   author_id: string | null;
   related_url: string | null;
+  related_urls: string[] | null;
   created_at: string;
   updated_at: string;
 }
