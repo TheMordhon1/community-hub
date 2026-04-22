@@ -322,6 +322,20 @@ export default function Announcements() {
     setIsCreateOpen(true);
   };
 
+  // Open edit dialog when navigated with ?edit=<id>
+  const announcementsList = announcementData?.data;
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (!editId || !announcementsList || isCreateOpen) return;
+    const target = announcementsList.find((a) => a.id === editId);
+    if (target) {
+      handleEdit(target);
+      searchParams.delete("edit");
+      setSearchParams(searchParams, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, announcementsList]);
+
   const handleLimitChange = (newLimit: string) => {
     const limit = Number.parseInt(newLimit);
     setItemsPerPage(limit);
