@@ -155,19 +155,20 @@ export default function Announcements() {
     mutationFn: async (data: {
       title: string;
       content: string;
-      related_url: string | null;
+      related_urls: string[];
       is_published: boolean;
       image_url: string | null;
     }) => {
       const { error } = await supabase.from("announcements").insert({
         title: data.title,
         content: data.content,
-        related_url: data.related_url,
+        related_url: data.related_urls[0] ?? null,
+        related_urls: data.related_urls,
         is_published: data.is_published,
         image_url: data.image_url,
         published_at: data.is_published ? new Date().toISOString() : null,
         author_id: user?.id,
-      });
+      } as never);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -190,7 +191,7 @@ export default function Announcements() {
       id: string;
       title: string;
       content: string;
-      related_url: string | null;
+      related_urls: string[];
       is_published: boolean;
       image_url: string | null;
     }) => {
@@ -199,11 +200,12 @@ export default function Announcements() {
         .update({
           title: data.title,
           content: data.content,
-          related_url: data.related_url,
+          related_url: data.related_urls[0] ?? null,
+          related_urls: data.related_urls,
           is_published: data.is_published,
           image_url: data.image_url,
           published_at: data.is_published ? new Date().toISOString() : null,
-        })
+        } as never)
         .eq("id", data.id);
       if (error) throw error;
     },
