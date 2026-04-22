@@ -78,6 +78,7 @@ export type Database = {
       announcements: {
         Row: {
           author_id: string | null
+          category: string
           content: string
           created_at: string
           id: string
@@ -91,6 +92,7 @@ export type Database = {
         }
         Insert: {
           author_id?: string | null
+          category?: string
           content: string
           created_at?: string
           id?: string
@@ -104,6 +106,7 @@ export type Database = {
         }
         Update: {
           author_id?: string | null
+          category?: string
           content?: string
           created_at?: string
           id?: string
