@@ -1,5 +1,6 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -95,6 +96,7 @@ export default function Announcements() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchCategory, setSearchCategory] = useState<string>("all");
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: announcementData, isLoading } = useQuery({
     queryKey: ["announcements", currentPage, itemsPerPage],
@@ -319,6 +321,20 @@ export default function Announcements() {
     setImageFile(null);
     setIsCreateOpen(true);
   };
+
+  // Open edit dialog when navigated with ?edit=<id>
+  const announcementsList = announcementData?.data;
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (!editId || !announcementsList || isCreateOpen) return;
+    const target = announcementsList.find((a) => a.id === editId);
+    if (target) {
+      handleEdit(target);
+      searchParams.delete("edit");
+      setSearchParams(searchParams, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, announcementsList]);
 
   const handleLimitChange = (newLimit: string) => {
     const limit = Number.parseInt(newLimit);
@@ -633,6 +649,29 @@ export default function Announcements() {
             </Dialog>
           )}
         </motion.div>
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari judul, isi, atau kategori..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={searchCategory} onValueChange={setSearchCategory}>
+            <SelectTrigger className="sm:w-48">
+              <SelectValue placeholder="Semua kategori" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua kategori</SelectItem>
+              {ANNOUNCEMENT_CATEGORIES.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">

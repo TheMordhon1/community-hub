@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -35,7 +35,19 @@ import { ArrowLeft, Megaphone, Loader2, Share2, Search,
   Eye,
   Plus,
   X,
+  Edit,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAnnouncementLikes, useAnnouncementLikers } from "@/hooks/useAnnouncementLikes";
 import { useAnnouncementReads, useAnnouncementReaders } from "@/hooks/useAnnouncementReads";
 import type { Announcement, Profile } from "@/types/database";
@@ -63,12 +75,30 @@ export default function AnnouncementDetail() {
   const [showReaders, setShowReaders] = useState(false);
   const [showAllEmojis, setShowAllEmojis] = useState(false);
   const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const announcementIds = id ? [id] : [];
   const { reactionCounts, userReactions, toggleReaction } = useAnnouncementLikes(announcementIds);
   const { data: likers = [] } = useAnnouncementLikers(id, showLikers);
   const { readSet, markAsRead } = useAnnouncementReads(announcementIds);
   const { data: readers = [] } = useAnnouncementReaders(id, showReaders);
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) return;
+      const { error } = await supabase.from("announcements").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["announcements"] });
+      toast.success("Pengumuman berhasil dihapus");
+      navigate("/announcements");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Gagal menghapus pengumuman");
+    },
+  });
 
   const handleCopyLink = async (url: string) => {
     try {
@@ -189,13 +219,36 @@ export default function AnnouncementDetail() {
               Detail Pengumuman
             </h1>
           </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setIsShareOpen(true)}
-          >
-            <Share2 className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {canManageContent() && (
+              <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => navigate(`/announcements?edit=${id}`)}
+                  title="Edit"
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setIsDeleteOpen(true)}
+                  title="Hapus"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </>
+            )}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setIsShareOpen(true)}
+            >
+              <Share2 className="w-5 h-5" />
+            </Button>
+          </div>
         </motion.div>
 
         {/* Announcement Details */}
@@ -528,6 +581,32 @@ export default function AnnouncementDetail() {
         url={shareUrl}
         shareText={shareText}
       />
+
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Pengumuman?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus pengumuman "
+              <span className="font-semibold break-all">{announcement.title}</span>
+              "? Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
