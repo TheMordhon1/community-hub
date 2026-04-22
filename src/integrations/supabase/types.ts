@@ -85,6 +85,7 @@ export type Database = {
           is_published: boolean | null
           published_at: string | null
           related_url: string | null
+          related_urls: string[]
           title: string
           updated_at: string
         }
@@ -97,6 +98,7 @@ export type Database = {
           is_published?: boolean | null
           published_at?: string | null
           related_url?: string | null
+          related_urls?: string[]
           title: string
           updated_at?: string
         }
@@ -109,6 +111,7 @@ export type Database = {
           is_published?: boolean | null
           published_at?: string | null
           related_url?: string | null
+          related_urls?: string[]
           title?: string
           updated_at?: string
         }
