@@ -157,6 +157,7 @@ export default function Announcements() {
       title: string;
       content: string;
       related_urls: string[];
+      category: AnnouncementCategory;
       is_published: boolean;
       image_url: string | null;
     }) => {
@@ -165,6 +166,7 @@ export default function Announcements() {
         content: data.content,
         related_url: data.related_urls[0] ?? null,
         related_urls: data.related_urls,
+        category: data.category,
         is_published: data.is_published,
         image_url: data.image_url,
         published_at: data.is_published ? new Date().toISOString() : null,
@@ -193,6 +195,7 @@ export default function Announcements() {
       title: string;
       content: string;
       related_urls: string[];
+      category: AnnouncementCategory;
       is_published: boolean;
       image_url: string | null;
     }) => {
@@ -203,6 +206,7 @@ export default function Announcements() {
           content: data.content,
           related_url: data.related_urls[0] ?? null,
           related_urls: data.related_urls,
+          category: data.category,
           is_published: data.is_published,
           image_url: data.image_url,
           published_at: data.is_published ? new Date().toISOString() : null,
