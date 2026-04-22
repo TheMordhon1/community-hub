@@ -8,7 +8,7 @@ import { MapPin, Save, Loader2, Crosshair, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { houseIcon } from "@/pages/Map";
+import { HouseIcon } from "@/pages/Map";
 
 // Fix default marker icons (vite/leaflet bundling issue)
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
@@ -120,7 +120,7 @@ export function HouseLocationPicker({ houseId, initialLocation, houseLabel }: Pr
             />
             <ClickHandler onPick={(lat, lng) => setPoint([lat, lng])} />
             <Recenter center={center} />
-            {point && <Marker position={point} icon={houseIcon} />}
+            {point && <Marker position={point} icon={HouseIcon} />}
           </MapContainer>
         </div>
 

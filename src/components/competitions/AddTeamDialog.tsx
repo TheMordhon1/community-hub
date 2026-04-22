@@ -176,7 +176,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           <div className="space-y-2">
             <Label>Anggota Tim</Label>
             <Input
-              placeholder="Cari nama anggota..."
+              placeholder="Cari nama penghuni..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="mb-2"

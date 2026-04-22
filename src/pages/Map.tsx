@@ -31,7 +31,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { StreetsLayer, STREETS, getStreetForPoint } from "@/components/map/StreetsLayer";
 
-export const houseIcon = L.divIcon({
+export const HouseIcon = L.divIcon({
   className: "",
   html: `<div style="
     display:flex;align-items:center;justify-content:center;
@@ -322,7 +322,7 @@ export default function MapPage() {
             <Search className="w-4 h-4 text-primary" /> Filter Rumah
           </CardTitle>
           <CardDescription className="text-xs">
-            Cari berdasarkan blok, nomor rumah, nama anggota, atau jalan
+            Cari berdasarkan blok, nomor rumah, nama penghuni, atau jalan
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -332,7 +332,7 @@ export default function MapPage() {
               <Input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Cari blok, nomor rumah, atau nama anggota..."
+                placeholder="Cari blok, nomor rumah, atau nama penghuni..."
                 className="pl-8 pr-8"
               />
               {searchTerm && (
@@ -444,7 +444,7 @@ export default function MapPage() {
                     <Marker
                       key={h.id}
                       position={[lat, lng]}
-                      icon={houseIcon}
+                      icon={HouseIcon}
                       eventHandlers={{
                         click: () => setSelectedHouseId(h.id),
                       }}
