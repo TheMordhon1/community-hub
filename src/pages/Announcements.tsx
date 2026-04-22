@@ -381,13 +381,26 @@ export default function Announcements() {
   const totalCount = announcementData?.totalCount || 0;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
+  const filteredAnnouncements = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return announcements.filter((a) => {
+      if (searchCategory !== "all" && a.category !== searchCategory) return false;
+      if (!q) return true;
+      return (
+        a.title.toLowerCase().includes(q) ||
+        a.content.toLowerCase().includes(q) ||
+        (a.category || "").toLowerCase().includes(q)
+      );
+    });
+  }, [announcements, searchQuery, searchCategory]);
+
   const publishedAnnouncements = useMemo(
-    () => announcements.filter((a) => a.is_published) || [],
-    [announcements]
+    () => filteredAnnouncements.filter((a) => a.is_published) || [],
+    [filteredAnnouncements]
   );
   const draftAnnouncements = useMemo(
-    () => announcements.filter((a) => !a.is_published) || [],
-    [announcements]
+    () => filteredAnnouncements.filter((a) => !a.is_published) || [],
+    [filteredAnnouncements]
   );
 
   const announcementIds = useMemo(
