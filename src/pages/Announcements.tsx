@@ -93,6 +93,8 @@ export default function Announcements() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchCategory, setSearchCategory] = useState<string>("all");
 
   const { data: announcementData, isLoading } = useQuery({
     queryKey: ["announcements", currentPage, itemsPerPage],
