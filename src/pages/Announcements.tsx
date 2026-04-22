@@ -310,6 +310,7 @@ export default function Announcements() {
         ? [announcement.related_url]
         : [""];
     setRelatedUrls(urls);
+    setCategory((announcement.category as AnnouncementCategory) || "Umum");
     setIsPublished(announcement.is_published);
     setImagePreview(announcement.image_url || null);
     setImageFile(null);
