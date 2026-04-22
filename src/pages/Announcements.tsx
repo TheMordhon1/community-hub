@@ -358,6 +358,7 @@ export default function Announcements() {
       title,
       content,
       related_urls: cleanedUrls,
+      category,
       is_published: isPublished,
       image_url: imageUrl,
     };
