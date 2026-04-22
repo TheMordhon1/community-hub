@@ -528,9 +528,6 @@ export default function MapPage() {
               Blok {selectedHouse?.block} No. {selectedHouse?.number}
             </DialogTitle>
             <DialogDescription className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                {selectedHouse?.occupancy_status || "-"}
-              </Badge>
               <span className="text-xs">
                 {selectedMembers.length} anggota terdaftar
               </span>
