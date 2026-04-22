@@ -219,13 +219,36 @@ export default function AnnouncementDetail() {
               Detail Pengumuman
             </h1>
           </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setIsShareOpen(true)}
-          >
-            <Share2 className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {canManageContent() && (
+              <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => navigate(`/announcements?edit=${id}`)}
+                  title="Edit"
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setIsDeleteOpen(true)}
+                  title="Hapus"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </>
+            )}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setIsShareOpen(true)}
+            >
+              <Share2 className="w-5 h-5" />
+            </Button>
+          </div>
         </motion.div>
 
         {/* Announcement Details */}
