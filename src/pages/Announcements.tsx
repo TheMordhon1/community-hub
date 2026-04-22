@@ -655,11 +655,16 @@ export default function Announcements() {
                     >
                       <CardHeader className="p-4 flex-row items-center justify-between space-y-0">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
                               <EyeOff className="w-3 h-3 mr-1" />
                               Draft
                             </Badge>
+                            {announcement.category && (
+                              <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+                                {announcement.category}
+                              </Badge>
+                            )}
                           </div>
                           <CardTitle className="text-base font-semibold break-all break-words">
                             {announcement.title}
