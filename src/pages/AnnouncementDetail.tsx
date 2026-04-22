@@ -35,7 +35,19 @@ import { ArrowLeft, Megaphone, Loader2, Share2, Search,
   Eye,
   Plus,
   X,
+  Edit,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAnnouncementLikes, useAnnouncementLikers } from "@/hooks/useAnnouncementLikes";
 import { useAnnouncementReads, useAnnouncementReaders } from "@/hooks/useAnnouncementReads";
 import type { Announcement, Profile } from "@/types/database";
