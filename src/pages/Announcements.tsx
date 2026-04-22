@@ -452,6 +452,20 @@ export default function Announcements() {
                         className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
                       />
                     </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="category" className="text-sm font-semibold text-foreground/80">Kategori</Label>
+                      <Select value={category} onValueChange={(v) => setCategory(v as AnnouncementCategory)}>
+                        <SelectTrigger id="category" className="h-10">
+                          <SelectValue placeholder="Pilih kategori" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ANNOUNCEMENT_CATEGORIES.map((c) => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     
                     <div className="space-y-2">
                       <Label htmlFor="content" className="text-sm font-semibold text-foreground/80">Isi Pengumuman</Label>
