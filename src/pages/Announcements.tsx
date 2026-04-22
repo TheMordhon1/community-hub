@@ -96,6 +96,7 @@ export default function Announcements() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchCategory, setSearchCategory] = useState<string>("all");
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: announcementData, isLoading } = useQuery({
     queryKey: ["announcements", currentPage, itemsPerPage],
