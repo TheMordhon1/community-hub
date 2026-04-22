@@ -121,6 +121,7 @@ export function HouseLocationPicker({ houseId, initialLocation, houseLabel }: Pr
             />
             <ClickHandler onPick={(lat, lng) => setPoint([lat, lng])} />
             <Recenter center={center} />
+            <StreetsLayer houses={[]} />
             {point && <Marker position={point} icon={HouseIcon} />}
           </MapContainer>
         </div>
