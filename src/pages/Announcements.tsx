@@ -83,7 +83,7 @@ export default function Announcements() {
     useState<Announcement | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [relatedUrl, setRelatedUrl] = useState("");
+  const [relatedUrls, setRelatedUrls] = useState<string[]>([""]);
   const [isPublished, setIsPublished] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
@@ -155,19 +155,20 @@ export default function Announcements() {
     mutationFn: async (data: {
       title: string;
       content: string;
-      related_url: string | null;
+      related_urls: string[];
       is_published: boolean;
       image_url: string | null;
     }) => {
       const { error } = await supabase.from("announcements").insert({
         title: data.title,
         content: data.content,
-        related_url: data.related_url,
+        related_url: data.related_urls[0] ?? null,
+        related_urls: data.related_urls,
         is_published: data.is_published,
         image_url: data.image_url,
         published_at: data.is_published ? new Date().toISOString() : null,
         author_id: user?.id,
-      });
+      } as never);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -190,7 +191,7 @@ export default function Announcements() {
       id: string;
       title: string;
       content: string;
-      related_url: string | null;
+      related_urls: string[];
       is_published: boolean;
       image_url: string | null;
     }) => {
@@ -199,11 +200,12 @@ export default function Announcements() {
         .update({
           title: data.title,
           content: data.content,
-          related_url: data.related_url,
+          related_url: data.related_urls[0] ?? null,
+          related_urls: data.related_urls,
           is_published: data.is_published,
           image_url: data.image_url,
           published_at: data.is_published ? new Date().toISOString() : null,
-        })
+        } as never)
         .eq("id", data.id);
       if (error) throw error;
     },
@@ -249,7 +251,7 @@ export default function Announcements() {
   const resetForm = () => {
     setTitle("");
     setContent("");
-    setRelatedUrl("");
+    setRelatedUrls([""]);
     setIsPublished(false);
     setImageFile(null);
     setImagePreview(null);
@@ -296,7 +298,12 @@ export default function Announcements() {
     setEditingAnnouncement(announcement);
     setTitle(announcement.title);
     setContent(announcement.content);
-    setRelatedUrl(announcement.related_url || "");
+    const urls = announcement.related_urls && announcement.related_urls.length > 0
+      ? announcement.related_urls
+      : announcement.related_url
+        ? [announcement.related_url]
+        : [""];
+    setRelatedUrls(urls);
     setIsPublished(announcement.is_published);
     setImagePreview(announcement.image_url || null);
     setImageFile(null);
@@ -339,10 +346,11 @@ export default function Announcements() {
       imageUrl = null;
     }
 
+    const cleanedUrls = relatedUrls.map((u) => u.trim()).filter((u) => u.length > 0);
     const payload = {
       title,
       content,
-      related_url: relatedUrl.trim() || null,
+      related_urls: cleanedUrls,
       is_published: isPublished,
       image_url: imageUrl,
     };
@@ -506,16 +514,49 @@ export default function Announcements() {
 
                     <div className="space-y-4 pt-2">
                       <div className="space-y-2">
-                        <Label htmlFor="relatedUrl" className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5">
-                          Link Terkait <span className="text-[10px] font-normal text-muted-foreground">(Opsional)</span>
+                        <Label className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5">
+                          Link Terkait <span className="text-[10px] font-normal text-muted-foreground">(Opsional, bisa lebih dari satu)</span>
                         </Label>
-                        <Input
-                          id="relatedUrl"
-                          placeholder="https://contoh.com/informasi-lanjutan"
-                          value={relatedUrl}
-                          onChange={(e) => setRelatedUrl(e.target.value)}
-                          className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
-                        />
+                        <div className="space-y-2">
+                          {relatedUrls.map((url, idx) => (
+                            <div key={idx} className="flex gap-2">
+                              <Input
+                                placeholder="https://contoh.com/informasi-lanjutan"
+                                value={url}
+                                onChange={(e) => {
+                                  const next = [...relatedUrls];
+                                  next[idx] = e.target.value;
+                                  setRelatedUrls(next);
+                                }}
+                                className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
+                              />
+                              {relatedUrls.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-10 w-10 shrink-0"
+                                  onClick={() =>
+                                    setRelatedUrls(relatedUrls.filter((_, i) => i !== idx))
+                                  }
+                                  aria-label="Hapus link"
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setRelatedUrls([...relatedUrls, ""])}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Tambah Link
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="flex items-center justify-between p-4 rounded-xl border bg-primary/5 border-primary/10">

@@ -261,40 +261,51 @@ export default function AnnouncementDetail() {
                 </p>
               </div>
 
-              {announcement.related_url && (
-                <div className="mt-4 pt-4 border-t border-dashed">
-                  <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                    <LinkIcon className="w-4 h-4 text-primary" />
-                    Link Terkait
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    <a
-                      href={announcement.related_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-primary/5 hover:bg-primary/10 text-primary border border-primary/20 rounded-lg transition-colors group max-w-full"
-                    >
-                      <span className="line-clamp-1 break-all">
-                        {announcement.related_url}
-                      </span>
-                      <ExternalLink className="w-4 h-4 shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                    </a>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-[42px] px-3 gap-2"
-                      onClick={() => handleCopyLink(announcement.related_url!)}
-                    >
-                      {isCopied ? (
-                        <Check className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                      <span>Salin Link</span>
-                    </Button>
+              {(() => {
+                const urls = (announcement.related_urls && announcement.related_urls.length > 0
+                  ? announcement.related_urls
+                  : announcement.related_url
+                    ? [announcement.related_url]
+                    : []
+                ).filter((u) => u && u.trim().length > 0);
+                if (urls.length === 0) return null;
+                return (
+                  <div className="mt-4 pt-4 border-t border-dashed">
+                    <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                      <LinkIcon className="w-4 h-4 text-primary" />
+                      Link Terkait
+                    </h4>
+                    <div className="flex flex-col gap-2">
+                      {urls.map((url, idx) => (
+                        <div key={idx} className="flex flex-wrap gap-2">
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary/5 hover:bg-primary/10 text-primary border border-primary/20 rounded-lg transition-colors group max-w-full flex-1 min-w-0"
+                          >
+                            <span className="line-clamp-1 break-all">{url}</span>
+                            <ExternalLink className="w-4 h-4 shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                          </a>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-[42px] px-3 gap-2"
+                            onClick={() => handleCopyLink(url)}
+                          >
+                            {isCopied ? (
+                              <Check className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                            <span>Salin</span>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Reactions Section */}
               {id && (
