@@ -257,6 +257,7 @@ export default function Announcements() {
     setTitle("");
     setContent("");
     setRelatedUrls([""]);
+    setCategory("Umum");
     setIsPublished(false);
     setImageFile(null);
     setImagePreview(null);
