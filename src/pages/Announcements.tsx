@@ -251,7 +251,7 @@ export default function Announcements() {
   const resetForm = () => {
     setTitle("");
     setContent("");
-    setRelatedUrl("");
+    setRelatedUrls([""]);
     setIsPublished(false);
     setImageFile(null);
     setImagePreview(null);
