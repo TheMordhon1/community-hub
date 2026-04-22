@@ -58,7 +58,7 @@ import { useAnnouncementLikes } from "@/hooks/useAnnouncementLikes";
 import { useAnnouncementReads } from "@/hooks/useAnnouncementReads";
 import { REACTION_EMOJIS, EXTENDED_REACTION_EMOJIS, ALL_REACTIONS } from "@/lib/reaction-constants";
 import { Link, useNavigate } from "react-router-dom";
-import type { Announcement } from "@/types/database";
+import { type Announcement, ANNOUNCEMENT_CATEGORIES, type AnnouncementCategory } from "@/types/database";
 import {
   Select,
   SelectContent,
@@ -84,6 +84,7 @@ export default function Announcements() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [relatedUrls, setRelatedUrls] = useState<string[]>([""]);
+  const [category, setCategory] = useState<AnnouncementCategory>("Umum");
   const [isPublished, setIsPublished] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
@@ -156,6 +157,7 @@ export default function Announcements() {
       title: string;
       content: string;
       related_urls: string[];
+      category: AnnouncementCategory;
       is_published: boolean;
       image_url: string | null;
     }) => {
@@ -164,6 +166,7 @@ export default function Announcements() {
         content: data.content,
         related_url: data.related_urls[0] ?? null,
         related_urls: data.related_urls,
+        category: data.category,
         is_published: data.is_published,
         image_url: data.image_url,
         published_at: data.is_published ? new Date().toISOString() : null,
@@ -192,6 +195,7 @@ export default function Announcements() {
       title: string;
       content: string;
       related_urls: string[];
+      category: AnnouncementCategory;
       is_published: boolean;
       image_url: string | null;
     }) => {
@@ -202,6 +206,7 @@ export default function Announcements() {
           content: data.content,
           related_url: data.related_urls[0] ?? null,
           related_urls: data.related_urls,
+          category: data.category,
           is_published: data.is_published,
           image_url: data.image_url,
           published_at: data.is_published ? new Date().toISOString() : null,
@@ -252,6 +257,7 @@ export default function Announcements() {
     setTitle("");
     setContent("");
     setRelatedUrls([""]);
+    setCategory("Umum");
     setIsPublished(false);
     setImageFile(null);
     setImagePreview(null);
@@ -304,6 +310,7 @@ export default function Announcements() {
         ? [announcement.related_url]
         : [""];
     setRelatedUrls(urls);
+    setCategory((announcement.category as AnnouncementCategory) || "Umum");
     setIsPublished(announcement.is_published);
     setImagePreview(announcement.image_url || null);
     setImageFile(null);
@@ -351,6 +358,7 @@ export default function Announcements() {
       title,
       content,
       related_urls: cleanedUrls,
+      category,
       is_published: isPublished,
       image_url: imageUrl,
     };
@@ -443,6 +451,20 @@ export default function Announcements() {
                         onChange={(e) => setTitle(e.target.value)}
                         className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
                       />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="category" className="text-sm font-semibold text-foreground/80">Kategori</Label>
+                      <Select value={category} onValueChange={(v) => setCategory(v as AnnouncementCategory)}>
+                        <SelectTrigger id="category" className="h-10">
+                          <SelectValue placeholder="Pilih kategori" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ANNOUNCEMENT_CATEGORIES.map((c) => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     
                     <div className="space-y-2">
@@ -633,11 +655,16 @@ export default function Announcements() {
                     >
                       <CardHeader className="p-4 flex-row items-center justify-between space-y-0">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
                               <EyeOff className="w-3 h-3 mr-1" />
                               Draft
                             </Badge>
+                            {announcement.category && (
+                              <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+                                {announcement.category}
+                              </Badge>
+                            )}
                           </div>
                           <CardTitle className="text-base font-semibold break-all break-words">
                             {announcement.title}
@@ -703,11 +730,16 @@ export default function Announcements() {
                     >
                       <CardHeader className="p-4 flex-row items-center justify-between space-y-0">
                         <div className="flex-1 min-w-0 pr-4">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 h-5 px-1.5 text-[10px] border-none">
                               <Eye className="w-3 h-3 mr-1" />
                               Warga
                             </Badge>
+                            {announcement.category && (
+                              <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+                                {announcement.category}
+                              </Badge>
+                            )}
                             {!readSet.has(announcement.id) && (
                               <Badge className="bg-primary/10 text-primary hover:bg-primary/10 h-5 px-1.5 text-[10px] border-none font-semibold">
                                 Baru

@@ -231,16 +231,21 @@ export default function AnnouncementDetail() {
             )}
             <CardHeader>
               <div className="space-y-2">
-                <Badge
-                  variant={announcement.is_published ? "default" : "secondary"}
-                  className={
-                    announcement.is_published
-                      ? "bg-primary/10 text-primary"
-                      : ""
-                  }
-                >
-                  {announcement.is_published ? "Publik" : "Draft"}
-                </Badge>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge
+                    variant={announcement.is_published ? "default" : "secondary"}
+                    className={
+                      announcement.is_published
+                        ? "bg-primary/10 text-primary"
+                        : ""
+                    }
+                  >
+                    {announcement.is_published ? "Publik" : "Draft"}
+                  </Badge>
+                  {announcement.category && (
+                    <Badge variant="outline">{announcement.category}</Badge>
+                  )}
+                </div>
                 <CardTitle className="text-3xl break-words whitespace-pre-wrap">
                   {announcement.title}
                 </CardTitle>

@@ -112,9 +112,13 @@ export interface Announcement {
   author_id: string | null;
   related_url: string | null;
   related_urls: string[] | null;
+  category: 'Tips' | 'Informasi' | 'Umum';
   created_at: string;
   updated_at: string;
 }
+
+export const ANNOUNCEMENT_CATEGORIES = ['Tips', 'Informasi', 'Umum'] as const;
+export type AnnouncementCategory = typeof ANNOUNCEMENT_CATEGORIES[number];
 
 export type EventType = 'regular' | 'competition';
 
