@@ -22,7 +22,7 @@ import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EmergencyContactsCard } from "@/components/EmergencyContactsCard";
 import { getInitials } from "@/lib/utils";
 
@@ -112,7 +112,26 @@ export default function Index() {
   });
 
   const { user, isInitialized, profile } = useAuth();
-  const settings = settingsData || {};
+
+  // Live preview overrides — when this page is embedded in the LandingSettings
+  // editor (iframe), the parent posts unsaved settings via postMessage.
+  const [previewOverrides, setPreviewOverrides] = useState<LandingSettings | null>(null);
+  const isInIframe = typeof window !== "undefined" && window.self !== window.top;
+
+  useEffect(() => {
+    if (!isInIframe) return;
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data && e.data.type === "landing-preview-update" && e.data.settings) {
+        setPreviewOverrides(e.data.settings as LandingSettings);
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    // Notify parent we're ready to receive settings
+    window.parent?.postMessage({ type: "landing-preview-ready" }, "*");
+    return () => window.removeEventListener("message", handleMessage);
+  }, [isInIframe]);
+
+  const settings = { ...(settingsData || {}), ...(previewOverrides || {}) };
   const showStats = settings.show_stats !== "false";
   const showGallery = settings.show_gallery !== "false";
   const showEvents = settings.show_events !== "false";
