@@ -17,10 +17,8 @@ export const STREETS: StreetDef[] = [
     name: "Jln. Sakura 1",
     color: "#22c55e",
     path: [
-      // Extension to the NE (matches red line in screenshot)
-      [-6.4710323, 106.7574680],
-      [-6.4711930, 106.7571136],
-      [-6.4713537, 106.7567592],
+      // Short NE extension along same diagonal (matches red line)
+      [-6.4712800, 106.7568200],
       [-6.4715144, 106.7564048],
       [-6.4716751, 106.7560504],
       [-6.4718782, 106.7556618],
