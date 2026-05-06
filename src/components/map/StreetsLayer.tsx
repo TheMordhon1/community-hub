@@ -1,10 +1,11 @@
-import { Polyline, Popup, Tooltip } from "react-leaflet";
+import { Polyline, Popup, Tooltip, Marker } from "react-leaflet";
 import { Home } from "lucide-react";
+import L from "leaflet";
 
 export interface StreetDef {
   name: string;
-  // Polyline path [lat, lng][]
-  path: [number, number][];
+  // Polyline path [lat, lng][] or multi-segment [lat, lng][][]
+  path: [number, number][] | [number, number][][];
   color: string;
 }
 
@@ -15,7 +16,7 @@ export interface StreetDef {
 export const STREETS: StreetDef[] = [
   {
     name: "Jln. Sakura 1",
-    color: "#22c55e",
+    color: "#FFFFFF",
     path: [
       [-6.4715144, 106.7564048],
       [-6.4716751, 106.7560504],
@@ -24,7 +25,7 @@ export const STREETS: StreetDef[] = [
   },
   {
     name: "Jln. Sakura 2",
-    color: "#22c55e",
+    color: "#FFFFFF",
     path: [
       [-6.4717520, 106.7565311],
       [-6.4719200, 106.7561606],
@@ -33,7 +34,7 @@ export const STREETS: StreetDef[] = [
   },
   {
     name: "Jln. Lotus 1",
-    color: "#16a34a",
+    color: "#FFFFFF",
     path: [
       [-6.4719667, 106.7566317],
       [-6.4721362, 106.7562782],
@@ -42,7 +43,7 @@ export const STREETS: StreetDef[] = [
   },
   {
     name: "Jln. Lotus 2",
-    color: "#16a34a",
+    color: "#FFFFFF",
     path: [
       [-6.4721738, 106.7567203],
       [-6.4721953, 106.7566878],
@@ -112,10 +113,16 @@ export const NEARBY_THRESHOLD_M = 30;
 export function getStreetForPoint(lat: number, lng: number): string | null {
   let best: { name: string; d: number } | null = null;
   for (const s of STREETS) {
-    for (let i = 0; i < s.path.length - 1; i++) {
-      const d = distToSegment([lat, lng], s.path[i], s.path[i + 1]);
-      if (d <= NEARBY_THRESHOLD_M && (!best || d < best.d)) {
-        best = { name: s.name, d };
+    const paths = Array.isArray(s.path[0][0])
+      ? (s.path as [number, number][][])
+      : [s.path as [number, number][]];
+
+    for (const p of paths) {
+      for (let i = 0; i < p.length - 1; i++) {
+        const d = distToSegment([lat, lng], p[i], p[i + 1]);
+        if (d <= NEARBY_THRESHOLD_M && (!best || d < best.d)) {
+          best = { name: s.name, d };
+        }
       }
     }
   }
@@ -138,50 +145,76 @@ export function StreetsLayer({ houses, onHouseClick }: Props) {
 
   return (
     <>
-      {STREETS.map((s) => {
+      {STREETS.map((s, index) => {
         const nearby = housesByStreet.get(s.name) || [];
+        const paths = Array.isArray(s.path[0][0])
+          ? (s.path as [number, number][][])
+          : [s.path as [number, number][]];
+
+        // Place label on the longest segment
+        let labelPath = paths[0];
+        let maxD = 0;
+        paths.forEach((p) => {
+          const d = distMeters(p[0], p[p.length - 1]);
+          if (d > maxD) {
+            maxD = d;
+            labelPath = p;
+          }
+        });
+        const labelPos = labelPath[Math.floor(labelPath.length / 1.9)];
 
         return (
-          <Polyline
-            key={s.name}
-            positions={s.path}
-            pathOptions={{
-              color: s.color,
-              weight: 8,
-              opacity: 0.7,
-              lineCap: "round",
-            }}
-          >
-            <Tooltip direction="center" permanent className="street-label">
-              <span className="text-xs font-bold">{s.name}</span>
-            </Tooltip>
-            <Popup>
-              <div className="min-w-[180px]">
-                <div className="font-bold text-sm mb-1.5 text-foreground">{s.name}</div>
-                <div className="text-xs text-muted-foreground mb-2">
-                  {nearby.length} rumah di sekitar
+          <div key={`${s.name}-${index}`}>
+            {paths.map((p, idx) => (
+              <Polyline
+                key={`${s.name}-p-${idx}`}
+                positions={p}
+                pathOptions={{
+                  color: s.color,
+                  weight: 8,
+                  opacity: 0.7,
+                  lineCap: "round",
+                  interactive: false,
+                }}
+              />
+            ))}
+            <Marker
+              position={labelPos}
+              icon={L.divIcon({
+                className: "street-label-icon",
+                html: `<div class="leaflet-tooltip street-label permanent" style="cursor: pointer; transform: rotate(-23deg);">${s.name}</div>`,
+                iconSize: [80, 24],
+                iconAnchor: [40, 12],
+              })}
+            >
+              <Popup offset={[0, -10]}>
+                <div className="min-w-[180px]">
+                  <div className="font-bold text-base mb-1 text-foreground">{s.name}</div>
+                  <div className="text-xs text-muted-foreground mb-3">
+                    {nearby.length} rumah di sekitar
+                  </div>
+                  {nearby.length === 0 ? (
+                    <div className="text-xs text-muted-foreground italic">
+                      Belum ada rumah terpasang
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1">
+                      {nearby.map((h) => (
+                        <button
+                          key={h.id}
+                          onClick={() => onHouseClick?.(h.id)}
+                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors text-[12px] font-bold text-foreground"
+                        >
+                          <Home className="w-3.5 h-3.5 text-primary" />
+                          {h.block}-{h.number}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {nearby.length === 0 ? (
-                  <div className="text-xs text-muted-foreground italic">
-                    Belum ada rumah terpasang
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                    {nearby.map((h) => (
-                      <button
-                        key={h.id}
-                        onClick={() => onHouseClick?.(h.id)}
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-primary/30 bg-primary/5 hover:bg-primary/10 text-[11px] font-semibold"
-                      >
-                        <Home className="w-3 h-3" />
-                        {h.block}-{h.number}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </Popup>
-          </Polyline>
+              </Popup>
+            </Marker>
+          </div>
         );
       })}
     </>
