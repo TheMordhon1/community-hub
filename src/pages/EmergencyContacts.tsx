@@ -47,7 +47,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Trash2, Search, ExternalLink, ArrowLeft } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ExternalLink, ArrowLeft, X } from "lucide-react";
 import { DynamicIcon } from "@/components/DynamicIcon";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
