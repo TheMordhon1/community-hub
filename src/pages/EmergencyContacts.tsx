@@ -257,19 +257,26 @@ export default function EmergencyContacts() {
                     <CardContent className="p-5 pt-0 space-y-6">
                       <div className="flex flex-col gap-1.5">
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Informasi Kontak</span>
-                        <p className="text-2xl font-mono font-bold tracking-tight text-slate-900 dark:text-slate-100">{contact.phone}</p>
+                        <div className="space-y-1">
+                          {getContactPhones(contact).map((p, i) => (
+                            <p key={i} className="text-xl font-mono font-bold tracking-tight text-slate-900 dark:text-slate-100">{p}</p>
+                          ))}
+                        </div>
                       </div>
 
                       <div className="flex flex-col gap-3">
-                        <Button 
-                          asChild 
-                          className="w-full h-12 rounded-xl text-base font-semibold shadow-md active:scale-95 transition-transform"
-                        >
-                          <a href={getContactLink(contact.platform, contact.phone)} target="_blank" rel="noopener noreferrer">
-                            Hubungi Sekarang
-                            <ExternalLink className="w-4 h-4 ml-2" />
-                          </a>
-                        </Button>
+                        {getContactPhones(contact).map((p, i) => (
+                          <Button
+                            key={i}
+                            asChild
+                            className="w-full h-12 rounded-xl text-base font-semibold shadow-md active:scale-95 transition-transform"
+                          >
+                            <a href={getContactLink(contact.platform, p)} target="_blank" rel="noopener noreferrer">
+                              Hubungi {getContactPhones(contact).length > 1 ? p : "Sekarang"}
+                              <ExternalLink className="w-4 h-4 ml-2" />
+                            </a>
+                          </Button>
+                        ))}
                         
                         {canManage && (
                           <div className="grid grid-cols-2 gap-2">
