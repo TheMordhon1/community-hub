@@ -45,7 +45,7 @@ export function useEmergencyContacts() {
         .select("*")
         .order("order_index", { ascending: true });
       if (error) throw error;
-      return data as EmergencyContact[];
+      return data as unknown as EmergencyContact[];
     },
   });
 }
@@ -60,7 +60,7 @@ export function useActiveEmergencyContacts() {
         .eq("is_active", true)
         .order("order_index", { ascending: true });
       if (error) throw error;
-      return data as EmergencyContact[];
+      return data as unknown as EmergencyContact[];
     },
   });
 }
@@ -71,7 +71,7 @@ export function useCreateEmergencyContact() {
     mutationFn: async (contact: Omit<EmergencyContact, "id" | "created_at" | "updated_at">) => {
       const { data, error } = await supabase
         .from("emergency_contacts")
-        .insert(contact)
+        .insert(contact as any)
         .select()
         .single();
       if (error) throw error;
@@ -93,7 +93,7 @@ export function useUpdateEmergencyContact() {
     mutationFn: async ({ id, ...updates }: Partial<EmergencyContact> & { id: string }) => {
       const { data, error } = await supabase
         .from("emergency_contacts")
-        .update(updates)
+        .update(updates as any)
         .eq("id", id)
         .select()
         .single();
