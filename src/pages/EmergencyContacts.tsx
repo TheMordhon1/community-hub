@@ -9,7 +9,8 @@ import {
   PLATFORM_OPTIONS,
   EmergencyContact,
   getContactLink,
-  getContactPhones,
+  getContactMethods,
+  ContactMethod,
 } from "@/hooks/useEmergencyContacts";
 import {
   Card,
