@@ -7,6 +7,7 @@ import { AlertTriangle, ExternalLink, ArrowRight, Copy, Check } from "lucide-rea
 import {
   useActiveEmergencyContacts,
   getContactLink,
+  getContactPhones,
   PLATFORM_OPTIONS,
 } from "@/hooks/useEmergencyContacts";
 import { Link } from "react-router-dom";
