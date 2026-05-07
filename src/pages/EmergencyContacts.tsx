@@ -70,16 +70,14 @@ export default function EmergencyContacts() {
 
   // Form state
   const [name, setName] = useState("");
-  const [phones, setPhones] = useState<string[]>([""]);
-  const [platform, setPlatform] = useState("phone");
+  const [methods, setMethods] = useState<ContactMethod[]>([{ platform: "phone", value: "" }]);
   const [description, setDescription] = useState("");
   const [orderIndex, setOrderIndex] = useState(0);
   const [isActive, setIsActive] = useState(true);
 
   const resetForm = () => {
     setName("");
-    setPhones([""]);
-    setPlatform("phone");
+    setMethods([{ platform: "phone", value: "" }]);
     setDescription("");
     setOrderIndex(0);
     setIsActive(true);
@@ -90,9 +88,8 @@ export default function EmergencyContacts() {
     if (contact) {
       setEditingContact(contact);
       setName(contact.name);
-      const list = getContactPhones(contact);
-      setPhones(list.length > 0 ? list : [""]);
-      setPlatform(contact.platform);
+      const list = getContactMethods(contact);
+      setMethods(list.length > 0 ? list : [{ platform: "phone", value: "" }]);
       setDescription(contact.description || "");
       setOrderIndex(contact.order_index);
       setIsActive(contact.is_active);
@@ -107,22 +104,26 @@ export default function EmergencyContacts() {
     resetForm();
   };
 
-  const updatePhoneAt = (index: number, value: string) => {
-    setPhones((prev) => prev.map((p, i) => (i === index ? value : p)));
+  const updateMethodAt = (index: number, patch: Partial<ContactMethod>) => {
+    setMethods((prev) => prev.map((m, i) => (i === index ? { ...m, ...patch } : m)));
   };
-  const addPhoneField = () => setPhones((prev) => [...prev, ""]);
-  const removePhoneAt = (index: number) =>
-    setPhones((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+  const addMethodField = () => setMethods((prev) => [...prev, { platform: "phone", value: "" }]);
+  const removeMethodAt = (index: number) =>
+    setMethods((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
 
   const handleSubmit = async () => {
-    const cleanedPhones = phones.map((p) => p.trim()).filter(Boolean);
-    if (!name.trim() || cleanedPhones.length === 0) return;
+    const cleaned = methods
+      .map((m) => ({ platform: m.platform, value: m.value.trim() }))
+      .filter((m) => m.value);
+    if (!name.trim() || cleaned.length === 0) return;
 
+    const phones = cleaned.map((m) => m.value);
     const contactData = {
       name: name.trim(),
-      phone: cleanedPhones[0],
-      phones: cleanedPhones,
-      platform,
+      phone: cleaned[0].value,
+      phones,
+      platform: cleaned[0].platform,
+      methods: cleaned,
       description: description.trim() || null,
       order_index: orderIndex,
       is_active: isActive,
