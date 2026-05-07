@@ -263,26 +263,29 @@ export function EmergencyContactsCard({
                   )}
                   
                   <div className="mt-auto space-y-2">
-                    {getContactPhones(contact).map((p, i) => (
-                      <a
-                        key={i}
-                        href={getContactLink(contact.platform, p)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block"
-                      >
-                        <Button
-                          size="sm"
-                          className={cn(
-                            "w-full h-9 rounded-lg shadow-sm transition-all active:scale-95 font-bold text-xs",
-                            getPlatformColor(contact.platform)
-                          )}
+                    {getContactMethods(contact).map((m, i) => {
+                      const opt = PLATFORM_OPTIONS.find((o) => o.value === m.platform);
+                      return (
+                        <a
+                          key={i}
+                          href={getContactLink(m.platform, m.value)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block"
                         >
-                          <ExternalLink className="w-3.5 h-3.5 mr-2" />
-                          Hubungi {getContactPhones(contact).length > 1 ? p : ""}
-                        </Button>
-                      </a>
-                    ))}
+                          <Button
+                            size="sm"
+                            className={cn(
+                              "w-full h-9 rounded-lg shadow-sm transition-all active:scale-95 font-bold text-xs",
+                              getPlatformColor(m.platform)
+                            )}
+                          >
+                            <DynamicIcon name={opt?.icon || "Phone"} className="w-3.5 h-3.5 mr-2" />
+                            {opt?.label || "Hubungi"}
+                          </Button>
+                        </a>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
