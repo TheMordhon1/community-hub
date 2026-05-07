@@ -481,7 +481,7 @@ export default function EmergencyContacts() {
               className="flex-1 sm:flex-none px-8"
               disabled={
                 !name.trim() ||
-                phones.every((p) => !p.trim()) ||
+                methods.every((m) => !m.value.trim()) ||
                 createContact.isPending ||
                 updateContact.isPending
               }
