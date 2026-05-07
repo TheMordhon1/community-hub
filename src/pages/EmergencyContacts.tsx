@@ -9,7 +9,8 @@ import {
   PLATFORM_OPTIONS,
   EmergencyContact,
   getContactLink,
-  getContactPhones,
+  getContactMethods,
+  ContactMethod,
 } from "@/hooks/useEmergencyContacts";
 import {
   Card,
@@ -69,16 +70,14 @@ export default function EmergencyContacts() {
 
   // Form state
   const [name, setName] = useState("");
-  const [phones, setPhones] = useState<string[]>([""]);
-  const [platform, setPlatform] = useState("phone");
+  const [methods, setMethods] = useState<ContactMethod[]>([{ platform: "phone", value: "" }]);
   const [description, setDescription] = useState("");
   const [orderIndex, setOrderIndex] = useState(0);
   const [isActive, setIsActive] = useState(true);
 
   const resetForm = () => {
     setName("");
-    setPhones([""]);
-    setPlatform("phone");
+    setMethods([{ platform: "phone", value: "" }]);
     setDescription("");
     setOrderIndex(0);
     setIsActive(true);
@@ -89,9 +88,8 @@ export default function EmergencyContacts() {
     if (contact) {
       setEditingContact(contact);
       setName(contact.name);
-      const list = getContactPhones(contact);
-      setPhones(list.length > 0 ? list : [""]);
-      setPlatform(contact.platform);
+      const list = getContactMethods(contact);
+      setMethods(list.length > 0 ? list : [{ platform: "phone", value: "" }]);
       setDescription(contact.description || "");
       setOrderIndex(contact.order_index);
       setIsActive(contact.is_active);
@@ -106,22 +104,26 @@ export default function EmergencyContacts() {
     resetForm();
   };
 
-  const updatePhoneAt = (index: number, value: string) => {
-    setPhones((prev) => prev.map((p, i) => (i === index ? value : p)));
+  const updateMethodAt = (index: number, patch: Partial<ContactMethod>) => {
+    setMethods((prev) => prev.map((m, i) => (i === index ? { ...m, ...patch } : m)));
   };
-  const addPhoneField = () => setPhones((prev) => [...prev, ""]);
-  const removePhoneAt = (index: number) =>
-    setPhones((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+  const addMethodField = () => setMethods((prev) => [...prev, { platform: "phone", value: "" }]);
+  const removeMethodAt = (index: number) =>
+    setMethods((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
 
   const handleSubmit = async () => {
-    const cleanedPhones = phones.map((p) => p.trim()).filter(Boolean);
-    if (!name.trim() || cleanedPhones.length === 0) return;
+    const cleaned = methods
+      .map((m) => ({ platform: m.platform, value: m.value.trim() }))
+      .filter((m) => m.value);
+    if (!name.trim() || cleaned.length === 0) return;
 
+    const phones = cleaned.map((m) => m.value);
     const contactData = {
       name: name.trim(),
-      phone: cleanedPhones[0],
-      phones: cleanedPhones,
-      platform,
+      phone: cleaned[0].value,
+      phones,
+      platform: cleaned[0].platform,
+      methods: cleaned,
       description: description.trim() || null,
       order_index: orderIndex,
       is_active: isActive,
@@ -258,25 +260,35 @@ export default function EmergencyContacts() {
                       <div className="flex flex-col gap-1.5">
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Informasi Kontak</span>
                         <div className="space-y-1">
-                          {getContactPhones(contact).map((p, i) => (
-                            <p key={i} className="text-xl font-mono font-bold tracking-tight text-slate-900 dark:text-slate-100">{p}</p>
-                          ))}
+                          {getContactMethods(contact).map((m, i) => {
+                            const opt = PLATFORM_OPTIONS.find((o) => o.value === m.platform);
+                            return (
+                              <div key={i} className="flex items-center gap-2">
+                                <DynamicIcon name={opt?.icon || "Phone"} className="w-4 h-4 text-muted-foreground" />
+                                <p className="text-base font-mono font-bold tracking-tight text-slate-900 dark:text-slate-100 break-all">{m.value}</p>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 
                       <div className="flex flex-col gap-3">
-                        {getContactPhones(contact).map((p, i) => (
-                          <Button
-                            key={i}
-                            asChild
-                            className="w-full h-12 rounded-xl text-base font-semibold shadow-md active:scale-95 transition-transform"
-                          >
-                            <a href={getContactLink(contact.platform, p)} target="_blank" rel="noopener noreferrer">
-                              Hubungi {getContactPhones(contact).length > 1 ? p : "Sekarang"}
-                              <ExternalLink className="w-4 h-4 ml-2" />
-                            </a>
-                          </Button>
-                        ))}
+                        {getContactMethods(contact).map((m, i) => {
+                          const opt = PLATFORM_OPTIONS.find((o) => o.value === m.platform);
+                          return (
+                            <Button
+                              key={i}
+                              asChild
+                              className="w-full h-12 rounded-xl text-base font-semibold shadow-md active:scale-95 transition-transform"
+                            >
+                              <a href={getContactLink(m.platform, m.value)} target="_blank" rel="noopener noreferrer">
+                                <DynamicIcon name={opt?.icon || "Phone"} className="w-4 h-4 mr-2" />
+                                {opt?.label || "Hubungi"}
+                                <ExternalLink className="w-4 h-4 ml-2" />
+                              </a>
+                            </Button>
+                          );
+                        })}
                         
                         {canManage && (
                           <div className="grid grid-cols-2 gap-2">
@@ -370,53 +382,58 @@ export default function EmergencyContacts() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="platform" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Platform</Label>
-              <Select value={platform} onValueChange={setPlatform}>
-                <SelectTrigger className="h-12 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  {PLATFORM_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <div className="flex items-center gap-2">
-                        <DynamicIcon name={option.icon} className="w-4 h-4" />
-                        {option.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Nomor / User *</Label>
-                <Button type="button" variant="ghost" size="sm" onClick={addPhoneField} className="h-8 text-xs">
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Tambah Nomor
+                <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Metode Kontak *</Label>
+                <Button type="button" variant="ghost" size="sm" onClick={addMethodField} className="h-8 text-xs">
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Tambah Metode
                 </Button>
               </div>
               <div className="space-y-2">
-                {phones.map((p, i) => (
-                  <div key={i} className="flex gap-2">
-                    <Input
-                      placeholder="+62..."
-                      value={p}
-                      onChange={(e) => updatePhoneAt(i, e.target.value)}
-                      className="h-12 rounded-xl font-mono flex-1"
-                    />
-                    {phones.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => removePhoneAt(i)}
-                        className="h-12 w-12 rounded-xl shrink-0"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                {methods.map((m, i) => {
+                  const opt = PLATFORM_OPTIONS.find((o) => o.value === m.platform);
+                  return (
+                    <div key={i} className="flex gap-2">
+                      <Select value={m.platform} onValueChange={(v) => updateMethodAt(i, { platform: v })}>
+                        <SelectTrigger className="h-12 rounded-xl w-[140px] shrink-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          {PLATFORM_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              <div className="flex items-center gap-2">
+                                <DynamicIcon name={option.icon} className="w-4 h-4" />
+                                {option.label}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        placeholder={
+                          m.platform === "email"
+                            ? "nama@email.com"
+                            : m.platform === "telegram"
+                            ? "@username"
+                            : "+62..."
+                        }
+                        value={m.value}
+                        onChange={(e) => updateMethodAt(i, { value: e.target.value })}
+                        className="h-12 rounded-xl font-mono flex-1"
+                      />
+                      {methods.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => removeMethodAt(i)}
+                          className="h-12 w-12 rounded-xl shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -464,7 +481,7 @@ export default function EmergencyContacts() {
               className="flex-1 sm:flex-none px-8"
               disabled={
                 !name.trim() ||
-                phones.every((p) => !p.trim()) ||
+                methods.every((m) => !m.value.trim()) ||
                 createContact.isPending ||
                 updateContact.isPending
               }

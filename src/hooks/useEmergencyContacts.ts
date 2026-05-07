@@ -2,17 +2,33 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+export interface ContactMethod {
+  platform: string;
+  value: string;
+}
+
 export interface EmergencyContact {
   id: string;
   name: string;
   phone: string;
   phones: string[];
   platform: string;
+  methods: ContactMethod[];
   description: string | null;
   order_index: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export function getContactMethods(
+  contact: Pick<EmergencyContact, "phone" | "phones" | "platform" | "methods">
+): ContactMethod[] {
+  if (contact.methods && Array.isArray(contact.methods) && contact.methods.length > 0) {
+    return contact.methods.filter((m) => m && m.value);
+  }
+  const list = contact.phones && contact.phones.length > 0 ? contact.phones : contact.phone ? [contact.phone] : [];
+  return list.map((v) => ({ platform: contact.platform || "phone", value: v }));
 }
 
 export function getContactPhones(contact: Pick<EmergencyContact, "phone" | "phones">): string[] {
@@ -29,7 +45,7 @@ export function useEmergencyContacts() {
         .select("*")
         .order("order_index", { ascending: true });
       if (error) throw error;
-      return data as EmergencyContact[];
+      return data as unknown as EmergencyContact[];
     },
   });
 }
@@ -44,7 +60,7 @@ export function useActiveEmergencyContacts() {
         .eq("is_active", true)
         .order("order_index", { ascending: true });
       if (error) throw error;
-      return data as EmergencyContact[];
+      return data as unknown as EmergencyContact[];
     },
   });
 }
@@ -55,7 +71,7 @@ export function useCreateEmergencyContact() {
     mutationFn: async (contact: Omit<EmergencyContact, "id" | "created_at" | "updated_at">) => {
       const { data, error } = await supabase
         .from("emergency_contacts")
-        .insert(contact)
+        .insert(contact as any)
         .select()
         .single();
       if (error) throw error;
@@ -77,7 +93,7 @@ export function useUpdateEmergencyContact() {
     mutationFn: async ({ id, ...updates }: Partial<EmergencyContact> & { id: string }) => {
       const { data, error } = await supabase
         .from("emergency_contacts")
-        .update(updates)
+        .update(updates as any)
         .eq("id", id)
         .select()
         .single();

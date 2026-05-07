@@ -7,7 +7,7 @@ import { AlertTriangle, ExternalLink, ArrowRight, Copy, Check } from "lucide-rea
 import {
   useActiveEmergencyContacts,
   getContactLink,
-  getContactPhones,
+  getContactMethods,
   PLATFORM_OPTIONS,
 } from "@/hooks/useEmergencyContacts";
 import { Link } from "react-router-dom";
@@ -134,25 +134,29 @@ export function EmergencyContactsCard({
                       </p>
                     )}
                     <div className="w-full space-y-2">
-                      {getContactPhones(contact).map((p, i) => (
-                        <a
-                          key={i}
-                          href={getContactLink(contact.platform, p)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block w-full"
-                        >
-                          <Button
-                            className={cn(
-                              "w-full h-12 rounded-xl font-bold shadow-lg transition-all active:scale-95",
-                              getPlatformColor(contact.platform)
-                            )}
+                      {getContactMethods(contact).map((m, i) => {
+                        const opt = PLATFORM_OPTIONS.find((o) => o.value === m.platform);
+                        return (
+                          <a
+                            key={i}
+                            href={getContactLink(m.platform, m.value)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block w-full"
                           >
-                            <span className="mr-2">{p}</span>
-                            <ExternalLink className="w-4 h-4" />
-                          </Button>
-                        </a>
-                      ))}
+                            <Button
+                              className={cn(
+                                "w-full h-12 rounded-xl font-bold shadow-lg transition-all active:scale-95",
+                                getPlatformColor(m.platform)
+                              )}
+                            >
+                              <DynamicIcon name={opt?.icon || "Phone"} className="w-4 h-4 mr-2" />
+                              <span className="mr-2 truncate">{m.value}</span>
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          </a>
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
@@ -203,39 +207,43 @@ export function EmergencyContactsCard({
                     <div className="space-y-1">
                       <p className="font-bold text-sm tracking-tight group-hover:text-red-600 transition-colors uppercase line-clamp-1">{contact.name}</p>
                       <div className="space-y-1">
-                        {getContactPhones(contact).map((p, i) => (
-                          <div key={i} className="flex items-center gap-2">
-                            <p className="text-[11px] font-mono font-medium text-muted-foreground tracking-wider">{p}</p>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800"
-                              onClick={() => handleCopy(`${contact.id}-${i}`, p)}
-                            >
-                              <AnimatePresence mode="wait" initial={false}>
-                                {copiedId === `${contact.id}-${i}` ? (
-                                  <motion.div
-                                    key="check"
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    exit={{ scale: 0 }}
-                                  >
-                                    <Check className="w-3 h-3 text-green-600" />
-                                  </motion.div>
-                                ) : (
-                                  <motion.div
-                                    key="copy"
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    exit={{ scale: 0 }}
-                                  >
-                                    <Copy className="w-3 h-3 text-muted-foreground" />
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </Button>
-                          </div>
-                        ))}
+                        {getContactMethods(contact).map((m, i) => {
+                          const opt = PLATFORM_OPTIONS.find((o) => o.value === m.platform);
+                          return (
+                            <div key={i} className="flex items-center gap-2">
+                              <DynamicIcon name={opt?.icon || "Phone"} className="w-3 h-3 text-muted-foreground shrink-0" />
+                              <p className="text-[11px] font-mono font-medium text-muted-foreground tracking-wider truncate">{m.value}</p>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0"
+                                onClick={() => handleCopy(`${contact.id}-${i}`, m.value)}
+                              >
+                                <AnimatePresence mode="wait" initial={false}>
+                                  {copiedId === `${contact.id}-${i}` ? (
+                                    <motion.div
+                                      key="check"
+                                      initial={{ scale: 0 }}
+                                      animate={{ scale: 1 }}
+                                      exit={{ scale: 0 }}
+                                    >
+                                      <Check className="w-3 h-3 text-green-600" />
+                                    </motion.div>
+                                  ) : (
+                                    <motion.div
+                                      key="copy"
+                                      initial={{ scale: 0 }}
+                                      animate={{ scale: 1 }}
+                                      exit={{ scale: 0 }}
+                                    >
+                                      <Copy className="w-3 h-3 text-muted-foreground" />
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </Button>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                     <div
@@ -255,26 +263,29 @@ export function EmergencyContactsCard({
                   )}
                   
                   <div className="mt-auto space-y-2">
-                    {getContactPhones(contact).map((p, i) => (
-                      <a
-                        key={i}
-                        href={getContactLink(contact.platform, p)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block"
-                      >
-                        <Button
-                          size="sm"
-                          className={cn(
-                            "w-full h-9 rounded-lg shadow-sm transition-all active:scale-95 font-bold text-xs",
-                            getPlatformColor(contact.platform)
-                          )}
+                    {getContactMethods(contact).map((m, i) => {
+                      const opt = PLATFORM_OPTIONS.find((o) => o.value === m.platform);
+                      return (
+                        <a
+                          key={i}
+                          href={getContactLink(m.platform, m.value)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block"
                         >
-                          <ExternalLink className="w-3.5 h-3.5 mr-2" />
-                          Hubungi {getContactPhones(contact).length > 1 ? p : ""}
-                        </Button>
-                      </a>
-                    ))}
+                          <Button
+                            size="sm"
+                            className={cn(
+                              "w-full h-9 rounded-lg shadow-sm transition-all active:scale-95 font-bold text-xs",
+                              getPlatformColor(m.platform)
+                            )}
+                          >
+                            <DynamicIcon name={opt?.icon || "Phone"} className="w-3.5 h-3.5 mr-2" />
+                            {opt?.label || "Hubungi"}
+                          </Button>
+                        </a>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
