@@ -9,6 +9,7 @@ import {
   PLATFORM_OPTIONS,
   EmergencyContact,
   getContactLink,
+  getContactPhones,
 } from "@/hooks/useEmergencyContacts";
 import {
   Card,
@@ -47,7 +48,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Trash2, Search, ExternalLink, ArrowLeft } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ExternalLink, ArrowLeft, X } from "lucide-react";
 import { DynamicIcon } from "@/components/DynamicIcon";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
@@ -68,7 +69,7 @@ export default function EmergencyContacts() {
 
   // Form state
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phones, setPhones] = useState<string[]>([""]);
   const [platform, setPlatform] = useState("phone");
   const [description, setDescription] = useState("");
   const [orderIndex, setOrderIndex] = useState(0);
@@ -76,7 +77,7 @@ export default function EmergencyContacts() {
 
   const resetForm = () => {
     setName("");
-    setPhone("");
+    setPhones([""]);
     setPlatform("phone");
     setDescription("");
     setOrderIndex(0);
@@ -88,7 +89,8 @@ export default function EmergencyContacts() {
     if (contact) {
       setEditingContact(contact);
       setName(contact.name);
-      setPhone(contact.phone);
+      const list = getContactPhones(contact);
+      setPhones(list.length > 0 ? list : [""]);
       setPlatform(contact.platform);
       setDescription(contact.description || "");
       setOrderIndex(contact.order_index);
@@ -104,12 +106,21 @@ export default function EmergencyContacts() {
     resetForm();
   };
 
+  const updatePhoneAt = (index: number, value: string) => {
+    setPhones((prev) => prev.map((p, i) => (i === index ? value : p)));
+  };
+  const addPhoneField = () => setPhones((prev) => [...prev, ""]);
+  const removePhoneAt = (index: number) =>
+    setPhones((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+
   const handleSubmit = async () => {
-    if (!name.trim() || !phone.trim()) return;
+    const cleanedPhones = phones.map((p) => p.trim()).filter(Boolean);
+    if (!name.trim() || cleanedPhones.length === 0) return;
 
     const contactData = {
       name: name.trim(),
-      phone: phone.trim(),
+      phone: cleanedPhones[0],
+      phones: cleanedPhones,
       platform,
       description: description.trim() || null,
       order_index: orderIndex,
@@ -246,19 +257,26 @@ export default function EmergencyContacts() {
                     <CardContent className="p-5 pt-0 space-y-6">
                       <div className="flex flex-col gap-1.5">
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Informasi Kontak</span>
-                        <p className="text-2xl font-mono font-bold tracking-tight text-slate-900 dark:text-slate-100">{contact.phone}</p>
+                        <div className="space-y-1">
+                          {getContactPhones(contact).map((p, i) => (
+                            <p key={i} className="text-xl font-mono font-bold tracking-tight text-slate-900 dark:text-slate-100">{p}</p>
+                          ))}
+                        </div>
                       </div>
 
                       <div className="flex flex-col gap-3">
-                        <Button 
-                          asChild 
-                          className="w-full h-12 rounded-xl text-base font-semibold shadow-md active:scale-95 transition-transform"
-                        >
-                          <a href={getContactLink(contact.platform, contact.phone)} target="_blank" rel="noopener noreferrer">
-                            Hubungi Sekarang
-                            <ExternalLink className="w-4 h-4 ml-2" />
-                          </a>
-                        </Button>
+                        {getContactPhones(contact).map((p, i) => (
+                          <Button
+                            key={i}
+                            asChild
+                            className="w-full h-12 rounded-xl text-base font-semibold shadow-md active:scale-95 transition-transform"
+                          >
+                            <a href={getContactLink(contact.platform, p)} target="_blank" rel="noopener noreferrer">
+                              Hubungi {getContactPhones(contact).length > 1 ? p : "Sekarang"}
+                              <ExternalLink className="w-4 h-4 ml-2" />
+                            </a>
+                          </Button>
+                        ))}
                         
                         {canManage && (
                           <div className="grid grid-cols-2 gap-2">
@@ -351,34 +369,54 @@ export default function EmergencyContacts() {
               />
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="platform" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger className="h-12 rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    {PLATFORM_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <div className="flex items-center gap-2">
-                          <DynamicIcon name={option.icon} className="w-4 h-4" />
-                          {option.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="space-y-2">
+              <Label htmlFor="platform" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Platform</Label>
+              <Select value={platform} onValueChange={setPlatform}>
+                <SelectTrigger className="h-12 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {PLATFORM_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <div className="flex items-center gap-2">
+                        <DynamicIcon name={option.icon} className="w-4 h-4" />
+                        {option.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Nomor / User *</Label>
+                <Button type="button" variant="ghost" size="sm" onClick={addPhoneField} className="h-8 text-xs">
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Tambah Nomor
+                </Button>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Nomor / User *</Label>
-                <Input
-                  id="phone"
-                  placeholder="+62..."
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="h-12 rounded-xl font-mono"
-                />
+                {phones.map((p, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Input
+                      placeholder="+62..."
+                      value={p}
+                      onChange={(e) => updatePhoneAt(i, e.target.value)}
+                      className="h-12 rounded-xl font-mono flex-1"
+                    />
+                    {phones.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removePhoneAt(i)}
+                        className="h-12 w-12 rounded-xl shrink-0"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -426,7 +464,7 @@ export default function EmergencyContacts() {
               className="flex-1 sm:flex-none px-8"
               disabled={
                 !name.trim() ||
-                !phone.trim() ||
+                phones.every((p) => !p.trim()) ||
                 createContact.isPending ||
                 updateContact.isPending
               }

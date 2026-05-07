@@ -1,0 +1,2 @@
+ALTER TABLE public.emergency_contacts ADD COLUMN IF NOT EXISTS phones text[] NOT NULL DEFAULT '{}';
+UPDATE public.emergency_contacts SET phones = ARRAY[phone] WHERE (phones IS NULL OR array_length(phones,1) IS NULL) AND phone IS NOT NULL AND phone <> '';

@@ -6,12 +6,18 @@ export interface EmergencyContact {
   id: string;
   name: string;
   phone: string;
+  phones: string[];
   platform: string;
   description: string | null;
   order_index: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export function getContactPhones(contact: Pick<EmergencyContact, "phone" | "phones">): string[] {
+  if (contact.phones && contact.phones.length > 0) return contact.phones;
+  return contact.phone ? [contact.phone] : [];
 }
 
 export function useEmergencyContacts() {
