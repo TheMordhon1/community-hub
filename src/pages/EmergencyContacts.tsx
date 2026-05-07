@@ -382,53 +382,58 @@ export default function EmergencyContacts() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="platform" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Platform</Label>
-              <Select value={platform} onValueChange={setPlatform}>
-                <SelectTrigger className="h-12 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  {PLATFORM_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <div className="flex items-center gap-2">
-                        <DynamicIcon name={option.icon} className="w-4 h-4" />
-                        {option.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Nomor / User *</Label>
-                <Button type="button" variant="ghost" size="sm" onClick={addPhoneField} className="h-8 text-xs">
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Tambah Nomor
+                <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Metode Kontak *</Label>
+                <Button type="button" variant="ghost" size="sm" onClick={addMethodField} className="h-8 text-xs">
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Tambah Metode
                 </Button>
               </div>
               <div className="space-y-2">
-                {phones.map((p, i) => (
-                  <div key={i} className="flex gap-2">
-                    <Input
-                      placeholder="+62..."
-                      value={p}
-                      onChange={(e) => updatePhoneAt(i, e.target.value)}
-                      className="h-12 rounded-xl font-mono flex-1"
-                    />
-                    {phones.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => removePhoneAt(i)}
-                        className="h-12 w-12 rounded-xl shrink-0"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                {methods.map((m, i) => {
+                  const opt = PLATFORM_OPTIONS.find((o) => o.value === m.platform);
+                  return (
+                    <div key={i} className="flex gap-2">
+                      <Select value={m.platform} onValueChange={(v) => updateMethodAt(i, { platform: v })}>
+                        <SelectTrigger className="h-12 rounded-xl w-[140px] shrink-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          {PLATFORM_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              <div className="flex items-center gap-2">
+                                <DynamicIcon name={option.icon} className="w-4 h-4" />
+                                {option.label}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        placeholder={
+                          m.platform === "email"
+                            ? "nama@email.com"
+                            : m.platform === "telegram"
+                            ? "@username"
+                            : "+62..."
+                        }
+                        value={m.value}
+                        onChange={(e) => updateMethodAt(i, { value: e.target.value })}
+                        className="h-12 rounded-xl font-mono flex-1"
+                      />
+                      {methods.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => removeMethodAt(i)}
+                          className="h-12 w-12 rounded-xl shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
