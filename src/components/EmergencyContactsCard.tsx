@@ -133,22 +133,27 @@ export function EmergencyContactsCard({
                         {contact.description}
                       </p>
                     )}
-                    <a
-                      href={getContactLink(contact.platform, contact.phone)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full"
-                    >
-                      <Button
-                        className={cn(
-                          "w-full h-12 rounded-xl font-bold shadow-lg transition-all active:scale-95",
-                          getPlatformColor(contact.platform)
-                        )}
-                      >
-                        <span className="mr-2">{contact.phone}</span>
-                        <ExternalLink className="w-4 h-4" />
-                      </Button>
-                    </a>
+                    <div className="w-full space-y-2">
+                      {getContactPhones(contact).map((p, i) => (
+                        <a
+                          key={i}
+                          href={getContactLink(contact.platform, p)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full"
+                        >
+                          <Button
+                            className={cn(
+                              "w-full h-12 rounded-xl font-bold shadow-lg transition-all active:scale-95",
+                              getPlatformColor(contact.platform)
+                            )}
+                          >
+                            <span className="mr-2">{p}</span>
+                            <ExternalLink className="w-4 h-4" />
+                          </Button>
+                        </a>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>
