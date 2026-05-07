@@ -406,6 +406,7 @@ export type Database = {
           name: string
           order_index: number | null
           phone: string
+          phones: string[]
           platform: string
           updated_at: string
         }
@@ -417,6 +418,7 @@ export type Database = {
           name: string
           order_index?: number | null
           phone: string
+          phones?: string[]
           platform?: string
           updated_at?: string
         }
@@ -428,6 +430,7 @@ export type Database = {
           name?: string
           order_index?: number | null
           phone?: string
+          phones?: string[]
           platform?: string
           updated_at?: string
         }
