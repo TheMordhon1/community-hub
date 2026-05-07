@@ -362,34 +362,54 @@ export default function EmergencyContacts() {
               />
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="platform" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Platform</Label>
-                <Select value={platform} onValueChange={setPlatform}>
-                  <SelectTrigger className="h-12 rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    {PLATFORM_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <div className="flex items-center gap-2">
-                          <DynamicIcon name={option.icon} className="w-4 h-4" />
-                          {option.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="space-y-2">
+              <Label htmlFor="platform" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Platform</Label>
+              <Select value={platform} onValueChange={setPlatform}>
+                <SelectTrigger className="h-12 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {PLATFORM_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <div className="flex items-center gap-2">
+                        <DynamicIcon name={option.icon} className="w-4 h-4" />
+                        {option.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Nomor / User *</Label>
+                <Button type="button" variant="ghost" size="sm" onClick={addPhoneField} className="h-8 text-xs">
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Tambah Nomor
+                </Button>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Nomor / User *</Label>
-                <Input
-                  id="phone"
-                  placeholder="+62..."
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="h-12 rounded-xl font-mono"
-                />
+                {phones.map((p, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Input
+                      placeholder="+62..."
+                      value={p}
+                      onChange={(e) => updatePhoneAt(i, e.target.value)}
+                      className="h-12 rounded-xl font-mono flex-1"
+                    />
+                    {phones.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removePhoneAt(i)}
+                        className="h-12 w-12 rounded-xl shrink-0"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
