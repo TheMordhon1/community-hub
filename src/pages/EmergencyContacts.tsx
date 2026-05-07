@@ -69,7 +69,7 @@ export default function EmergencyContacts() {
 
   // Form state
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phones, setPhones] = useState<string[]>([""]);
   const [platform, setPlatform] = useState("phone");
   const [description, setDescription] = useState("");
   const [orderIndex, setOrderIndex] = useState(0);
@@ -77,7 +77,7 @@ export default function EmergencyContacts() {
 
   const resetForm = () => {
     setName("");
-    setPhone("");
+    setPhones([""]);
     setPlatform("phone");
     setDescription("");
     setOrderIndex(0);
@@ -89,7 +89,8 @@ export default function EmergencyContacts() {
     if (contact) {
       setEditingContact(contact);
       setName(contact.name);
-      setPhone(contact.phone);
+      const list = getContactPhones(contact);
+      setPhones(list.length > 0 ? list : [""]);
       setPlatform(contact.platform);
       setDescription(contact.description || "");
       setOrderIndex(contact.order_index);
@@ -105,12 +106,21 @@ export default function EmergencyContacts() {
     resetForm();
   };
 
+  const updatePhoneAt = (index: number, value: string) => {
+    setPhones((prev) => prev.map((p, i) => (i === index ? value : p)));
+  };
+  const addPhoneField = () => setPhones((prev) => [...prev, ""]);
+  const removePhoneAt = (index: number) =>
+    setPhones((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+
   const handleSubmit = async () => {
-    if (!name.trim() || !phone.trim()) return;
+    const cleanedPhones = phones.map((p) => p.trim()).filter(Boolean);
+    if (!name.trim() || cleanedPhones.length === 0) return;
 
     const contactData = {
       name: name.trim(),
-      phone: phone.trim(),
+      phone: cleanedPhones[0],
+      phones: cleanedPhones,
       platform,
       description: description.trim() || null,
       order_index: orderIndex,
