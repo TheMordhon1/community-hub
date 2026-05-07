@@ -403,6 +403,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean | null
+          methods: Json
           name: string
           order_index: number | null
           phone: string
@@ -415,6 +416,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
+          methods?: Json
           name: string
           order_index?: number | null
           phone: string
@@ -427,6 +429,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
+          methods?: Json
           name?: string
           order_index?: number | null
           phone?: string
