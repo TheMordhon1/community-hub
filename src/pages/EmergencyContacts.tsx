@@ -260,25 +260,35 @@ export default function EmergencyContacts() {
                       <div className="flex flex-col gap-1.5">
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Informasi Kontak</span>
                         <div className="space-y-1">
-                          {getContactPhones(contact).map((p, i) => (
-                            <p key={i} className="text-xl font-mono font-bold tracking-tight text-slate-900 dark:text-slate-100">{p}</p>
-                          ))}
+                          {getContactMethods(contact).map((m, i) => {
+                            const opt = PLATFORM_OPTIONS.find((o) => o.value === m.platform);
+                            return (
+                              <div key={i} className="flex items-center gap-2">
+                                <DynamicIcon name={opt?.icon || "Phone"} className="w-4 h-4 text-muted-foreground" />
+                                <p className="text-base font-mono font-bold tracking-tight text-slate-900 dark:text-slate-100 break-all">{m.value}</p>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 
                       <div className="flex flex-col gap-3">
-                        {getContactPhones(contact).map((p, i) => (
-                          <Button
-                            key={i}
-                            asChild
-                            className="w-full h-12 rounded-xl text-base font-semibold shadow-md active:scale-95 transition-transform"
-                          >
-                            <a href={getContactLink(contact.platform, p)} target="_blank" rel="noopener noreferrer">
-                              Hubungi {getContactPhones(contact).length > 1 ? p : "Sekarang"}
-                              <ExternalLink className="w-4 h-4 ml-2" />
-                            </a>
-                          </Button>
-                        ))}
+                        {getContactMethods(contact).map((m, i) => {
+                          const opt = PLATFORM_OPTIONS.find((o) => o.value === m.platform);
+                          return (
+                            <Button
+                              key={i}
+                              asChild
+                              className="w-full h-12 rounded-xl text-base font-semibold shadow-md active:scale-95 transition-transform"
+                            >
+                              <a href={getContactLink(m.platform, m.value)} target="_blank" rel="noopener noreferrer">
+                                <DynamicIcon name={opt?.icon || "Phone"} className="w-4 h-4 mr-2" />
+                                {opt?.label || "Hubungi"}
+                                <ExternalLink className="w-4 h-4 ml-2" />
+                              </a>
+                            </Button>
+                          );
+                        })}
                         
                         {canManage && (
                           <div className="grid grid-cols-2 gap-2">
