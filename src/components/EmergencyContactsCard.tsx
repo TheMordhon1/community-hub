@@ -134,25 +134,29 @@ export function EmergencyContactsCard({
                       </p>
                     )}
                     <div className="w-full space-y-2">
-                      {getContactPhones(contact).map((p, i) => (
-                        <a
-                          key={i}
-                          href={getContactLink(contact.platform, p)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block w-full"
-                        >
-                          <Button
-                            className={cn(
-                              "w-full h-12 rounded-xl font-bold shadow-lg transition-all active:scale-95",
-                              getPlatformColor(contact.platform)
-                            )}
+                      {getContactMethods(contact).map((m, i) => {
+                        const opt = PLATFORM_OPTIONS.find((o) => o.value === m.platform);
+                        return (
+                          <a
+                            key={i}
+                            href={getContactLink(m.platform, m.value)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block w-full"
                           >
-                            <span className="mr-2">{p}</span>
-                            <ExternalLink className="w-4 h-4" />
-                          </Button>
-                        </a>
-                      ))}
+                            <Button
+                              className={cn(
+                                "w-full h-12 rounded-xl font-bold shadow-lg transition-all active:scale-95",
+                                getPlatformColor(m.platform)
+                              )}
+                            >
+                              <DynamicIcon name={opt?.icon || "Phone"} className="w-4 h-4 mr-2" />
+                              <span className="mr-2 truncate">{m.value}</span>
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          </a>
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
