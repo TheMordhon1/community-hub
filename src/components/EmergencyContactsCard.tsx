@@ -207,39 +207,43 @@ export function EmergencyContactsCard({
                     <div className="space-y-1">
                       <p className="font-bold text-sm tracking-tight group-hover:text-red-600 transition-colors uppercase line-clamp-1">{contact.name}</p>
                       <div className="space-y-1">
-                        {getContactPhones(contact).map((p, i) => (
-                          <div key={i} className="flex items-center gap-2">
-                            <p className="text-[11px] font-mono font-medium text-muted-foreground tracking-wider">{p}</p>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800"
-                              onClick={() => handleCopy(`${contact.id}-${i}`, p)}
-                            >
-                              <AnimatePresence mode="wait" initial={false}>
-                                {copiedId === `${contact.id}-${i}` ? (
-                                  <motion.div
-                                    key="check"
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    exit={{ scale: 0 }}
-                                  >
-                                    <Check className="w-3 h-3 text-green-600" />
-                                  </motion.div>
-                                ) : (
-                                  <motion.div
-                                    key="copy"
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    exit={{ scale: 0 }}
-                                  >
-                                    <Copy className="w-3 h-3 text-muted-foreground" />
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </Button>
-                          </div>
-                        ))}
+                        {getContactMethods(contact).map((m, i) => {
+                          const opt = PLATFORM_OPTIONS.find((o) => o.value === m.platform);
+                          return (
+                            <div key={i} className="flex items-center gap-2">
+                              <DynamicIcon name={opt?.icon || "Phone"} className="w-3 h-3 text-muted-foreground shrink-0" />
+                              <p className="text-[11px] font-mono font-medium text-muted-foreground tracking-wider truncate">{m.value}</p>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0"
+                                onClick={() => handleCopy(`${contact.id}-${i}`, m.value)}
+                              >
+                                <AnimatePresence mode="wait" initial={false}>
+                                  {copiedId === `${contact.id}-${i}` ? (
+                                    <motion.div
+                                      key="check"
+                                      initial={{ scale: 0 }}
+                                      animate={{ scale: 1 }}
+                                      exit={{ scale: 0 }}
+                                    >
+                                      <Check className="w-3 h-3 text-green-600" />
+                                    </motion.div>
+                                  ) : (
+                                    <motion.div
+                                      key="copy"
+                                      initial={{ scale: 0 }}
+                                      animate={{ scale: 1 }}
+                                      exit={{ scale: 0 }}
+                                    >
+                                      <Copy className="w-3 h-3 text-muted-foreground" />
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </Button>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                     <div
