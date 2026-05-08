@@ -50,6 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Pencil, Trash2, Search, ExternalLink, ArrowLeft, X } from "lucide-react";
 import { DynamicIcon } from "@/components/DynamicIcon";
 import { cn } from "@/lib/utils";
