@@ -1,0 +1,1 @@
+ALTER TABLE public.emergency_contacts ADD COLUMN IF NOT EXISTS contact_type text NOT NULL DEFAULT 'emergency';
