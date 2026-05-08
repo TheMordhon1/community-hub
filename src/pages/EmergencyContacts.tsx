@@ -76,6 +76,8 @@ export default function EmergencyContacts() {
   const [description, setDescription] = useState("");
   const [orderIndex, setOrderIndex] = useState(0);
   const [isActive, setIsActive] = useState(true);
+  const [contactType, setContactType] = useState<"emergency" | "service">("emergency");
+  const [activeTab, setActiveTab] = useState<"all" | "emergency" | "service">("all");
 
   const resetForm = () => {
     setName("");
@@ -83,6 +85,7 @@ export default function EmergencyContacts() {
     setDescription("");
     setOrderIndex(0);
     setIsActive(true);
+    setContactType("emergency");
     setEditingContact(null);
   };
 
