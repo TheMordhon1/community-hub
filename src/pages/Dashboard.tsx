@@ -19,7 +19,6 @@ import {
 } from "@/hooks/useMenus";
 import { DynamicIcon } from "@/components/DynamicIcon";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ContactsCard } from "@/components/ContactCard";
 
 export default function Dashboard() {
   const { profile, isAdmin, canManageContent } = useAuth();

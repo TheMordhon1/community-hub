@@ -30,7 +30,7 @@ export const CONTACT_TYPE_OPTIONS = [
 
 export const handleCopyContact = (phone: string) => {
   navigator.clipboard.writeText(phone);
-  toast.success("Nomor telepon disalin!");
+  toast.success("Kontak berhasil disalin!");
 };
 
 export function getContactMethods(
