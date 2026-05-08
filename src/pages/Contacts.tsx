@@ -459,7 +459,7 @@ export default function Contacts() {
                             ? "nama@email.com"
                             : m.platform === "telegram"
                             ? "@username"
-                            : "+62..."
+                            : "08...."
                         }
                         value={m.value}
                         onChange={(e) => updateMethodAt(i, { value: e.target.value })}
