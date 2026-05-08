@@ -225,6 +225,18 @@ export default function EmergencyContacts() {
           />
         </div>
 
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+          <TabsList className="grid w-full grid-cols-3 h-12 rounded-xl">
+            <TabsTrigger value="all" className="rounded-lg">Semua ({counts.all})</TabsTrigger>
+            <TabsTrigger value="emergency" className="rounded-lg">
+              <DynamicIcon name="Siren" className="w-4 h-4 mr-1.5" /> Darurat ({counts.emergency})
+            </TabsTrigger>
+            <TabsTrigger value="service" className="rounded-lg">
+              <DynamicIcon name="Wrench" className="w-4 h-4 mr-1.5" /> Layanan ({counts.service})
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
