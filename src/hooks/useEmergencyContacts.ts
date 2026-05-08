@@ -17,9 +17,15 @@ export interface EmergencyContact {
   description: string | null;
   order_index: number;
   is_active: boolean;
+  contact_type: "emergency" | "service";
   created_at: string;
   updated_at: string;
 }
+
+export const CONTACT_TYPE_OPTIONS = [
+  { value: "emergency", label: "Darurat", icon: "Siren" },
+  { value: "service", label: "Layanan", icon: "Wrench" },
+] as const;
 
 export function getContactMethods(
   contact: Pick<EmergencyContact, "phone" | "phones" | "platform" | "methods">

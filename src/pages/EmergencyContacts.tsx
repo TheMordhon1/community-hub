@@ -7,6 +7,7 @@ import {
   useUpdateEmergencyContact,
   useDeleteEmergencyContact,
   PLATFORM_OPTIONS,
+  CONTACT_TYPE_OPTIONS,
   EmergencyContact,
   getContactLink,
   getContactMethods,
@@ -49,6 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Pencil, Trash2, Search, ExternalLink, ArrowLeft, X } from "lucide-react";
 import { DynamicIcon } from "@/components/DynamicIcon";
 import { cn } from "@/lib/utils";
@@ -74,6 +76,8 @@ export default function EmergencyContacts() {
   const [description, setDescription] = useState("");
   const [orderIndex, setOrderIndex] = useState(0);
   const [isActive, setIsActive] = useState(true);
+  const [contactType, setContactType] = useState<"emergency" | "service">("emergency");
+  const [activeTab, setActiveTab] = useState<"all" | "emergency" | "service">("all");
 
   const resetForm = () => {
     setName("");
@@ -81,6 +85,7 @@ export default function EmergencyContacts() {
     setDescription("");
     setOrderIndex(0);
     setIsActive(true);
+    setContactType("emergency");
     setEditingContact(null);
   };
 
@@ -93,6 +98,7 @@ export default function EmergencyContacts() {
       setDescription(contact.description || "");
       setOrderIndex(contact.order_index);
       setIsActive(contact.is_active);
+      setContactType((contact.contact_type as "emergency" | "service") || "emergency");
     } else {
       resetForm();
     }
@@ -127,6 +133,7 @@ export default function EmergencyContacts() {
       description: description.trim() || null,
       order_index: orderIndex,
       is_active: isActive,
+      contact_type: contactType,
     };
 
     if (editingContact) {
@@ -153,8 +160,15 @@ export default function EmergencyContacts() {
     (contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
      contact.phone.includes(searchQuery) ||
      contact.description?.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    (canManage || contact.is_active)
+    (canManage || contact.is_active) &&
+    (activeTab === "all" || (contact.contact_type || "emergency") === activeTab)
   ).sort((a, b) => a.order_index - b.order_index);
+
+  const counts = {
+    all: contacts?.length || 0,
+    emergency: contacts?.filter(c => (c.contact_type || "emergency") === "emergency").length || 0,
+    service: contacts?.filter(c => c.contact_type === "service").length || 0,
+  };
 
   const getPlatformStyles = (platformValue: string) => {
     switch (platformValue) {
@@ -210,6 +224,18 @@ export default function EmergencyContacts() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+          <TabsList className="grid w-full grid-cols-3 h-12 rounded-xl">
+            <TabsTrigger value="all" className="rounded-lg">Semua ({counts.all})</TabsTrigger>
+            <TabsTrigger value="emergency" className="rounded-lg">
+              <DynamicIcon name="Siren" className="w-4 h-4 mr-1.5" /> Darurat ({counts.emergency})
+            </TabsTrigger>
+            <TabsTrigger value="service" className="rounded-lg">
+              <DynamicIcon name="Wrench" className="w-4 h-4 mr-1.5" /> Layanan ({counts.service})
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -435,6 +461,25 @@ export default function EmergencyContacts() {
                   );
                 })}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Tipe Kontak *</Label>
+              <Select value={contactType} onValueChange={(v) => setContactType(v as "emergency" | "service")}>
+                <SelectTrigger className="h-12 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {CONTACT_TYPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <div className="flex items-center gap-2">
+                        <DynamicIcon name={opt.icon} className="w-4 h-4" />
+                        {opt.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
