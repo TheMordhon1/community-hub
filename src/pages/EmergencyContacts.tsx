@@ -7,6 +7,7 @@ import {
   useUpdateEmergencyContact,
   useDeleteEmergencyContact,
   PLATFORM_OPTIONS,
+  CONTACT_TYPE_OPTIONS,
   EmergencyContact,
   getContactLink,
   getContactMethods,
