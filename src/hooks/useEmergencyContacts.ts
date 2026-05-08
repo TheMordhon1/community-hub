@@ -141,18 +141,40 @@ export const PLATFORM_OPTIONS = [
   { value: "whatsapp", label: "WhatsApp", icon: "MessageCircle" },
   { value: "telegram", label: "Telegram", icon: "Send" },
   { value: "email", label: "Email", icon: "Mail" },
+  { value: "instagram", label: "Instagram", icon: "Instagram" },
+  { value: "facebook", label: "Facebook", icon: "Facebook" },
+  { value: "twitter", label: "X / Twitter", icon: "Twitter" },
+  { value: "tiktok", label: "TikTok", icon: "Music2" },
+  { value: "youtube", label: "YouTube", icon: "Youtube" },
+  { value: "linkedin", label: "LinkedIn", icon: "Linkedin" },
+  { value: "website", label: "Website", icon: "Globe" },
 ];
 
 export function getContactLink(platform: string, contact: string): string {
+  const handle = contact.replace(/^@/, "").trim();
   switch (platform) {
-    case "whatsapp":
-      // Remove non-numeric chars except +
+    case "whatsapp": {
       const waNumber = contact.replace(/[^\d+]/g, "");
       return `https://wa.me/${waNumber.startsWith("+") ? waNumber.substring(1) : waNumber}`;
+    }
     case "telegram":
-      return `https://t.me/${contact.replace("@", "")}`;
+      return `https://t.me/${handle}`;
     case "email":
       return `mailto:${contact}`;
+    case "instagram":
+      return `https://instagram.com/${handle}`;
+    case "facebook":
+      return contact.startsWith("http") ? contact : `https://facebook.com/${handle}`;
+    case "twitter":
+      return `https://x.com/${handle}`;
+    case "tiktok":
+      return `https://tiktok.com/@${handle}`;
+    case "youtube":
+      return contact.startsWith("http") ? contact : `https://youtube.com/@${handle}`;
+    case "linkedin":
+      return contact.startsWith("http") ? contact : `https://linkedin.com/in/${handle}`;
+    case "website":
+      return contact.startsWith("http") ? contact : `https://${contact}`;
     case "phone":
     default:
       return `tel:${contact}`;
