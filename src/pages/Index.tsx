@@ -23,7 +23,6 @@ import { id as idLocale } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
-import { EmergencyContactsCard } from "@/components/EmergencyContactsCard";
 import { getInitials } from "@/lib/utils";
 
 type LandingSettings = Record<string, string | null>;
@@ -613,9 +612,6 @@ export default function Index() {
           </div>
         </section>
       )}
-
-      {/* Emergency Contacts Section */}
-      <EmergencyContactsCard variant="landing" className="bg-red-50/30" />
 
       {/* Contact Section */}
       <section className="py-16 md:py-24">
