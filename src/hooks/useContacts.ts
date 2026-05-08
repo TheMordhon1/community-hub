@@ -27,6 +27,12 @@ export const CONTACT_TYPE_OPTIONS = [
   { value: "service", label: "Layanan", icon: "Wrench" },
 ] as const;
 
+
+export const handleCopyContact = (phone: string) => {
+  navigator.clipboard.writeText(phone);
+  toast.success("Nomor telepon disalin!");
+};
+
 export function getContactMethods(
   contact: Pick<Contact, "phone" | "phones" | "platform" | "methods">
 ): ContactMethod[] {

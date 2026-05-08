@@ -12,6 +12,7 @@ import {
   getContactLink,
   getContactMethods,
   ContactMethod,
+  handleCopyContact,
 } from "@/hooks/useContacts";
 import {
   Card,
@@ -51,7 +52,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Search, ExternalLink, ArrowLeft, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ExternalLink, ArrowLeft, X, Copy } from "lucide-react";
 import { DynamicIcon } from "@/components/DynamicIcon";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
@@ -261,13 +262,13 @@ export default function Contacts() {
                   transition={{ duration: 0.2 }}
                 >
                   <Card className={cn(
-                    "overflow-hidden h-full border-slate-200 dark:border-slate-800 hover:shadow-xl transition-all duration-300",
+                    "overflow-hidden flex flex-col justify-between h-full border-slate-200 dark:border-slate-800 hover:shadow-xl transition-all duration-300",
                     !contact.is_active && "opacity-60 grayscale-[0.5]"
                   )}>
-                    <CardHeader className="p-5 flex flex-row items-start justify-between space-y-0">
+                    <CardHeader className="p-5 flex flex-row gap-4 items-start justify-between space-y-0">
                       <div className="space-y-1.5 flex-1 pr-2">
                         <div className="flex items-center gap-2">
-                          <CardTitle className="text-xl font-bold line-clamp-1">{contact.name}</CardTitle>
+                          <CardTitle className="text-xl font-bold">{contact.name}</CardTitle>
                           {!contact.is_active && (
                             <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full">Nonaktif</span>
                           )}
@@ -283,23 +284,40 @@ export default function Contacts() {
                         <DynamicIcon name={PLATFORM_OPTIONS.find(p => p.value === contact.platform)?.icon || "Phone"} className="w-6 h-6" />
                       </div>
                     </CardHeader>
-                    <CardContent className="p-5 pt-0 space-y-6">
-                      <div className="flex flex-col gap-1.5">
+                    <CardContent className="p-5 pt-0 space-y-6 flex flex-col justify-end">
+                      <div className="flex flex-1 flex-col gap-1.5">
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Informasi Kontak</span>
                         <div className="space-y-1">
                           {getContactMethods(contact).map((m, i) => {
-                            const opt = PLATFORM_OPTIONS.find((o) => o.value === m.platform);
                             return (
                               <div key={i} className="flex items-center gap-2">
-                                <DynamicIcon name={opt?.icon || "Phone"} className="w-4 h-4 text-muted-foreground" />
                                 <p className="text-base font-mono font-bold tracking-tight text-slate-900 dark:text-slate-100 break-all">{m.value}</p>
+                                <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0"
+                                onClick={() => handleCopyContact(m.value)}
+                              >
+                                <AnimatePresence mode="wait" initial={false}>
+                                 (
+                                    <motion.div
+                                      key="copy"
+                                      initial={{ scale: 0 }}
+                                      animate={{ scale: 1 }}
+                                      exit={{ scale: 0 }}
+                                    >
+                                      <Copy className="w-3 h-3 text-muted-foreground" />
+                                    </motion.div>
+                                  )
+                                </AnimatePresence>
+                              </Button>
                               </div>
                             );
                           })}
                         </div>
                       </div>
 
-                      <div className="flex flex-col gap-3">
+                      <div className="flex flex-1 flex-col gap-3 ">
                         {getContactMethods(contact).map((m, i) => {
                           const opt = PLATFORM_OPTIONS.find((o) => o.value === m.platform);
                           return (
@@ -321,7 +339,7 @@ export default function Contacts() {
                           <div className="grid grid-cols-2 gap-2">
                             <Button
                               variant="outline"
-                              className="h-12 rounded-xl border-slate-200 dark:border-slate-800 hover:bg-primary/10 dark:hover:bg-slate-800 font-medium"
+                              className="h-12 rounded-xl border-slate-200 hover:text-primary dark:border-slate-800 hover:bg-primary/10 dark:hover:bg-slate-800 font-medium"
                               onClick={() => handleOpenDialog(contact)}
                             >
                               <Pencil className="w-4 h-4 mr-2" />
@@ -329,7 +347,7 @@ export default function Contacts() {
                             </Button>
                             <Button
                               variant="outline"
-                              className="h-12 rounded-xl border-slate-200 dark:border-slate-800 hover:bg-red-100 dark:hover:bg-red-950/30 text-destructive font-medium"
+                              className="h-12 rounded-xl border-slate-200 dark:border-slate-800 hover:bg-red-300 dark:hover:bg-red-950/30 text-destructive font-medium"
                               onClick={() => {
                                 setContactToDelete(contact);
                                 setDeleteDialogOpen(true);

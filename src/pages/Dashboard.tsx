@@ -225,8 +225,6 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {/*  Contacts */}
-        <ContactsCard variant="dashboard" />
       </div>
     </div>
   );
