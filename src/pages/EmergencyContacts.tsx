@@ -464,6 +464,25 @@ export default function EmergencyContacts() {
             </div>
 
             <div className="space-y-2">
+              <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Tipe Kontak *</Label>
+              <Select value={contactType} onValueChange={(v) => setContactType(v as "emergency" | "service")}>
+                <SelectTrigger className="h-12 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {CONTACT_TYPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <div className="flex items-center gap-2">
+                        <DynamicIcon name={opt.icon} className="w-4 h-4" />
+                        {opt.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="description" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Deskripsi Singkat</Label>
               <Textarea
                 id="description"
