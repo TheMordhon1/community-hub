@@ -133,6 +133,7 @@ export default function EmergencyContacts() {
       description: description.trim() || null,
       order_index: orderIndex,
       is_active: isActive,
+      contact_type: contactType,
     };
 
     if (editingContact) {
