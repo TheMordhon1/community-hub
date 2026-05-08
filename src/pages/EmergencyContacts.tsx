@@ -160,8 +160,15 @@ export default function EmergencyContacts() {
     (contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
      contact.phone.includes(searchQuery) ||
      contact.description?.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    (canManage || contact.is_active)
+    (canManage || contact.is_active) &&
+    (activeTab === "all" || (contact.contact_type || "emergency") === activeTab)
   ).sort((a, b) => a.order_index - b.order_index);
+
+  const counts = {
+    all: contacts?.length || 0,
+    emergency: contacts?.filter(c => (c.contact_type || "emergency") === "emergency").length || 0,
+    service: contacts?.filter(c => c.contact_type === "service").length || 0,
+  };
 
   const getPlatformStyles = (platformValue: string) => {
     switch (platformValue) {
