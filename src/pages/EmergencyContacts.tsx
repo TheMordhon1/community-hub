@@ -98,6 +98,7 @@ export default function EmergencyContacts() {
       setDescription(contact.description || "");
       setOrderIndex(contact.order_index);
       setIsActive(contact.is_active);
+      setContactType((contact.contact_type as "emergency" | "service") || "emergency");
     } else {
       resetForm();
     }
