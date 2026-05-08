@@ -7,7 +7,7 @@ export interface ContactMethod {
   value: string;
 }
 
-export interface EmergencyContact {
+export interface Contact {
   id: string;
   name: string;
   phone: string;
@@ -28,7 +28,7 @@ export const CONTACT_TYPE_OPTIONS = [
 ] as const;
 
 export function getContactMethods(
-  contact: Pick<EmergencyContact, "phone" | "phones" | "platform" | "methods">
+  contact: Pick<Contact, "phone" | "phones" | "platform" | "methods">
 ): ContactMethod[] {
   if (contact.methods && Array.isArray(contact.methods) && contact.methods.length > 0) {
     return contact.methods.filter((m) => m && m.value);
@@ -37,28 +37,28 @@ export function getContactMethods(
   return list.map((v) => ({ platform: contact.platform || "phone", value: v }));
 }
 
-export function getContactPhones(contact: Pick<EmergencyContact, "phone" | "phones">): string[] {
+export function getContactPhones(contact: Pick<Contact, "phone" | "phones">): string[] {
   if (contact.phones && contact.phones.length > 0) return contact.phones;
   return contact.phone ? [contact.phone] : [];
 }
 
-export function useEmergencyContacts() {
+export function useContacts() {
   return useQuery({
-    queryKey: ["emergency-contacts"],
+    queryKey: ["contacts"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("emergency_contacts")
         .select("*")
         .order("order_index", { ascending: true });
       if (error) throw error;
-      return data as unknown as EmergencyContact[];
+      return data as unknown as Contact[];
     },
   });
 }
 
-export function useActiveEmergencyContacts() {
+export function useActiveContacts() {
   return useQuery({
-    queryKey: ["emergency-contacts", "active"],
+    queryKey: ["contacts", "active"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("emergency_contacts")
@@ -66,15 +66,15 @@ export function useActiveEmergencyContacts() {
         .eq("is_active", true)
         .order("order_index", { ascending: true });
       if (error) throw error;
-      return data as unknown as EmergencyContact[];
+      return data as unknown as Contact[];
     },
   });
 }
 
-export function useCreateEmergencyContact() {
+export function useCreateContact() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (contact: Omit<EmergencyContact, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (contact: Omit<Contact, "id" | "created_at" | "updated_at">) => {
       const { data, error } = await supabase
         .from("emergency_contacts")
         .insert(contact as any)
@@ -84,19 +84,19 @@ export function useCreateEmergencyContact() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["emergency-contacts"] });
-      toast.success("Kontak darurat berhasil ditambahkan");
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      toast.success("Kontak berhasil ditambahkan");
     },
     onError: (error) => {
-      toast.error("Gagal menambahkan kontak darurat: " + error.message);
+      toast.error("Gagal menambahkan kontak: " + error.message);
     },
   });
 }
 
-export function useUpdateEmergencyContact() {
+export function useUpdateContact() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<EmergencyContact> & { id: string }) => {
+    mutationFn: async ({ id, ...updates }: Partial<Contact> & { id: string }) => {
       const { data, error } = await supabase
         .from("emergency_contacts")
         .update(updates as any)
@@ -107,16 +107,16 @@ export function useUpdateEmergencyContact() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["emergency-contacts"] });
-      toast.success("Kontak darurat berhasil diperbarui");
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      toast.success("Kontak berhasil diperbarui");
     },
     onError: (error) => {
-      toast.error("Gagal memperbarui kontak darurat: " + error.message);
+      toast.error("Gagal memperbarui kontak: " + error.message);
     },
   });
 }
 
-export function useDeleteEmergencyContact() {
+export function useDeleteContact() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -127,11 +127,11 @@ export function useDeleteEmergencyContact() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["emergency-contacts"] });
-      toast.success("Kontak darurat berhasil dihapus");
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      toast.success("Kontak berhasil dihapus");
     },
     onError: (error) => {
-      toast.error("Gagal menghapus kontak darurat: " + error.message);
+      toast.error("Gagal menghapus kontak: " + error.message);
     },
   });
 }

@@ -17,15 +17,15 @@ import { toast } from "sonner";
 
 import { useAuth } from "@/hooks/useAuth";
 
-interface EmergencyContactsCardProps {
+interface ContactsCardProps {
   variant?: "dashboard" | "landing";
   className?: string;
 }
 
-export function EmergencyContactsCard({
+export function ContactsCard({
   variant = "dashboard",
   className = "",
-}: EmergencyContactsCardProps) {
+}: ContactsCardProps) {
   const { data: contacts, isLoading } = useActiveContacts();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const { isAdmin, canManageContent } = useAuth();
@@ -97,9 +97,13 @@ export function EmergencyContactsCard({
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <div className="inline-flex items-center gap-2 bg-yellow-50 dark:bg-yellow-950/30 text-yellow-600 px-4 py-2 rounded-full mb-4 border border-yellow-100 dark:border-yellow-900/50">
-              <span className="font-bold tracking-tight">Kontak Darurat & Servis</span>
+            <div className="inline-flex items-center gap-2 bg-red-50 dark:bg-red-950/30 text-red-600 px-4 py-2 rounded-full mb-4 border border-red-100 dark:border-red-900/50">
+              <AlertTriangle className="w-5 h-5" />
+              <span className="font-bold tracking-tight">Kondisi Darurat</span>
             </div>
+            <h2 className="text-3xl md:text-5xl font-black mb-2 tracking-tight">
+              Bantuan Cepat
+            </h2>
             <p className="text-muted-foreground text-lg max-w-xl mx-auto">
               Hubungi layanan keamanan atau pengurus segera jika Anda memerlukan bantuan mendesak.
             </p>
@@ -179,7 +183,7 @@ export function EmergencyContactsCard({
             </div>
           </div>
           {(isAdmin() || canManageContent()) && (
-            <Link to="/emergency-contacts">
+            <Link to="/contacts">
               <Button variant="ghost" size="sm" className="text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50">
                 Lihat Semua
                 <ArrowRight className="w-3 h-3 ml-1" />

@@ -2,17 +2,17 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  useEmergencyContacts,
-  useCreateEmergencyContact,
-  useUpdateEmergencyContact,
-  useDeleteEmergencyContact,
+  useContacts,
+  useCreateContact,
+  useUpdateContact,
+  useDeleteContact,
   PLATFORM_OPTIONS,
   CONTACT_TYPE_OPTIONS,
-  EmergencyContact,
+  Contact,
   getContactLink,
   getContactMethods,
   ContactMethod,
-} from "@/hooks/useEmergencyContacts";
+} from "@/hooks/useContacts";
 import {
   Card,
   CardContent,
@@ -56,18 +56,18 @@ import { DynamicIcon } from "@/components/DynamicIcon";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 
-export default function EmergencyContacts() {
+export default function Contacts() {
   const { isAdmin, isPengurus } = useAuth();
   const canManage = isAdmin() || isPengurus();
-  const { data: contacts, isLoading } = useEmergencyContacts();
-  const createContact = useCreateEmergencyContact();
-  const updateContact = useUpdateEmergencyContact();
-  const deleteContact = useDeleteEmergencyContact();
+  const { data: contacts, isLoading } = useContacts();
+  const createContact = useCreateContact();
+  const updateContact = useUpdateContact();
+  const deleteContact = useDeleteContact();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editingContact, setEditingContact] = useState<EmergencyContact | null>(null);
-  const [contactToDelete, setContactToDelete] = useState<EmergencyContact | null>(null);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Form state
@@ -89,7 +89,7 @@ export default function EmergencyContacts() {
     setEditingContact(null);
   };
 
-  const handleOpenDialog = (contact?: EmergencyContact) => {
+  const handleOpenDialog = (contact?: Contact) => {
     if (contact) {
       setEditingContact(contact);
       setName(contact.name);
@@ -152,7 +152,7 @@ export default function EmergencyContacts() {
     }
   };
 
-  const handleToggleActive = async (contact: EmergencyContact) => {
+  const handleToggleActive = async (contact: Contact) => {
     await updateContact.mutateAsync({ id: contact.id, is_active: !contact.is_active });
   };
 
@@ -196,25 +196,26 @@ export default function EmergencyContacts() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
             >
-              <h1 className="font-display text-3xl font-bold tracking-tight">Kontak Darurat</h1>
+              <h1 className="font-display text-3xl font-bold tracking-tight">Kontak Darurat & Servis</h1>
               <p className="text-muted-foreground mt-1 text-lg">
-                Respons cepat untuk keamanan dan kenyamanan warga
+                Kontak untuk keamanan dan kenyamanan warga
               </p>
             </motion.div>
           </div>
-          {canManage && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-            >
-              <Button onClick={() => handleOpenDialog()} size="lg" className="w-full md:w-auto shadow-lg hover:shadow-xl transition-all">
-                <Plus className="w-5 h-5 mr-2" />
-                Tambah Kontak
-              </Button>
-            </motion.div>
-          )}
         </div>
-
+        <div className="flex justify-end w-full">
+          {canManage && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+              >
+                <Button onClick={() => handleOpenDialog()} size="lg" className="w-full md:w-auto shadow-lg hover:shadow-xl transition-all">
+                  <Plus className="w-5 h-5 mr-2" />
+                  Tambah Kontak
+                </Button>
+              </motion.div>
+            )}
+        </div>
         <div className="relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <Input 
@@ -392,7 +393,7 @@ export default function EmergencyContacts() {
               {editingContact ? "Perbarui Kontak" : "Kontak Baru"}
             </DialogTitle>
             <DialogDescription className="text-base">
-              Berikan informasi kontak darurat yang akurat untuk warga.
+              Berikan informasi kontak darurat atau jasa servis untuk warga.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6 py-4">
