@@ -12,6 +12,7 @@ import {
   getContactLink,
   getContactMethods,
   ContactMethod,
+  ServiceItem,
   handleCopyContact,
   formatPriceRange,
 } from "@/hooks/useContacts";
