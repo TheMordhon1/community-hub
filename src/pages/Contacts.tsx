@@ -152,9 +152,20 @@ export default function Contacts() {
       order_index: orderIndex,
       is_active: isActive,
       contact_type: contactType,
-      price_min: contactType === "service" && priceMin ? Number(priceMin) : null,
-      price_max: contactType === "service" && priceMax ? Number(priceMax) : null,
-      price_unit: contactType === "service" && priceUnit.trim() ? priceUnit.trim() : null,
+      price_min: null,
+      price_max: null,
+      price_unit: null,
+      services:
+        contactType === "service"
+          ? services
+              .map((s) => ({
+                name: s.name.trim(),
+                price_min: s.price_min,
+                price_max: s.price_max,
+                unit: s.unit && s.unit.trim() ? s.unit.trim() : null,
+              }))
+              .filter((s) => s.name || s.price_min != null || s.price_max != null)
+          : [],
     };
 
     if (editingContact) {
