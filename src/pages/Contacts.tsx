@@ -12,6 +12,7 @@ import {
   getContactLink,
   getContactMethods,
   ContactMethod,
+  ServiceItem,
   handleCopyContact,
   formatPriceRange,
 } from "@/hooks/useContacts";
@@ -79,9 +80,9 @@ export default function Contacts() {
   const [orderIndex, setOrderIndex] = useState(0);
   const [isActive, setIsActive] = useState(true);
   const [contactType, setContactType] = useState<"emergency" | "service">("emergency");
-  const [priceMin, setPriceMin] = useState<string>("");
-  const [priceMax, setPriceMax] = useState<string>("");
-  const [priceUnit, setPriceUnit] = useState<string>("");
+  const [services, setServices] = useState<ServiceItem[]>([
+    { name: "", price_min: null, price_max: null, unit: null },
+  ]);
   const [activeTab, setActiveTab] = useState<"all" | "emergency" | "service">("all");
 
   const resetForm = () => {
@@ -91,9 +92,7 @@ export default function Contacts() {
     setOrderIndex(0);
     setIsActive(true);
     setContactType("emergency");
-    setPriceMin("");
-    setPriceMax("");
-    setPriceUnit("");
+    setServices([{ name: "", price_min: null, price_max: null, unit: null }]);
     setEditingContact(null);
   };
 
@@ -107,9 +106,17 @@ export default function Contacts() {
       setOrderIndex(contact.order_index);
       setIsActive(contact.is_active);
       setContactType((contact.contact_type as "emergency" | "service") || "emergency");
-      setPriceMin(contact.price_min != null ? String(contact.price_min) : "");
-      setPriceMax(contact.price_max != null ? String(contact.price_max) : "");
-      setPriceUnit(contact.price_unit || "");
+      const svcList = Array.isArray(contact.services) ? contact.services : [];
+      setServices(
+        svcList.length > 0
+          ? svcList.map((s) => ({
+              name: s.name || "",
+              price_min: s.price_min ?? null,
+              price_max: s.price_max ?? null,
+              unit: s.unit ?? null,
+            }))
+          : [{ name: "", price_min: null, price_max: null, unit: null }]
+      );
     } else {
       resetForm();
     }
@@ -145,9 +152,20 @@ export default function Contacts() {
       order_index: orderIndex,
       is_active: isActive,
       contact_type: contactType,
-      price_min: contactType === "service" && priceMin ? Number(priceMin) : null,
-      price_max: contactType === "service" && priceMax ? Number(priceMax) : null,
-      price_unit: contactType === "service" && priceUnit.trim() ? priceUnit.trim() : null,
+      price_min: null,
+      price_max: null,
+      price_unit: null,
+      services:
+        contactType === "service"
+          ? services
+              .map((s) => ({
+                name: s.name.trim(),
+                price_min: s.price_min,
+                price_max: s.price_max,
+                unit: s.unit && s.unit.trim() ? s.unit.trim() : null,
+              }))
+              .filter((s) => s.name || s.price_min != null || s.price_max != null)
+          : [],
     };
 
     if (editingContact) {
@@ -289,10 +307,29 @@ export default function Contacts() {
                         <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.5rem]">
                           {contact.description || "Tidak ada deskripsi"}
                         </p>
-                        {contact.contact_type === "service" && formatPriceRange(contact.price_min, contact.price_max, contact.price_unit) && (
-                          <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
-                            <DynamicIcon name="Tag" className="w-3 h-3" />
-                            {formatPriceRange(contact.price_min, contact.price_max, contact.price_unit)}
+                        {contact.contact_type === "service" && Array.isArray(contact.services) && contact.services.length > 0 && (
+                          <div className="flex flex-col gap-1.5 pt-1">
+                            {contact.services.map((s, i) => {
+                              const price = formatPriceRange(s.price_min, s.price_max, s.unit);
+                              return (
+                                <div
+                                  key={i}
+                                  className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-primary/5 border border-primary/15"
+                                >
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <DynamicIcon name="Tag" className="w-3 h-3 text-primary shrink-0" />
+                                    <span className="text-xs font-semibold text-foreground truncate">
+                                      {s.name || "Layanan"}
+                                    </span>
+                                  </div>
+                                  {price && (
+                                    <span className="text-xs font-bold text-primary whitespace-nowrap">
+                                      {price}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -522,31 +559,95 @@ export default function Contacts() {
 
             {contactType === "service" && (
               <div className="space-y-2">
-                <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Rentang Harga</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="Harga minimum"
-                    value={priceMin}
-                    onChange={(e) => setPriceMin(e.target.value)}
-                    className="h-12 rounded-xl"
-                  />
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="Harga maksimum"
-                    value={priceMax}
-                    onChange={(e) => setPriceMax(e.target.value)}
-                    className="h-12 rounded-xl"
-                  />
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Daftar Layanan</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setServices((prev) => [...prev, { name: "", price_min: null, price_max: null, unit: null }])
+                    }
+                    className="h-8 text-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Tambah Layanan
+                  </Button>
                 </div>
-                <Input
-                  placeholder="Satuan (opsional, contoh: per jam, per kunjungan)"
-                  value={priceUnit}
-                  onChange={(e) => setPriceUnit(e.target.value)}
-                  className="h-12 rounded-xl"
-                />
+                <div className="space-y-3">
+                  {services.map((s, i) => (
+                    <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 space-y-2 bg-slate-50/50 dark:bg-slate-900/40">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Nama layanan (contoh: Service AC)"
+                          value={s.name}
+                          onChange={(e) =>
+                            setServices((prev) =>
+                              prev.map((x, idx) => (idx === i ? { ...x, name: e.target.value } : x))
+                            )
+                          }
+                          className="h-11 rounded-lg flex-1"
+                        />
+                        {services.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() =>
+                              setServices((prev) => prev.filter((_, idx) => idx !== i))
+                            }
+                            className="h-11 w-11 rounded-lg shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          type="number"
+                          min={0}
+                          placeholder="Harga min"
+                          value={s.price_min ?? ""}
+                          onChange={(e) =>
+                            setServices((prev) =>
+                              prev.map((x, idx) =>
+                                idx === i
+                                  ? { ...x, price_min: e.target.value === "" ? null : Number(e.target.value) }
+                                  : x
+                              )
+                            )
+                          }
+                          className="h-11 rounded-lg"
+                        />
+                        <Input
+                          type="number"
+                          min={0}
+                          placeholder="Harga maks"
+                          value={s.price_max ?? ""}
+                          onChange={(e) =>
+                            setServices((prev) =>
+                              prev.map((x, idx) =>
+                                idx === i
+                                  ? { ...x, price_max: e.target.value === "" ? null : Number(e.target.value) }
+                                  : x
+                              )
+                            )
+                          }
+                          className="h-11 rounded-lg"
+                        />
+                      </div>
+                      <Input
+                        placeholder="Satuan (opsional, contoh: per jam)"
+                        value={s.unit ?? ""}
+                        onChange={(e) =>
+                          setServices((prev) =>
+                            prev.map((x, idx) => (idx === i ? { ...x, unit: e.target.value } : x))
+                          )
+                        }
+                        className="h-11 rounded-lg"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

@@ -413,6 +413,7 @@ export type Database = {
           price_max: number | null
           price_min: number | null
           price_unit: string | null
+          services: Json
           updated_at: string
         }
         Insert: {
@@ -430,6 +431,7 @@ export type Database = {
           price_max?: number | null
           price_min?: number | null
           price_unit?: string | null
+          services?: Json
           updated_at?: string
         }
         Update: {
@@ -447,6 +449,7 @@ export type Database = {
           price_max?: number | null
           price_min?: number | null
           price_unit?: string | null
+          services?: Json
           updated_at?: string
         }
         Relationships: []
