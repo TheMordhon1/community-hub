@@ -13,6 +13,7 @@ import {
   getContactMethods,
   ContactMethod,
   handleCopyContact,
+  formatPriceRange,
 } from "@/hooks/useContacts";
 import {
   Card,
