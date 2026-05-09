@@ -514,6 +514,36 @@ export default function Contacts() {
               </Select>
             </div>
 
+            {contactType === "service" && (
+              <div className="space-y-2">
+                <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Rentang Harga</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Harga minimum"
+                    value={priceMin}
+                    onChange={(e) => setPriceMin(e.target.value)}
+                    className="h-12 rounded-xl"
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Harga maksimum"
+                    value={priceMax}
+                    onChange={(e) => setPriceMax(e.target.value)}
+                    className="h-12 rounded-xl"
+                  />
+                </div>
+                <Input
+                  placeholder="Satuan (opsional, contoh: per jam, per kunjungan)"
+                  value={priceUnit}
+                  onChange={(e) => setPriceUnit(e.target.value)}
+                  className="h-12 rounded-xl"
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="description" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Deskripsi Singkat</Label>
               <Textarea
