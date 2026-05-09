@@ -289,6 +289,12 @@ export default function Contacts() {
                         <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.5rem]">
                           {contact.description || "Tidak ada deskripsi"}
                         </p>
+                        {contact.contact_type === "service" && formatPriceRange(contact.price_min, contact.price_max, contact.price_unit) && (
+                          <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
+                            <DynamicIcon name="Tag" className="w-3 h-3" />
+                            {formatPriceRange(contact.price_min, contact.price_max, contact.price_unit)}
+                          </div>
+                        )}
                       </div>
                       <div className={cn(
                         "w-12 h-12 rounded-2xl flex items-center justify-center border shadow-sm shrink-0",
