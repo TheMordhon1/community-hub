@@ -92,9 +92,7 @@ export default function Contacts() {
     setOrderIndex(0);
     setIsActive(true);
     setContactType("emergency");
-    setPriceMin("");
-    setPriceMax("");
-    setPriceUnit("");
+    setServices([{ name: "", price_min: null, price_max: null, unit: null }]);
     setEditingContact(null);
   };
 
