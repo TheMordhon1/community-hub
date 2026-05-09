@@ -106,9 +106,17 @@ export default function Contacts() {
       setOrderIndex(contact.order_index);
       setIsActive(contact.is_active);
       setContactType((contact.contact_type as "emergency" | "service") || "emergency");
-      setPriceMin(contact.price_min != null ? String(contact.price_min) : "");
-      setPriceMax(contact.price_max != null ? String(contact.price_max) : "");
-      setPriceUnit(contact.price_unit || "");
+      const svcList = Array.isArray(contact.services) ? contact.services : [];
+      setServices(
+        svcList.length > 0
+          ? svcList.map((s) => ({
+              name: s.name || "",
+              price_min: s.price_min ?? null,
+              price_max: s.price_max ?? null,
+              unit: s.unit ?? null,
+            }))
+          : [{ name: "", price_min: null, price_max: null, unit: null }]
+      );
     } else {
       resetForm();
     }
