@@ -79,6 +79,9 @@ export default function Contacts() {
   const [orderIndex, setOrderIndex] = useState(0);
   const [isActive, setIsActive] = useState(true);
   const [contactType, setContactType] = useState<"emergency" | "service">("emergency");
+  const [priceMin, setPriceMin] = useState<string>("");
+  const [priceMax, setPriceMax] = useState<string>("");
+  const [priceUnit, setPriceUnit] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"all" | "emergency" | "service">("all");
 
   const resetForm = () => {
