@@ -107,6 +107,9 @@ export default function Contacts() {
       setOrderIndex(contact.order_index);
       setIsActive(contact.is_active);
       setContactType((contact.contact_type as "emergency" | "service") || "emergency");
+      setPriceMin(contact.price_min != null ? String(contact.price_min) : "");
+      setPriceMax(contact.price_max != null ? String(contact.price_max) : "");
+      setPriceUnit(contact.price_unit || "");
     } else {
       resetForm();
     }
