@@ -13,6 +13,7 @@ import {
   getContactMethods,
   ContactMethod,
   handleCopyContact,
+  formatPriceRange,
 } from "@/hooks/useContacts";
 import {
   Card,
@@ -78,6 +79,9 @@ export default function Contacts() {
   const [orderIndex, setOrderIndex] = useState(0);
   const [isActive, setIsActive] = useState(true);
   const [contactType, setContactType] = useState<"emergency" | "service">("emergency");
+  const [priceMin, setPriceMin] = useState<string>("");
+  const [priceMax, setPriceMax] = useState<string>("");
+  const [priceUnit, setPriceUnit] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"all" | "emergency" | "service">("all");
 
   const resetForm = () => {
@@ -87,6 +91,9 @@ export default function Contacts() {
     setOrderIndex(0);
     setIsActive(true);
     setContactType("emergency");
+    setPriceMin("");
+    setPriceMax("");
+    setPriceUnit("");
     setEditingContact(null);
   };
 
@@ -100,6 +107,9 @@ export default function Contacts() {
       setOrderIndex(contact.order_index);
       setIsActive(contact.is_active);
       setContactType((contact.contact_type as "emergency" | "service") || "emergency");
+      setPriceMin(contact.price_min != null ? String(contact.price_min) : "");
+      setPriceMax(contact.price_max != null ? String(contact.price_max) : "");
+      setPriceUnit(contact.price_unit || "");
     } else {
       resetForm();
     }
@@ -135,6 +145,9 @@ export default function Contacts() {
       order_index: orderIndex,
       is_active: isActive,
       contact_type: contactType,
+      price_min: contactType === "service" && priceMin ? Number(priceMin) : null,
+      price_max: contactType === "service" && priceMax ? Number(priceMax) : null,
+      price_unit: contactType === "service" && priceUnit.trim() ? priceUnit.trim() : null,
     };
 
     if (editingContact) {
@@ -276,6 +289,12 @@ export default function Contacts() {
                         <p className="text-sm text-muted-foreground line-clamp-2 min-h-[2.5rem]">
                           {contact.description || "Tidak ada deskripsi"}
                         </p>
+                        {contact.contact_type === "service" && formatPriceRange(contact.price_min, contact.price_max, contact.price_unit) && (
+                          <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
+                            <DynamicIcon name="Tag" className="w-3 h-3" />
+                            {formatPriceRange(contact.price_min, contact.price_max, contact.price_unit)}
+                          </div>
+                        )}
                       </div>
                       <div className={cn(
                         "w-12 h-12 rounded-2xl flex items-center justify-center border shadow-sm shrink-0",
@@ -500,6 +519,36 @@ export default function Contacts() {
                 </SelectContent>
               </Select>
             </div>
+
+            {contactType === "service" && (
+              <div className="space-y-2">
+                <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Rentang Harga</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Harga minimum"
+                    value={priceMin}
+                    onChange={(e) => setPriceMin(e.target.value)}
+                    className="h-12 rounded-xl"
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Harga maksimum"
+                    value={priceMax}
+                    onChange={(e) => setPriceMax(e.target.value)}
+                    className="h-12 rounded-xl"
+                  />
+                </div>
+                <Input
+                  placeholder="Satuan (opsional, contoh: per jam, per kunjungan)"
+                  value={priceUnit}
+                  onChange={(e) => setPriceUnit(e.target.value)}
+                  className="h-12 rounded-xl"
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="description" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Deskripsi Singkat</Label>

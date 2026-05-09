@@ -18,8 +18,25 @@ export interface Contact {
   order_index: number;
   is_active: boolean;
   contact_type: "emergency" | "service";
+  price_min: number | null;
+  price_max: number | null;
+  price_unit: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export function formatPriceRange(
+  min: number | null | undefined,
+  max: number | null | undefined,
+  unit?: string | null
+): string | null {
+  if (min == null && max == null) return null;
+  const fmt = (n: number) =>
+    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
+  let range: string;
+  if (min != null && max != null && min !== max) range = `${fmt(min)} - ${fmt(max)}`;
+  else range = fmt((min ?? max) as number);
+  return unit ? `${range} / ${unit}` : range;
 }
 
 export const CONTACT_TYPE_OPTIONS = [
