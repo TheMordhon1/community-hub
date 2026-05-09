@@ -410,6 +410,9 @@ export type Database = {
           phone: string
           phones: string[]
           platform: string
+          price_max: number | null
+          price_min: number | null
+          price_unit: string | null
           updated_at: string
         }
         Insert: {
@@ -424,6 +427,9 @@ export type Database = {
           phone: string
           phones?: string[]
           platform?: string
+          price_max?: number | null
+          price_min?: number | null
+          price_unit?: string | null
           updated_at?: string
         }
         Update: {
@@ -438,6 +444,9 @@ export type Database = {
           phone?: string
           phones?: string[]
           platform?: string
+          price_max?: number | null
+          price_min?: number | null
+          price_unit?: string | null
           updated_at?: string
         }
         Relationships: []
