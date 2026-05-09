@@ -7,6 +7,13 @@ export interface ContactMethod {
   value: string;
 }
 
+export interface ServiceItem {
+  name: string;
+  price_min: number | null;
+  price_max: number | null;
+  unit: string | null;
+}
+
 export interface Contact {
   id: string;
   name: string;
@@ -21,6 +28,7 @@ export interface Contact {
   price_min: number | null;
   price_max: number | null;
   price_unit: string | null;
+  services: ServiceItem[];
   created_at: string;
   updated_at: string;
 }
