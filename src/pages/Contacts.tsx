@@ -91,6 +91,9 @@ export default function Contacts() {
     setOrderIndex(0);
     setIsActive(true);
     setContactType("emergency");
+    setPriceMin("");
+    setPriceMax("");
+    setPriceUnit("");
     setEditingContact(null);
   };
 
