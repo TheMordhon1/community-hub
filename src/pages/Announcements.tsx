@@ -321,7 +321,7 @@ export default function Announcements() {
         ? [announcement.related_url]
         : [""];
     setRelatedUrls(urls);
-    setCategory((announcement.category as AnnouncementCategory) || "Umum");
+    setCategory(announcement.category || "Umum");
     setIsPublished(announcement.is_published);
     setImagePreview(announcement.image_url || null);
     setImageFile(null);
@@ -493,12 +493,12 @@ export default function Announcements() {
 
                     <div className="space-y-2">
                       <Label htmlFor="category" className="text-sm font-semibold text-foreground/80">Kategori</Label>
-                      <Select value={category} onValueChange={(v) => setCategory(v as AnnouncementCategory)}>
+                      <Select value={category} onValueChange={(v) => setCategory(v)}>
                         <SelectTrigger id="category" className="h-10">
                           <SelectValue placeholder="Pilih kategori" />
                         </SelectTrigger>
                         <SelectContent>
-                          {ANNOUNCEMENT_CATEGORIES.map((c) => (
+                          {categoryNames.map((c) => (
                             <SelectItem key={c} value={c}>{c}</SelectItem>
                           ))}
                         </SelectContent>
@@ -672,7 +672,7 @@ export default function Announcements() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua kategori</SelectItem>
-              {ANNOUNCEMENT_CATEGORIES.map((c) => (
+              {categoryNames.map((c) => (
                 <SelectItem key={c} value={c}>{c}</SelectItem>
               ))}
             </SelectContent>
