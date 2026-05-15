@@ -452,216 +452,217 @@ export default function Announcements() {
               </p>
             </div>
           </div>
-
-          {canManageContent() && (
-            <Button asChild variant="outline" size="sm" className="hidden md:inline-flex mr-2">
-              <Link to="/admin/announcement-categories">
-                <Settings className="w-4 h-4 mr-2" />
-                Kategori
-              </Link>
-            </Button>
-          )}
-          {canManageContent() && (
-            <Dialog
-              open={isCreateOpen}
-              onOpenChange={(open) => {
-                setIsCreateOpen(open);
-                if (!open) resetForm();
-              }}
-            >
-              <DialogTrigger asChild>
-                <Button className="w-12 h-12 rounded-full fixed bottom-4 right-4 md:rounded-sm md:static flex md:w-auto md:h-auto justify-center items-center">
-                  <Plus className="w-8 md:w-4 md:h-4 md:mr-2 mx-auto" />
-                  <span className="hidden md:block">Buat Pengumuman</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-[95vw] sm:max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingAnnouncement
-                      ? "Edit Pengumuman"
-                      : "Buat Pengumuman Baru"}
-                  </DialogTitle>
-                  <DialogDescription>
-                    Isi informasi pengumuman di bawah ini
-                  </DialogDescription>
-                </DialogHeader>
-                <ScrollArea className="max-h-[75vh] px-1 overflow-hidden rounded-md">
-                  <div className="space-y-6 py-4 px-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="title" className="text-sm font-semibold text-foreground/80">Judul Pengumuman</Label>
-                      <Input
-                        id="title"
-                        placeholder="Masukkan judul yang menarik..."
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="category" className="text-sm font-semibold text-foreground/80">Kategori</Label>
-                      <Select value={category} onValueChange={(v) => setCategory(v)}>
-                        <SelectTrigger id="category" className="h-10">
-                          <SelectValue placeholder="Pilih kategori" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categoryNames.map((c) => (
-                            <SelectItem key={c} value={c}>{c}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="content" className="text-sm font-semibold text-foreground/80">Isi Pengumuman</Label>
-                      <Textarea
-                        id="content"
-                        placeholder="Tulis informasi lengkap di sini..."
-                        rows={8}
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        className="resize-none transition-all focus:ring-2 focus:ring-primary/20"
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <Label className="text-sm font-semibold text-foreground/80">Media Gambar</Label>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="hidden"
-                      />
-                      {imagePreview ? (
-                        <div className="group relative rounded-xl overflow-hidden border-2 border-primary/10 shadow-lg transition-all hover:shadow-xl">
-                          <img
-                            src={imagePreview}
-                            alt="Preview"
-                            className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105"
-                          />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              className="h-9 rounded-full bg-white/90 hover:bg-white text-foreground"
-                              onClick={() => fileInputRef.current?.click()}
-                            >
-                              <ImageIcon className="w-4 h-4 mr-2" />
-                              Ubah
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="icon"
-                              className="h-9 w-9 rounded-full"
-                              onClick={removeImage}
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          className="w-full h-32 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-muted-foreground/20 bg-muted/30 hover:bg-muted/50 hover:border-primary/40 transition-all duration-300 group"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                            <ImagePlus className="w-6 h-6 text-primary" />
-                          </div>
-                          <div className="text-center">
-                            <p className="text-xs font-semibold text-foreground/70 tracking-tight">Klik untuk Upload Gambar</p>
-                            <p className="text-[10px] text-muted-foreground">PNG, JPG atau WEBP (Maks. 5MB)</p>
-                          </div>
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="space-y-4 pt-2">
+          <div className="flex items-center gap-4 justify-end">
+            {canManageContent() && (
+              <Button asChild variant="outline" size="sm" className="mr-2">
+                <Link to="/admin/announcement-categories">
+                  <Settings className="w-4 h-4 md:mr-2" />
+                  <span className="hidden md:block">Kategori</span>
+                </Link>
+              </Button>
+            )}
+            {canManageContent() && (
+              <Dialog
+                open={isCreateOpen}
+                onOpenChange={(open) => {
+                  setIsCreateOpen(open);
+                  if (!open) resetForm();
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button className="w-12 h-12 rounded-full fixed bottom-4 right-4 md:rounded-sm md:static flex md:w-auto md:h-auto justify-center items-center">
+                    <Plus className="w-8 md:w-4 md:h-4 md:mr-2 mx-auto" />
+                    <span className="hidden md:block">Buat Pengumuman</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-[95vw] sm:max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingAnnouncement
+                        ? "Edit Pengumuman"
+                        : "Buat Pengumuman Baru"}
+                    </DialogTitle>
+                    <DialogDescription>
+                      Isi informasi pengumuman di bawah ini
+                    </DialogDescription>
+                  </DialogHeader>
+                  <ScrollArea className="max-h-[75vh] px-1 overflow-hidden rounded-md">
+                    <div className="space-y-6 py-4 px-2">
                       <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5">
-                          Link Terkait <span className="text-[10px] font-normal text-muted-foreground">(Opsional, bisa lebih dari satu)</span>
-                        </Label>
-                        <div className="space-y-2">
-                          {relatedUrls.map((url, idx) => (
-                            <div key={idx} className="flex gap-2">
-                              <Input
-                                placeholder="https://contoh.com/informasi-lanjutan"
-                                value={url}
-                                onChange={(e) => {
-                                  const next = [...relatedUrls];
-                                  next[idx] = e.target.value;
-                                  setRelatedUrls(next);
-                                }}
-                                className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
-                              />
-                              {relatedUrls.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-10 w-10 shrink-0"
-                                  onClick={() =>
-                                    setRelatedUrls(relatedUrls.filter((_, i) => i !== idx))
-                                  }
-                                  aria-label="Hapus link"
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => setRelatedUrls([...relatedUrls, ""])}
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Tambah Link
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between p-4 rounded-xl border bg-primary/5 border-primary/10">
-                        <div className="space-y-0.5">
-                          <Label className="text-sm font-bold text-foreground/90">Publikasikan Sekarang</Label>
-                          <p className="text-[11px] text-muted-foreground leading-tight">
-                            Aktifkan agar pengumuman ini langsung dapat dilihat oleh warga
-                          </p>
-                        </div>
-                        <Switch
-                          checked={isPublished}
-                          onCheckedChange={setIsPublished}
-                          className="data-[state=checked]:bg-primary"
+                        <Label htmlFor="title" className="text-sm font-semibold text-foreground/80">Judul Pengumuman</Label>
+                        <Input
+                          id="title"
+                          placeholder="Masukkan judul yang menarik..."
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="category" className="text-sm font-semibold text-foreground/80">Kategori</Label>
+                        <Select value={category} onValueChange={(v) => setCategory(v)}>
+                          <SelectTrigger id="category" className="h-10">
+                            <SelectValue placeholder="Pilih kategori" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categoryNames.map((c) => (
+                              <SelectItem key={c} value={c}>{c}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="content" className="text-sm font-semibold text-foreground/80">Isi Pengumuman</Label>
+                        <Textarea
+                          id="content"
+                          placeholder="Tulis informasi lengkap di sini..."
+                          rows={8}
+                          value={content}
+                          onChange={(e) => setContent(e.target.value)}
+                          className="resize-none transition-all focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <Label className="text-sm font-semibold text-foreground/80">Media Gambar</Label>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          className="hidden"
+                        />
+                        {imagePreview ? (
+                          <div className="group relative rounded-xl overflow-hidden border-2 border-primary/10 shadow-lg transition-all hover:shadow-xl">
+                            <img
+                              src={imagePreview}
+                              alt="Preview"
+                              className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="h-9 rounded-full bg-white/90 hover:bg-white text-foreground"
+                                onClick={() => fileInputRef.current?.click()}
+                              >
+                                <ImageIcon className="w-4 h-4 mr-2" />
+                                Ubah
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
+                                className="h-9 w-9 rounded-full"
+                                onClick={removeImage}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="w-full h-32 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-muted-foreground/20 bg-muted/30 hover:bg-muted/50 hover:border-primary/40 transition-all duration-300 group"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                              <ImagePlus className="w-6 h-6 text-primary" />
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs font-semibold text-foreground/70 tracking-tight">Klik untuk Upload Gambar</p>
+                              <p className="text-[10px] text-muted-foreground">PNG, JPG atau WEBP (Maks. 5MB)</p>
+                            </div>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="space-y-4 pt-2">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5">
+                            Link Terkait <span className="text-[10px] font-normal text-muted-foreground">(Opsional, bisa lebih dari satu)</span>
+                          </Label>
+                          <div className="space-y-2">
+                            {relatedUrls.map((url, idx) => (
+                              <div key={idx} className="flex gap-2">
+                                <Input
+                                  placeholder="https://contoh.com/informasi-lanjutan"
+                                  value={url}
+                                  onChange={(e) => {
+                                    const next = [...relatedUrls];
+                                    next[idx] = e.target.value;
+                                    setRelatedUrls(next);
+                                  }}
+                                  className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
+                                />
+                                {relatedUrls.length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-10 w-10 shrink-0"
+                                    onClick={() =>
+                                      setRelatedUrls(relatedUrls.filter((_, i) => i !== idx))
+                                    }
+                                    aria-label="Hapus link"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => setRelatedUrls([...relatedUrls, ""])}
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              Tambah Link
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 rounded-xl border bg-primary/5 border-primary/10">
+                          <div className="space-y-0.5">
+                            <Label className="text-sm font-bold text-foreground/90">Publikasikan Sekarang</Label>
+                            <p className="text-[11px] text-muted-foreground leading-tight">
+                              Aktifkan agar pengumuman ini langsung dapat dilihat oleh warga
+                            </p>
+                          </div>
+                          <Switch
+                            checked={isPublished}
+                            onCheckedChange={setIsPublished}
+                            className="data-[state=checked]:bg-primary"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </ScrollArea>
-                <DialogFooter>
-                  <Button variant="outline" onClick={resetForm}>
-                    Batal
-                  </Button>
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={
-                      createMutation.isPending || updateMutation.isPending
-                    }
-                  >
-                    {(createMutation.isPending || updateMutation.isPending || isUploading) && (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    )}
-                    {editingAnnouncement ? "Simpan" : "Buat"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
+                  </ScrollArea>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={resetForm}>
+                      Batal
+                    </Button>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={
+                        createMutation.isPending || updateMutation.isPending
+                      }
+                    >
+                      {(createMutation.isPending || updateMutation.isPending || isUploading) && (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      )}
+                      {editingAnnouncement ? "Simpan" : "Buat"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
         </motion.div>
 
         <div className="flex flex-col sm:flex-row gap-2">
