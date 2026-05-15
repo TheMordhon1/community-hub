@@ -61,6 +61,8 @@ import { useAnnouncementReads } from "@/hooks/useAnnouncementReads";
 import { REACTION_EMOJIS, EXTENDED_REACTION_EMOJIS, ALL_REACTIONS } from "@/lib/reaction-constants";
 import { Link, useNavigate } from "react-router-dom";
 import { type Announcement, ANNOUNCEMENT_CATEGORIES, type AnnouncementCategory } from "@/types/database";
+import { useAnnouncementCategories } from "@/hooks/useAnnouncementCategories";
+import { Settings } from "lucide-react";
 import {
   Select,
   SelectContent,
