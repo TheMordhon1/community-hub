@@ -168,7 +168,7 @@ export default function Announcements() {
       title: string;
       content: string;
       related_urls: string[];
-      category: AnnouncementCategory;
+      category: string;
       is_published: boolean;
       image_url: string | null;
     }) => {
@@ -206,7 +206,7 @@ export default function Announcements() {
       title: string;
       content: string;
       related_urls: string[];
-      category: AnnouncementCategory;
+      category: string;
       is_published: boolean;
       image_url: string | null;
     }) => {
