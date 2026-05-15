@@ -454,6 +454,14 @@ export default function Announcements() {
           </div>
 
           {canManageContent() && (
+            <Button asChild variant="outline" size="sm" className="hidden md:inline-flex mr-2">
+              <Link to="/admin/announcement-categories">
+                <Settings className="w-4 h-4 mr-2" />
+                Kategori
+              </Link>
+            </Button>
+          )}
+          {canManageContent() && (
             <Dialog
               open={isCreateOpen}
               onOpenChange={(open) => {
