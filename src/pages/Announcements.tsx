@@ -88,7 +88,11 @@ export default function Announcements() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [relatedUrls, setRelatedUrls] = useState<string[]>([""]);
-  const [category, setCategory] = useState<AnnouncementCategory>("Umum");
+  const [category, setCategory] = useState<string>("Umum");
+  const { data: dynamicCategories } = useAnnouncementCategories();
+  const categoryNames = (dynamicCategories?.map((c) => c.name) ?? []).length
+    ? dynamicCategories!.map((c) => c.name)
+    : [...ANNOUNCEMENT_CATEGORIES];
   const [isPublished, setIsPublished] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
