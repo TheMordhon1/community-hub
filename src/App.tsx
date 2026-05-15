@@ -40,6 +40,8 @@ import Stores from "@/pages/Stores";
 import StoreDetail from "@/pages/StoreDetail";
 import MapPage from "@/pages/Map";
 import Contacts from "./pages/Contacts";
+import RAB from "./pages/RAB";
+import AnnouncementCategoriesAdmin from "./pages/admin/AnnouncementCategories";
 
 const queryClient = new QueryClient();
 
@@ -113,6 +115,9 @@ function AppRoutes() {
           <Route path="/stores" element={<Stores />} />
           <Route path="/stores/:id" element={<StoreDetail />} />
           <Route path="/map" element={<MapPage />} />
+          <Route path="/rab" element={<RAB />} />
+          <Route path="/rab/:id" element={<RAB />} />
+          <Route path="/admin/announcement-categories" element={<AnnouncementCategoriesAdmin />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFound />} />

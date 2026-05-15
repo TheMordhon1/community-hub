@@ -61,6 +61,8 @@ import { useAnnouncementReads } from "@/hooks/useAnnouncementReads";
 import { REACTION_EMOJIS, EXTENDED_REACTION_EMOJIS, ALL_REACTIONS } from "@/lib/reaction-constants";
 import { Link, useNavigate } from "react-router-dom";
 import { type Announcement, ANNOUNCEMENT_CATEGORIES, type AnnouncementCategory } from "@/types/database";
+import { useAnnouncementCategories } from "@/hooks/useAnnouncementCategories";
+import { Settings } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -86,7 +88,11 @@ export default function Announcements() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [relatedUrls, setRelatedUrls] = useState<string[]>([""]);
-  const [category, setCategory] = useState<AnnouncementCategory>("Umum");
+  const [category, setCategory] = useState<string>("Umum");
+  const { data: dynamicCategories } = useAnnouncementCategories();
+  const categoryNames = (dynamicCategories?.map((c) => c.name) ?? []).length
+    ? dynamicCategories!.map((c) => c.name)
+    : [...ANNOUNCEMENT_CATEGORIES];
   const [isPublished, setIsPublished] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
@@ -162,7 +168,7 @@ export default function Announcements() {
       title: string;
       content: string;
       related_urls: string[];
-      category: AnnouncementCategory;
+      category: string;
       is_published: boolean;
       image_url: string | null;
     }) => {
@@ -200,7 +206,7 @@ export default function Announcements() {
       title: string;
       content: string;
       related_urls: string[];
-      category: AnnouncementCategory;
+      category: string;
       is_published: boolean;
       image_url: string | null;
     }) => {
@@ -315,7 +321,7 @@ export default function Announcements() {
         ? [announcement.related_url]
         : [""];
     setRelatedUrls(urls);
-    setCategory((announcement.category as AnnouncementCategory) || "Umum");
+    setCategory(announcement.category || "Umum");
     setIsPublished(announcement.is_published);
     setImagePreview(announcement.image_url || null);
     setImageFile(null);
@@ -448,6 +454,14 @@ export default function Announcements() {
           </div>
 
           {canManageContent() && (
+            <Button asChild variant="outline" size="sm" className="hidden md:inline-flex mr-2">
+              <Link to="/admin/announcement-categories">
+                <Settings className="w-4 h-4 mr-2" />
+                Kategori
+              </Link>
+            </Button>
+          )}
+          {canManageContent() && (
             <Dialog
               open={isCreateOpen}
               onOpenChange={(open) => {
@@ -487,12 +501,12 @@ export default function Announcements() {
 
                     <div className="space-y-2">
                       <Label htmlFor="category" className="text-sm font-semibold text-foreground/80">Kategori</Label>
-                      <Select value={category} onValueChange={(v) => setCategory(v as AnnouncementCategory)}>
+                      <Select value={category} onValueChange={(v) => setCategory(v)}>
                         <SelectTrigger id="category" className="h-10">
                           <SelectValue placeholder="Pilih kategori" />
                         </SelectTrigger>
                         <SelectContent>
-                          {ANNOUNCEMENT_CATEGORIES.map((c) => (
+                          {categoryNames.map((c) => (
                             <SelectItem key={c} value={c}>{c}</SelectItem>
                           ))}
                         </SelectContent>
@@ -666,7 +680,7 @@ export default function Announcements() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua kategori</SelectItem>
-              {ANNOUNCEMENT_CATEGORIES.map((c) => (
+              {categoryNames.map((c) => (
                 <SelectItem key={c} value={c}>{c}</SelectItem>
               ))}
             </SelectContent>
