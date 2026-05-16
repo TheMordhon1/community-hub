@@ -131,6 +131,7 @@ export function CreateCompetitionDialog({
       sport_name: sportName,
       format,
       match_type: matchType,
+      custom_match_label: matchType === "custom" ? (customMatchLabel || null) : null,
       participant_type: participantType,
       rules: rules || undefined,
       max_participants: maxParticipants ? parseInt(maxParticipants) : undefined,
