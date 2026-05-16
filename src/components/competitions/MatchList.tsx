@@ -8,6 +8,8 @@ import { id as idLocale } from "date-fns/locale";
 import type { EventCompetitionWithDetails, CompetitionMatchWithTeams } from "@/types/competition";
 import { MATCH_STATUS_LABELS } from "@/types/competition";
 import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
+import { LiveScoreDialog } from "@/components/competitions/LiveScoreDialog";
+import { Play } from "lucide-react";
 
 interface MatchListProps {
   competition: EventCompetitionWithDetails;
@@ -16,6 +18,7 @@ interface MatchListProps {
 
 export function MatchList({ competition, canManage }: MatchListProps) {
   const [editingMatch, setEditingMatch] = useState<CompetitionMatchWithTeams | null>(null);
+  const [liveScoringMatch, setLiveScoringMatch] = useState<CompetitionMatchWithTeams | null>(null);
   
   const matches = competition.matches || [];
 
@@ -93,14 +96,27 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                           {MATCH_STATUS_LABELS[match.status]}
                         </Badge>
                         {canManage && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => setEditingMatch(match)}
-                          >
-                            <Edit className="w-3 h-3" />
-                          </Button>
+                          <>
+                            {match.status !== "completed" && match.status !== "cancelled" && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700"
+                                onClick={() => setLiveScoringMatch(match)}
+                              >
+                                <Play className="w-3 h-3 mr-1" />
+                                Live Score
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => setEditingMatch(match)}
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -171,6 +187,14 @@ export function MatchList({ competition, canManage }: MatchListProps) {
         open={!!editingMatch}
         onOpenChange={(open) => !open && setEditingMatch(null)}
         match={editingMatch}
+        competition={competition}
+      />
+
+      {/* Live Score Dialog */}
+      <LiveScoreDialog
+        open={!!liveScoringMatch}
+        onOpenChange={(open) => !open && setLiveScoringMatch(null)}
+        match={liveScoringMatch}
         competition={competition}
       />
       

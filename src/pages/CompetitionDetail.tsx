@@ -42,6 +42,7 @@ import { MatchList } from "@/components/competitions/MatchList";
 import { RefereeList } from "@/components/competitions/RefereeList";
 import { AddTeamDialog } from "@/components/competitions/AddTeamDialog";
 import { CreateCompetitionDialog } from "@/components/competitions/CreateCompetitionDialog";
+import { CreateMatchDialog } from "@/components/competitions/CreateMatchDialog";
 import { ShareDialog } from "@/components/ShareDialog";
 import {
   AlertDialog,
@@ -65,6 +66,7 @@ export default function CompetitionDetail() {
   const deleteCompetition = useDeleteCompetition();
 
   const [isAddTeamOpen, setIsAddTeamOpen] = useState(false);
+  const [isCreateMatchOpen, setIsCreateMatchOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("matches");
@@ -370,11 +372,11 @@ export default function CompetitionDetail() {
             </TabsList>
 
             <TabsContent value="matches" className="space-y-4">
-              {canManage &&
-                competition.format === "knockout" &&
-                competition.teams &&
-                competition.teams.length >= 2 && (
-                  <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                {canManage &&
+                  competition.format === "knockout" &&
+                  competition.teams &&
+                  competition.teams.length >= 2 && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -388,8 +390,18 @@ export default function CompetitionDetail() {
                       )}
                       Generate Bracket
                     </Button>
-                  </div>
+                  )}
+                {canModifyMatches && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsCreateMatchOpen(true)}
+                  >
+                    <Swords className="w-4 h-4 mr-2" />
+                    Tambah Pertandingan
+                  </Button>
                 )}
+              </div>
               <MatchList competition={competition} canManage={canModifyMatches} />
             </TabsContent>
 
@@ -412,6 +424,12 @@ export default function CompetitionDetail() {
       <AddTeamDialog
         open={isAddTeamOpen}
         onOpenChange={setIsAddTeamOpen}
+        competition={competition}
+      />
+
+      <CreateMatchDialog
+        open={isCreateMatchOpen}
+        onOpenChange={setIsCreateMatchOpen}
         competition={competition}
       />
 
