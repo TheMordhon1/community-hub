@@ -40,6 +40,7 @@ export function useEventMutations() {
       description: string;
       location: string;
       event_date: string;
+      end_date: string | null;
       event_time: string | null;
       image_url: string | null;
       event_type: EventType;
@@ -63,6 +64,7 @@ export function useEventMutations() {
       description: string;
       location: string;
       event_date: string;
+      end_date: string | null;
       event_time: string | null;
       image_url: string | null;
       event_type: EventType;
