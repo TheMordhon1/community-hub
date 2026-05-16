@@ -276,6 +276,15 @@ export default function EventDetail() {
                       </Badge>
                     ) : <></>}
                     {isPastEvent && <Badge variant="secondary">Selesai</Badge>}
+                    {isOngoingEvent && !isPastEvent && (
+                      <Badge className="gap-1 bg-success hover:bg-success">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                        </span>
+                        Berlangsung
+                      </Badge>
+                    )}
                     {isCompetitionEvent && hasCompetitions && (
                       <Badge variant="outline" className="gap-1">
                         {competitions.length} Kompetisi
