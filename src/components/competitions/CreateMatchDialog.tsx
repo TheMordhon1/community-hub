@@ -20,6 +20,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Users } from "lucide-react";
 import { useCreateMatch } from "@/hooks/useCompetitions";
+import { useToast } from "@/hooks/use-toast";
 import type { EventCompetitionWithDetails } from "@/types/competition";
 
 interface CreateMatchDialogProps {
@@ -33,6 +34,7 @@ export function CreateMatchDialog({
   onOpenChange,
   competition,
 }: CreateMatchDialogProps) {
+  const { toast } = useToast();
   const [roundNumber, setRoundNumber] = useState("1");
   const [matchNumber, setMatchNumber] = useState("1");
   const [team1Id, setTeam1Id] = useState<string>("");
@@ -81,17 +83,29 @@ export function CreateMatchDialog({
 
   const handleSubmit = () => {
     if (!roundNumber || !matchNumber) {
-      alert("Harap isi babak dan nomor pertandingan.");
+      toast({
+        variant: "destructive",
+        title: "Data Tidak Lengkap",
+        description: "Harap isi babak dan nomor pertandingan.",
+      });
       return;
     }
 
     if (!is17an && team1Id && team2Id && team1Id === team2Id) {
-      alert("Tim 1 dan Tim 2 tidak boleh sama.");
+      toast({
+        variant: "destructive",
+        title: "Kesalahan Tim",
+        description: "Tim 1 dan Tim 2 tidak boleh sama.",
+      });
       return;
     }
 
     if (is17an && selectedTeamIds.length === 0) {
-      alert("Pilih minimal satu tim untuk pertandingan.");
+      toast({
+        variant: "destructive",
+        title: "Peserta Kosong",
+        description: "Pilih minimal satu tim untuk pertandingan.",
+      });
       return;
     }
 
@@ -112,7 +126,11 @@ export function CreateMatchDialog({
         },
         onError: (error) => {
           console.error("Create failed:", error);
-          alert("Gagal membuat pertandingan.");
+          toast({
+            variant: "destructive",
+            title: "Gagal Membuat",
+            description: "Terjadi kesalahan saat membuat pertandingan.",
+          });
         },
       }
     );

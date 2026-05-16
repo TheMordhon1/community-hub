@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
@@ -36,6 +36,7 @@ import {
   RotateCcw,
   Plus,
   Trash2,
+  Star,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -58,6 +59,7 @@ import { RefereeList } from "@/components/competitions/RefereeList";
 import { AddTeamDialog } from "@/components/competitions/AddTeamDialog";
 import { CreateCompetitionDialog } from "@/components/competitions/CreateCompetitionDialog";
 import { CreateMatchDialog } from "@/components/competitions/CreateMatchDialog";
+import { WinnerAnnounceDialog } from "@/components/competitions/WinnerAnnounceDialog";
 import { ShareDialog } from "@/components/ShareDialog";
 import {
   AlertDialog,
@@ -69,6 +71,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
 
 export default function CompetitionDetail() {
   const { id: eventId, competitionId } = useParams();
@@ -92,8 +95,12 @@ export default function CompetitionDetail() {
   const [isGenerate17anOpen, setIsGenerate17anOpen] = useState(false);
   const [isAdvanceRoundDialogOpen, setIsAdvanceRoundDialogOpen] = useState(false);
   const [isResetAllOpen, setIsResetAllOpen] = useState(false);
+  const [isWinnerAnnounceOpen, setIsWinnerAnnounceOpen] = useState(false);
+  const [hasShownWinner, setHasShownWinner] = useState(false);
   const [customPhaseLabel, setCustomPhaseLabel] = useState("");
+  const [isFinalMatch, setIsFinalMatch] = useState(false);
   const [teamsPerMatch, setTeamsPerMatch] = useState(2);
+  const [maxRankToShow, setMaxRankToShow] = useState(3);
 
   // Check if user can manage this competition
   const isReferee = competition?.referees?.some(
@@ -117,10 +124,12 @@ export default function CompetitionDetail() {
       teams: competition.teams,
       teams_per_match: teamsPerMatch,
       phase_label: customPhaseLabel || "Babak 1",
+      is_final: isFinalMatch,
     }, {
       onSuccess: () => {
         setIsGenerate17anOpen(false);
         setCustomPhaseLabel("");
+        setIsFinalMatch(false);
       }
     });
   };
@@ -150,11 +159,13 @@ export default function CompetitionDetail() {
     if (!competition) return;
     advanceRound.mutate({ 
       competition_id: competition.id,
-      phase_label: customPhaseLabel || undefined
+      phase_label: customPhaseLabel || undefined,
+      is_final: isFinalMatch
     }, {
       onSuccess: () => {
         setIsAdvanceRoundDialogOpen(false);
         setCustomPhaseLabel("");
+        setIsFinalMatch(false);
       }
     });
   };
@@ -168,6 +179,19 @@ export default function CompetitionDetail() {
 
   const shareUrl = `${window.location.origin}${eventId ? `/events/${eventId}` : ""}/competitions/${competitionId}`;
   const shareText = `${competition?.sport_name}\n\nFormat: ${competition ? FORMAT_LABELS[competition.format] : ""}\nTipe: ${competition ? MATCH_TYPE_LABELS[competition.match_type] : ""}`;
+
+  useEffect(() => {
+    if (competition?.status === "completed" && !hasShownWinner) {
+      const hasWinners = competition.matches?.some(m => 
+        m.participants?.some(p => p.winner_rank === 1)
+      );
+      
+      if (hasWinners) {
+        setIsWinnerAnnounceOpen(true);
+        setHasShownWinner(true);
+      }
+    }
+  }, [competition?.status, competition?.matches, hasShownWinner]);
 
   if (isLoading) {
     return (
@@ -239,7 +263,7 @@ export default function CompetitionDetail() {
   const totalMatches = competition.matches?.length || 0;
 
   return (
-    <section className="min-h-screen bg-background">
+    <section className="min-h-screen bg-background pb-24 md:pb-0">
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-b">
         <div className="px-6 py-8">
@@ -272,8 +296,11 @@ export default function CompetitionDetail() {
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Trophy className="w-8 h-8 text-primary" />
+                  <div className="p-2 rounded-lg bg-yellow-500/10 relative">
+                    <Trophy className={`w-8 h-8 ${competition.status === 'completed' ? 'text-yellow-500 fill-yellow-500 animate-bounce' : 'text-primary'}`} />
+                    {competition.status === 'completed' && (
+                      <Star className="absolute -top-1 -right-1 w-4 h-4 text-yellow-500 fill-yellow-500 animate-pulse" />
+                    )}
                   </div>
                   <div>
                     <h1 className="font-display text-2xl md:text-3xl font-bold">
@@ -343,46 +370,81 @@ export default function CompetitionDetail() {
               )}
             </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-background/80 backdrop-blur rounded-lg p-4 border">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Target className="w-4 h-4" />
-                  <span className="text-xs font-medium">Format</span>
+            {/* Quick Stats & Winner Button */}
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
+                <div className="bg-background/80 backdrop-blur rounded-lg p-4 border">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <Target className="w-4 h-4" />
+                    <span className="text-xs font-medium">Format</span>
+                  </div>
+                  <p className="font-semibold">{FORMAT_LABELS[competition.format]}</p>
                 </div>
-                <p className="font-semibold">{FORMAT_LABELS[competition.format]}</p>
-              </div>
-              <div className="bg-background/80 backdrop-blur rounded-lg p-4 border">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Users className="w-4 h-4" />
-                  <span className="text-xs font-medium">Tipe</span>
+                <div className="bg-background/80 backdrop-blur rounded-lg p-4 border">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <Users className="w-4 h-4" />
+                    <span className="text-xs font-medium">Tipe</span>
+                  </div>
+                  <p className="font-semibold">
+                    {competition.match_type === "custom" && competition.custom_match_label
+                      ? competition.custom_match_label
+                      : MATCH_TYPE_LABELS[competition.match_type]}
+                  </p>
                 </div>
-                <p className="font-semibold">
-                  {competition.match_type === "custom" && competition.custom_match_label
-                    ? competition.custom_match_label
-                    : MATCH_TYPE_LABELS[competition.match_type]}
-                </p>
-              </div>
-              <div className="bg-background/80 backdrop-blur rounded-lg p-4 border">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Users className="w-4 h-4" />
-                  <span className="text-xs font-medium">Tim</span>
+                <div className="bg-background/80 backdrop-blur rounded-lg p-4 border">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <Users className="w-4 h-4" />
+                    <span className="text-xs font-medium">Tim</span>
+                  </div>
+                  <p className="font-semibold">{competition.teams?.length || 0} Tim</p>
                 </div>
-                <p className="font-semibold">{competition.teams?.length || 0} Tim</p>
-              </div>
-              <div className="bg-background/80 backdrop-blur rounded-lg p-4 border">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Swords className="w-4 h-4" />
-                  <span className="text-xs font-medium">Pertandingan</span>
+                <div className="bg-background/80 backdrop-blur rounded-lg p-4 border">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <Swords className="w-4 h-4" />
+                    <span className="text-xs font-medium">Pertandingan</span>
+                  </div>
+                  <p className="font-semibold">
+                    {completedMatches}/{totalMatches} Selesai
+                  </p>
                 </div>
-                <p className="font-semibold">
-                  {completedMatches}/{totalMatches} Selesai
-                </p>
               </div>
             </div>
           </motion.div>
         </div>
       </div>
+
+      {(competition.matches?.some(m => m.participants?.some(p => p.winner_rank)) || 
+        competition.matches?.some(m => m.is_final && m.status === 'completed' && m.winner_id)) && (
+        <div className="fixed bottom-6 inset-x-0 flex flex-col md:flex-row items-center justify-center gap-4 z-50 px-6">
+          {canManage && (
+            <div className="bg-background/95 backdrop-blur-md border rounded-full px-4 py-2 shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Tampilkan Juara:</span>
+              <div className="flex gap-1">
+                {[1, 2, 3].map((r) => (
+                  <Button
+                    key={r}
+                    variant={maxRankToShow === r ? "default" : "outline"}
+                    size="sm"
+                    className={`h-7 w-7 p-0 rounded-full text-[10px] ${maxRankToShow === r ? 'bg-primary' : ''}`}
+                    onClick={() => setMaxRankToShow(r)}
+                  >
+                    {r}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+          <Button 
+            className="h-auto py-3 px-10 bg-yellow-500 hover:bg-yellow-600 text-black font-black italic tracking-tight shadow-[0_8px_30px_rgb(234,179,8,0.3)] group animate-in slide-in-from-bottom-8 duration-500 rounded-full border-2 border-white/20"
+            onClick={() => setIsWinnerAnnounceOpen(true)}
+          >
+            <div className="flex items-center gap-3">
+              <Trophy className="w-5 h-5 group-hover:scale-125 transition-transform" />
+              <span className="text-base">LIHAT PEMENANG</span>
+            </div>
+          </Button>
+        </div>
+      )}
 
       {/* Content Section */}
       <div className="px-6 py-6 space-y-6">
@@ -603,6 +665,14 @@ export default function CompetitionDetail() {
               onChange={(e) => setCustomPhaseLabel(e.target.value)}
             />
           </div>
+          <div className="flex items-center justify-between py-2 px-3 rounded-lg border bg-primary/5">
+            <Label htmlFor="advance-is-final" className="cursor-pointer">Ditandai sebagai Babak Final</Label>
+            <Switch 
+              id="advance-is-final"
+              checked={isFinalMatch}
+              onCheckedChange={setIsFinalMatch}
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction
@@ -636,6 +706,14 @@ export default function CompetitionDetail() {
                 placeholder="Babak 1"
                 value={customPhaseLabel}
                 onChange={(e) => setCustomPhaseLabel(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center justify-between py-2 px-3 rounded-lg border bg-primary/5">
+              <Label htmlFor="gen-is-final" className="cursor-pointer">Ditandai sebagai Babak Final</Label>
+              <Switch 
+                id="gen-is-final"
+                checked={isFinalMatch}
+                onCheckedChange={setIsFinalMatch}
               />
             </div>
             <div className="space-y-2">
@@ -694,6 +772,13 @@ export default function CompetitionDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <WinnerAnnounceDialog
+        open={isWinnerAnnounceOpen}
+        onOpenChange={setIsWinnerAnnounceOpen}
+        competition={competition}
+        maxRankToShow={maxRankToShow}
+      />
     </section>
   );
 }

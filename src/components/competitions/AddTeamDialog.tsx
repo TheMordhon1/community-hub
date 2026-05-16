@@ -73,7 +73,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       if (error) throw error;
       return data as Profile[];
     },
-    enabled: open && activeMode === "single",
+    enabled: open,
   });
 
   useEffect(() => {
@@ -122,23 +122,47 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       );
     } else {
       // Batch mode
-      const names = batchNames
+      const lines = batchNames
         .split("\n")
         .map(n => n.trim())
         .filter(n => n.length > 0);
       
-      if (names.length === 0) return;
+      if (lines.length === 0) return;
 
       const existingSeeds = competition.teams?.map(t => t.seed_number || 0) || [];
       let currentMaxSeed = existingSeeds.length > 0 ? Math.max(...existingSeeds) : 0;
 
-      for (const name of names) {
+      for (const line of lines) {
+        // Split by comma to get members
+        const memberNames = line.split(",").map(m => m.trim()).filter(m => m.length > 0);
+        if (memberNames.length === 0) continue;
+
+        // Use the whole line as team name, or the first name if it's a single person
+        const teamNameValue = line.trim();
+        
         currentMaxSeed++;
-        await createTeamMutation.mutateAsync({
+        const team = await createTeamMutation.mutateAsync({
           competition_id: competition.id,
-          name,
+          name: teamNameValue,
           seed_number: currentMaxSeed,
         });
+
+        // Try to add members if profiles are loaded and names match
+        if (profiles && profiles.length > 0) {
+          for (const name of memberNames) {
+            const matchedProfile = profiles.find(p => 
+              p.full_name?.toLowerCase() === name.toLowerCase()
+            );
+            
+            if (matchedProfile) {
+              await addMemberMutation.mutateAsync({
+                team_id: team.id,
+                user_id: matchedProfile.id,
+                competition_id: competition.id,
+              });
+            }
+          }
+        }
       }
       onOpenChange(false);
     }
@@ -265,17 +289,17 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
 
             <TabsContent value="batch" className="space-y-4 mt-0">
               <div className="space-y-2">
-                <Label htmlFor="batch-names">Daftar Nama (Satu nama per baris)</Label>
+                <Label htmlFor="batch-names">Daftar Nama (Koma untuk anggota, Enter untuk tim baru)</Label>
                 <Textarea
                   id="batch-names"
                   value={batchNames}
                   onChange={(e) => setBatchNames(e.target.value)}
-                  placeholder="Budi&#10;Iwan&#10;Susi"
+                  placeholder="Budi, Iwan, Susi&#10;Ani, Tono"
                   rows={10}
                   className="font-mono"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Gunakan cara ini untuk menambah banyak peserta sekaligus tanpa harus memilih satu per satu.
+                  Gunakan koma (,) untuk memisahkan anggota dalam satu tim, dan baris baru (Enter) untuk memisahkan tim berbeda.
                 </p>
               </div>
             </TabsContent>

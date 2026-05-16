@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Swords, Trophy, Calendar, MapPin, Edit, RefreshCw, Trash2, MoreVertical } from "lucide-react";
-import { format } from "date-fns";
+import { Swords, Trophy, Calendar, MapPin, Edit, RefreshCw, Trash2, MoreVertical, Medal, Eye, CheckCircle2 } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import type { EventCompetitionWithDetails, CompetitionMatchWithTeams } from "@/types/competition";
 import { MATCH_STATUS_LABELS } from "@/types/competition";
@@ -38,6 +38,7 @@ interface MatchListProps {
 export function MatchList({ competition, canManage }: MatchListProps) {
   const [editingMatch, setEditingMatch] = useState<CompetitionMatchWithTeams | null>(null);
   const [liveScoringMatch, setLiveScoringMatch] = useState<CompetitionMatchWithTeams | null>(null);
+  const [viewingMatch, setViewingMatch] = useState<CompetitionMatchWithTeams | null>(null);
   const [matchToReset, setMatchToReset] = useState<string | null>(null);
   const [matchToDelete, setMatchToDelete] = useState<string | null>(null);
   
@@ -158,9 +159,14 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                   <CardContent className="p-0">
                     {/* Match Header */}
                     <div className="flex items-center justify-between px-4 py-2 bg-muted/50 border-b">
-                      <span className="text-xs text-muted-foreground">
-                        Match {match.match_number}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          Match {match.match_number}
+                        </span>
+                        {match.is_final && (
+                          <Trophy className="w-3 h-3 text-yellow-500 fill-yellow-500 animate-pulse" />
+                        )}
+                      </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={getStatusVariant(match.status)} className={`text-xs ${match.status === 'ongoing' ? 'pl-5 relative' : ''}`}>
                           {match.status === 'ongoing' && (
@@ -171,21 +177,30 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                           )}
                           {MATCH_STATUS_LABELS[match.status]}
                         </Badge>
-                        {canManage && (
-                          <div className="flex items-center gap-1.5">
-                            {match.status !== "completed" && match.status !== "cancelled" && (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                className="h-7 text-[10px] sm:text-xs px-2 sm:px-3 bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 font-bold"
-                                onClick={() => setLiveScoringMatch(match)}
-                              >
-                                <Play className="w-3 h-3 mr-1" />
-                                <span className="hidden xs:inline">Live Score</span>
-                                <span className="xs:hidden">Score</span>
-                              </Button>
-                            )}
-                            
+                        <div className="flex items-center gap-1.5">
+                          {match.status === "ongoing" && canManage && (
+                            <Button
+                              size="sm"
+                              className="h-7 text-[10px] sm:text-xs px-2 sm:px-3 bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 font-bold"
+                              onClick={() => setLiveScoringMatch(match)}
+                            >
+                              <Play className="w-3 h-3 mr-1" />
+                              <span className="hidden xs:inline">Live Score</span>
+                              <span className="xs:hidden">Score</span>
+                            </Button>
+                          )}
+
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="h-7 text-[10px] sm:text-xs px-2 sm:px-3 gap-1"
+                            onClick={() => setViewingMatch(match)}
+                          >
+                            <Eye className="w-3 h-3" />
+                            <span>Detail</span>
+                          </Button>
+                          
+                          {canManage && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-muted">
@@ -214,8 +229,8 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -228,15 +243,37 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                               {idx > 0 && <div className="border-t my-3" />}
                               <div className={`flex items-center justify-between ${p.is_winner ? 'font-bold text-primary' : ''}`}>
                                 <div className="flex items-center gap-2">
-                                  {p.is_winner && (
-                                    <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                  {match.is_point !== false && (
+                                    <>
+                                      {(p.is_winner && !p.winner_rank) && (
+                                        <CheckCircle2 className="w-4 h-4 text-primary" />
+                                      )}
+                                      {p.winner_rank === 1 && (
+                                        <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                      )}
+                                      {p.winner_rank === 2 && (
+                                        <Trophy className="w-4 h-4 text-slate-400 fill-slate-400" />
+                                      )}
+                                      {p.winner_rank === 3 && (
+                                        <Trophy className="w-4 h-4 text-amber-600 fill-amber-600" />
+                                      )}
+                                    </>
                                   )}
                                   <span className="text-sm">
                                     {p.team?.name || "TBD"}
                                   </span>
                                 </div>
                                 <span className="text-base font-mono">
-                                  {p.score || "-"}
+                                  {match.is_point !== false ? (
+                                    p.score || "-"
+                                  ) : (
+                                    p.is_winner && (
+                                      p.winner_rank === 1 ? <Trophy className="w-5 h-5 text-yellow-500 fill-yellow-500" /> :
+                                      p.winner_rank === 2 ? <Trophy className="w-5 h-5 text-slate-400 fill-slate-400" /> :
+                                      p.winner_rank === 3 ? <Trophy className="w-5 h-5 text-amber-600 fill-amber-600" /> :
+                                      <CheckCircle2 className="w-5 h-5 text-primary" />
+                                    )
+                                  )}
                                 </span>
                               </div>
                             </div>
@@ -246,15 +283,34 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                             {/* Team 1 */}
                             <div className={`flex items-center justify-between ${match.winner_id === match.team1_id ? 'font-bold text-primary' : ''}`}>
                               <div className="flex items-center gap-2">
-                                {match.winner_id === match.team1_id && (
-                                  <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                {match.is_point !== false && (
+                                  <>
+                                    {match.winner_id === match.team1_id && !match.participants?.some(p => p.team_id === match.team1_id && p.winner_rank) && (
+                                      <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                    )}
+                                    {match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 1 && (
+                                      <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                    )}
+                                    {match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 2 && (
+                                      <Trophy className="w-4 h-4 text-slate-400 fill-slate-400" />
+                                    )}
+                                    {match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 3 && (
+                                      <Trophy className="w-4 h-4 text-amber-600 fill-amber-600" />
+                                    )}
+                                  </>
                                 )}
                                 <span className={`text-sm ${!match.team1 ? 'text-muted-foreground italic' : ''}`}>
                                   {match.team1?.name || "TBD"}
                                 </span>
                               </div>
                               <span className="text-base font-mono">
-                                {match.score1 || "-"}
+                                {match.is_point !== false ? (
+                                  match.score1 || "-"
+                                ) : (
+                                  (match.winner_id === match.team1_id || match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 1) && (
+                                    <Trophy className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                                  )
+                                )}
                               </span>
                             </div>
 
@@ -263,15 +319,34 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                             {/* Team 2 */}
                             <div className={`flex items-center justify-between ${match.winner_id === match.team2_id ? 'font-bold text-primary' : ''}`}>
                               <div className="flex items-center gap-2">
-                                {match.winner_id === match.team2_id && (
-                                  <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                {match.is_point !== false && (
+                                  <>
+                                    {match.winner_id === match.team2_id && !match.participants?.some(p => p.team_id === match.team2_id && p.winner_rank) && (
+                                      <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                    )}
+                                    {match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 1 && (
+                                      <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                    )}
+                                    {match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 2 && (
+                                      <Trophy className="w-4 h-4 text-slate-400 fill-slate-400" />
+                                    )}
+                                    {match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 3 && (
+                                      <Trophy className="w-4 h-4 text-amber-600 fill-amber-600" />
+                                    )}
+                                  </>
                                 )}
                                 <span className={`text-sm ${!match.team2 ? 'text-muted-foreground italic' : ''}`}>
                                   {match.team2?.name || "TBD"}
                                 </span>
                               </div>
                               <span className="text-base font-mono">
-                                {match.score2 || "-"}
+                                {match.is_point !== false ? (
+                                  match.score2 || "-"
+                                ) : (
+                                  (match.winner_id === match.team2_id || match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 1) && (
+                                    <Trophy className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                                  )
+                                )}
                               </span>
                             </div>
                           </>
@@ -284,7 +359,7 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                           {match.match_datetime && (
                             <div className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
-                              {format(new Date(match.match_datetime), "dd MMM yyyy, HH:mm", { locale: idLocale })}
+                              {format(parseISO(match.match_datetime), "dd MMM yyyy, HH:mm", { locale: idLocale })}
                             </div>
                           )}
                           {match.location && (
@@ -317,6 +392,14 @@ export function MatchList({ competition, canManage }: MatchListProps) {
         onOpenChange={(open) => !open && setLiveScoringMatch(null)}
         match={liveScoringMatch}
         competition={competition}
+      />
+
+      <LiveScoreDialog 
+        open={!!viewingMatch} 
+        onOpenChange={(open) => !open && setViewingMatch(null)}
+        match={viewingMatch}
+        competition={competition}
+        readOnly={true}
       />
 
       {/* Confirmation Dialogs */}

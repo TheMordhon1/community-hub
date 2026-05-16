@@ -18,6 +18,7 @@ export interface EventCompetition {
   max_participants: number | null;
   registration_deadline: string | null;
   status: CompetitionStatus;
+  is_point: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -71,6 +72,8 @@ export interface CompetitionMatch {
   notes: string | null;
   next_match_id: string | null;
   phase_label: string | null;
+  is_point: boolean;
+  is_final: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { parseISO } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -18,8 +19,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Trophy } from "lucide-react";
+import { Loader2, Trophy, Medal } from "lucide-react";
 import { useUpdateMatch } from "@/hooks/useCompetitions";
+import { useToast } from "@/hooks/use-toast";
 import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, MatchStatus } from "@/types/competition";
 import { MATCH_STATUS_LABELS } from "@/types/competition";
 
@@ -41,13 +43,18 @@ export function UpdateMatchDialog({
   const [participantScores, setParticipantScores] = useState<Record<string, string>>({});
   const [participantWinners, setParticipantWinners] = useState<Record<string, boolean>>({});
   const [participantRanks, setParticipantRanks] = useState<Record<string, number | null>>({});
+  const [winnerRank1, setWinnerRank1] = useState<number | null>(null);
+  const [winnerRank2, setWinnerRank2] = useState<number | null>(null);
   const [winnerId, setWinnerId] = useState<string>("");
   const [status, setStatus] = useState<MatchStatus>("scheduled");
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
   const [phaseLabel, setPhaseLabel] = useState("");
   const [matchDatetime, setMatchDatetime] = useState("");
+  const [isPoint, setIsPoint] = useState(true);
+  const [isFinal, setIsFinal] = useState(false);
 
+  const { toast } = useToast();
   const updateMutation = useUpdateMatch();
 
   useEffect(() => {
@@ -59,6 +66,16 @@ export function UpdateMatchDialog({
       setLocation(match.location || "");
       setNotes(match.notes || "");
       setPhaseLabel(match.phase_label || "");
+      setIsPoint(match.is_point !== false);
+      setIsFinal(match.is_final || false);
+      
+      // Handle simple winner ranks for 1v1
+      if (match.participants && match.participants.length >= 2) {
+        const p1 = match.participants.find(p => p.team_id === match.team1_id);
+        const p2 = match.participants.find(p => p.team_id === match.team2_id);
+        setWinnerRank1(p1?.winner_rank || null);
+        setWinnerRank2(p2?.winner_rank || null);
+      }
       
       // Handle participants
       if (match.participants) {
@@ -76,8 +93,8 @@ export function UpdateMatchDialog({
       }
 
       if (match.match_datetime) {
-        // Format for datetime-local input (YYYY-MM-DDThh:mm)
-        const date = new Date(match.match_datetime);
+        // Format for datetime-local input (YYYY-MM-DDThh:mm) using parseISO for consistency
+        const date = parseISO(match.match_datetime);
         const yyyy = date.getFullYear();
         const mm = String(date.getMonth() + 1).padStart(2, '0');
         const dd = String(date.getDate()).padStart(2, '0');
@@ -93,12 +110,35 @@ export function UpdateMatchDialog({
   const handleSubmit = () => {
     if (!match) return;
 
-    const participantsData = match.participants?.map(p => ({
-      id: p.id,
-      score: participantScores[p.id] || null,
-      is_winner: participantWinners[p.id] || false,
-      winner_rank: participantRanks[p.id] || null,
-    }));
+    const participantsData = (match.participants && match.participants.length > 0)
+      ? match.participants.map(p => ({
+          id: p.id,
+          team_id: p.team_id,
+          score: participantScores[p.id] || null,
+          is_winner: participantWinners[p.id] || (participantRanks[p.id] === 1),
+          winner_rank: participantRanks[p.id] || null,
+        }))
+      : (() => {
+          // If no participants records yet, create them via team_ids
+          const res = [];
+          if (match.team1_id) {
+            res.push({
+              team_id: match.team1_id,
+              score: score1 || null,
+              is_winner: winnerId === match.team1_id || winnerRank1 === 1,
+              winner_rank: winnerRank1
+            });
+          }
+          if (match.team2_id) {
+            res.push({
+              team_id: match.team2_id,
+              score: score2 || null,
+              is_winner: winnerId === match.team2_id || winnerRank2 === 1,
+              winner_rank: winnerRank2
+            });
+          }
+          return res.length > 0 ? res : undefined;
+        })();
 
     updateMutation.mutate(
       {
@@ -112,6 +152,8 @@ export function UpdateMatchDialog({
         notes: notes || null,
         phase_label: phaseLabel || null,
         match_datetime: matchDatetime || null,
+        is_point: isPoint,
+        is_final: isFinal,
         participant_scores: participantsData,
       },
       {
@@ -120,7 +162,11 @@ export function UpdateMatchDialog({
         },
         onError: (error) => {
           console.error("Update failed:", error);
-          alert("Failed to update match.");
+          toast({
+            variant: "destructive",
+            title: "Gagal Memperbarui",
+            description: "Terjadi kesalahan saat memperbarui pertandingan.",
+          });
         },
       }
     );
@@ -166,48 +212,111 @@ export function UpdateMatchDialog({
             <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Skor Peserta</Label>
             <div className="grid gap-3">
               {match.participants?.map((p) => (
-                <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
-                  <div className="flex-1 font-medium">{p.team?.name || "Peserta"}</div>
-                  <div className="w-24">
-                    <Input
-                      value={participantScores[p.id] || ""}
-                      onChange={(e) => setParticipantScores(prev => ({ ...prev, [p.id]: e.target.value }))}
-                      placeholder="Skor"
-                      type="number"
-                      className="text-right font-mono"
-                    />
+                  <div key={p.id} className="p-3 rounded-lg border bg-muted/30 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 font-medium">{p.team?.name || "Peserta"}</div>
+                      <div className="w-24">
+                        <Input
+                          value={participantScores[p.id] || ""}
+                          onChange={(e) => setParticipantScores(prev => ({ ...prev, [p.id]: e.target.value }))}
+                          placeholder="Skor"
+                          type="number"
+                          className="text-right font-mono"
+                        />
+                      </div>
+                      <Button
+                        variant={participantWinners[p.id] ? "default" : "outline"}
+                        size="sm"
+                        className={`h-9 px-3 gap-1.5 transition-all ${participantWinners[p.id] ? 'bg-primary' : ''}`}
+                        onClick={() => setParticipantWinners(prev => ({ ...prev, [p.id]: !prev[p.id] }))}
+                      >
+                        <Trophy className={`w-3.5 h-3.5 ${participantWinners[p.id] ? 'fill-current' : ''}`} />
+                        {participantWinners[p.id] ? "Lolos" : "Pilih"}
+                      </Button>
+                    </div>
+
+                    <div className="flex gap-2 pt-2 border-t border-dashed">
+                      {[1, 2, 3].map((r) => (
+                        <Button
+                          key={r}
+                          variant={participantRanks[p.id] === r ? "default" : "outline"}
+                          size="sm"
+                          className={`h-8 flex-1 gap-1 text-[10px] uppercase font-bold tracking-tighter ${
+                            participantRanks[p.id] === r 
+                              ? (r === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : r === 2 ? 'bg-slate-400 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-700') 
+                              : ''
+                          }`}
+                          onClick={() => setParticipantRanks(prev => ({ ...prev, [p.id]: prev[p.id] === r ? null : r }))}
+                        >
+                          <Medal className="w-3 h-3" />
+                          Juara {r}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
-                  <Button
-                    variant={participantWinners[p.id] ? "default" : "outline"}
-                    size="sm"
-                    className={`h-9 px-3 gap-1.5 transition-all ${participantWinners[p.id] ? 'bg-primary' : ''}`}
-                    onClick={() => setParticipantWinners(prev => ({ ...prev, [p.id]: !prev[p.id] }))}
-                  >
-                    <Trophy className={`w-3.5 h-3.5 ${participantWinners[p.id] ? 'fill-current' : ''}`} />
-                    {participantWinners[p.id] ? "Lolos" : "Pilih"}
-                  </Button>
-                </div>
               ))}
               
               {(!match.participants || match.participants.length === 0) && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>{match.team1?.name || "Tim 1"}</Label>
-                    <Input
-                      value={score1}
-                      onChange={(e) => setScore1(e.target.value)}
-                      placeholder="Skor"
-                      type="number"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{match.team2?.name || "Tim 2"}</Label>
-                    <Input
-                      value={score2}
-                      onChange={(e) => setScore2(e.target.value)}
-                      placeholder="Skor"
-                      type="number"
-                    />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>{match.team1?.name || "Tim 1"}</Label>
+                      <Input
+                        value={score1}
+                        onChange={(e) => setScore1(e.target.value)}
+                        placeholder="Skor"
+                        type="number"
+                      />
+                      <div className="flex gap-1 pt-1">
+                        {[1, 2, 3].map((r) => (
+                          <Button
+                            key={r}
+                            variant={winnerRank1 === r ? "default" : "outline"}
+                            size="sm"
+                            className={`h-7 flex-1 gap-1 text-[9px] uppercase font-bold tracking-tighter ${
+                              winnerRank1 === r 
+                                ? (r === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : r === 2 ? 'bg-slate-400 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-700') 
+                                : ''
+                            }`}
+                            onClick={() => {
+                                setWinnerRank1(winnerRank1 === r ? null : r);
+                                if (r === 1 && winnerRank1 !== r) setWinnerId(match.team1_id || "");
+                            }}
+                          >
+                            Juara {r}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{match.team2?.name || "Tim 2"}</Label>
+                      <Input
+                        value={score2}
+                        onChange={(e) => setScore2(e.target.value)}
+                        placeholder="Skor"
+                        type="number"
+                      />
+                      <div className="flex gap-1 pt-1">
+                        {[1, 2, 3].map((r) => (
+                          <Button
+                            key={r}
+                            variant={winnerRank2 === r ? "default" : "outline"}
+                            size="sm"
+                            className={`h-7 flex-1 gap-1 text-[9px] uppercase font-bold tracking-tighter ${
+                              winnerRank2 === r 
+                                ? (r === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : r === 2 ? 'bg-slate-400 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-700') 
+                                : ''
+                            }`}
+                            onClick={() => {
+                                setWinnerRank2(winnerRank2 === r ? null : r);
+                                if (r === 1 && winnerRank2 !== r) setWinnerId(match.team2_id || "");
+                            }}
+                          >
+                            Juara {r}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -238,6 +347,41 @@ export function UpdateMatchDialog({
               </Select>
             </div>
           )}
+
+          {/* Point & Final Toggles */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center justify-between rounded-lg border p-3 bg-primary/5 border-primary/20">
+              <div className="space-y-0.5">
+                <Label className="text-sm flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-primary" />
+                  Berikan Poin
+                </Label>
+                <p className="text-[10px] text-muted-foreground leading-tight">
+                  Aktifkan poin peringkat.
+                </p>
+              </div>
+              <Switch
+                checked={isPoint}
+                onCheckedChange={setIsPoint}
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3 bg-primary/5 border-primary/20">
+              <div className="space-y-0.5">
+                <Label className="text-sm flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-primary" />
+                  Babak Final
+                </Label>
+                <p className="text-[10px] text-muted-foreground leading-tight">
+                  Aktifkan menu juara.
+                </p>
+              </div>
+              <Switch
+                checked={isFinal}
+                onCheckedChange={setIsFinal}
+              />
+            </div>
+          </div>
 
           {/* Status */}
           <div className="space-y-4 rounded-lg border p-4">

@@ -182,6 +182,8 @@ export function useCompetitionDetails(competitionId: string | undefined) {
           return {
             ...match,
             status: match.status as MatchStatus,
+            is_point: (match as unknown as CompetitionMatch).is_point ?? true,
+            is_final: (match as unknown as CompetitionMatch).is_final ?? false,
             team1: match.team1_id ? teamMap.get(match.team1_id) : undefined,
             team2: match.team2_id ? teamMap.get(match.team2_id) : undefined,
             winner: match.winner_id ? teamMap.get(match.winner_id) : undefined,
@@ -190,7 +192,8 @@ export function useCompetitionDetails(competitionId: string | undefined) {
         }) || [];
 
       return {
-        ...competition,
+        ...(competition as unknown as EventCompetition),
+        is_point: (competition as unknown as EventCompetition).is_point ?? true,
         teams: teamsWithMembers,
         matches: matchesWithTeams,
         referees: refereesWithProfiles,
@@ -216,6 +219,7 @@ export function useCreateCompetition() {
       rules?: string;
       max_participants?: number;
       registration_deadline?: string;
+      is_point?: boolean;
     }) => {
       const { error } = await supabase.from("event_competitions").insert(data);
 
@@ -258,6 +262,7 @@ export function useUpdateCompetition() {
       max_participants?: number | null;
       registration_deadline?: string | null;
       status?: CompetitionStatus;
+      is_point?: boolean;
     }) => {
       const { id, event_id, ...updateData } = data;
       const { error } = await supabase
@@ -480,8 +485,15 @@ export function useCreateMatch() {
 
       if (error) throw error;
 
-      if (team_ids && team_ids.length > 0) {
-        const participants = team_ids.map((teamId) => ({
+      // Create participant records for ALL formats to ensure consistency for ranks/scores
+      const finalTeamIds = [...(team_ids || [])];
+      if (!team_ids || team_ids.length === 0) {
+        if (data.team1_id && data.team1_id !== "none") finalTeamIds.push(data.team1_id);
+        if (data.team2_id && data.team2_id !== "none") finalTeamIds.push(data.team2_id);
+      }
+
+      if (finalTeamIds.length > 0) {
+        const participants = finalTeamIds.map((teamId) => ({
           match_id: match.id,
           team_id: teamId,
         }));
@@ -528,7 +540,9 @@ export function useUpdateMatch() {
       location?: string | null;
       notes?: string | null;
       phase_label?: string | null;
-      participant_scores?: { id: string; score: string | null; is_winner?: boolean; winner_rank?: number | null }[];
+      is_point?: boolean;
+      is_final?: boolean;
+      participant_scores?: { id?: string; team_id?: string; score: string | null; is_winner?: boolean; winner_rank?: number | null }[];
     }) => {
       const { id, competition_id, participant_scores, ...updateData } = data;
       const { error } = await supabase
@@ -540,14 +554,26 @@ export function useUpdateMatch() {
 
       if (participant_scores && participant_scores.length > 0) {
         for (const ps of participant_scores) {
+          const upsertData: {
+            id?: string;
+            match_id: string;
+            team_id: string | undefined;
+            score: string | null;
+            is_winner: boolean;
+            winner_rank: number | null;
+          } = {
+            match_id: id,
+            team_id: ps.team_id,
+            score: ps.score,
+            is_winner: ps.is_winner ?? false,
+            winner_rank: ps.winner_rank ?? null,
+          };
+          
+          if (ps.id) upsertData.id = ps.id;
+
           const { error: partError } = await supabase
             .from("competition_match_participants")
-            .update({
-              score: ps.score,
-              is_winner: ps.is_winner ?? false,
-              winner_rank: ps.winner_rank ?? null,
-            })
-            .eq("id", ps.id);
+            .upsert(upsertData, { onConflict: 'match_id, team_id' });
           
           if (partError) throw partError;
         }
@@ -782,8 +808,9 @@ export function useGenerate17an() {
       teams: CompetitionTeam[];
       teams_per_match: number;
       phase_label?: string;
+      is_final?: boolean;
     }) => {
-      const { competition_id, teams, teams_per_match, phase_label } = data;
+      const { competition_id, teams, teams_per_match, phase_label, is_final } = data;
 
       // Fetch competition details for default location/time
       const { data: competition_details, error: detailsError } = await supabase
@@ -833,6 +860,7 @@ export function useGenerate17an() {
             match_datetime,
             location,
             phase_label,
+            is_final: is_final || false,
           })
           .select()
           .single();
@@ -933,8 +961,8 @@ export function useAdvance17anRound() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { competition_id: string; phase_label?: string }) => {
-      const { competition_id, phase_label } = data;
+    mutationFn: async (data: { competition_id: string; phase_label?: string; is_final?: boolean }) => {
+      const { competition_id, phase_label, is_final } = data;
 
       // 1. Get competition details and matches
       const { data: competition, error: compError } = await supabase
@@ -987,6 +1015,7 @@ export function useAdvance17anRound() {
           match_datetime,
           location: eventDetails?.location || null,
           phase_label: phase_label || `Babak ${nextRound}`,
+          is_final: is_final || false,
         })
         .select()
         .single();

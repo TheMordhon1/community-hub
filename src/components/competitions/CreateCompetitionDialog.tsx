@@ -20,7 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trophy } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useCreateCompetition, useUpdateCompetition } from "@/hooks/useCompetitions";
 import type { 
   EventCompetition, 
@@ -64,6 +65,7 @@ export function CreateCompetitionDialog({
   const [rules, setRules] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(eventId);
+  const [isPoint, setIsPoint] = useState(true);
 
   const { data: events, isLoading: isLoadingEvents } = useQuery({
     queryKey: ["all-events-for-selection"],
@@ -94,6 +96,7 @@ export function CreateCompetitionDialog({
     setRules(FORMAT_DESCRIPTIONS["knockout"]);
     setMaxParticipants("");
     setSelectedEventId(eventId);
+    setIsPoint(true);
   }, [eventId]);
 
   useEffect(() => {
@@ -105,7 +108,8 @@ export function CreateCompetitionDialog({
       setParticipantType(editingCompetition.participant_type);
       setRules(editingCompetition.rules || "");
       setMaxParticipants(editingCompetition.max_participants?.toString() || "");
-      setSelectedEventId(editingCompetition.event_id);
+      setSelectedEventId(editingCompetition.event_id || undefined);
+      setIsPoint(editingCompetition.is_point !== false);
     } else {
       resetForm();
     }
@@ -136,6 +140,7 @@ export function CreateCompetitionDialog({
       participant_type: participantType,
       rules: rules || undefined,
       max_participants: maxParticipants ? parseInt(maxParticipants) : undefined,
+      is_point: isPoint,
     };
 
     // Handle "none" value from select
@@ -303,6 +308,22 @@ export function CreateCompetitionDialog({
               onChange={(e) => setRules(e.target.value)}
               placeholder="Tulis peraturan kompetisi..."
               rows={3}
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-4 rounded-xl border bg-primary/5 border-primary/20">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-primary" />
+                <Label className="text-base font-bold">Sistem Poin</Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Aktifkan jika kompetisi ini memberikan poin
+              </p>
+            </div>
+            <Switch
+              checked={isPoint}
+              onCheckedChange={setIsPoint}
             />
           </div>
         </div>

@@ -121,10 +121,6 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                     </div>
                   </div>
                 )}
-
-                {(!team.members || team.members.length === 0) && (
-                  <p className="text-sm text-muted-foreground">Belum ada anggota</p>
-                )}
               </CardContent>
             </Card>
           ))}
