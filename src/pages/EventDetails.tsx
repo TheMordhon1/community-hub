@@ -155,7 +155,10 @@ export default function EventDetail() {
   });
 
   const isUserAttending = attendees?.some((a) => a.user_id === user?.id);
-  const isPastEvent = event ? new Date(event.event_date) < new Date() : false;
+  const eventEnd = event?.end_date ? new Date(event.end_date) : (event ? new Date(event.event_date) : null);
+  const eventStart = event ? new Date(event.event_date) : null;
+  const isPastEvent = eventEnd ? eventEnd < new Date(new Date().setHours(0, 0, 0, 0)) : false;
+  const isOngoingEvent = !!eventStart && !!eventEnd && new Date() >= new Date(new Date(eventStart).setHours(0,0,0,0)) && new Date() <= new Date(new Date(eventEnd).setHours(23,59,59,999));
   const isCompetitionEvent = event?.event_type === "competition";
   const hasCompetitions = competitions && competitions.length > 0;
 
@@ -273,6 +276,15 @@ export default function EventDetail() {
                       </Badge>
                     ) : <></>}
                     {isPastEvent && <Badge variant="secondary">Selesai</Badge>}
+                    {isOngoingEvent && !isPastEvent && (
+                      <Badge className="gap-1 bg-success hover:bg-success">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                        </span>
+                        Berlangsung
+                      </Badge>
+                    )}
                     {isCompetitionEvent && hasCompetitions && (
                       <Badge variant="outline" className="gap-1">
                         {competitions.length} Kompetisi
@@ -312,9 +324,10 @@ export default function EventDetail() {
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="w-4 h-4 text-primary" />
                   <span>
-                    {format(new Date(event.event_date), "EEEE, dd MMMM yyyy", {
-                      locale: idLocale,
-                    })}
+                    {format(new Date(event.event_date), "EEEE, dd MMMM yyyy", { locale: idLocale })}
+                    {event.end_date && new Date(event.end_date).toDateString() !== new Date(event.event_date).toDateString() && (
+                      <> – {format(new Date(event.end_date), "EEEE, dd MMMM yyyy", { locale: idLocale })}</>
+                    )}
                   </span>
                 </div>
                 {event.event_time && (

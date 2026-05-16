@@ -481,6 +481,7 @@ export type Database = {
       event_competitions: {
         Row: {
           created_at: string
+          custom_match_label: string | null
           event_id: string | null
           format: string
           id: string
@@ -495,6 +496,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          custom_match_label?: string | null
           event_id?: string | null
           format?: string
           id?: string
@@ -509,6 +511,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          custom_match_label?: string | null
           event_id?: string | null
           format?: string
           id?: string
@@ -568,6 +571,7 @@ export type Database = {
           author_id: string | null
           created_at: string
           description: string | null
+          end_date: string | null
           event_date: string
           event_time: string | null
           event_type: string
@@ -581,6 +585,7 @@ export type Database = {
           author_id?: string | null
           created_at?: string
           description?: string | null
+          end_date?: string | null
           event_date: string
           event_time?: string | null
           event_type?: string
@@ -594,6 +599,7 @@ export type Database = {
           author_id?: string | null
           created_at?: string
           description?: string | null
+          end_date?: string | null
           event_date?: string
           event_time?: string | null
           event_type?: string

@@ -161,7 +161,12 @@ export default function CompetitionDetail() {
       case "registration":
         return <Users className="w-4 h-4" />;
       case "ongoing":
-        return <Play className="w-4 h-4" />;
+        return (
+          <span className="relative flex h-2 w-2 mr-1">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+          </span>
+        );
       case "completed":
         return <CheckCircle className="w-4 h-4" />;
       default:
@@ -282,7 +287,11 @@ export default function CompetitionDetail() {
                   <Users className="w-4 h-4" />
                   <span className="text-xs font-medium">Tipe</span>
                 </div>
-                <p className="font-semibold">{MATCH_TYPE_LABELS[competition.match_type]}</p>
+                <p className="font-semibold">
+                  {competition.match_type === "custom" && competition.custom_match_label
+                    ? competition.custom_match_label
+                    : MATCH_TYPE_LABELS[competition.match_type]}
+                </p>
               </div>
               <div className="bg-background/80 backdrop-blur rounded-lg p-4 border">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">

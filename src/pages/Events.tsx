@@ -98,6 +98,7 @@ export default function Events() {
       description: form.description,
       location: form.location,
       event_date: form.eventDate.toISOString(),
+      end_date: form.endDate ? form.endDate.toISOString() : null,
       event_time: form.eventTime || null,
       image_url: imageUrl,
       event_type: form.eventType,

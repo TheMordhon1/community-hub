@@ -58,6 +58,7 @@ export function CreateCompetitionDialog({
   const [sportName, setSportName] = useState("");
   const [format, setFormat] = useState<CompetitionFormat>("knockout");
   const [matchType, setMatchType] = useState<MatchType>("1v1");
+  const [customMatchLabel, setCustomMatchLabel] = useState("");
   const [participantType, setParticipantType] = useState<ParticipantType>("user");
   const [rules, setRules] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
@@ -87,8 +88,9 @@ export function CreateCompetitionDialog({
     setSportName("");
     setFormat("knockout");
     setMatchType("1v1");
+    setCustomMatchLabel("");
     setParticipantType("user");
-    setRules(FORMAT_DESCRIPTIONS["knockout"]); // Default description for knockout
+    setRules(FORMAT_DESCRIPTIONS["knockout"]);
     setMaxParticipants("");
     setSelectedEventId(eventId);
   }, [eventId]);
@@ -98,6 +100,7 @@ export function CreateCompetitionDialog({
       setSportName(editingCompetition.sport_name);
       setFormat(editingCompetition.format);
       setMatchType(editingCompetition.match_type);
+      setCustomMatchLabel(editingCompetition.custom_match_label || "");
       setParticipantType(editingCompetition.participant_type);
       setRules(editingCompetition.rules || "");
       setMaxParticipants(editingCompetition.max_participants?.toString() || "");
@@ -128,6 +131,7 @@ export function CreateCompetitionDialog({
       sport_name: sportName,
       format,
       match_type: matchType,
+      custom_match_label: matchType === "custom" ? (customMatchLabel || null) : null,
       participant_type: participantType,
       rules: rules || undefined,
       max_participants: maxParticipants ? parseInt(maxParticipants) : undefined,
@@ -252,6 +256,14 @@ export function CreateCompetitionDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {matchType === "custom" && (
+                <Input
+                  value={customMatchLabel}
+                  onChange={(e) => setCustomMatchLabel(e.target.value)}
+                  placeholder="contoh: 2 vs 3, 5 pemain, dll"
+                  className="mt-2"
+                />
+              )}
             </div>
           </div>
 
