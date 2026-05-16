@@ -324,9 +324,10 @@ export default function EventDetail() {
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="w-4 h-4 text-primary" />
                   <span>
-                    {format(new Date(event.event_date), "EEEE, dd MMMM yyyy", {
-                      locale: idLocale,
-                    })}
+                    {format(new Date(event.event_date), "EEEE, dd MMMM yyyy", { locale: idLocale })}
+                    {event.end_date && new Date(event.end_date).toDateString() !== new Date(event.event_date).toDateString() && (
+                      <> – {format(new Date(event.end_date), "EEEE, dd MMMM yyyy", { locale: idLocale })}</>
+                    )}
                   </span>
                 </div>
                 {event.event_time && (
