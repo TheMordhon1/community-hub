@@ -282,7 +282,11 @@ export default function CompetitionDetail() {
                   <Users className="w-4 h-4" />
                   <span className="text-xs font-medium">Tipe</span>
                 </div>
-                <p className="font-semibold">{MATCH_TYPE_LABELS[competition.match_type]}</p>
+                <p className="font-semibold">
+                  {competition.match_type === "custom" && competition.custom_match_label
+                    ? competition.custom_match_label
+                    : MATCH_TYPE_LABELS[competition.match_type]}
+                </p>
               </div>
               <div className="bg-background/80 backdrop-blur rounded-lg p-4 border">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
