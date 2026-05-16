@@ -256,6 +256,14 @@ export function CreateCompetitionDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {matchType === "custom" && (
+                <Input
+                  value={customMatchLabel}
+                  onChange={(e) => setCustomMatchLabel(e.target.value)}
+                  placeholder="contoh: 2 vs 3, 5 pemain, dll"
+                  className="mt-2"
+                />
+              )}
             </div>
           </div>
 
