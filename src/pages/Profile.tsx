@@ -38,6 +38,8 @@ import {
   Camera,
   Store,
   ExternalLink,
+  Trophy,
+  Gift,
 } from "lucide-react";
 import {
   Popover,
@@ -94,10 +96,14 @@ const houseStatusSchema = z.object({
 type ProfileForm = z.infer<typeof profileSchema>;
 type HouseStatusForm = z.infer<typeof houseStatusSchema>;
 
+import { useAwardPoints, useMyRedemptions } from "@/hooks/useGamification";
+
 export default function Profile() {
   const { profile, role, pengurusTitle, user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const awardPoints = useAwardPoints();
+  const { data: myRedemptions } = useMyRedemptions(user?.id);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -268,6 +274,9 @@ export default function Profile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["house-members"] });
       toast({ title: "Berhasil", description: "Anggota keluarga berhasil ditambahkan" });
+      if (user?.id) {
+        awardPoints.mutate({ user_id: user.id, action_key: "family_member_add" });
+      }
       setIsAddingMember(false);
       setNewMemberName("");
       setNewMemberType("");
@@ -380,6 +389,9 @@ export default function Profile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["house-members"] });
       queryClient.invalidateQueries({ queryKey: ["incoming-requests"] });
+      if (user?.id) {
+        awardPoints.mutate({ user_id: user.id, action_key: "house_data" });
+      }
       toast({ title: "Berhasil Setujui", description: "Anggota baru telah disetujui." });
     },
     onError: (err: Error) => {
@@ -492,6 +504,9 @@ export default function Profile() {
       });
 
       setIsEditing(false);
+      if (user?.id) {
+        awardPoints.mutate({ user_id: user.id, action_key: "profile_update" });
+      }
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       queryClient.invalidateQueries({ queryKey: ["user-house"] });
       queryClient.invalidateQueries({ queryKey: ["house-members"] });
@@ -538,6 +553,9 @@ export default function Profile() {
     });
 
     setIsEditingHouse(false);
+    if (user?.id) {
+      awardPoints.mutate({ user_id: user.id, action_key: "house_data" });
+    }
     queryClient.invalidateQueries({ queryKey: ["user-house"] });
   };
 
@@ -662,6 +680,10 @@ export default function Profile() {
         title: "Foto berhasil diperbarui",
         description: "Foto profil Anda telah diperbarui",
       });
+
+      if (user?.id) {
+        awardPoints.mutate({ user_id: user.id, action_key: "profile_update" });
+      }
 
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       window.location.reload();
@@ -989,12 +1011,21 @@ export default function Profile() {
                   </form>
                 ) : (
                   <div className="flex-1">
-                    <h2 className="text-lg font-medium">
-                      {profile?.full_name ?? "-"}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      {getRoleDisplay()}
-                    </p>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-bold font-display">
+                          {profile?.full_name ?? "-"}
+                        </h2>
+                        <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 gap-1.5 px-3 py-1">
+                          <Trophy className="w-3.5 h-3.5 fill-current" />
+                          <span className="font-bold">{(profile)?.points || 0}</span>
+                          <span className="text-[10px] font-medium uppercase opacity-70">Poin</span>
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {getRoleDisplay()}
+                      </p>
+                    </div>
 
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
@@ -1248,12 +1279,85 @@ export default function Profile() {
           </DialogContent>
         </Dialog>
 
-        {/* Toko Saya Section */}
+        {/* Hadiah Saya Section */}
+        {myRedemptions && myRedemptions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.26 }}
+            className="space-y-4"
+          >
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
+                <Gift className="w-5 h-5 text-primary" />
+                Hadiah Saya
+              </h3>
+              <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-bold">
+                {myRedemptions.length} Hadiah
+              </Badge>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {myRedemptions.map((redemption) => (
+                <Card key={redemption.id} className="overflow-hidden border-slate-100 hover:shadow-lg transition-all duration-300 rounded-3xl group">
+                  <CardContent className="p-0">
+                    <div className="p-5 space-y-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none">
+                            {format(new Date(redemption.created_at), "d MMM yyyy", { locale: idLocale })}
+                          </p>
+                          <h4 className="font-black text-slate-800 text-base leading-tight group-hover:text-primary transition-colors">
+                            {redemption.reward_item?.name}
+                          </h4>
+                        </div>
+                        <Badge 
+                          variant="secondary" 
+                          className={cn(
+                            "font-bold text-[10px] uppercase tracking-tighter px-2 py-0.5 rounded-lg",
+                            redemption.status === 'pending' && "bg-amber-50 text-amber-600 border-amber-100",
+                            redemption.status === 'approved' && "bg-emerald-50 text-emerald-600 border-emerald-100",
+                            redemption.status === 'completed' && "bg-blue-50 text-blue-600 border-blue-100",
+                            redemption.status === 'rejected' && "bg-rose-50 text-rose-600 border-rose-100"
+                          )}
+                        >
+                          {redemption.status === 'pending' && "Menunggu"}
+                          {redemption.status === 'approved' && "Siap Digunakan"}
+                          {redemption.status === 'completed' && "Sudah Digunakan"}
+                          {redemption.status === 'rejected' && "Ditolak"}
+                        </Badge>
+                      </div>
+
+                      {redemption.status === 'approved' && redemption.redeem_code && (
+                        <div className="bg-emerald-50/50 border-2 border-dashed border-emerald-200 rounded-2xl p-4 space-y-3 relative overflow-hidden group-hover:bg-emerald-50 transition-colors">
+                          <div className="flex items-center justify-between gap-4 relative z-10">
+                            <div>
+                              <p className="text-[9px] font-black uppercase text-emerald-600 tracking-widest leading-none mb-1.5">Kode Penukaran</p>
+                              <p className="font-mono font-black text-emerald-700 text-xl tracking-[0.2em]">{redemption.redeem_code}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[9px] font-black uppercase text-emerald-600 tracking-widest leading-none mb-1.5">Penggunaan</p>
+                              <p className="text-sm font-black text-emerald-800">{redemption.usage_count} / {redemption.usage_limit}</p>
+                            </div>
+                          </div>
+                          <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-700">
+                            <Trophy className="w-24 h-24 text-emerald-600" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
         {userHouse?.house_id && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
+            transition={{ delay: 0.28 }}
           >
             <ProfileStoreCard houseId={userHouse.house_id} userId={user?.id || ""} />
           </motion.div>

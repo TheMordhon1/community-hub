@@ -59,6 +59,7 @@ export interface Profile {
   email: string;
   phone: string | null;
   avatar_url: string | null;
+  points?: number;
   created_at: string;
   updated_at: string;
 }
@@ -133,6 +134,7 @@ export interface Event {
   image_url: string | null;
   author_id: string | null;
   event_type: EventType;
+  status: 'draft' | 'public';
   created_at: string;
   updated_at: string;
 }

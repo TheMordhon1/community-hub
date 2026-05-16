@@ -16,12 +16,15 @@ interface PollsWithVotes extends Poll {
    remainingChanges?: number;
 }
 
+import { useAwardPoints } from "@/hooks/useGamification";
+
 export default function PollsDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, canManageContent } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const awardPoints = useAwardPoints();
 
   const {
     data: poll,
@@ -95,6 +98,9 @@ export default function PollsDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["polls"] });
+      if (user?.id) {
+        awardPoints.mutate({ user_id: user.id, action_key: "poll_vote" });
+      }
       toast({ title: "Berhasil", description: "Suara Anda berhasil dicatat" });
       refetch();
     },

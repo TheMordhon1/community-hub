@@ -32,6 +32,7 @@ import { differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Tables } from "@/integrations/supabase/types";
 import { StoreStatusBadge } from "@/components/stores/StoreStatusBadge";
+import { useMyVouchers, useMarkVoucherUsed, PointRedemption } from "@/hooks/useGamification";
 
 type CatalogItem = Tables<"store_catalog_items">;
 
@@ -44,6 +45,10 @@ export default function StoreDetail() {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [showCart, setShowCart] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedVoucher, setSelectedVoucher] = useState<PointRedemption | null>(null);
+
+  const { data: myVouchers } = useMyVouchers(profile?.id);
+  const markVoucherUsedMutation = useMarkVoucherUsed();
 
   const { data: store, isLoading } = useQuery({
     queryKey: ["store", id],
@@ -171,6 +176,22 @@ export default function StoreDetail() {
 
   const waLink = `https://wa.me/${store?.wa_number?.replace(/[^0-9]/g, "").replace(/^0/, "62")}`;
   
+  const cartTotalItems = Object.values(cart).reduce((a, b) => a + b, 0);
+  const cartTotalPrice = catalogItems.reduce((sum, item) => sum + (Number(item.price || 0) * (cart[item.id] || 0)), 0);
+  
+  // Try to extract discount from voucher name (e.g., "Voucher Rp 50.000")
+  const getVoucherDiscount = (voucher: PointRedemption | null) => {
+    if (!voucher || !voucher.reward_item) return 0;
+    const match = voucher.reward_item.name.match(/Rp\s*([\d.]+)/);
+    if (match) {
+      return parseInt(match[1].replace(/\./g, "")) || 0;
+    }
+    return 0;
+  };
+
+  const discount = getVoucherDiscount(selectedVoucher);
+  const finalPrice = Math.max(0, cartTotalPrice - discount);
+
   const handleCheckout = () => {
     if (!store || !profile) return;
     
@@ -179,9 +200,13 @@ export default function StoreDetail() {
       .map(item => `- ${item.name} (${cart[item.id]}x)`)
       .join("\n");
       
-    const totalHarga = catalogItems
-      .filter(item => cart[item.id] > 0)
-      .reduce((sum, item) => sum + (Number(item.price || 0) * cart[item.id]), 0);
+    let voucherText = "";
+    if (selectedVoucher) {
+      voucherText = `\n\nVoucher digunakan: ${selectedVoucher.reward_item?.name}`;
+      if (discount > 0) {
+        voucherText += ` (Diskon: Rp ${discount.toLocaleString("id-ID")})`;
+      }
+    }
 
     const template = store.order_template || "Halo {nama_toko}, saya {nama_pembeli} dari rumah {no_rumah}. Saya ingin memesan:\n{daftar_pesanan}\n\nTotal: {total_harga}\nTerima kasih!";
     
@@ -190,7 +215,15 @@ export default function StoreDetail() {
       .replace("{nama_pembeli}", profile.full_name || "Pelanggan")
       .replace("{no_rumah}", userHouseInfo ? `Blok ${userHouseInfo.block} No. ${userHouseInfo.number}` : "-")
       .replace("{daftar_pesanan}", orderList)
-      .replace("{total_harga}", `Rp ${totalHarga.toLocaleString("id-ID")}`);
+      .replace("{total_harga}", `Rp ${finalPrice.toLocaleString("id-ID")}${voucherText}`);
+
+    // Mark voucher as used before opening WA
+    if (selectedVoucher && id) {
+      markVoucherUsedMutation.mutate({ 
+        redemptionId: selectedVoucher.id, 
+        storeId: id 
+      });
+    }
 
     window.open(`${waLink}?text=${encodeURIComponent(message)}`, "_blank");
   };
@@ -208,8 +241,6 @@ export default function StoreDetail() {
     });
   };
 
-  const cartTotalItems = Object.values(cart).reduce((a, b) => a + b, 0);
-  const cartTotalPrice = catalogItems.reduce((sum, item) => sum + (Number(item.price || 0) * (cart[item.id] || 0)), 0);
 
   if (!store || isLoading) return <div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></div>;
 
@@ -245,7 +276,7 @@ export default function StoreDetail() {
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <StoreStatusBadge status={store.status} isOpen={store.is_open} />
                 <Badge variant="outline" className="text-[9px] sm:text-[11px] uppercase font-bold tracking-tighter bg-slate-50 border-slate-200 py-0.5 px-1.5 sm:px-2.5">
-                  <MapPin className="w-2.5 h-2.5 sm:w-3 h-3 mr-1 text-slate-400" />Blok {store.houses?.block} No. {store.houses?.number}
+                  <MapPin className="w-2.5 h-2.5 sm:w-3 mr-1 text-slate-400" />Blok {store.houses?.block} No. {store.houses?.number}
                 </Badge>
               </div>
             </div>
@@ -738,16 +769,53 @@ export default function StoreDetail() {
               </div>
 
               <div className="p-6 bg-white border-t border-slate-100 space-y-4 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)] shrink-0">
-                <div className="space-y-2">
+                <div className="space-y-4">
                   <div className="flex justify-between items-center text-slate-500 font-bold text-sm px-1">
                     <span>Total Barang</span>
                     <span>{cartTotalItems} item</span>
                   </div>
-                  <div className="flex justify-between items-end px-1">
+                  
+                  {myVouchers && myVouchers.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-slate-50">
+                      <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1">Voucher Tersedia</p>
+                      <div className="flex flex-col gap-2">
+                        {myVouchers.map((v) => (
+                          <div 
+                            key={v.id}
+                            className={cn(
+                              "flex items-center justify-between p-3 rounded-2xl border-2 transition-all cursor-pointer",
+                              selectedVoucher?.id === v.id 
+                                ? "border-primary bg-primary/5 shadow-sm" 
+                                : "border-slate-100 bg-slate-50/50 hover:border-slate-200"
+                            )}
+                            onClick={() => setSelectedVoucher(selectedVoucher?.id === v.id ? null : v)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={cn("p-2 rounded-xl", selectedVoucher?.id === v.id ? "bg-primary text-white" : "bg-white text-slate-400")}>
+                                <Tag className="w-4 h-4" />
+                              </div>
+                              <div className="text-left">
+                                <p className="text-sm font-bold text-slate-800 leading-tight">{v.reward_item?.name}</p>
+                                <p className="text-[10px] text-slate-400 font-medium">{v.reward_item?.description}</p>
+                              </div>
+                            </div>
+                            {selectedVoucher?.id === v.id && <CheckCircle className="w-5 h-5 text-primary" />}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-end px-1 pt-2 border-t border-slate-50">
                     <span className="text-slate-800 font-black text-lg">Total Pembayaran</span>
-                    <span className="text-3xl font-black text-emerald-600 tracking-tighter">
-                      Rp {cartTotalPrice.toLocaleString("id-ID")}
-                    </span>
+                    <div className="text-right">
+                      {selectedVoucher && (
+                        <p className="text-xs font-bold text-slate-400 line-through">Rp {cartTotalPrice.toLocaleString("id-ID")}</p>
+                      )}
+                      <span className="text-3xl font-black text-emerald-600 tracking-tighter">
+                        Rp {finalPrice.toLocaleString("id-ID")}
+                      </span>
+                    </div>
                   </div>
                 </div>
 

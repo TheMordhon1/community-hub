@@ -101,6 +101,7 @@ export default function Events() {
       event_time: form.eventTime || null,
       image_url: imageUrl,
       event_type: form.eventType,
+      status: form.status,
     };
 
     setIsUploading(false);

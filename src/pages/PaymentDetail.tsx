@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAwardPoints } from "@/hooks/useGamification";
 import {
   Card,
   CardContent,
@@ -86,6 +87,7 @@ export default function PaymentDetail() {
   const { id } = useParams();
   const { user, isAdmin, hasFinanceAccess } = useAuth();
   const queryClient = useQueryClient();
+  const awardPoints = useAwardPoints();
   const [isShareOpen, setIsShareOpen] = useState(false);
 
   const canVerify = isAdmin() || hasFinanceAccess;
@@ -160,6 +162,9 @@ export default function PaymentDetail() {
       }
     },
     onSuccess: (_, approved) => {
+      if (approved && payment?.submitted_by) {
+        awardPoints.mutate({ user_id: payment.submitted_by, action_key: "monthly_payment" });
+      }
       toast.success(
         approved ? "Pembayaran diverifikasi" : "Pembayaran ditolak"
       );

@@ -14,6 +14,7 @@ export interface EventFormData {
   eventType: EventType;
   imageFile: File | null;
   imagePreview: string | null;
+  status: "draft" | "public";
 }
 
 export function useEventMutations() {
@@ -44,6 +45,7 @@ export function useEventMutations() {
       event_time: string | null;
       image_url: string | null;
       event_type: EventType;
+      status?: "draft" | "public";
     }) => {
       const { error } = await supabase.from("events").insert({ ...data, author_id: user?.id });
       if (error) throw error;
@@ -68,6 +70,7 @@ export function useEventMutations() {
       event_time: string | null;
       image_url: string | null;
       event_type: EventType;
+      status?: "draft" | "public";
     }) => {
       const { id, ...rest } = data;
       const { error } = await supabase.from("events").update(rest).eq("id", id);
@@ -125,6 +128,7 @@ export function useEventForm() {
   const [eventType, setEventType] = useState<EventType>("regular");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [status, setStatus] = useState<"draft" | "public">("public");
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -138,6 +142,7 @@ export function useEventForm() {
     setEventType("regular");
     setImageFile(null);
     setImagePreview(null);
+    setStatus("public");
   };
 
   const populateForm = (event: Event) => {
@@ -150,6 +155,7 @@ export function useEventForm() {
     setEventType(event.event_type || "regular");
     setImagePreview(event.image_url || null);
     setImageFile(null);
+    setStatus(event.status || "public");
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -179,6 +185,7 @@ export function useEventForm() {
     imageFile,
     imagePreview,
     isUploading, setIsUploading,
+    status, setStatus,
     fileInputRef,
     resetForm,
     populateForm,

@@ -135,6 +135,9 @@ export function EventCard({
                 {!isOngoing && isToday(start) && !isPast && (
                   <Badge variant="default">Hari ini</Badge>
                 )}
+                {event.status === "draft" && (
+                  <Badge variant="outline" className="border-amber-500 text-amber-600 bg-amber-50">Draft</Badge>
+                )}
               </div>
             </div>
 

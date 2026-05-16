@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { User, LogOut, Database } from "lucide-react";
+import { User, LogOut, Database, Trophy } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, PENGURUS_TITLE_LABELS } from "@/types/database";
 import {
@@ -143,20 +143,22 @@ export function AppSidebar() {
                   {pengurusLoading ? (
                     <MenuSkeleton count={2} />
                   ) : (
-                    pengurusMenus?.map((item) => (
-                      <SidebarMenuItem key={item.id}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive(item.url)}
-                          onClick={closeSidebarOnMobile}
-                        >
-                          <Link to={item.url}>
-                            <DynamicIcon name={item.icon} className="w-4 h-4" />
-                            <span>{item.title}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))
+                    <>
+                      {pengurusMenus?.map((item) => (
+                        <SidebarMenuItem key={item.id}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={isActive(item.url)}
+                            onClick={closeSidebarOnMobile}
+                          >
+                            <Link to={item.url}>
+                              <DynamicIcon name={item.icon} className="w-4 h-4" />
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </>
                   )}
                 </SidebarMenu>
               </SidebarGroupContent>
@@ -191,6 +193,7 @@ export function AppSidebar() {
                       </SidebarMenuItem>
                     ))
                   )}
+
                   {/* Hardcoded Maintenance Link for Admin */}
                   <SidebarMenuItem>
                     <SidebarMenuButton

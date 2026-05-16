@@ -10,6 +10,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { HouseIcon } from "@/pages/Map";
 import { StreetsLayer } from "@/components/map/StreetsLayer";
+import { useAwardPoints } from "@/hooks/useGamification";
+import { useAuth } from "@/hooks/useAuth";
 
 // Fix default marker icons (vite/leaflet bundling issue)
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
@@ -50,6 +52,8 @@ function Recenter({ center }: { center: [number, number] }) {
 }
 
 export function HouseLocationPicker({ houseId, initialLocation, houseLabel }: Props) {
+  const { profile } = useAuth();
+  const awardPoints = useAwardPoints();
   const queryClient = useQueryClient();
   const [point, setPoint] = useState<[number, number] | null>(
     initialLocation ? [initialLocation.coordinates[1], initialLocation.coordinates[0]] : null
@@ -70,6 +74,9 @@ export function HouseLocationPicker({ houseId, initialLocation, houseLabel }: Pr
     },
     onSuccess: () => {
       toast.success("Lokasi rumah berhasil disimpan");
+      if (profile?.id) {
+        awardPoints.mutate({ user_id: profile.id, action_key: "house_location_update" });
+      }
       queryClient.invalidateQueries({ queryKey: ["user-house"] });
       queryClient.invalidateQueries({ queryKey: ["map-houses"] });
     },

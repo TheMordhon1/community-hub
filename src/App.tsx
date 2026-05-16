@@ -42,6 +42,8 @@ import MapPage from "@/pages/Map";
 import Contacts from "./pages/Contacts";
 import RAB from "./pages/RAB";
 import AnnouncementCategoriesAdmin from "./pages/admin/AnnouncementCategories";
+import GamificationSettings from "./pages/GamificationSettings";
+import RedeemPoints from "./pages/RedeemPoints";
 
 const queryClient = new QueryClient();
 
@@ -118,6 +120,8 @@ function AppRoutes() {
           <Route path="/rab" element={<RAB />} />
           <Route path="/rab/:id" element={<RAB />} />
           <Route path="/admin/announcement-categories" element={<AnnouncementCategoriesAdmin />} />
+          <Route path="/gamification" element={<GamificationSettings />} />
+          <Route path="/redeem-points" element={<RedeemPoints />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFound />} />

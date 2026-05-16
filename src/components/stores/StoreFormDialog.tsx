@@ -14,6 +14,7 @@ import { Loader2, Image as ImageIcon, X, Globe, Plus, Tag } from "lucide-react";
 import { useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import { useAwardPoints } from "@/hooks/useGamification";
 
 interface Props {
   open: boolean;
@@ -46,6 +47,7 @@ const CATEGORIES = [
 
 export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", initialData }: Props) {
   const { profile } = useAuth();
+  const awardPoints = useAwardPoints();
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [waNumber, setWaNumber] = useState("");
@@ -126,6 +128,9 @@ export function StoreFormDialog({ open, onOpenChange, houseId, mode = "create", 
     },
     onSuccess: () => {
       toast.success(mode === "create" ? "Toko berhasil ditambahkan. Menunggu verifikasi pengurus." : "Perubahan berhasil disimpan.");
+      if (mode === "create" && profile?.id) {
+        awardPoints.mutate({ user_id: profile.id, action_key: "store_creation" });
+      }
       queryClient.invalidateQueries({ queryKey: ["stores"] });
       queryClient.invalidateQueries({ queryKey: ["store", initialData?.id] });
       queryClient.invalidateQueries({ queryKey: ["my-stores"] });

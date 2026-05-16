@@ -332,8 +332,8 @@ export function LiveScoreDialog({
                   <h3 className="font-bold text-base sm:text-lg text-center h-auto xs:h-12 flex items-center justify-center line-clamp-2 leading-tight mb-2 xs:mb-0">
                     {match.team1?.name || "TBD"}
                   </h3>
-                  <div className="bg-muted w-20 h-20 xs:w-full xs:aspect-square xs:max-w-[140px] rounded-2xl xs:rounded-3xl flex items-center justify-center relative overflow-hidden border-2 border-transparent transition-all duration-500">
-                    <span className="text-3xl xs:text-5xl sm:text-7xl font-black tracking-tighter z-10">{score1}</span>
+                  <div className="bg-muted w-20 h-20 md:w-full md:aspect-square md:max-w-[140px] md:h-full rounded-2xl md:rounded-3xl flex items-center justify-center relative overflow-hidden border-2 border-transparent transition-all duration-500">
+                    <span className="text-3xl xs:text-5xl md:text-7xl font-black tracking-tighter z-10">{score1}</span>
                     {score1 > score2 && (
                       <div className="absolute inset-0 bg-primary/10 animate-pulse"></div>
                     )}
@@ -367,8 +367,8 @@ export function LiveScoreDialog({
                   <h3 className="font-bold text-base sm:text-lg text-center h-auto xs:h-12 flex items-center justify-center line-clamp-2 leading-tight mb-2 xs:mb-0">
                     {match.team2?.name || "TBD"}
                   </h3>
-                  <div className="bg-muted w-20 h-20 xs:w-full xs:aspect-square xs:max-w-[140px] rounded-2xl xs:rounded-3xl flex items-center justify-center relative overflow-hidden border-2 border-transparent transition-all duration-500">
-                    <span className="text-3xl xs:text-5xl sm:text-7xl font-black tracking-tighter z-10">{score2}</span>
+                  <div className="bg-muted w-20 h-20 md:w-full md:aspect-square md:max-w-[140px] md:h-full rounded-2xl md:rounded-3xl flex items-center justify-center relative overflow-hidden border-2 border-transparent transition-all duration-500">
+                    <span className="text-3xl xs:text-5xl md:text-7xl font-black tracking-tighter z-10">{score2}</span>
                     {score2 > score1 && (
                       <div className="absolute inset-0 bg-primary/10 animate-pulse"></div>
                     )}

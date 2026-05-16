@@ -39,6 +39,7 @@ export function EventFormDialog({
     eventTime, setEventTime,
     eventType, setEventType,
     imagePreview,
+    status, setStatus,
     fileInputRef,
     handleImageChange,
     removeImage,
@@ -173,6 +174,24 @@ export function EventFormDialog({
                 <ImagePlus className="w-6 h-6 mr-2" /> Tambah Gambar
               </Button>
             )}
+          </div>
+
+          {/* Status */}
+          <div className="space-y-2">
+            <Label>Status Visibilitas</Label>
+            <div className="flex gap-3">
+              {(["draft", "public"] as const).map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  variant={status === s ? "default" : "outline"}
+                  className="flex-1 capitalize"
+                  onClick={() => setStatus(s)}
+                >
+                  {s === "draft" ? "Draft (Hanya Pengurus)" : "Publik (Semua Warga)"}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 
