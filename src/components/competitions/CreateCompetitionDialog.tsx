@@ -58,6 +58,7 @@ export function CreateCompetitionDialog({
   const [sportName, setSportName] = useState("");
   const [format, setFormat] = useState<CompetitionFormat>("knockout");
   const [matchType, setMatchType] = useState<MatchType>("1v1");
+  const [customMatchLabel, setCustomMatchLabel] = useState("");
   const [participantType, setParticipantType] = useState<ParticipantType>("user");
   const [rules, setRules] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
@@ -87,8 +88,9 @@ export function CreateCompetitionDialog({
     setSportName("");
     setFormat("knockout");
     setMatchType("1v1");
+    setCustomMatchLabel("");
     setParticipantType("user");
-    setRules(FORMAT_DESCRIPTIONS["knockout"]); // Default description for knockout
+    setRules(FORMAT_DESCRIPTIONS["knockout"]);
     setMaxParticipants("");
     setSelectedEventId(eventId);
   }, [eventId]);
@@ -98,6 +100,7 @@ export function CreateCompetitionDialog({
       setSportName(editingCompetition.sport_name);
       setFormat(editingCompetition.format);
       setMatchType(editingCompetition.match_type);
+      setCustomMatchLabel(editingCompetition.custom_match_label || "");
       setParticipantType(editingCompetition.participant_type);
       setRules(editingCompetition.rules || "");
       setMaxParticipants(editingCompetition.max_participants?.toString() || "");
