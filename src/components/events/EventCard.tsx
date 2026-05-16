@@ -48,6 +48,12 @@ export function EventCard({
   const isAttending = rsvps.some((r) => r.event_id === event.id && r.user_id === userId);
   const attendeeCount = rsvps.filter((r) => r.event_id === event.id && r.status === "attending").length;
 
+  const start = new Date(event.event_date);
+  const end = event.end_date ? new Date(event.end_date) : null;
+  const now = new Date();
+  const isOngoing = !isPast && now >= startOfDay(start) && (end ? now <= endOfDay(end) : isToday(start));
+  const hasRange = end && !isSameDay(start, end);
+
   return (
     <motion.div
       key={event.id}
@@ -58,10 +64,16 @@ export function EventCard({
       <Link to={`/events/${event.id}`}>
         <Card
           className={cn(
-            "overflow-hidden hover:shadow-lg transition-all cursor-pointer group h-full flex flex-col",
+            "overflow-hidden hover:shadow-lg transition-all cursor-pointer group h-full flex flex-col relative",
             isPast && "opacity-60"
           )}
         >
+          {isOngoing && (
+            <span className="absolute top-3 right-3 z-10 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-success" />
+            </span>
+          )}
           {/* Image / Date Header */}
           {event.image_url ? (
             <div className="relative w-full h-60 shrink-0 overflow-hidden">
@@ -73,20 +85,20 @@ export function EventCard({
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent md:bg-gradient-to-r" />
               <div className="absolute bottom-2 left-2 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:left-1/2 md:-translate-x-1/2 text-center">
                 <span className="text-2xl font-bold text-white drop-shadow-lg">
-                  {format(new Date(event.event_date), "d")}
+                  {format(start, "d")}{hasRange && `–${format(end!, "d")}`}
                 </span>
                 <span className="block text-xs text-white uppercase drop-shadow-lg">
-                  {format(new Date(event.event_date), "MMMM", { locale: idLocale })}
+                  {format(start, "MMMM", { locale: idLocale })}
                 </span>
               </div>
             </div>
           ) : (
             <div className="w-full h-60 bg-primary/10 flex flex-col items-center justify-center p-3 text-center shrink-0">
               <span className="text-2xl font-bold text-primary">
-                {format(new Date(event.event_date), "d")}
+                {format(start, "d")}{hasRange && `–${format(end!, "d")}`}
               </span>
               <span className="text-xs text-primary uppercase">
-                {format(new Date(event.event_date), "MMMM", { locale: idLocale })}
+                {format(start, "MMMM", { locale: idLocale })}
               </span>
             </div>
           )}
@@ -102,7 +114,8 @@ export function EventCard({
                   </Badge>
                 )}
                 {isPast && <Badge variant="secondary">Selesai</Badge>}
-                {isToday(new Date(event.event_date)) && !isPast && (
+                {isOngoing && <Badge variant="default" className="bg-success hover:bg-success">Berlangsung</Badge>}
+                {!isOngoing && isToday(start) && !isPast && (
                   <Badge variant="default">Hari ini</Badge>
                 )}
               </div>
