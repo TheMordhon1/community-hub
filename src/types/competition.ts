@@ -1,6 +1,6 @@
-import type { Profile, House } from './database';
+import type { Profile, House, Event } from './database';
 
-export type CompetitionFormat = 'knockout' | 'round_robin' | 'league' | 'swiss' | 'custom';
+export type CompetitionFormat = 'knockout' | 'round_robin' | 'league' | 'swiss' | '17an' | 'custom';
 export type MatchType = '1v1' | '2v2' | '3v3' | '5v5' | '11v11' | 'custom';
 export type ParticipantType = 'user' | 'house' | 'team';
 export type CompetitionStatus = 'registration' | 'ongoing' | 'completed' | 'cancelled';
@@ -43,6 +43,17 @@ export interface CompetitionTeamMember {
   profile?: Profile;
 }
 
+export interface CompetitionMatchParticipant {
+  id: string;
+  match_id: string;
+  team_id: string;
+  score: string | null;
+  is_winner: boolean;
+  winner_rank: number | null;
+  created_at: string;
+  team?: CompetitionTeam;
+}
+
 export interface CompetitionMatch {
   id: string;
   competition_id: string;
@@ -59,6 +70,7 @@ export interface CompetitionMatch {
   location: string | null;
   notes: string | null;
   next_match_id: string | null;
+  phase_label: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -80,12 +92,14 @@ export interface CompetitionMatchWithTeams extends CompetitionMatch {
   team1?: CompetitionTeam;
   team2?: CompetitionTeam;
   winner?: CompetitionTeam;
+  participants?: CompetitionMatchParticipant[];
 }
 
 export interface EventCompetitionWithDetails extends EventCompetition {
   teams?: CompetitionTeamWithMembers[];
   matches?: CompetitionMatchWithTeams[];
   referees?: CompetitionReferee[];
+  events?: Event;
 }
 
 // Labels for UI display
@@ -94,6 +108,7 @@ export const FORMAT_LABELS: Record<CompetitionFormat, string> = {
   round_robin: 'Round Robin',
   league: 'Liga',
   swiss: 'Swiss System',
+  '17an': 'Lomba 17an',
   custom: 'Custom',
 };
 

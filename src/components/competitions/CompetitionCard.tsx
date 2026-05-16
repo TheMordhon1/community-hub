@@ -84,8 +84,14 @@ export function CompetitionCard({
             </div>
             <Badge
               variant={getStatusVariant(competition.status)}
-              className="shrink-0"
+              className={`shrink-0 ${competition.status === 'ongoing' ? 'pl-5 relative' : ''}`}
             >
+              {competition.status === 'ongoing' && (
+                <span className="absolute left-1.5 top-1/2 -translate-y-1/2 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                </span>
+              )}
               {STATUS_LABELS[competition.status]}
             </Badge>
           </div>

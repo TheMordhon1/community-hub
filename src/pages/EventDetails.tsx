@@ -383,8 +383,8 @@ export default function EventDetail() {
           </Card>
         </motion.div>
 
-        {/* Competitions Section - Only for competition events */}
-        {isCompetitionEvent && (hasCompetitions || canManage) && (
+        {/* Competitions Section */}
+        {(hasCompetitions || canManage) && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

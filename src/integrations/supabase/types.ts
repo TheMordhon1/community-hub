@@ -163,6 +163,9 @@ export type Database = {
           team2_id: string | null
           updated_at: string
           winner_id: string | null
+          score1_history: Json | null
+          score2_history: Json | null
+          phase_label: string | null
         }
         Insert: {
           competition_id: string
@@ -171,10 +174,10 @@ export type Database = {
           id?: string
           location?: string | null
           match_datetime?: string | null
-          match_number?: number
+          match_number: number
           next_match_id?: string | null
           notes?: string | null
-          round_number?: number
+          round_number: number
           score1?: string | null
           score2?: string | null
           status?: string
@@ -182,6 +185,9 @@ export type Database = {
           team2_id?: string | null
           updated_at?: string
           winner_id?: string | null
+          score1_history?: Json | null
+          score2_history?: Json | null
+          phase_label?: string | null
         }
         Update: {
           competition_id?: string
@@ -201,6 +207,9 @@ export type Database = {
           team2_id?: string | null
           updated_at?: string
           winner_id?: string | null
+          score1_history?: Json | null
+          score2_history?: Json | null
+          phase_label?: string | null
         }
         Relationships: [
           {
@@ -234,6 +243,51 @@ export type Database = {
           {
             foreignKeyName: "competition_matches_winner_id_fkey"
             columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "competition_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      competition_match_participants: {
+        Row: {
+          created_at: string
+          id: string
+          is_winner: boolean | null
+          match_id: string
+          score: string | null
+          team_id: string
+          winner_rank: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_winner?: boolean | null
+          match_id: string
+          score?: string | null
+          team_id: string
+          winner_rank?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_winner?: boolean | null
+          match_id?: string
+          score?: string | null
+          team_id?: string
+          winner_rank?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_match_participants_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "competition_matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_match_participants_team_id_fkey"
+            columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "competition_teams"
             referencedColumns: ["id"]

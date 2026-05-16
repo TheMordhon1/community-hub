@@ -13,6 +13,7 @@ import type {
   ParticipantType,
   CompetitionStatus,
   MatchStatus,
+  CompetitionMatchParticipant,
 } from "@/types/competition";
 import { useToast } from "@/hooks/use-toast";
 
@@ -69,7 +70,7 @@ export function useCompetitionDetails(competitionId: string | undefined) {
       // Fetch competition
       const { data: competition, error: compError } = await supabase
         .from("event_competitions")
-        .select("*")
+        .select("*, events(*)")
         .eq("id", competitionId)
         .single();
 
@@ -121,6 +122,19 @@ export function useCompetitionDetails(competitionId: string | undefined) {
         .order("match_number", { ascending: true });
 
       if (matchesError) throw matchesError;
+      
+      // Fetch match participants
+      const matchIds = matches?.map((m) => m.id) || [];
+      let matchParticipants: CompetitionMatchParticipant[] = [];
+      if (matchIds.length > 0) {
+        const { data: participantsData, error: participantsError } = await supabase
+          .from("competition_match_participants")
+          .select("*")
+          .in("match_id", matchIds);
+
+        if (participantsError) throw participantsError;
+        matchParticipants = participantsData || [];
+      }
 
       // Fetch referees
       const { data: referees, error: refError } = await supabase
@@ -157,13 +171,23 @@ export function useCompetitionDetails(competitionId: string | undefined) {
       // Map teams to matches
       const teamMap = new Map(teamsWithMembers.map((t) => [t.id, t]));
       const matchesWithTeams: CompetitionMatchWithTeams[] =
-        matches?.map((match) => ({
-          ...match,
-          status: match.status as MatchStatus,
-          team1: match.team1_id ? teamMap.get(match.team1_id) : undefined,
-          team2: match.team2_id ? teamMap.get(match.team2_id) : undefined,
-          winner: match.winner_id ? teamMap.get(match.winner_id) : undefined,
-        })) || [];
+        matches?.map((match) => {
+          const participants = matchParticipants
+            .filter((p) => p.match_id === match.id)
+            .map((p) => ({
+              ...p,
+              team: teamMap.get(p.team_id),
+            }));
+
+          return {
+            ...match,
+            status: match.status as MatchStatus,
+            team1: match.team1_id ? teamMap.get(match.team1_id) : undefined,
+            team2: match.team2_id ? teamMap.get(match.team2_id) : undefined,
+            winner: match.winner_id ? teamMap.get(match.winner_id) : undefined,
+            participants,
+          };
+        }) || [];
 
       return {
         ...competition,
@@ -441,15 +465,34 @@ export function useCreateMatch() {
       competition_id: string;
       round_number: number;
       match_number: number;
-      group_name?: string;
       team1_id?: string;
       team2_id?: string;
+      team_ids?: string[];
       match_datetime?: string;
       location?: string;
     }) => {
-      const { error } = await supabase.from("competition_matches").insert(data);
+      const { team_ids, ...matchData } = data;
+      const { data: match, error } = await supabase
+        .from("competition_matches")
+        .insert(matchData)
+        .select()
+        .single();
 
       if (error) throw error;
+
+      if (team_ids && team_ids.length > 0) {
+        const participants = team_ids.map((teamId) => ({
+          match_id: match.id,
+          team_id: teamId,
+        }));
+
+        const { error: partError } = await supabase
+          .from("competition_match_participants")
+          .insert(participants);
+
+        if (partError) throw partError;
+      }
+
       return { competition_id: data.competition_id };
     },
     onSuccess: (result) => {
@@ -484,14 +527,32 @@ export function useUpdateMatch() {
       match_datetime?: string | null;
       location?: string | null;
       notes?: string | null;
+      phase_label?: string | null;
+      participant_scores?: { id: string; score: string | null; is_winner?: boolean; winner_rank?: number | null }[];
     }) => {
-      const { id, competition_id, ...updateData } = data;
+      const { id, competition_id, participant_scores, ...updateData } = data;
       const { error } = await supabase
         .from("competition_matches")
         .update(updateData)
         .eq("id", id);
 
       if (error) throw error;
+
+      if (participant_scores && participant_scores.length > 0) {
+        for (const ps of participant_scores) {
+          const { error: partError } = await supabase
+            .from("competition_match_participants")
+            .update({
+              score: ps.score,
+              is_winner: ps.is_winner ?? false,
+              winner_rank: ps.winner_rank ?? null,
+            })
+            .eq("id", ps.id);
+          
+          if (partError) throw partError;
+        }
+      }
+
       return { competition_id };
     },
     onSuccess: async (data, variables) => {
@@ -597,6 +658,15 @@ export function useGenerateBracket() {
     }) => {
       const { competition_id, teams } = data;
 
+      // Fetch competition details to get event location and date
+      const { data: competition_details, error: detailsError } = await supabase
+        .from("event_competitions")
+        .select("*, events(*)")
+        .eq("id", competition_id)
+        .single();
+
+      if (detailsError) throw detailsError;
+
       // Sort teams by seed number
       const sortedTeams = [...teams].sort(
         (a, b) => (a.seed_number || 999) - (b.seed_number || 999),
@@ -633,6 +703,15 @@ export function useGenerateBracket() {
           
           let team1_id = null;
           let team2_id = null;
+          let match_datetime = null;
+          const location = competition_details?.events?.location || null;
+
+          if (competition_details?.events?.event_date) {
+            const dateStr = competition_details.events.event_date;
+            const datePart = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+            const timePart = competition_details.events.event_time || "08:00";
+            match_datetime = `${datePart}T${timePart}`;
+          }
 
           if (round === 1) {
             // Standard tournament seeding (1 vs 8, 4 vs 5, etc.)
@@ -654,6 +733,8 @@ export function useGenerateBracket() {
             team1_id,
             team2_id,
             status: "scheduled",
+            match_datetime,
+            location,
           });
         }
       }
@@ -685,6 +766,105 @@ export function useGenerateBracket() {
         variant: "destructive",
         title: "Gagal",
         description: error.message || "Gagal membuat bracket",
+      });
+    },
+  });
+}
+
+// Generate matches for 17an format (simple split)
+export function useGenerate17an() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: {
+      competition_id: string;
+      teams: CompetitionTeam[];
+      teams_per_match: number;
+      phase_label?: string;
+    }) => {
+      const { competition_id, teams, teams_per_match, phase_label } = data;
+
+      // Fetch competition details for default location/time
+      const { data: competition_details, error: detailsError } = await supabase
+        .from("event_competitions")
+        .select("*, events(*)")
+        .eq("id", competition_id)
+        .single();
+
+      if (detailsError) throw detailsError;
+
+      const teamCount = teams.length;
+      if (teamCount < 1) {
+        throw new Error("Minimal 1 peserta diperlukan");
+      }
+
+      const eventDateStr = competition_details?.events?.event_date;
+      const datePart = eventDateStr ? (eventDateStr.includes("T") ? eventDateStr.split("T")[0] : eventDateStr) : null;
+      const match_datetime = datePart 
+        ? `${datePart}T${competition_details.events.event_time || "08:00"}`
+        : null;
+      const location = competition_details?.events?.location || null;
+
+      // Delete existing matches first (this will cascade delete participants)
+      const { error: delError } = await supabase
+        .from("competition_matches")
+        .delete()
+        .eq("competition_id", competition_id);
+
+      if (delError) throw delError;
+
+      // Shuffle teams randomly
+      const shuffledTeams = [...teams].sort(() => Math.random() - 0.5);
+
+      // Create matches by grouping teams
+      for (let i = 0; i < shuffledTeams.length; i += teams_per_match) {
+        const groupTeams = shuffledTeams.slice(i, i + teams_per_match);
+        const matchNumber = Math.floor(i / teams_per_match) + 1;
+
+        // Insert match
+        const { data: match, error: matchError } = await supabase
+          .from("competition_matches")
+          .insert({
+            competition_id,
+            round_number: 1,
+            match_number: matchNumber,
+            status: "scheduled",
+            match_datetime,
+            location,
+            phase_label,
+          })
+          .select()
+          .single();
+
+        if (matchError) throw matchError;
+
+        // Insert participants
+        const participants = groupTeams.map((team) => ({
+          match_id: match.id,
+          team_id: team.id,
+        }));
+
+        const { error: partError } = await supabase
+          .from("competition_match_participants")
+          .insert(participants);
+
+        if (partError) throw partError;
+      }
+
+      return { competition_id };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
+      toast({ title: "Berhasil", description: "Jadwal lomba berhasil dibuat" });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: error.message || "Gagal membuat jadwal",
       });
     },
   });
@@ -742,6 +922,210 @@ export function useRemoveReferee() {
         variant: "destructive",
         title: "Gagal",
         description: "Gagal menghapus wasit",
+      });
+    },
+  });
+}
+
+// Advance winners to the next round for 17an format
+export function useAdvance17anRound() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { competition_id: string; phase_label?: string }) => {
+      const { competition_id, phase_label } = data;
+
+      // 1. Get competition details and matches
+      const { data: competition, error: compError } = await supabase
+        .from("event_competitions")
+        .select("*, competition_matches(*, competition_match_participants(*))")
+        .eq("id", competition_id)
+        .single();
+
+      if (compError) throw compError;
+
+      // 2. Find winners of the highest round
+      const matches = competition.competition_matches || [];
+      if (matches.length === 0) throw new Error("Belum ada pertandingan");
+
+      const highestRound = Math.max(...matches.map((m) => m.round_number));
+      const winners = matches
+        .filter((m) => m.round_number === highestRound)
+        .flatMap((m) => m.competition_match_participants || [])
+        .filter((p) => p.is_winner)
+        .map((p) => p.team_id);
+
+      if (winners.length === 0) {
+        throw new Error("Belum ada pemenang yang ditentukan di babak ini");
+      }
+
+      // 3. Create a new match in the next round for all winners
+      const nextRound = highestRound + 1;
+      const nextMatchNum = Math.max(...matches.filter(m => m.round_number === nextRound).map(m => m.match_number), 0) + 1;
+
+      // Use default datetime/location from event
+      const { data: eventDetails } = await supabase
+        .from("events")
+        .select("*")
+        .eq("id", competition.event_id)
+        .single();
+
+      const eventDateStr = eventDetails?.event_date;
+      const datePart = eventDateStr ? (eventDateStr.includes("T") ? eventDateStr.split("T")[0] : eventDateStr) : null;
+      const match_datetime = datePart 
+        ? `${datePart}T${eventDetails?.event_time || "08:00"}`
+        : null;
+
+      const { data: newMatch, error: matchError } = await supabase
+        .from("competition_matches")
+        .insert({
+          competition_id,
+          round_number: nextRound,
+          match_number: nextMatchNum,
+          status: "scheduled",
+          match_datetime,
+          location: eventDetails?.location || null,
+          phase_label: phase_label || `Babak ${nextRound}`,
+        })
+        .select()
+        .single();
+
+      if (matchError) throw matchError;
+
+      // 4. Link winners to the new match
+      const participants = winners.map((teamId) => ({
+        match_id: newMatch.id,
+        team_id: teamId,
+      }));
+
+      const { error: partError } = await supabase
+        .from("competition_match_participants")
+        .insert(participants);
+
+      if (partError) throw partError;
+
+      return { competition_id };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
+      toast({ title: "Berhasil", description: "Pemenang dilanjutkan ke babak berikutnya" });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: error.message,
+      });
+    },
+  });
+}
+
+// Reset a match
+export function useResetMatch() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { id: string; competition_id: string }) => {
+      // 1. Reset match status and scores
+      const { error: matchError } = await supabase
+        .from("competition_matches")
+        .update({
+          status: "scheduled",
+          score1: null,
+          score2: null,
+          winner_id: null,
+        })
+        .eq("id", data.id);
+
+      if (matchError) throw matchError;
+
+      // 2. Reset participant scores and winners
+      const { error: partError } = await supabase
+        .from("competition_match_participants")
+        .update({
+          score: null,
+          is_winner: false,
+          winner_rank: null,
+        })
+        .eq("match_id", data.id);
+
+      if (partError) throw partError;
+
+      return { competition_id: data.competition_id };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
+      toast({ title: "Berhasil", description: "Pertandingan berhasil di-reset" });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal me-reset pertandingan",
+      });
+    },
+  });
+}
+
+// Reset all matches in competition
+export function useResetAllMatches() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { competition_id: string }) => {
+      // 1. Reset all matches
+      const { error: matchError } = await supabase
+        .from("competition_matches")
+        .update({
+          status: "scheduled",
+          score1: null,
+          score2: null,
+          winner_id: null,
+        })
+        .eq("competition_id", data.competition_id);
+
+      if (matchError) throw matchError;
+
+      // 2. Get all match IDs to reset participants
+      const { data: matches } = await supabase
+        .from("competition_matches")
+        .select("id")
+        .eq("competition_id", data.competition_id);
+      
+      if (matches && matches.length > 0) {
+        const matchIds = matches.map(m => m.id);
+        const { error: partError } = await supabase
+          .from("competition_match_participants")
+          .update({
+            score: null,
+            is_winner: false,
+            winner_rank: null,
+          })
+          .in("match_id", matchIds);
+        
+        if (partError) throw partError;
+      }
+
+      return { competition_id: data.competition_id };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
+      toast({ title: "Berhasil", description: "Semua pertandingan berhasil di-reset" });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal me-reset pertandingan",
       });
     },
   });

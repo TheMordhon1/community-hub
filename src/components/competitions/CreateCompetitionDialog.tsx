@@ -46,6 +46,7 @@ const FORMAT_DESCRIPTIONS: Record<CompetitionFormat, string> = {
   round_robin: "Round Robin: Semua peserta saling bertemu satu sama lain. Pemenang ditentukan dari poin terbanyak.",
   league: "Liga: Sistem klasemen poin seperti liga sepak bola. Berjalan dalam periode waktu tertentu.",
   swiss: "Sistem Swiss: Format turnamen adil tanpa eliminasi. Peserta akan melawan lawan dengan skor yang setara di setiap ronde.",
+  "17an": "Lomba 17an: Format santai untuk lomba kemerdekaan. Mencatat peserta dan membagi grup secara sederhana jika diperlukan.",
   custom: "Format Bebas: Aturan main ditentukan sendiri oleh panitia sesuai kesepakatan.",
 };
 

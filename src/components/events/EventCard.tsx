@@ -53,6 +53,7 @@ export function EventCard({
   const now = new Date();
   const isOngoing = !isPast && now >= startOfDay(start) && (end ? now <= endOfDay(end) : isToday(start));
   const hasRange = end && !isSameDay(start, end);
+  const isDifferentMonth = end && start.getMonth() !== end.getMonth();
 
   return (
     <motion.div
@@ -84,22 +85,38 @@ export function EventCard({
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent md:bg-gradient-to-r" />
               <div className="absolute bottom-2 left-2 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:left-1/2 md:-translate-x-1/2 text-center">
-                <span className="text-2xl font-bold text-white drop-shadow-lg">
-                  {format(start, "d")}{hasRange && `–${format(end!, "d")}`}
-                </span>
-                <span className="block text-xs text-white uppercase drop-shadow-lg">
-                  {format(start, "MMMM", { locale: idLocale })}
-                </span>
+                {isDifferentMonth ? (
+                  <span className="text-lg font-bold text-white drop-shadow-lg leading-tight block px-1">
+                    {format(start, "d MMMM", { locale: idLocale })} – {format(end!, "d MMMM", { locale: idLocale })}
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-2xl font-bold text-white drop-shadow-lg">
+                      {format(start, "d")}{hasRange && `–${format(end!, "d")}`}
+                    </span>
+                    <span className="block text-xs text-white uppercase drop-shadow-lg">
+                      {format(start, "MMMM", { locale: idLocale })}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           ) : (
             <div className="w-full h-60 bg-primary/10 flex flex-col items-center justify-center p-3 text-center shrink-0">
-              <span className="text-2xl font-bold text-primary">
-                {format(start, "d")}{hasRange && `–${format(end!, "d")}`}
-              </span>
-              <span className="text-xs text-primary uppercase">
-                {format(start, "MMMM", { locale: idLocale })}
-              </span>
+              {isDifferentMonth ? (
+                <span className="text-lg font-bold text-primary leading-tight px-1">
+                  {format(start, "d MMMM", { locale: idLocale })} – {format(end!, "d MMMM", { locale: idLocale })}
+                </span>
+              ) : (
+                <>
+                  <span className="text-2xl font-bold text-primary">
+                    {format(start, "d")}{hasRange && `–${format(end!, "d")}`}
+                  </span>
+                  <span className="text-xs text-primary uppercase">
+                    {format(start, "MMMM", { locale: idLocale })}
+                  </span>
+                </>
+              )}
             </div>
           )}
 

@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trophy } from "lucide-react";
 import { useUpdateMatch } from "@/hooks/useCompetitions";
 import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, MatchStatus } from "@/types/competition";
 import { MATCH_STATUS_LABELS } from "@/types/competition";
@@ -38,10 +38,15 @@ export function UpdateMatchDialog({
 }: UpdateMatchDialogProps) {
   const [score1, setScore1] = useState("");
   const [score2, setScore2] = useState("");
+  const [participantScores, setParticipantScores] = useState<Record<string, string>>({});
+  const [participantWinners, setParticipantWinners] = useState<Record<string, boolean>>({});
+  const [participantRanks, setParticipantRanks] = useState<Record<string, number | null>>({});
   const [winnerId, setWinnerId] = useState<string>("");
   const [status, setStatus] = useState<MatchStatus>("scheduled");
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
+  const [phaseLabel, setPhaseLabel] = useState("");
+  const [matchDatetime, setMatchDatetime] = useState("");
 
   const updateMutation = useUpdateMatch();
 
@@ -53,17 +58,47 @@ export function UpdateMatchDialog({
       setStatus(match.status);
       setLocation(match.location || "");
       setNotes(match.notes || "");
+      setPhaseLabel(match.phase_label || "");
+      
+      // Handle participants
+      if (match.participants) {
+        const scores: Record<string, string> = {};
+        const winners: Record<string, boolean> = {};
+        const ranks: Record<string, number | null> = {};
+        match.participants.forEach(p => {
+          scores[p.id] = p.score || "";
+          winners[p.id] = p.is_winner || false;
+          ranks[p.id] = p.winner_rank || null;
+        });
+        setParticipantScores(scores);
+        setParticipantWinners(winners);
+        setParticipantRanks(ranks);
+      }
+
+      if (match.match_datetime) {
+        // Format for datetime-local input (YYYY-MM-DDThh:mm)
+        const date = new Date(match.match_datetime);
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        const hh = String(date.getHours()).padStart(2, '0');
+        const min = String(date.getMinutes()).padStart(2, '0');
+        setMatchDatetime(`${yyyy}-${mm}-${dd}T${hh}:${min}`);
+      } else {
+        setMatchDatetime("");
+      }
     }
   }, [match]);
 
   const handleSubmit = () => {
-    // Validate required fields
-    if (!score1 || !score2 || !winnerId) {
-      alert("Please fill in all required fields.");
-      return;
-    }
-
     if (!match) return;
+
+    const participantsData = match.participants?.map(p => ({
+      id: p.id,
+      score: participantScores[p.id] || null,
+      is_winner: participantWinners[p.id] || false,
+      winner_rank: participantRanks[p.id] || null,
+    }));
 
     updateMutation.mutate(
       {
@@ -75,6 +110,9 @@ export function UpdateMatchDialog({
         status,
         location: location || null,
         notes: notes || null,
+        phase_label: phaseLabel || null,
+        match_datetime: matchDatetime || null,
+        participant_scores: participantsData,
       },
       {
         onSuccess: () => {
@@ -96,55 +134,110 @@ export function UpdateMatchDialog({
         <DialogHeader>
           <DialogTitle>Update Pertandingan</DialogTitle>
           <DialogDescription>
-            {match.team1?.name || "TBD"} vs {match.team2?.name || "TBD"}
+            {match.participants && match.participants.length > 0 
+              ? match.participants.map(p => p.team?.name || "TBD").join(" vs ")
+              : `${match.team1?.name || "TBD"} vs ${match.team2?.name || "TBD"}`
+            }
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Scores */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{match.team1?.name || "Tim 1"}</Label>
-              <Input
-                value={score1}
-                onChange={(e) => setScore1(e.target.value)}
-                placeholder="Skor"
-                type="number" // Ensure only numbers are entered
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{match.team2?.name || "Tim 2"}</Label>
-              <Input
-                value={score2}
-                onChange={(e) => setScore2(e.target.value)}
-                placeholder="Skor"
-                type="number" // Ensure only numbers are entered
-              />
+        <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+          <div className="space-y-2">
+            <Label htmlFor="phase-label">Nama Babak (Fase)</Label>
+            <Input
+              id="phase-label"
+              value={phaseLabel}
+              onChange={(e) => setPhaseLabel(e.target.value)}
+              placeholder="Contoh: Babak 1, Final, dll."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="match-datetime">Waktu Pertandingan</Label>
+            <Input
+              id="match-datetime"
+              type="datetime-local"
+              value={matchDatetime}
+              onChange={(e) => setMatchDatetime(e.target.value)}
+            />
+          </div>
+
+          {/* Participants Scores */}
+          <div className="space-y-3">
+            <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Skor Peserta</Label>
+            <div className="grid gap-3">
+              {match.participants?.map((p) => (
+                <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                  <div className="flex-1 font-medium">{p.team?.name || "Peserta"}</div>
+                  <div className="w-24">
+                    <Input
+                      value={participantScores[p.id] || ""}
+                      onChange={(e) => setParticipantScores(prev => ({ ...prev, [p.id]: e.target.value }))}
+                      placeholder="Skor"
+                      type="number"
+                      className="text-right font-mono"
+                    />
+                  </div>
+                  <Button
+                    variant={participantWinners[p.id] ? "default" : "outline"}
+                    size="sm"
+                    className={`h-9 px-3 gap-1.5 transition-all ${participantWinners[p.id] ? 'bg-primary' : ''}`}
+                    onClick={() => setParticipantWinners(prev => ({ ...prev, [p.id]: !prev[p.id] }))}
+                  >
+                    <Trophy className={`w-3.5 h-3.5 ${participantWinners[p.id] ? 'fill-current' : ''}`} />
+                    {participantWinners[p.id] ? "Lolos" : "Pilih"}
+                  </Button>
+                </div>
+              ))}
+              
+              {(!match.participants || match.participants.length === 0) && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>{match.team1?.name || "Tim 1"}</Label>
+                    <Input
+                      value={score1}
+                      onChange={(e) => setScore1(e.target.value)}
+                      placeholder="Skor"
+                      type="number"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{match.team2?.name || "Tim 2"}</Label>
+                    <Input
+                      value={score2}
+                      onChange={(e) => setScore2(e.target.value)}
+                      placeholder="Skor"
+                      type="number"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Winner */}
-          <div className="space-y-2">
-            <Label>Pemenang</Label>
-            <Select value={winnerId} onValueChange={setWinnerId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Pilih pemenang" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>Belum ditentukan</SelectItem>
-                {match.team1_id && (
-                  <SelectItem value={match.team1_id}>
-                    {match.team1?.name || "Tim 1"}
-                  </SelectItem>
-                )}
-                {match.team2_id && (
-                  <SelectItem value={match.team2_id}>
-                    {match.team2?.name || "Tim 2"}
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Winner (Standard fallback) */}
+          {(!match.participants || match.participants.length === 0) && (
+            <div className="space-y-2">
+              <Label>Pemenang Utama</Label>
+              <Select value={winnerId} onValueChange={setWinnerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih pemenang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={null}>Belum ditentukan</SelectItem>
+                  {match.team1_id && (
+                    <SelectItem value={match.team1_id}>
+                      {match.team1?.name || "Tim 1"}
+                    </SelectItem>
+                  )}
+                  {match.team2_id && (
+                    <SelectItem value={match.team2_id}>
+                      {match.team2?.name || "Tim 2"}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Status */}
           <div className="space-y-4 rounded-lg border p-4">

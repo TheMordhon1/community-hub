@@ -5,14 +5,19 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   useCompetitionDetails,
   useGenerateBracket,
+  useGenerate17an,
   useUpdateCompetition,
   useDeleteCompetition,
+  useAdvance17anRound,
+  useResetAllMatches,
 } from "@/hooks/useCompetitions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   ArrowLeft,
   Trophy,
@@ -27,8 +32,18 @@ import {
   ShieldCheck,
   Share2,
   Edit2,
+  MoreVertical,
+  RotateCcw,
+  Plus,
   Trash2,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import {
   FORMAT_LABELS,
   MATCH_TYPE_LABELS,
@@ -62,8 +77,11 @@ export default function CompetitionDetail() {
 
   const { data: competition, isLoading } = useCompetitionDetails(competitionId);
   const generateBracket = useGenerateBracket();
+  const generate17an = useGenerate17an();
   const updateCompetition = useUpdateCompetition();
   const deleteCompetition = useDeleteCompetition();
+  const advanceRound = useAdvance17anRound();
+  const resetAllMatches = useResetAllMatches();
 
   const [isAddTeamOpen, setIsAddTeamOpen] = useState(false);
   const [isCreateMatchOpen, setIsCreateMatchOpen] = useState(false);
@@ -71,6 +89,11 @@ export default function CompetitionDetail() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("matches");
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isGenerate17anOpen, setIsGenerate17anOpen] = useState(false);
+  const [isAdvanceRoundDialogOpen, setIsAdvanceRoundDialogOpen] = useState(false);
+  const [isResetAllOpen, setIsResetAllOpen] = useState(false);
+  const [customPhaseLabel, setCustomPhaseLabel] = useState("");
+  const [teamsPerMatch, setTeamsPerMatch] = useState(2);
 
   // Check if user can manage this competition
   const isReferee = competition?.referees?.some(
@@ -84,6 +107,21 @@ export default function CompetitionDetail() {
     generateBracket.mutate({
       competition_id: competition.id,
       teams: competition.teams,
+    });
+  };
+
+  const handleGenerate17an = () => {
+    if (!competition?.teams || competition.teams.length < 1) return;
+    generate17an.mutate({
+      competition_id: competition.id,
+      teams: competition.teams,
+      teams_per_match: teamsPerMatch,
+      phase_label: customPhaseLabel || "Babak 1",
+    }, {
+      onSuccess: () => {
+        setIsGenerate17anOpen(false);
+        setCustomPhaseLabel("");
+      }
     });
   };
 
@@ -106,6 +144,26 @@ export default function CompetitionDetail() {
         },
       }
     );
+  };
+
+  const handleAdvanceRound = () => {
+    if (!competition) return;
+    advanceRound.mutate({ 
+      competition_id: competition.id,
+      phase_label: customPhaseLabel || undefined
+    }, {
+      onSuccess: () => {
+        setIsAdvanceRoundDialogOpen(false);
+        setCustomPhaseLabel("");
+      }
+    });
+  };
+
+  const handleResetAllMatches = () => {
+    if (!competition) return;
+    resetAllMatches.mutate({ competition_id: competition.id }, {
+      onSuccess: () => setIsResetAllOpen(false)
+    });
   };
 
   const shareUrl = `${window.location.origin}${eventId ? `/events/${eventId}` : ""}/competitions/${competitionId}`;
@@ -256,8 +314,18 @@ export default function CompetitionDetail() {
                       Selesaikan
                     </Button>
                   )}
+                  {competition.status === "completed" && (
+                    <Button
+                      variant="outline"
+                      onClick={() => handleStatusChange("ongoing")}
+                      disabled={updateCompetition.isPending}
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Lanjutkan Kompetisi
+                    </Button>
+                  )}
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="icon"
                     onClick={() => setIsEditOpen(true)}
                   >
@@ -372,33 +440,75 @@ export default function CompetitionDetail() {
             </TabsList>
 
             <TabsContent value="matches" className="space-y-4">
-              <div className="flex justify-end gap-2">
-                {canManage &&
-                  competition.format === "knockout" &&
-                  competition.teams &&
-                  competition.teams.length >= 2 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGenerateBracket}
-                      disabled={generateBracket.isPending}
-                    >
-                      {generateBracket.isPending ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <RefreshCw className="w-4 h-4 mr-2" />
+              <div className="flex justify-end items-center gap-2">
+                {canManage && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 px-3 gap-2">
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      {competition.format === "17an" && competition.teams && competition.teams.length >= 1 && (
+                        <DropdownMenuItem onClick={() => setIsGenerate17anOpen(true)} disabled={generate17an.isPending}>
+                          <RefreshCw className={`w-4 h-4 mr-2 ${generate17an.isPending ? 'animate-spin' : ''}`} />
+                          Bagi Grup/Lawan
+                        </DropdownMenuItem>
                       )}
-                      Generate Bracket
-                    </Button>
-                  )}
-                {canModifyMatches && (
+                      
+                      {competition.format === "17an" && competition.matches && competition.matches.length > 0 && (
+                        <DropdownMenuItem onClick={() => setIsAdvanceRoundDialogOpen(true)} disabled={advanceRound.isPending}>
+                          <Trophy className="w-4 h-4 mr-2" />
+                          Lanjutkan Babak
+                        </DropdownMenuItem>
+                      )}
+
+                      {competition.format === "knockout" && competition.teams && competition.teams.length >= 2 && (
+                        <DropdownMenuItem onClick={handleGenerateBracket} disabled={generateBracket.isPending}>
+                          <RefreshCw className={`w-4 h-4 mr-2 ${generateBracket.isPending ? 'animate-spin' : ''}`} />
+                          Generate Bracket
+                        </DropdownMenuItem>
+                      )}
+
+                      {canModifyMatches && (
+                        <DropdownMenuItem onClick={() => setIsCreateMatchOpen(true)}>
+                          <Swords className="w-4 h-4 mr-2" />
+                          Tambah Pertandingan
+                        </DropdownMenuItem>
+                      )}
+
+                      {competition.matches && competition.matches.length > 0 && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => setIsResetAllOpen(true)}
+                            disabled={resetAllMatches.isPending}
+                            className="text-destructive focus:text-destructive focus:bg-destructive/5"
+                          >
+                            <RotateCcw className={`w-4 h-4 mr-2 ${resetAllMatches.isPending ? 'animate-spin' : ''}`} />
+                            Reset Semua Pertandingan
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+
+                {/* Primary Action Shortcut (if needed) */}
+                {canManage && competition.format === "17an" && competition.matches && competition.matches.length > 0 && (
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
-                    onClick={() => setIsCreateMatchOpen(true)}
+                    onClick={() => setIsAdvanceRoundDialogOpen(true)}
+                    disabled={advanceRound.isPending}
+                    className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 h-9"
                   >
-                    <Swords className="w-4 h-4 mr-2" />
-                    Tambah Pertandingan
+                    {advanceRound.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Trophy className="w-4 h-4 mr-2" />
+                    )}
+                    Lanjutkan Babak
                   </Button>
                 )}
               </div>
@@ -408,7 +518,7 @@ export default function CompetitionDetail() {
             <TabsContent value="teams" className="space-y-4">
               <TeamList
                 competition={competition}
-                canManage={canManage && competition.status === "registration"}
+                canManage={canManage}
                 onAddTeam={() => setIsAddTeamOpen(true)}
               />
             </TabsContent>
@@ -471,6 +581,115 @@ export default function CompetitionDetail() {
                 <Trash2 className="w-4 h-4 mr-2" />
               )}
               Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isAdvanceRoundDialogOpen} onOpenChange={setIsAdvanceRoundDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Lanjutkan ke Babak Berikutnya</AlertDialogTitle>
+            <AlertDialogDescription>
+              Seluruh tim yang ditandai sebagai "Lolos" akan dikelompokkan ke dalam satu pertandingan baru di babak berikutnya.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4 space-y-2">
+            <Label htmlFor="phase-label">Nama Babak / Fase (Opsional)</Label>
+            <Input
+              id="phase-label"
+              placeholder="Contoh: Semi Final, Final, atau Babak 2"
+              value={customPhaseLabel}
+              onChange={(e) => setCustomPhaseLabel(e.target.value)}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleAdvanceRound}
+              disabled={advanceRound.isPending}
+            >
+              {advanceRound.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle className="w-4 h-4 mr-2" />
+              )}
+              Lanjutkan Sekarang
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isGenerate17anOpen} onOpenChange={setIsGenerate17anOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bagi Grup/Lawan</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tentukan berapa banyak peserta dalam satu sesi pertandingan/lomba.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="gen-phase-label">Nama Babak (Contoh: Penyisihan, Babak 1)</Label>
+              <Input
+                id="gen-phase-label"
+                placeholder="Babak 1"
+                value={customPhaseLabel}
+                onChange={(e) => setCustomPhaseLabel(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="teams-per-match">Jumlah Peserta per Sesi</Label>
+              <Input
+                id="teams-per-match"
+                type="number"
+                min="1"
+                value={teamsPerMatch}
+                onChange={(e) => setTeamsPerMatch(parseInt(e.target.value) || 1)}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Sistem akan mengacak peserta dan membaginya ke dalam grup-grup.
+            </p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleGenerate17an}
+              disabled={generate17an.isPending}
+            >
+              {generate17an.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Bagi Sekarang
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={isResetAllOpen} onOpenChange={setIsResetAllOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Seluruh Pertandingan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini akan menghapus SEMUA skor dan data pemenang dari seluruh pertandingan dalam kompetisi ini. 
+              Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetAllMatches}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={resetAllMatches.isPending}
+            >
+              {resetAllMatches.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Ya, Reset Semua
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
