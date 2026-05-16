@@ -155,7 +155,10 @@ export default function EventDetail() {
   });
 
   const isUserAttending = attendees?.some((a) => a.user_id === user?.id);
-  const isPastEvent = event ? new Date(event.event_date) < new Date() : false;
+  const eventEnd = event?.end_date ? new Date(event.end_date) : (event ? new Date(event.event_date) : null);
+  const eventStart = event ? new Date(event.event_date) : null;
+  const isPastEvent = eventEnd ? eventEnd < new Date(new Date().setHours(0, 0, 0, 0)) : false;
+  const isOngoingEvent = !!eventStart && !!eventEnd && new Date() >= new Date(new Date(eventStart).setHours(0,0,0,0)) && new Date() <= new Date(new Date(eventEnd).setHours(23,59,59,999));
   const isCompetitionEvent = event?.event_type === "competition";
   const hasCompetitions = competitions && competitions.length > 0;
 
