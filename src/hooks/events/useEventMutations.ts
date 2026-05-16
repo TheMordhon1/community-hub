@@ -120,6 +120,7 @@ export function useEventForm() {
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [eventDate, setEventDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
   const [eventTime, setEventTime] = useState("");
   const [eventType, setEventType] = useState<EventType>("regular");
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -132,6 +133,7 @@ export function useEventForm() {
     setDescription("");
     setLocation("");
     setEventDate(undefined);
+    setEndDate(undefined);
     setEventTime("");
     setEventType("regular");
     setImageFile(null);
@@ -143,6 +145,7 @@ export function useEventForm() {
     setDescription(event.description || "");
     setLocation(event.location || "");
     setEventDate(new Date(event.event_date));
+    setEndDate(event.end_date ? new Date(event.end_date) : undefined);
     setEventTime(event.event_time || "");
     setEventType(event.event_type || "regular");
     setImagePreview(event.image_url || null);
@@ -170,6 +173,7 @@ export function useEventForm() {
     description, setDescription,
     location, setLocation,
     eventDate, setEventDate,
+    endDate, setEndDate,
     eventTime, setEventTime,
     eventType, setEventType,
     imageFile,
