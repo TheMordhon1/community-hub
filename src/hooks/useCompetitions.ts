@@ -228,6 +228,7 @@ export function useUpdateCompetition() {
       sport_name?: string;
       format?: CompetitionFormat;
       match_type?: MatchType;
+      custom_match_label?: string | null;
       participant_type?: ParticipantType;
       rules?: string | null;
       max_participants?: number | null;
