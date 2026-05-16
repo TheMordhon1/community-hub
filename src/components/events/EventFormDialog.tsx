@@ -35,6 +35,7 @@ export function EventFormDialog({
     description, setDescription,
     location, setLocation,
     eventDate, setEventDate,
+    endDate, setEndDate,
     eventTime, setEventTime,
     eventType, setEventType,
     imagePreview,
