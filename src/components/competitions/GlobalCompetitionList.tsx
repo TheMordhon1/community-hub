@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { Trophy, Loader2, Plus, Filter } from "lucide-react";
+import { Trophy, Loader2, Plus, Filter, Calendar, FileText } from "lucide-react";
 import { useAllCompetitions } from "@/hooks/useCompetitions";
+import { useAuth } from "@/hooks/useAuth";
 import { CompetitionCard } from "./CompetitionCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
 import { CreateCompetitionDialog } from "./CreateCompetitionDialog";
 import { STATUS_LABELS, CompetitionStatus } from "@/types/competition";
 
@@ -23,25 +25,60 @@ type StatusFilter = "all" | CompetitionStatus;
 
 export function GlobalCompetitionList({ canManage }: GlobalCompetitionListProps) {
   const { data: competitions, isLoading } = useAllCompetitions();
+  const { canManageContent } = useAuth();
+  const canSeeDrafts = canManageContent();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  const filteredCompetitions = useMemo(() => {
+  // Hide competitions whose parent event is draft from users who can't manage
+  const visibleCompetitions = useMemo(() => {
     if (!competitions) return [];
-    if (statusFilter === "all") return competitions;
-    return competitions.filter((c) => c.status === statusFilter);
-  }, [competitions, statusFilter]);
+    if (canSeeDrafts) return competitions;
+    return competitions.filter((c) => !c.events || c.events.status !== "draft");
+  }, [competitions, canSeeDrafts]);
+
+  const filteredCompetitions = useMemo(() => {
+    if (statusFilter === "all") return visibleCompetitions;
+    return visibleCompetitions.filter((c) => c.status === statusFilter);
+  }, [visibleCompetitions, statusFilter]);
 
   const statusCounts = useMemo(() => {
-    if (!competitions) return { all: 0, registration: 0, ongoing: 0, completed: 0, cancelled: 0 };
     return {
-      all: competitions.length,
-      registration: competitions.filter((c) => c.status === "registration").length,
-      ongoing: competitions.filter((c) => c.status === "ongoing").length,
-      completed: competitions.filter((c) => c.status === "completed").length,
-      cancelled: competitions.filter((c) => c.status === "cancelled").length,
+      all: visibleCompetitions.length,
+      registration: visibleCompetitions.filter((c) => c.status === "registration").length,
+      ongoing: visibleCompetitions.filter((c) => c.status === "ongoing").length,
+      completed: visibleCompetitions.filter((c) => c.status === "completed").length,
+      cancelled: visibleCompetitions.filter((c) => c.status === "cancelled").length,
     };
-  }, [competitions]);
+  }, [visibleCompetitions]);
+
+  // Group by parent event
+  const grouped = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        key: string;
+        eventId: string | null;
+        eventTitle: string;
+        eventStatus: string | null;
+        competitions: typeof filteredCompetitions;
+      }
+    >();
+    filteredCompetitions.forEach((c) => {
+      const key = c.event_id ?? "__standalone__";
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          eventId: c.event_id,
+          eventTitle: c.events?.title ?? "Kompetisi Mandiri",
+          eventStatus: c.events?.status ?? null,
+          competitions: [],
+        });
+      }
+      map.get(key)!.competitions.push(c);
+    });
+    return Array.from(map.values());
+  }, [filteredCompetitions]);
 
   if (isLoading) {
     return (
@@ -62,7 +99,7 @@ export function GlobalCompetitionList({ canManage }: GlobalCompetitionListProps)
           <div>
             <h2 className="text-xl font-bold">Daftar Kompetisi</h2>
             <p className="text-sm text-muted-foreground">
-              {filteredCompetitions.length} kompetisi
+              {filteredCompetitions.length} kompetisi dalam {grouped.length} acara
             </p>
           </div>
         </div>
@@ -80,33 +117,25 @@ export function GlobalCompetitionList({ canManage }: GlobalCompetitionListProps)
               <SelectItem value="all">
                 <div className="flex items-center gap-2">
                   Semua
-                  <Badge variant="secondary" className="ml-1">
-                    {statusCounts.all}
-                  </Badge>
+                  <Badge variant="secondary" className="ml-1">{statusCounts.all}</Badge>
                 </div>
               </SelectItem>
               <SelectItem value="registration">
                 <div className="flex items-center gap-2">
                   {STATUS_LABELS.registration}
-                  <Badge variant="default" className="ml-1">
-                    {statusCounts.registration}
-                  </Badge>
+                  <Badge variant="default" className="ml-1">{statusCounts.registration}</Badge>
                 </div>
               </SelectItem>
               <SelectItem value="ongoing">
                 <div className="flex items-center gap-2">
                   {STATUS_LABELS.ongoing}
-                  <Badge variant="secondary" className="ml-1">
-                    {statusCounts.ongoing}
-                  </Badge>
+                  <Badge variant="secondary" className="ml-1">{statusCounts.ongoing}</Badge>
                 </div>
               </SelectItem>
               <SelectItem value="completed">
                 <div className="flex items-center gap-2">
                   {STATUS_LABELS.completed}
-                  <Badge variant="outline" className="ml-1">
-                    {statusCounts.completed}
-                  </Badge>
+                  <Badge variant="outline" className="ml-1">{statusCounts.completed}</Badge>
                 </div>
               </SelectItem>
             </SelectContent>
@@ -121,16 +150,46 @@ export function GlobalCompetitionList({ canManage }: GlobalCompetitionListProps)
         </div>
       </div>
 
-      {/* Competition Grid */}
-      {filteredCompetitions.length > 0 ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredCompetitions.map((competition) => (
-            <CompetitionCard
-              key={competition.id}
-              competition={competition}
-              canManage={false}
-              showEventName={competition.events?.title}
-            />
+      {/* Grouped competitions by event */}
+      {grouped.length > 0 ? (
+        <div className="space-y-8">
+          {grouped.map((group) => (
+            <section key={group.key} className="space-y-3">
+              <div className="flex items-center justify-between gap-3 border-b pb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {group.eventId ? (
+                    <Calendar className="w-5 h-5 text-primary shrink-0" />
+                  ) : (
+                    <FileText className="w-5 h-5 text-muted-foreground shrink-0" />
+                  )}
+                  {group.eventId ? (
+                    <Link
+                      to={`/events/${group.eventId}`}
+                      className="font-semibold text-base hover:underline truncate"
+                    >
+                      {group.eventTitle}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold text-base truncate">{group.eventTitle}</span>
+                  )}
+                  {group.eventStatus === "draft" && (
+                    <Badge variant="outline" className="shrink-0">Draft</Badge>
+                  )}
+                  <Badge variant="secondary" className="shrink-0">
+                    {group.competitions.length}
+                  </Badge>
+                </div>
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {group.competitions.map((competition) => (
+                  <CompetitionCard
+                    key={competition.id}
+                    competition={competition}
+                    canManage={false}
+                  />
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       ) : (
