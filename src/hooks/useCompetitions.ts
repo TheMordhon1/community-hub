@@ -46,7 +46,10 @@ export function useAllCompetitions() {
           `
           *,
           events (
-            title
+            title,
+            status,
+            event_date,
+            end_date
           )
         `,
         )
@@ -54,7 +57,7 @@ export function useAllCompetitions() {
 
       if (error) throw error;
       return data as (EventCompetition & {
-        events: { title: string } | null;
+        events: { title: string; status: string; event_date: string; end_date: string | null } | null;
       })[];
     },
   });
