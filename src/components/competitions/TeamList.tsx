@@ -13,10 +13,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Users, Trash2, Crown } from "lucide-react";
+import { Plus, Users, Trash2, Crown, Sparkles } from "lucide-react";
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
 import { useDeleteTeam } from "@/hooks/useCompetitions";
 import { getInitials } from "@/lib/utils";
+import { SpinWheelDialog } from "./SpinWheelDialog";
 
 interface TeamListProps {
   competition: EventCompetitionWithDetails;
@@ -26,6 +27,7 @@ interface TeamListProps {
 
 export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   const [deletingTeam, setDeletingTeam] = useState<CompetitionTeamWithMembers | null>(null);
+  const [isSpinOpen, setIsSpinOpen] = useState(false);
   const deleteTeamMutation = useDeleteTeam();
 
   const handleDeleteTeam = () => {
@@ -44,11 +46,11 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-8 text-center">
           <Users className="w-12 h-12 text-muted-foreground mb-2 opacity-50" />
-          <p className="text-muted-foreground">Belum ada tim terdaftar</p>
+          <p className="text-muted-foreground">Belum ada peserta terdaftar</p>
           {canManage && (
             <Button variant="outline" size="sm" className="mt-4" onClick={onAddTeam}>
               <Plus className="w-4 h-4 mr-1" />
-              Tambah Tim
+              Tambah Peserta
             </Button>
           )}
         </CardContent>
@@ -59,14 +61,23 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   return (
     <>
       <div className="space-y-4">
-        {canManage && (
-          <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsSpinOpen(true)}
+            disabled={teams.length < 2}
+          >
+            <Sparkles className="w-4 h-4 mr-1" />
+            Spin Wheel
+          </Button>
+          {canManage && (
             <Button size="sm" onClick={onAddTeam}>
               <Plus className="w-4 h-4 mr-1" />
-              Tambah Tim
+              Tambah Peserta
             </Button>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           {teams.map((team, index) => (
@@ -146,6 +157,12 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <SpinWheelDialog
+        open={isSpinOpen}
+        onOpenChange={setIsSpinOpen}
+        teams={teams}
+      />
     </>
   );
 }
