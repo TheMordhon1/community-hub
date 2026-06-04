@@ -122,7 +122,7 @@ export default function CompetitionDetail() {
     generate17an.mutate({
       competition_id: competition.id,
       teams: competition.teams,
-      teams_per_match: teamsPerMatch,
+      teams_per_match: Math.max(1, parseInt(teamsPerMatch) || 1),
       phase_label: customPhaseLabel || "Babak 1",
       is_final: isFinalMatch,
     }, {
