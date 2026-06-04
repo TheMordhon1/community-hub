@@ -61,14 +61,23 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   return (
     <>
       <div className="space-y-4">
-        {canManage && (
-          <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsSpinOpen(true)}
+            disabled={teams.length < 2}
+          >
+            <Sparkles className="w-4 h-4 mr-1" />
+            Spin Wheel
+          </Button>
+          {canManage && (
             <Button size="sm" onClick={onAddTeam}>
               <Plus className="w-4 h-4 mr-1" />
-              Tambah Tim
+              Tambah Peserta
             </Button>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           {teams.map((team, index) => (
