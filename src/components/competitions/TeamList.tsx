@@ -27,6 +27,7 @@ interface TeamListProps {
 
 export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   const [deletingTeam, setDeletingTeam] = useState<CompetitionTeamWithMembers | null>(null);
+  const [isSpinOpen, setIsSpinOpen] = useState(false);
   const deleteTeamMutation = useDeleteTeam();
 
   const handleDeleteTeam = () => {
