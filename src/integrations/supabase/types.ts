@@ -1305,6 +1305,7 @@ export type Database = {
           redeem_code: string | null
           reward_item_id: string
           status: string | null
+          store_claimed_at: string | null
           usage_count: number | null
           usage_limit: number | null
           used_at: string | null
@@ -1319,6 +1320,7 @@ export type Database = {
           redeem_code?: string | null
           reward_item_id: string
           status?: string | null
+          store_claimed_at?: string | null
           usage_count?: number | null
           usage_limit?: number | null
           used_at?: string | null
@@ -1333,6 +1335,7 @@ export type Database = {
           redeem_code?: string | null
           reward_item_id?: string
           status?: string | null
+          store_claimed_at?: string | null
           usage_count?: number | null
           usage_limit?: number | null
           used_at?: string | null
@@ -1834,6 +1837,10 @@ export type Database = {
       }
       is_menteri_sisdigi: { Args: { _user_id: string }; Returns: boolean }
       update_menu_orders: { Args: { p_orders: Json }; Returns: undefined }
+      validate_store_voucher: {
+        Args: { p_redeem_code: string; p_store_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "pengurus" | "warga"
