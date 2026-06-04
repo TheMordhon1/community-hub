@@ -723,7 +723,11 @@ export default function CompetitionDetail() {
                 type="number"
                 min="1"
                 value={teamsPerMatch}
-                onChange={(e) => setTeamsPerMatch(parseInt(e.target.value) || 1)}
+                onChange={(e) => setTeamsPerMatch(e.target.value)}
+                onBlur={(e) => {
+                  const n = parseInt(e.target.value);
+                  if (!n || n < 1) setTeamsPerMatch("1");
+                }}
               />
             </div>
             <p className="text-xs text-muted-foreground">
