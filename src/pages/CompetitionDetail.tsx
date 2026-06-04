@@ -99,7 +99,7 @@ export default function CompetitionDetail() {
   const [hasShownWinner, setHasShownWinner] = useState(false);
   const [customPhaseLabel, setCustomPhaseLabel] = useState("");
   const [isFinalMatch, setIsFinalMatch] = useState(false);
-  const [teamsPerMatch, setTeamsPerMatch] = useState(2);
+  const [teamsPerMatch, setTeamsPerMatch] = useState<string>("2");
   const [maxRankToShow, setMaxRankToShow] = useState(3);
 
   // Check if user can manage this competition
@@ -122,7 +122,7 @@ export default function CompetitionDetail() {
     generate17an.mutate({
       competition_id: competition.id,
       teams: competition.teams,
-      teams_per_match: teamsPerMatch,
+      teams_per_match: Math.max(1, parseInt(teamsPerMatch) || 1),
       phase_label: customPhaseLabel || "Babak 1",
       is_final: isFinalMatch,
     }, {
@@ -723,7 +723,11 @@ export default function CompetitionDetail() {
                 type="number"
                 min="1"
                 value={teamsPerMatch}
-                onChange={(e) => setTeamsPerMatch(parseInt(e.target.value) || 1)}
+                onChange={(e) => setTeamsPerMatch(e.target.value)}
+                onBlur={(e) => {
+                  const n = parseInt(e.target.value);
+                  if (!n || n < 1) setTeamsPerMatch("1");
+                }}
               />
             </div>
             <p className="text-xs text-muted-foreground">
