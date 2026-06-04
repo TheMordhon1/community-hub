@@ -46,11 +46,11 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-8 text-center">
           <Users className="w-12 h-12 text-muted-foreground mb-2 opacity-50" />
-          <p className="text-muted-foreground">Belum ada tim terdaftar</p>
+          <p className="text-muted-foreground">Belum ada peserta terdaftar</p>
           {canManage && (
             <Button variant="outline" size="sm" className="mt-4" onClick={onAddTeam}>
               <Plus className="w-4 h-4 mr-1" />
-              Tambah Tim
+              Tambah Peserta
             </Button>
           )}
         </CardContent>
