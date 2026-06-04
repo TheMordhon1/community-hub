@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -29,12 +29,27 @@ const PALETTE = [
   "hsl(320 70% 60%)",
 ];
 
+const SIZE = 288;
+const R = SIZE / 2;
+
+// Polar -> cartesian. angle in degrees, 0 = top (12 o'clock), clockwise positive.
+function polar(angle: number, radius: number) {
+  const rad = ((angle - 90) * Math.PI) / 180;
+  return { x: R + radius * Math.cos(rad), y: R + radius * Math.sin(rad) };
+}
+
+function slicePath(startAngle: number, endAngle: number) {
+  const start = polar(startAngle, R);
+  const end = polar(endAngle, R);
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+  return `M ${R} ${R} L ${start.x} ${start.y} A ${R} ${R} 0 ${largeArc} 1 ${end.x} ${end.y} Z`;
+}
+
 export function SpinWheelDialog({ open, onOpenChange, teams }: SpinWheelDialogProps) {
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [winner, setWinner] = useState<CompetitionTeamWithMembers | null>(null);
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
-  const wheelRef = useRef<HTMLDivElement>(null);
 
   const available = teams.filter((t) => !excludedIds.has(t.id));
   const n = available.length;
@@ -44,13 +59,14 @@ export function SpinWheelDialog({ open, onOpenChange, teams }: SpinWheelDialogPr
     if (spinning || n === 0) return;
     setWinner(null);
     const winnerIndex = Math.floor(Math.random() * n);
-    const extraSpins = 6;
-    // Pointer at top (0deg). Each slice centered at i*slice + slice/2.
-    // We want the chosen slice's center to land at 0 (top): rotation such that
-    // (currentRot + sliceCenter) mod 360 === 0  =>  rotation = -sliceCenter + 360k
     const sliceCenter = winnerIndex * sliceAngle + sliceAngle / 2;
-    const target = 360 * extraSpins + (360 - sliceCenter);
-    const newRotation = rotation + (target - (rotation % 360));
+    // Pointer at top (0°). We want sliceCenter to land at 0° after rotation R:
+    //   (sliceCenter + R) mod 360 === 0  =>  R ≡ -sliceCenter (mod 360)
+    const currentMod = ((rotation % 360) + 360) % 360;
+    const desiredMod = (360 - sliceCenter) % 360;
+    let delta = desiredMod - currentMod;
+    if (delta <= 0) delta += 360;
+    const newRotation = rotation + 360 * 6 + delta;
     setSpinning(true);
     setRotation(newRotation);
     setTimeout(() => {
@@ -70,18 +86,6 @@ export function SpinWheelDialog({ open, onOpenChange, teams }: SpinWheelDialogPr
     setWinner(null);
     setRotation(0);
   };
-
-  // Build conic gradient
-  const conic = n > 0
-    ? `conic-gradient(${available
-        .map((_, i) => {
-          const color = PALETTE[i % PALETTE.length];
-          const from = i * sliceAngle;
-          const to = (i + 1) * sliceAngle;
-          return `${color} ${from}deg ${to}deg`;
-        })
-        .join(", ")})`
-    : "hsl(var(--muted))";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -107,44 +111,63 @@ export function SpinWheelDialog({ open, onOpenChange, teams }: SpinWheelDialogPr
           </div>
         ) : (
           <div className="flex flex-col items-center gap-6 py-4">
-            {/* Wheel */}
-            <div className="relative w-72 h-72">
+            <div className="relative" style={{ width: SIZE, height: SIZE }}>
               {/* Pointer */}
               <div className="absolute left-1/2 -translate-x-1/2 -top-2 z-10">
                 <div className="w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[22px] border-t-foreground drop-shadow-md" />
               </div>
-              <div
-                ref={wheelRef}
-                className="w-full h-full rounded-full border-4 border-foreground shadow-xl relative overflow-hidden"
+
+              <svg
+                width={SIZE}
+                height={SIZE}
+                viewBox={`0 0 ${SIZE} ${SIZE}`}
+                className="rounded-full border-4 border-foreground shadow-xl"
                 style={{
-                  background: conic,
                   transform: `rotate(${rotation}deg)`,
                   transition: spinning
                     ? "transform 4s cubic-bezier(0.17, 0.67, 0.21, 0.99)"
                     : "none",
                 }}
               >
-                {available.map((team, i) => {
-                  const angle = i * sliceAngle + sliceAngle / 2;
-                  return (
-                    <div
-                      key={team.id}
-                      className="absolute top-1/2 left-1/2 origin-left text-xs font-bold text-white drop-shadow pointer-events-none"
-                      style={{
-                        transform: `rotate(${angle}deg) translateX(20px)`,
-                        width: "110px",
-                      }}
-                    >
-                      <span className="line-clamp-1">{team.name}</span>
-                    </div>
-                  );
-                })}
-              </div>
+                {n === 1 ? (
+                  <circle cx={R} cy={R} r={R} fill={PALETTE[0]} />
+                ) : (
+                  available.map((team, i) => {
+                    const start = i * sliceAngle;
+                    const end = (i + 1) * sliceAngle;
+                    const mid = start + sliceAngle / 2;
+                    const labelPos = polar(mid, R * 0.62);
+                    return (
+                      <g key={team.id}>
+                        <path
+                          d={slicePath(start, end)}
+                          fill={PALETTE[i % PALETTE.length]}
+                          stroke="white"
+                          strokeWidth={2}
+                        />
+                        <text
+                          x={labelPos.x}
+                          y={labelPos.y}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fill="white"
+                          fontSize={n > 8 ? 10 : 13}
+                          fontWeight={700}
+                          transform={`rotate(${mid}, ${labelPos.x}, ${labelPos.y})`}
+                          style={{ pointerEvents: "none" }}
+                        >
+                          {team.name.length > 14 ? team.name.slice(0, 13) + "…" : team.name}
+                        </text>
+                      </g>
+                    );
+                  })
+                )}
+              </svg>
+
               {/* Center hub */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-foreground border-4 border-background z-10" />
             </div>
 
-            {/* Winner */}
             {winner && !spinning && (
               <div className="w-full p-4 rounded-lg bg-primary/10 border-2 border-primary text-center animate-in zoom-in">
                 <p className="text-xs uppercase text-muted-foreground">Terpilih</p>
@@ -153,12 +176,7 @@ export function SpinWheelDialog({ open, onOpenChange, teams }: SpinWheelDialogPr
             )}
 
             <div className="flex gap-2 w-full">
-              <Button
-                onClick={handleSpin}
-                disabled={spinning}
-                className="flex-1"
-                size="lg"
-              >
+              <Button onClick={handleSpin} disabled={spinning} className="flex-1" size="lg">
                 <RotateCw className={`w-4 h-4 mr-2 ${spinning ? "animate-spin" : ""}`} />
                 {spinning ? "Memutar..." : winner ? "Putar Lagi" : "Putar"}
               </Button>
