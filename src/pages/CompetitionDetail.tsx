@@ -487,7 +487,7 @@ export default function CompetitionDetail() {
               </TabsTrigger>
               <TabsTrigger value="teams" className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
-                <span className="hidden sm:inline">Tim</span>
+                <span className="hidden sm:inline">Peserta</span>
                 <Badge variant="secondary" className="ml-1 text-xs">
                   {competition.teams?.length || 0}
                 </Badge>
