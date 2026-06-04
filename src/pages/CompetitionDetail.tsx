@@ -99,7 +99,7 @@ export default function CompetitionDetail() {
   const [hasShownWinner, setHasShownWinner] = useState(false);
   const [customPhaseLabel, setCustomPhaseLabel] = useState("");
   const [isFinalMatch, setIsFinalMatch] = useState(false);
-  const [teamsPerMatch, setTeamsPerMatch] = useState(2);
+  const [teamsPerMatch, setTeamsPerMatch] = useState<string>("2");
   const [maxRankToShow, setMaxRankToShow] = useState(3);
 
   // Check if user can manage this competition
