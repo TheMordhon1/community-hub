@@ -394,9 +394,9 @@ export default function CompetitionDetail() {
                 <div className="bg-background/80 backdrop-blur rounded-lg p-4 border">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1">
                     <Users className="w-4 h-4" />
-                    <span className="text-xs font-medium">Tim</span>
+                    <span className="text-xs font-medium">Peserta</span>
                   </div>
-                  <p className="font-semibold">{competition.teams?.length || 0} Tim</p>
+                  <p className="font-semibold">{competition.teams?.length || 0} Peserta</p>
                 </div>
                 <div className="bg-background/80 backdrop-blur rounded-lg p-4 border">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1">
