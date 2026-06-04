@@ -157,6 +157,12 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <SpinWheelDialog
+        open={isSpinOpen}
+        onOpenChange={setIsSpinOpen}
+        teams={teams}
+      />
     </>
   );
 }
