@@ -40,13 +40,17 @@ export function MatchList({ competition, canManage }: MatchListProps) {
   const [editingMatch, setEditingMatch] = useState<CompetitionMatchWithTeams | null>(null);
   const [liveScoringMatch, setLiveScoringMatch] = useState<CompetitionMatchWithTeams | null>(null);
   const [viewingMatch, setViewingMatch] = useState<CompetitionMatchWithTeams | null>(null);
+  const [spinningMatch, setSpinningMatch] = useState<CompetitionMatchWithTeams | null>(null);
   const [matchToReset, setMatchToReset] = useState<string | null>(null);
   const [matchToDelete, setMatchToDelete] = useState<string | null>(null);
-  
+
   const resetMatch = useResetMatch();
   const deleteMatch = useDeleteMatch();
   const updateMutation = useUpdateMatch();
+  const assignTeams = useAssignMatchTeams();
   const matches = competition.matches || [];
+  const allTeams = competition.teams || [];
+  const is17an = competition.format === "17an";
 
   const handleResetMatch = () => {
     if (matchToReset) {
