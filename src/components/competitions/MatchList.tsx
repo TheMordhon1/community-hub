@@ -217,6 +217,13 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                                   <Edit className="w-4 h-4 mr-2" />
                                   Edit Pertandingan
                                 </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => setSpinningMatch(match)}
+                                  disabled={match.status === "completed" || allTeams.length === 0}
+                                >
+                                  <Sparkles className="w-4 h-4 mr-2" />
+                                  Spin Wheel Peserta
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 
                                   onClick={() => setMatchToReset(match.id)}
