@@ -2,15 +2,16 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Swords, Trophy, Calendar, MapPin, Edit, RefreshCw, Trash2, MoreVertical, Medal, Eye, CheckCircle2 } from "lucide-react";
+import { Swords, Trophy, Calendar, MapPin, Edit, RefreshCw, Trash2, MoreVertical, Medal, Eye, CheckCircle2, Sparkles } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import type { EventCompetitionWithDetails, CompetitionMatchWithTeams } from "@/types/competition";
 import { MATCH_STATUS_LABELS } from "@/types/competition";
 import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
 import { LiveScoreDialog } from "@/components/competitions/LiveScoreDialog";
+import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
 import { Play } from "lucide-react";
-import { useResetMatch, useDeleteMatch, useUpdateMatch } from "@/hooks/useCompetitions";
+import { useResetMatch, useDeleteMatch, useUpdateMatch, useAssignMatchTeams } from "@/hooks/useCompetitions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,13 +40,17 @@ export function MatchList({ competition, canManage }: MatchListProps) {
   const [editingMatch, setEditingMatch] = useState<CompetitionMatchWithTeams | null>(null);
   const [liveScoringMatch, setLiveScoringMatch] = useState<CompetitionMatchWithTeams | null>(null);
   const [viewingMatch, setViewingMatch] = useState<CompetitionMatchWithTeams | null>(null);
+  const [spinningMatch, setSpinningMatch] = useState<CompetitionMatchWithTeams | null>(null);
   const [matchToReset, setMatchToReset] = useState<string | null>(null);
   const [matchToDelete, setMatchToDelete] = useState<string | null>(null);
-  
+
   const resetMatch = useResetMatch();
   const deleteMatch = useDeleteMatch();
   const updateMutation = useUpdateMatch();
+  const assignTeams = useAssignMatchTeams();
   const matches = competition.matches || [];
+  const allTeams = competition.teams || [];
+  const is17an = competition.format === "17an";
 
   const handleResetMatch = () => {
     if (matchToReset) {
@@ -211,6 +216,13 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                                 <DropdownMenuItem onClick={() => setEditingMatch(match)}>
                                   <Edit className="w-4 h-4 mr-2" />
                                   Edit Pertandingan
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => setSpinningMatch(match)}
+                                  disabled={match.status === "completed" || allTeams.length === 0}
+                                >
+                                  <Sparkles className="w-4 h-4 mr-2" />
+                                  Spin Wheel Peserta
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 
@@ -401,6 +413,47 @@ export function MatchList({ competition, canManage }: MatchListProps) {
         competition={competition}
         readOnly={true}
       />
+
+      {/* Spin Wheel per-match */}
+      {spinningMatch && (() => {
+        const currentIds = new Set<string>([
+          ...(spinningMatch.participants?.map((p) => p.team_id) || []),
+          ...(spinningMatch.team1_id ? [spinningMatch.team1_id] : []),
+          ...(spinningMatch.team2_id ? [spinningMatch.team2_id] : []),
+        ]);
+        const pool = allTeams.filter((t) => !currentIds.has(t.id));
+        const currentCount =
+          spinningMatch.participants?.length ||
+          (spinningMatch.team1_id ? 1 : 0) + (spinningMatch.team2_id ? 1 : 0);
+        const defaultTarget = is17an
+          ? Math.max(2, currentCount || 2)
+          : Math.max(1, 2 - currentCount);
+        return (
+          <SpinWheelDialog
+            open={!!spinningMatch}
+            onOpenChange={(open) => !open && setSpinningMatch(null)}
+            teams={pool}
+            targetCount={defaultTarget}
+            allowTargetEdit={is17an}
+            applying={assignTeams.isPending}
+            title={`Spin Wheel — Match ${spinningMatch.match_number}`}
+            description="Putar untuk memilih peserta pertandingan ini secara acak. Sistem berhenti otomatis saat jumlah peserta tercapai."
+            onApply={(picked) => {
+              const existing = spinningMatch.participants?.map((p) => p.team_id) || [];
+              const merged = Array.from(new Set([...existing, ...picked]));
+              assignTeams.mutate(
+                {
+                  match_id: spinningMatch.id,
+                  competition_id: competition.id,
+                  team_ids: merged,
+                  use_team_slots: !is17an,
+                },
+                { onSuccess: () => setSpinningMatch(null) },
+              );
+            }}
+          />
+        );
+      })()}
 
       {/* Confirmation Dialogs */}
       <AlertDialog open={!!matchToReset} onOpenChange={(open) => !open && setMatchToReset(null)}>

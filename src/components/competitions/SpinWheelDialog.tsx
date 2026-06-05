@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,13 +9,24 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, RotateCw, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Trophy, RotateCw, X, Check, CheckCircle2, Loader2 } from "lucide-react";
 import type { CompetitionTeamWithMembers } from "@/types/competition";
 
 interface SpinWheelDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   teams: CompetitionTeamWithMembers[];
+  /** When set, the wheel runs in "selection mode": each spin picks a participant
+   *  until `targetCount` is reached, then `onApply` is called. */
+  targetCount?: number;
+  /** Whether targetCount can be edited by the user inside the dialog. */
+  allowTargetEdit?: boolean;
+  onApply?: (teamIds: string[]) => void;
+  applying?: boolean;
+  title?: string;
+  description?: string;
 }
 
 const PALETTE = [
@@ -32,7 +43,6 @@ const PALETTE = [
 const SIZE = 288;
 const R = SIZE / 2;
 
-// Polar -> cartesian. angle in degrees, 0 = top (12 o'clock), clockwise positive.
 function polar(angle: number, radius: number) {
   const rad = ((angle - 90) * Math.PI) / 180;
   return { x: R + radius * Math.cos(rad), y: R + radius * Math.sin(rad) };
@@ -45,23 +55,53 @@ function slicePath(startAngle: number, endAngle: number) {
   return `M ${R} ${R} L ${start.x} ${start.y} A ${R} ${R} 0 ${largeArc} 1 ${end.x} ${end.y} Z`;
 }
 
-export function SpinWheelDialog({ open, onOpenChange, teams }: SpinWheelDialogProps) {
+export function SpinWheelDialog({
+  open,
+  onOpenChange,
+  teams,
+  targetCount,
+  allowTargetEdit = false,
+  onApply,
+  applying = false,
+  title = "Spin Wheel Peserta",
+  description = "Putar roda untuk memilih peserta secara acak.",
+}: SpinWheelDialogProps) {
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [winner, setWinner] = useState<CompetitionTeamWithMembers | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
+  const [targetInput, setTargetInput] = useState<string>(String(targetCount ?? 2));
 
-  const available = teams.filter((t) => !excludedIds.has(t.id));
-  const n = available.length;
+  const selectionMode = typeof targetCount === "number";
+  const effectiveTarget = selectionMode
+    ? Math.max(1, parseInt(targetInput, 10) || (targetCount ?? 1))
+    : 0;
+
+  // Reset whenever the dialog is reopened or pool changes meaningfully
+  useEffect(() => {
+    if (open) {
+      setRotation(0);
+      setSpinning(false);
+      setWinner(null);
+      setSelectedIds([]);
+      setExcludedIds(new Set());
+      setTargetInput(String(targetCount ?? 2));
+    }
+  }, [open, targetCount]);
+
+  const pool = teams.filter(
+    (t) => !excludedIds.has(t.id) && !selectedIds.includes(t.id),
+  );
+  const n = pool.length;
   const sliceAngle = n > 0 ? 360 / n : 0;
+  const reachedTarget = selectionMode && selectedIds.length >= effectiveTarget;
 
   const handleSpin = () => {
-    if (spinning || n === 0) return;
+    if (spinning || n === 0 || reachedTarget) return;
     setWinner(null);
     const winnerIndex = Math.floor(Math.random() * n);
     const sliceCenter = winnerIndex * sliceAngle + sliceAngle / 2;
-    // Pointer at top (0°). We want sliceCenter to land at 0° after rotation R:
-    //   (sliceCenter + R) mod 360 === 0  =>  R ≡ -sliceCenter (mod 360)
     const currentMod = ((rotation % 360) + 360) % 360;
     const desiredMod = (360 - sliceCenter) % 360;
     let delta = desiredMod - currentMod;
@@ -71,7 +111,12 @@ export function SpinWheelDialog({ open, onOpenChange, teams }: SpinWheelDialogPr
     setRotation(newRotation);
     setTimeout(() => {
       setSpinning(false);
-      setWinner(available[winnerIndex]);
+      const picked = pool[winnerIndex];
+      setWinner(picked);
+      if (selectionMode && picked) {
+        // Auto-add to selected and continue
+        setSelectedIds((s) => [...s, picked.id]);
+      }
     }, 4200);
   };
 
@@ -83,27 +128,63 @@ export function SpinWheelDialog({ open, onOpenChange, teams }: SpinWheelDialogPr
 
   const handleReset = () => {
     setExcludedIds(new Set());
+    setSelectedIds([]);
     setWinner(null);
     setRotation(0);
   };
 
+  const handleApply = () => {
+    if (onApply && selectedIds.length > 0) {
+      onApply(selectedIds);
+    }
+  };
+
+  const selectedTeams = selectedIds
+    .map((id) => teams.find((t) => t.id === id))
+    .filter(Boolean) as CompetitionTeamWithMembers[];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-primary" />
-            Spin Wheel Peserta
+            {title}
           </DialogTitle>
-          <DialogDescription>
-            Putar roda untuk memilih peserta secara acak.
-          </DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        {n === 0 ? (
+        {selectionMode && (
+          <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground">Target peserta</Label>
+              {allowTargetEdit ? (
+                <Input
+                  type="number"
+                  min={1}
+                  value={targetInput}
+                  onChange={(e) => setTargetInput(e.target.value)}
+                  onBlur={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    if (!v || v < 1) setTargetInput("1");
+                  }}
+                  className="h-7 w-16 text-center"
+                  disabled={spinning || selectedIds.length > 0}
+                />
+              ) : (
+                <span className="font-semibold">{effectiveTarget}</span>
+              )}
+            </div>
+            <span className="text-xs font-medium">
+              {selectedIds.length} / {effectiveTarget} terpilih
+            </span>
+          </div>
+        )}
+
+        {n === 0 && !reachedTarget ? (
           <div className="py-12 text-center text-muted-foreground">
             Tidak ada peserta tersedia.
-            {excludedIds.size > 0 && (
+            {(excludedIds.size > 0 || selectedIds.length > 0) && (
               <Button variant="link" onClick={handleReset} className="block mx-auto mt-2">
                 Reset daftar
               </Button>
@@ -112,7 +193,6 @@ export function SpinWheelDialog({ open, onOpenChange, teams }: SpinWheelDialogPr
         ) : (
           <div className="flex flex-col items-center gap-6 py-4">
             <div className="relative" style={{ width: SIZE, height: SIZE }}>
-              {/* Pointer */}
               <div className="absolute left-1/2 -translate-x-1/2 -top-2 z-10">
                 <div className="w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[22px] border-t-foreground drop-shadow-md" />
               </div>
@@ -129,10 +209,25 @@ export function SpinWheelDialog({ open, onOpenChange, teams }: SpinWheelDialogPr
                     : "none",
                 }}
               >
-                {n === 1 ? (
-                  <circle cx={R} cy={R} r={R} fill={PALETTE[0]} />
+                {n === 0 ? (
+                  <circle cx={R} cy={R} r={R} fill="hsl(var(--muted))" />
+                ) : n === 1 ? (
+                  <>
+                    <circle cx={R} cy={R} r={R} fill={PALETTE[0]} />
+                    <text
+                      x={R}
+                      y={R}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fill="white"
+                      fontSize={14}
+                      fontWeight={700}
+                    >
+                      {pool[0].name.length > 16 ? pool[0].name.slice(0, 15) + "…" : pool[0].name}
+                    </text>
+                  </>
                 ) : (
-                  available.map((team, i) => {
+                  pool.map((team, i) => {
                     const start = i * sliceAngle;
                     const end = (i + 1) * sliceAngle;
                     const mid = start + sliceAngle / 2;
@@ -164,7 +259,6 @@ export function SpinWheelDialog({ open, onOpenChange, teams }: SpinWheelDialogPr
                 )}
               </svg>
 
-              {/* Center hub */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-foreground border-4 border-background z-10" />
             </div>
 
@@ -176,11 +270,22 @@ export function SpinWheelDialog({ open, onOpenChange, teams }: SpinWheelDialogPr
             )}
 
             <div className="flex gap-2 w-full">
-              <Button onClick={handleSpin} disabled={spinning} className="flex-1" size="lg">
+              <Button
+                onClick={handleSpin}
+                disabled={spinning || reachedTarget || n === 0}
+                className="flex-1"
+                size="lg"
+              >
                 <RotateCw className={`w-4 h-4 mr-2 ${spinning ? "animate-spin" : ""}`} />
-                {spinning ? "Memutar..." : winner ? "Putar Lagi" : "Putar"}
+                {spinning
+                  ? "Memutar..."
+                  : reachedTarget
+                    ? "Target tercapai"
+                    : winner
+                      ? "Putar Lagi"
+                      : "Putar"}
               </Button>
-              {winner && !spinning && (
+              {!selectionMode && winner && !spinning && (
                 <Button variant="outline" onClick={handleExcludeWinner} size="lg">
                   <X className="w-4 h-4 mr-1" />
                   Keluarkan
@@ -188,7 +293,28 @@ export function SpinWheelDialog({ open, onOpenChange, teams }: SpinWheelDialogPr
               )}
             </div>
 
-            {excludedIds.size > 0 && (
+            {selectionMode && selectedTeams.length > 0 && (
+              <div className="w-full">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-muted-foreground">
+                    Terpilih ({selectedTeams.length})
+                  </p>
+                  <Button variant="ghost" size="sm" onClick={handleReset} disabled={applying}>
+                    Reset
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {selectedTeams.map((t, i) => (
+                    <Badge key={t.id} variant="default" className="gap-1">
+                      <span className="text-[10px] opacity-70">#{i + 1}</span>
+                      {t.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!selectionMode && excludedIds.size > 0 && (
               <div className="w-full">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs text-muted-foreground">
@@ -212,10 +338,24 @@ export function SpinWheelDialog({ open, onOpenChange, teams }: SpinWheelDialogPr
           </div>
         )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={applying}>
             Tutup
           </Button>
+          {selectionMode && onApply && (
+            <Button
+              onClick={handleApply}
+              disabled={!reachedTarget || applying}
+              className="gap-2"
+            >
+              {applying ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )}
+              Terapkan ke Pertandingan
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
