@@ -2,15 +2,16 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Swords, Trophy, Calendar, MapPin, Edit, RefreshCw, Trash2, MoreVertical, Medal, Eye, CheckCircle2 } from "lucide-react";
+import { Swords, Trophy, Calendar, MapPin, Edit, RefreshCw, Trash2, MoreVertical, Medal, Eye, CheckCircle2, Sparkles } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import type { EventCompetitionWithDetails, CompetitionMatchWithTeams } from "@/types/competition";
 import { MATCH_STATUS_LABELS } from "@/types/competition";
 import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
 import { LiveScoreDialog } from "@/components/competitions/LiveScoreDialog";
+import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
 import { Play } from "lucide-react";
-import { useResetMatch, useDeleteMatch, useUpdateMatch } from "@/hooks/useCompetitions";
+import { useResetMatch, useDeleteMatch, useUpdateMatch, useAssignMatchTeams } from "@/hooks/useCompetitions";
 import {
   DropdownMenu,
   DropdownMenuContent,
