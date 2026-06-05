@@ -74,6 +74,7 @@ export interface CompetitionMatch {
   phase_label: string | null;
   is_point: boolean;
   is_final: boolean;
+  max_participants: number | null;
   created_at: string;
   updated_at: string;
 }
