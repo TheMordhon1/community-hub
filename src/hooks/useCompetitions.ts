@@ -478,6 +478,7 @@ export function useCreateMatch() {
       team_ids?: string[];
       match_datetime?: string;
       location?: string;
+      max_participants?: number | null;
     }) => {
       const { team_ids, ...matchData } = data;
       const { data: match, error } = await supabase
@@ -508,7 +509,7 @@ export function useCreateMatch() {
         if (partError) throw partError;
       }
 
-      return { competition_id: data.competition_id };
+      return { competition_id: data.competition_id, match_id: match.id as string };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({

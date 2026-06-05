@@ -425,16 +425,15 @@ export function MatchList({ competition, canManage }: MatchListProps) {
         const currentCount =
           spinningMatch.participants?.length ||
           (spinningMatch.team1_id ? 1 : 0) + (spinningMatch.team2_id ? 1 : 0);
-        const defaultTarget = is17an
-          ? Math.max(2, currentCount || 2)
-          : Math.max(1, 2 - currentCount);
+        const limit = spinningMatch.max_participants ?? (is17an ? Math.max(2, currentCount || 2) : 2);
+        const defaultTarget = Math.max(1, limit - currentCount);
         return (
           <SpinWheelDialog
             open={!!spinningMatch}
             onOpenChange={(open) => !open && setSpinningMatch(null)}
             teams={pool}
             targetCount={defaultTarget}
-            allowTargetEdit={is17an}
+            allowTargetEdit={is17an && spinningMatch.max_participants == null}
             applying={assignTeams.isPending}
             title={`Spin Wheel — Match ${spinningMatch.match_number}`}
             description="Putar untuk memilih peserta pertandingan ini secara acak. Sistem berhenti otomatis saat jumlah peserta tercapai."
@@ -446,7 +445,7 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                   match_id: spinningMatch.id,
                   competition_id: competition.id,
                   team_ids: merged,
-                  use_team_slots: !is17an,
+                  use_team_slots: !is17an && limit <= 2,
                 },
                 { onSuccess: () => setSpinningMatch(null) },
               );

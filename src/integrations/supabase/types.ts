@@ -221,6 +221,7 @@ export type Database = {
           location: string | null
           match_datetime: string | null
           match_number: number
+          max_participants: number | null
           next_match_id: string | null
           notes: string | null
           phase_label: string | null
@@ -243,6 +244,7 @@ export type Database = {
           location?: string | null
           match_datetime?: string | null
           match_number?: number
+          max_participants?: number | null
           next_match_id?: string | null
           notes?: string | null
           phase_label?: string | null
@@ -265,6 +267,7 @@ export type Database = {
           location?: string | null
           match_datetime?: string | null
           match_number?: number
+          max_participants?: number | null
           next_match_id?: string | null
           notes?: string | null
           phase_label?: string | null
