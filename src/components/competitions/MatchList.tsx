@@ -414,6 +414,47 @@ export function MatchList({ competition, canManage }: MatchListProps) {
         readOnly={true}
       />
 
+      {/* Spin Wheel per-match */}
+      {spinningMatch && (() => {
+        const currentIds = new Set<string>([
+          ...(spinningMatch.participants?.map((p) => p.team_id) || []),
+          ...(spinningMatch.team1_id ? [spinningMatch.team1_id] : []),
+          ...(spinningMatch.team2_id ? [spinningMatch.team2_id] : []),
+        ]);
+        const pool = allTeams.filter((t) => !currentIds.has(t.id));
+        const currentCount =
+          spinningMatch.participants?.length ||
+          (spinningMatch.team1_id ? 1 : 0) + (spinningMatch.team2_id ? 1 : 0);
+        const defaultTarget = is17an
+          ? Math.max(2, currentCount || 2)
+          : Math.max(1, 2 - currentCount);
+        return (
+          <SpinWheelDialog
+            open={!!spinningMatch}
+            onOpenChange={(open) => !open && setSpinningMatch(null)}
+            teams={pool}
+            targetCount={defaultTarget}
+            allowTargetEdit={is17an}
+            applying={assignTeams.isPending}
+            title={`Spin Wheel — Match ${spinningMatch.match_number}`}
+            description="Putar untuk memilih peserta pertandingan ini secara acak. Sistem berhenti otomatis saat jumlah peserta tercapai."
+            onApply={(picked) => {
+              const existing = spinningMatch.participants?.map((p) => p.team_id) || [];
+              const merged = Array.from(new Set([...existing, ...picked]));
+              assignTeams.mutate(
+                {
+                  match_id: spinningMatch.id,
+                  competition_id: competition.id,
+                  team_ids: merged,
+                  use_team_slots: !is17an,
+                },
+                { onSuccess: () => setSpinningMatch(null) },
+              );
+            }}
+          />
+        );
+      })()}
+
       {/* Confirmation Dialogs */}
       <AlertDialog open={!!matchToReset} onOpenChange={(open) => !open && setMatchToReset(null)}>
         <AlertDialogContent>
