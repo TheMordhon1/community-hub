@@ -1162,3 +1162,65 @@ export function useResetAllMatches() {
     },
   });
 }
+
+// Assign teams to a match (used by Spin Wheel per-match)
+export function useAssignMatchTeams() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: {
+      match_id: string;
+      competition_id: string;
+      team_ids: string[];
+      use_team_slots: boolean; // when true, also writes team1_id/team2_id (max 2)
+    }) => {
+      const { match_id, team_ids, use_team_slots } = data;
+
+      if (use_team_slots) {
+        const update: { team1_id: string | null; team2_id: string | null } = {
+          team1_id: team_ids[0] ?? null,
+          team2_id: team_ids[1] ?? null,
+        };
+        const { error: mErr } = await supabase
+          .from("competition_matches")
+          .update(update)
+          .eq("id", match_id);
+        if (mErr) throw mErr;
+      }
+
+      // Replace participants set
+      const { error: delErr } = await supabase
+        .from("competition_match_participants")
+        .delete()
+        .eq("match_id", match_id);
+      if (delErr) throw delErr;
+
+      if (team_ids.length > 0) {
+        const rows = team_ids.map((team_id) => ({ match_id, team_id }));
+        const { error: insErr } = await supabase
+          .from("competition_match_participants")
+          .insert(rows);
+        if (insErr) throw insErr;
+      }
+
+      return { competition_id: data.competition_id };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
+      toast({
+        title: "Berhasil",
+        description: "Peserta pertandingan diperbarui",
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal menetapkan peserta pertandingan",
+      });
+    },
+  });
+}
