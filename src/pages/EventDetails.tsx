@@ -36,6 +36,9 @@ import { ShareDialog } from "@/components/ShareDialog";
 import { formatEventTime, getValidDate, getInitials } from "@/lib/utils";
 import { CompetitionList } from "@/components/competitions/CompetitionList";
 import { useEventCompetitions } from "@/hooks/useCompetitions";
+import { EventPaymentsDialog } from "@/components/events/EventPaymentsDialog";
+import { useEventHousePayments } from "@/hooks/useEventHousePayments";
+import { Wallet } from "lucide-react";
 
 interface AttendeeWithProfile {
   id: string;
