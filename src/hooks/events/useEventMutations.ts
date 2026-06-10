@@ -15,7 +15,23 @@ export interface EventFormData {
   imageFile: File | null;
   imagePreview: string | null;
   status: "draft" | "public";
+  isPaidEvent: boolean;
+  participationFee: string;
 }
+
+type EventInsert = {
+  title: string;
+  description: string;
+  location: string;
+  event_date: string;
+  end_date: string | null;
+  event_time: string | null;
+  image_url: string | null;
+  event_type: EventType;
+  status?: "draft" | "public";
+  is_paid_event?: boolean;
+  participation_fee?: number | null;
+};
 
 export function useEventMutations() {
   const { user } = useAuth();
@@ -36,17 +52,7 @@ export function useEventMutations() {
   };
 
   const createMutation = useMutation({
-    mutationFn: async (data: {
-      title: string;
-      description: string;
-      location: string;
-      event_date: string;
-      end_date: string | null;
-      event_time: string | null;
-      image_url: string | null;
-      event_type: EventType;
-      status?: "draft" | "public";
-    }) => {
+    mutationFn: async (data: EventInsert) => {
       const { error } = await supabase.from("events").insert({ ...data, author_id: user?.id });
       if (error) throw error;
     },
@@ -60,18 +66,7 @@ export function useEventMutations() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: {
-      id: string;
-      title: string;
-      description: string;
-      location: string;
-      event_date: string;
-      end_date: string | null;
-      event_time: string | null;
-      image_url: string | null;
-      event_type: EventType;
-      status?: "draft" | "public";
-    }) => {
+    mutationFn: async (data: EventInsert & { id: string }) => {
       const { id, ...rest } = data;
       const { error } = await supabase.from("events").update(rest).eq("id", id);
       if (error) throw error;
@@ -129,6 +124,8 @@ export function useEventForm() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [status, setStatus] = useState<"draft" | "public">("public");
+  const [isPaidEvent, setIsPaidEvent] = useState<boolean>(false);
+  const [participationFee, setParticipationFee] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -143,6 +140,8 @@ export function useEventForm() {
     setImageFile(null);
     setImagePreview(null);
     setStatus("public");
+    setIsPaidEvent(false);
+    setParticipationFee("");
   };
 
   const populateForm = (event: Event) => {
@@ -156,6 +155,8 @@ export function useEventForm() {
     setImagePreview(event.image_url || null);
     setImageFile(null);
     setStatus(event.status || "public");
+    setIsPaidEvent(!!event.is_paid_event);
+    setParticipationFee(event.participation_fee != null ? String(event.participation_fee) : "");
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,6 +187,8 @@ export function useEventForm() {
     imagePreview,
     isUploading, setIsUploading,
     status, setStatus,
+    isPaidEvent, setIsPaidEvent,
+    participationFee, setParticipationFee,
     fileInputRef,
     resetForm,
     populateForm,
