@@ -36,7 +36,7 @@ export function EventPaymentsDialog({
   participationFee,
 }: EventPaymentsDialogProps) {
   const [search, setSearch] = useState("");
-  const naturalSort = useNaturalSort();
+  const { naturalSort } = useNaturalSort();
 
   const { data: houses, isLoading: housesLoading } = useQuery({
     queryKey: ["houses-all"],
