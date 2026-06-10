@@ -615,6 +615,57 @@ export type Database = {
           },
         ]
       }
+      event_house_payments: {
+        Row: {
+          amount: number | null
+          created_at: string
+          event_id: string
+          house_id: string
+          id: string
+          marked_by: string | null
+          notes: string | null
+          paid_at: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          event_id: string
+          house_id: string
+          id?: string
+          marked_by?: string | null
+          notes?: string | null
+          paid_at?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          event_id?: string
+          house_id?: string
+          id?: string
+          marked_by?: string | null
+          notes?: string | null
+          paid_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_house_payments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_house_payments_house_id_fkey"
+            columns: ["house_id"]
+            isOneToOne: false
+            referencedRelation: "houses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_rsvps: {
         Row: {
           created_at: string
@@ -658,7 +709,9 @@ export type Database = {
           event_type: string
           id: string
           image_url: string | null
+          is_paid_event: boolean
           location: string | null
+          participation_fee: number | null
           status: string | null
           title: string
           updated_at: string
@@ -673,7 +726,9 @@ export type Database = {
           event_type?: string
           id?: string
           image_url?: string | null
+          is_paid_event?: boolean
           location?: string | null
+          participation_fee?: number | null
           status?: string | null
           title: string
           updated_at?: string
@@ -688,7 +743,9 @@ export type Database = {
           event_type?: string
           id?: string
           image_url?: string | null
+          is_paid_event?: boolean
           location?: string | null
+          participation_fee?: number | null
           status?: string | null
           title?: string
           updated_at?: string
@@ -1807,6 +1864,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       has_finance_access: { Args: { _user_id: string }; Returns: boolean }
+      has_paid_for_event: {
+        Args: { _event_id: string; _house_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
