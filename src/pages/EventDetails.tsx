@@ -347,6 +347,7 @@ export default function EventDetail() {
                     )}
                   </Button>
                 )}
+                </div>
               </div>
 
               {/* Event Meta */}
