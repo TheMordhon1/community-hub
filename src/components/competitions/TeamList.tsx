@@ -90,11 +90,18 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                     </div>
                     <div>
                       <h4 className="font-semibold">{team.name}</h4>
-                      {team.is_eliminated && (
-                        <Badge variant="destructive" className="text-xs">
-                          Tereliminasi
-                        </Badge>
-                      )}
+                      <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                        {team.house && (
+                          <Badge variant="outline" className="text-xs">
+                            Blok {team.house.block} No. {team.house.number}
+                          </Badge>
+                        )}
+                        {team.is_eliminated && (
+                          <Badge variant="destructive" className="text-xs">
+                            Tereliminasi
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                   {canManage && (
