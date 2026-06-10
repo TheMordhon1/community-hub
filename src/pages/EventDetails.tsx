@@ -54,9 +54,11 @@ export default function EventDetail() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isPaymentsOpen, setIsPaymentsOpen] = useState(false);
 
   const canManage = canManageContent() || isAdmin();
   const { data: competitions } = useEventCompetitions(id);
+  const { data: eventPayments } = useEventHousePayments(id);
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event", id],
