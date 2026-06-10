@@ -295,11 +295,36 @@ export default function EventDetail() {
                         {competitions.length} Kompetisi
                       </Badge>
                     )}
+                    {event.is_paid_event && (
+                      <Badge variant="outline" className="gap-1 border-amber-500 text-amber-700 bg-amber-50">
+                        <Wallet className="w-3 h-3" />
+                        {event.participation_fee
+                          ? `Berbayar · Rp ${Number(event.participation_fee).toLocaleString("id-ID")}`
+                          : "Berbayar"}
+                      </Badge>
+                    )}
+                    {event.is_paid_event && eventPayments && (
+                      <Badge variant="secondary" className="text-xs">
+                        {eventPayments.length} rumah lunas
+                      </Badge>
+                    )}
                   </div>
                   <h1 className="text-2xl md:text-3xl font-bold">
                     {event.title}
                   </h1>
                 </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                  {event.is_paid_event && canManage && (
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => setIsPaymentsOpen(true)}
+                    >
+                      <Wallet className="w-4 h-4 mr-2" />
+                      Kelola Pembayaran
+                    </Button>
+                  )}
 
                 {!isPastEvent && (
                   <Button
