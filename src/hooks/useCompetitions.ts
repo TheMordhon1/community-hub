@@ -176,12 +176,14 @@ export function useCompetitionDetails(competitionId: string | undefined) {
           })) || [];
       }
 
-      // Map members to teams
+      // Map members & houses to teams
       const teamsWithMembers =
         teams?.map((team) => ({
           ...team,
           members: members.filter((m) => m.team_id === team.id),
+          house: team.house_id ? (houseMap.get(team.house_id) as unknown as undefined) : undefined,
         })) || [];
+
 
       // Map teams to matches
       const teamMap = new Map(teamsWithMembers.map((t) => [t.id, t]));
