@@ -88,6 +88,18 @@ export function useCompetitionDetails(competitionId: string | undefined) {
 
       if (teamsError) throw teamsError;
 
+      // Fetch houses referenced by teams
+      const houseIds = Array.from(new Set((teams || []).map((t) => t.house_id).filter(Boolean) as string[]));
+      const houseMap = new Map<string, { id: string; block: string; number: string }>();
+      if (houseIds.length > 0) {
+        const { data: housesData } = await supabase
+          .from("houses")
+          .select("id, block, number")
+          .in("id", houseIds);
+        (housesData || []).forEach((h) => houseMap.set(h.id, h as { id: string; block: string; number: string }));
+      }
+
+
       // Fetch team members
       const teamIds = teams?.map((t) => t.id) || [];
       let members: CompetitionTeamMember[] = [];
