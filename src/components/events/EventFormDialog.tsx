@@ -40,6 +40,8 @@ export function EventFormDialog({
     eventType, setEventType,
     imagePreview,
     status, setStatus,
+    isPaidEvent, setIsPaidEvent,
+    participationFee, setParticipationFee,
     fileInputRef,
     handleImageChange,
     removeImage,
@@ -173,6 +175,43 @@ export function EventFormDialog({
               <Button type="button" variant="outline" className="w-full h-24 border-dashed" onClick={() => fileInputRef.current?.click()}>
                 <ImagePlus className="w-6 h-6 mr-2" /> Tambah Gambar
               </Button>
+            )}
+          </div>
+
+          {/* Paid Event */}
+          <div className="space-y-2 rounded-lg border p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <Label className="text-sm">Acara Berbayar</Label>
+                <p className="text-xs text-muted-foreground">Aktifkan jika rumah perlu membayar untuk mengikuti</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPaidEvent(!isPaidEvent)}
+                className={cn(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                  isPaidEvent ? "bg-primary" : "bg-muted"
+                )}
+              >
+                <span className={cn(
+                  "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                  isPaidEvent ? "translate-x-6" : "translate-x-1"
+                )} />
+              </button>
+            </div>
+            {isPaidEvent && (
+              <div className="space-y-1 pt-2">
+                <Label htmlFor="fee" className="text-xs">Biaya per Rumah (opsional)</Label>
+                <Input
+                  id="fee"
+                  type="number"
+                  min={0}
+                  placeholder="contoh: 50000"
+                  value={participationFee}
+                  onChange={(e) => setParticipationFee(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Rumah hanya bisa didaftarkan setelah pembayaran ditandai oleh pengurus.</p>
+              </div>
             )}
           </div>
 

@@ -36,6 +36,9 @@ import { ShareDialog } from "@/components/ShareDialog";
 import { formatEventTime, getValidDate, getInitials } from "@/lib/utils";
 import { CompetitionList } from "@/components/competitions/CompetitionList";
 import { useEventCompetitions } from "@/hooks/useCompetitions";
+import { EventPaymentsDialog } from "@/components/events/EventPaymentsDialog";
+import { useEventHousePayments } from "@/hooks/useEventHousePayments";
+import { Wallet } from "lucide-react";
 
 interface AttendeeWithProfile {
   id: string;
@@ -51,9 +54,11 @@ export default function EventDetail() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isPaymentsOpen, setIsPaymentsOpen] = useState(false);
 
   const canManage = canManageContent() || isAdmin();
   const { data: competitions } = useEventCompetitions(id);
+  const { data: eventPayments } = useEventHousePayments(id);
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event", id],
@@ -290,11 +295,36 @@ export default function EventDetail() {
                         {competitions.length} Kompetisi
                       </Badge>
                     )}
+                    {event.is_paid_event && (
+                      <Badge variant="outline" className="gap-1 border-amber-500 text-amber-700 bg-amber-50">
+                        <Wallet className="w-3 h-3" />
+                        {event.participation_fee
+                          ? `Berbayar · Rp ${Number(event.participation_fee).toLocaleString("id-ID")}`
+                          : "Berbayar"}
+                      </Badge>
+                    )}
+                    {event.is_paid_event && eventPayments && (
+                      <Badge variant="secondary" className="text-xs">
+                        {eventPayments.length} rumah lunas
+                      </Badge>
+                    )}
                   </div>
                   <h1 className="text-2xl md:text-3xl font-bold">
                     {event.title}
                   </h1>
                 </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                  {event.is_paid_event && canManage && (
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => setIsPaymentsOpen(true)}
+                    >
+                      <Wallet className="w-4 h-4 mr-2" />
+                      Kelola Pembayaran
+                    </Button>
+                  )}
 
                 {!isPastEvent && (
                   <Button
@@ -317,6 +347,7 @@ export default function EventDetail() {
                     )}
                   </Button>
                 )}
+                </div>
               </div>
 
               {/* Event Meta */}
@@ -480,6 +511,16 @@ export default function EventDetail() {
         url={shareUrl}
         shareText={shareText}
       />
+
+      {event && (
+        <EventPaymentsDialog
+          open={isPaymentsOpen}
+          onOpenChange={setIsPaymentsOpen}
+          eventId={event.id}
+          eventTitle={event.title}
+          participationFee={event.participation_fee ?? null}
+        />
+      )}
     </section>
   );
 }

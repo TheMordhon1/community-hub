@@ -92,6 +92,9 @@ export default function Events() {
       imageUrl = null;
     }
 
+    const feeNumber = form.isPaidEvent && form.participationFee.trim() !== ""
+      ? Number(form.participationFee)
+      : null;
     const data = {
       title: form.title,
       description: form.description,
@@ -102,6 +105,8 @@ export default function Events() {
       image_url: imageUrl,
       event_type: form.eventType,
       status: form.status,
+      is_paid_event: form.isPaidEvent,
+      participation_fee: feeNumber,
     };
 
     setIsUploading(false);
