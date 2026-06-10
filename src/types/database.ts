@@ -135,6 +135,20 @@ export interface Event {
   author_id: string | null;
   event_type: EventType;
   status: 'draft' | 'public';
+  is_paid_event: boolean;
+  participation_fee: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventHousePayment {
+  id: string;
+  event_id: string;
+  house_id: string;
+  amount: number | null;
+  notes: string | null;
+  marked_by: string | null;
+  paid_at: string;
   created_at: string;
   updated_at: string;
 }
