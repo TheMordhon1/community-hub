@@ -40,6 +40,8 @@ export function EventFormDialog({
     eventType, setEventType,
     imagePreview,
     status, setStatus,
+    isPaidEvent, setIsPaidEvent,
+    participationFee, setParticipationFee,
     fileInputRef,
     handleImageChange,
     removeImage,
