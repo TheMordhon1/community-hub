@@ -181,7 +181,7 @@ export function useCompetitionDetails(competitionId: string | undefined) {
         teams?.map((team) => ({
           ...team,
           members: members.filter((m) => m.team_id === team.id),
-          house: team.house_id ? (houseMap.get(team.house_id) as unknown as undefined) : undefined,
+          house: team.house_id ? (houseMap.get(team.house_id) as unknown as import("@/types/database").House | undefined) : undefined,
         })) || [];
 
 
