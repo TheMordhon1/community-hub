@@ -511,6 +511,16 @@ export default function EventDetail() {
         url={shareUrl}
         shareText={shareText}
       />
+
+      {event && (
+        <EventPaymentsDialog
+          open={isPaymentsOpen}
+          onOpenChange={setIsPaymentsOpen}
+          eventId={event.id}
+          eventTitle={event.title}
+          participationFee={event.participation_fee ?? null}
+        />
+      )}
     </section>
   );
 }
