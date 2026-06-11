@@ -36,7 +36,7 @@ export interface CompetitionTeam {
   participant_name: string | null;
   user_id: string | null;
   age: number | null;
-  age_group: AgeGroup | null;
+  age_group: string | null;
   created_at: string;
   house?: House;
 }
