@@ -67,6 +67,7 @@ export function CreateCompetitionDialog({
   const [maxParticipants, setMaxParticipants] = useState("");
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(eventId);
   const [isPoint, setIsPoint] = useState(true);
+  const [ageCategory, setAgeCategory] = useState<AgeCategory>("mixed");
 
   const { data: events, isLoading: isLoadingEvents } = useQuery({
     queryKey: ["all-events-for-selection"],
