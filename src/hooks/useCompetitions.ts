@@ -355,6 +355,10 @@ export function useCreateTeam() {
       house_id?: string;
       logo_url?: string;
       seed_number?: number;
+      participant_name?: string | null;
+      user_id?: string | null;
+      age?: number | null;
+      age_group?: string | null;
     }) => {
       const { data: team, error } = await supabase
         .from("competition_teams")
