@@ -237,6 +237,7 @@ export function useCreateCompetition() {
       max_participants?: number;
       registration_deadline?: string;
       is_point?: boolean;
+      age_category?: string;
     }) => {
       const { error } = await supabase.from("event_competitions").insert(data);
 
@@ -280,6 +281,7 @@ export function useUpdateCompetition() {
       registration_deadline?: string | null;
       status?: CompetitionStatus;
       is_point?: boolean;
+      age_category?: string;
     }) => {
       const { id, event_id, ...updateData } = data;
       const { error } = await supabase
@@ -353,6 +355,10 @@ export function useCreateTeam() {
       house_id?: string;
       logo_url?: string;
       seed_number?: number;
+      participant_name?: string | null;
+      user_id?: string | null;
+      age?: number | null;
+      age_group?: string | null;
     }) => {
       const { data: team, error } = await supabase
         .from("competition_teams")

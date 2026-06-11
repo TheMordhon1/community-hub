@@ -1,4 +1,5 @@
 import type { Profile, House, Event } from './database';
+import type { AgeCategory } from '@/lib/age-groups';
 
 export type CompetitionFormat = 'knockout' | 'round_robin' | 'league' | 'swiss' | '17an' | 'custom';
 export type MatchType = '1v1' | '2v2' | '3v3' | '5v5' | '11v11' | 'custom';
@@ -19,6 +20,7 @@ export interface EventCompetition {
   registration_deadline: string | null;
   status: CompetitionStatus;
   is_point: boolean;
+  age_category: AgeCategory;
   created_at: string;
   updated_at: string;
 }
@@ -31,6 +33,10 @@ export interface CompetitionTeam {
   logo_url: string | null;
   seed_number: number | null;
   is_eliminated: boolean;
+  participant_name: string | null;
+  user_id: string | null;
+  age: number | null;
+  age_group: string | null;
   created_at: string;
   house?: House;
 }

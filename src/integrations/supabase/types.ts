@@ -381,6 +381,8 @@ export type Database = {
       }
       competition_teams: {
         Row: {
+          age: number | null
+          age_group: string | null
           competition_id: string
           created_at: string
           house_id: string | null
@@ -388,9 +390,13 @@ export type Database = {
           is_eliminated: boolean | null
           logo_url: string | null
           name: string
+          participant_name: string | null
           seed_number: number | null
+          user_id: string | null
         }
         Insert: {
+          age?: number | null
+          age_group?: string | null
           competition_id: string
           created_at?: string
           house_id?: string | null
@@ -398,9 +404,13 @@ export type Database = {
           is_eliminated?: boolean | null
           logo_url?: string | null
           name: string
+          participant_name?: string | null
           seed_number?: number | null
+          user_id?: string | null
         }
         Update: {
+          age?: number | null
+          age_group?: string | null
           competition_id?: string
           created_at?: string
           house_id?: string | null
@@ -408,7 +418,9 @@ export type Database = {
           is_eliminated?: boolean | null
           logo_url?: string | null
           name?: string
+          participant_name?: string | null
           seed_number?: number | null
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -423,6 +435,13 @@ export type Database = {
             columns: ["house_id"]
             isOneToOne: false
             referencedRelation: "houses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_teams_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -558,6 +577,7 @@ export type Database = {
       }
       event_competitions: {
         Row: {
+          age_category: string
           created_at: string
           custom_match_label: string | null
           event_id: string | null
@@ -574,6 +594,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          age_category?: string
           created_at?: string
           custom_match_label?: string | null
           event_id?: string | null
@@ -590,6 +611,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          age_category?: string
           created_at?: string
           custom_match_label?: string | null
           event_id?: string | null

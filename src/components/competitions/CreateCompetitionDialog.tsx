@@ -34,6 +34,7 @@ import {
   MATCH_TYPE_LABELS,
   PARTICIPANT_TYPE_LABELS,
 } from "@/types/competition";
+import { AGE_CATEGORY_LABELS, AGE_CATEGORY_OPTIONS, type AgeCategory } from "@/lib/age-groups";
 
 interface CreateCompetitionDialogProps {
   open: boolean;
@@ -66,6 +67,7 @@ export function CreateCompetitionDialog({
   const [maxParticipants, setMaxParticipants] = useState("");
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(eventId);
   const [isPoint, setIsPoint] = useState(true);
+  const [ageCategory, setAgeCategory] = useState<AgeCategory>("mixed");
 
   const { data: events, isLoading: isLoadingEvents } = useQuery({
     queryKey: ["all-events-for-selection"],
@@ -97,6 +99,7 @@ export function CreateCompetitionDialog({
     setMaxParticipants("");
     setSelectedEventId(eventId);
     setIsPoint(true);
+    setAgeCategory("mixed");
   }, [eventId]);
 
   useEffect(() => {
@@ -110,6 +113,7 @@ export function CreateCompetitionDialog({
       setMaxParticipants(editingCompetition.max_participants?.toString() || "");
       setSelectedEventId(editingCompetition.event_id || undefined);
       setIsPoint(editingCompetition.is_point !== false);
+      setAgeCategory((editingCompetition.age_category as AgeCategory) || "mixed");
     } else {
       resetForm();
     }
@@ -141,6 +145,7 @@ export function CreateCompetitionDialog({
       rules: rules || undefined,
       max_participants: maxParticipants ? parseInt(maxParticipants) : undefined,
       is_point: isPoint,
+      age_category: ageCategory,
     };
 
     // Handle "none" value from select
@@ -287,6 +292,31 @@ export function CreateCompetitionDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Kategori Umur</Label>
+            <Select value={ageCategory} onValueChange={(v) => setAgeCategory(v as AgeCategory)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AGE_CATEGORY_OPTIONS.map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {AGE_CATEGORY_LABELS[key]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {ageCategory === "kids"
+                ? "Anak-anak (<13 thn). Sistem akan kelompokkan otomatis berdasarkan umur peserta."
+                : ageCategory === "teenager"
+                ? "Remaja (13-17 thn)."
+                : ageCategory === "adult"
+                ? "Dewasa (18 thn ke atas)."
+                : "Terbuka untuk semua umur."}
+            </p>
           </div>
 
           <div className="space-y-2">
