@@ -145,6 +145,7 @@ export function CreateCompetitionDialog({
       rules: rules || undefined,
       max_participants: maxParticipants ? parseInt(maxParticipants) : undefined,
       is_point: isPoint,
+      age_category: ageCategory,
     };
 
     // Handle "none" value from select
