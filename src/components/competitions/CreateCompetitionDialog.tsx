@@ -34,6 +34,7 @@ import {
   MATCH_TYPE_LABELS,
   PARTICIPANT_TYPE_LABELS,
 } from "@/types/competition";
+import { AGE_CATEGORY_LABELS, AGE_CATEGORY_OPTIONS, type AgeCategory } from "@/lib/age-groups";
 
 interface CreateCompetitionDialogProps {
   open: boolean;
