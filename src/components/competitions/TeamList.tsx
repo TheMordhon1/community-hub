@@ -101,70 +101,91 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
           )}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          {teams.map((team, index) => (
-            <Card key={team.id}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                      {team.seed_number || index + 1}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold">{team.name}</h4>
-                      <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                        {team.house && (
-                          <Badge variant="outline" className="text-xs">
-                            Blok {team.house.block} No. {team.house.number}
-                          </Badge>
-                        )}
-                        {team.is_eliminated && (
-                          <Badge variant="destructive" className="text-xs">
-                            Tereliminasi
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  {canManage && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeletingTeam(team)}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  )}
-                </div>
-
-                {/* Team Members */}
-                {team.members && team.members.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground uppercase">Anggota</p>
-                    <div className="space-y-1">
-                      {team.members.map((member) => (
-                        <div key={member.id} className="flex items-center gap-2">
-                          <Avatar className="w-6 h-6">
-                            <AvatarImage src={member.profile?.avatar_url || ""} />
-                            <AvatarFallback className="text-xs">
-                              {getInitials(member.profile?.full_name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm line-clamp-1">
-                            {member.profile?.full_name || "Unknown"}
-                          </span>
-                          {member.is_captain && (
-                            <Crown className="w-3 h-3 text-yellow-500" />
-                          )}
+        {groupedTeams.map(([groupLabel, groupTeams]) => (
+          <div key={groupLabel} className="space-y-2">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                {groupLabel}
+              </h3>
+              <Badge variant="secondary" className="text-xs">
+                {groupTeams.length}
+              </Badge>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {groupTeams.map((team, index) => (
+                <Card key={team.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                          {team.seed_number || index + 1}
                         </div>
-                      ))}
+                        <div>
+                          <h4 className="font-semibold">{team.name}</h4>
+                          <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                            {team.house && (
+                              <Badge variant="outline" className="text-xs">
+                                Blok {team.house.block} No. {team.house.number}
+                              </Badge>
+                            )}
+                            {team.age != null && (
+                              <Badge variant="outline" className="text-xs">
+                                {Number(team.age)} thn
+                              </Badge>
+                            )}
+                            {team.age_group && (
+                              <Badge variant="secondary" className="text-xs">
+                                {AGE_GROUP_LABELS[team.age_group as keyof typeof AGE_GROUP_LABELS]}
+                              </Badge>
+                            )}
+                            {team.is_eliminated && (
+                              <Badge variant="destructive" className="text-xs">
+                                Tereliminasi
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {canManage && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeletingTeam(team)}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      )}
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+
+                    {team.members && team.members.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground uppercase">Anggota</p>
+                        <div className="space-y-1">
+                          {team.members.map((member) => (
+                            <div key={member.id} className="flex items-center gap-2">
+                              <Avatar className="w-6 h-6">
+                                <AvatarImage src={member.profile?.avatar_url || ""} />
+                                <AvatarFallback className="text-xs">
+                                  {getInitials(member.profile?.full_name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm line-clamp-1">
+                                {member.profile?.full_name || "Unknown"}
+                              </span>
+                              {member.is_captain && (
+                                <Crown className="w-3 h-3 text-yellow-500" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
       <AlertDialog open={!!deletingTeam} onOpenChange={(open) => !open && setDeletingTeam(null)}>
