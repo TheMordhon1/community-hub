@@ -17,6 +17,7 @@ import { Plus, Users, Trash2, Crown, Sparkles } from "lucide-react";
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
 import { useDeleteTeam } from "@/hooks/useCompetitions";
 import { getInitials } from "@/lib/utils";
+import { getKidsBracket, AGE_GROUP_LABELS, type AgeCategory } from "@/lib/age-groups";
 import { SpinWheelDialog } from "./SpinWheelDialog";
 
 interface TeamListProps {
