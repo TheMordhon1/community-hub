@@ -99,6 +99,7 @@ export function CreateCompetitionDialog({
     setMaxParticipants("");
     setSelectedEventId(eventId);
     setIsPoint(true);
+    setAgeCategory("mixed");
   }, [eventId]);
 
   useEffect(() => {
@@ -112,6 +113,7 @@ export function CreateCompetitionDialog({
       setMaxParticipants(editingCompetition.max_participants?.toString() || "");
       setSelectedEventId(editingCompetition.event_id || undefined);
       setIsPoint(editingCompetition.is_point !== false);
+      setAgeCategory((editingCompetition.age_category as AgeCategory) || "mixed");
     } else {
       resetForm();
     }
