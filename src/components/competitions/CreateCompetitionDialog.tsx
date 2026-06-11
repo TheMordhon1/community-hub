@@ -295,6 +295,31 @@ export function CreateCompetitionDialog({
           </div>
 
           <div className="space-y-2">
+            <Label>Kategori Umur</Label>
+            <Select value={ageCategory} onValueChange={(v) => setAgeCategory(v as AgeCategory)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AGE_CATEGORY_OPTIONS.map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {AGE_CATEGORY_LABELS[key]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {ageCategory === "kids"
+                ? "Anak-anak (<13 thn). Sistem akan kelompokkan otomatis berdasarkan umur peserta."
+                : ageCategory === "teenager"
+                ? "Remaja (13-17 thn)."
+                : ageCategory === "adult"
+                ? "Dewasa (18 thn ke atas)."
+                : "Terbuka untuk semua umur."}
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="max-participants">Maks. Peserta (opsional)</Label>
             <Input
               id="max-participants"
