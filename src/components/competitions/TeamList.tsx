@@ -41,6 +41,27 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   };
 
   const teams = competition.teams || [];
+  const ageCategory = (competition.age_category as AgeCategory) || "mixed";
+
+  // Group kids by auto-computed age bracket for fair grouping display.
+  const groupedTeams = useMemo(() => {
+    const groups = new Map<string, CompetitionTeamWithMembers[]>();
+    for (const t of teams) {
+      let key = "Lainnya";
+      if (ageCategory === "kids" || (ageCategory === "mixed" && t.age_group === "kids")) {
+        if (t.age != null) {
+          key = `Anak-anak · ${getKidsBracket(Number(t.age))}`;
+        } else {
+          key = "Anak-anak · (umur belum diisi)";
+        }
+      } else if (t.age_group) {
+        key = AGE_GROUP_LABELS[t.age_group as keyof typeof AGE_GROUP_LABELS] || "Lainnya";
+      }
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(t);
+    }
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [teams, ageCategory]);
 
   if (teams.length === 0) {
     return (
