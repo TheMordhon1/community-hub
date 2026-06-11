@@ -237,6 +237,7 @@ export function useCreateCompetition() {
       max_participants?: number;
       registration_deadline?: string;
       is_point?: boolean;
+      age_category?: string;
     }) => {
       const { error } = await supabase.from("event_competitions").insert(data);
 
