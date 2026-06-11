@@ -281,6 +281,7 @@ export function useUpdateCompetition() {
       registration_deadline?: string | null;
       status?: CompetitionStatus;
       is_point?: boolean;
+      age_category?: string;
     }) => {
       const { id, event_id, ...updateData } = data;
       const { error } = await supabase
