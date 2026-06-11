@@ -1,5 +1,5 @@
 import type { Profile, House, Event } from './database';
-import type { AgeCategory, AgeGroup } from '@/lib/age-groups';
+import type { AgeCategory } from '@/lib/age-groups';
 
 export type CompetitionFormat = 'knockout' | 'round_robin' | 'league' | 'swiss' | '17an' | 'custom';
 export type MatchType = '1v1' | '2v2' | '3v3' | '5v5' | '11v11' | 'custom';
