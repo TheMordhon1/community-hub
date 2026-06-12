@@ -157,6 +157,10 @@ export function CreateCompetitionDialog({
       max_participants: maxParticipants ? parseInt(maxParticipants) : undefined,
       is_point: isPoint,
       age_category: ageCategory,
+      kids_brackets:
+        (ageCategory === "kids" || ageCategory === "mixed") && kidsBrackets.length > 0
+          ? kidsBrackets
+          : null,
     };
 
     // Handle "none" value from select
