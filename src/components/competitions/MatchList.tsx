@@ -366,8 +366,16 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                       </div>
 
                       {/* Match Details */}
-                      {(match.match_datetime || match.location) && (
+                      {(match.match_datetime || match.location || match.age_bracket_label || match.age_bracket_min != null || match.age_bracket_max != null) && (
                         <div className="mt-3 pt-3 border-t text-xs text-muted-foreground space-y-1">
+                          {(match.age_bracket_label || match.age_bracket_min != null || match.age_bracket_max != null) && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              Umur:{" "}
+                              {match.age_bracket_label
+                                ? match.age_bracket_label
+                                : `${match.age_bracket_min ?? "?"} - ${match.age_bracket_max ?? "?"} thn`}
+                            </Badge>
+                          )}
                           {match.match_datetime && (
                             <div className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
