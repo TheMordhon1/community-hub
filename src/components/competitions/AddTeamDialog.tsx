@@ -139,8 +139,17 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
 
   const ageValue = ageInput.trim() === "" ? null : Number(ageInput.replace(",", "."));
   const ageGroup = ageValue != null && !isNaN(ageValue) ? getAgeGroup(ageValue) : null;
+  const customBrackets: AgeBracket[] | null = Array.isArray(competition.kids_brackets)
+    ? (competition.kids_brackets as AgeBracket[])
+    : null;
   const kidsBracket =
-    ageValue != null && !isNaN(ageValue) && ageGroup === "kids" ? getKidsBracket(ageValue) : null;
+    ageValue != null && !isNaN(ageValue) && ageGroup === "kids"
+      ? customBrackets && customBrackets.length > 0
+        ? (findBracket(ageValue, customBrackets)
+            ? formatBracket(findBracket(ageValue, customBrackets)!)
+            : `Di luar grup (${ageValue} thn)`)
+        : getKidsBracket(ageValue)
+      : null;
 
   const categoryMismatch =
     ageGroup && ageCategory !== "mixed" && ageGroup !== ageCategory;
