@@ -30,7 +30,7 @@ export function useEventCompetitions(eventId: string | undefined) {
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      return data as EventCompetition[];
+      return data as unknown as EventCompetition[];
     },
     enabled: !!eventId,
   });
@@ -56,7 +56,7 @@ export function useAllCompetitions() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as (EventCompetition & {
+      return data as unknown as (EventCompetition & {
         events: { title: string; status: string; event_date: string; end_date: string | null } | null;
       })[];
     },
@@ -238,6 +238,7 @@ export function useCreateCompetition() {
       registration_deadline?: string;
       is_point?: boolean;
       age_category?: string;
+      kids_brackets?: { min: number; max: number; label?: string }[] | null;
     }) => {
       const { error } = await supabase.from("event_competitions").insert(data);
 
@@ -282,6 +283,7 @@ export function useUpdateCompetition() {
       status?: CompetitionStatus;
       is_point?: boolean;
       age_category?: string;
+      kids_brackets?: { min: number; max: number; label?: string }[] | null;
     }) => {
       const { id, event_id, ...updateData } = data;
       const { error } = await supabase
@@ -499,6 +501,9 @@ export function useCreateMatch() {
       match_datetime?: string;
       location?: string;
       max_participants?: number | null;
+      age_bracket_min?: number | null;
+      age_bracket_max?: number | null;
+      age_bracket_label?: string | null;
     }) => {
       const { team_ids, ...matchData } = data;
       const { data: match, error } = await supabase

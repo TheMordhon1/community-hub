@@ -4,6 +4,12 @@
 export type AgeGroup = "adult" | "teenager" | "kids";
 export type AgeCategory = AgeGroup | "mixed";
 
+export interface AgeBracket {
+  min: number;
+  max: number;
+  label?: string;
+}
+
 export const AGE_GROUP_LABELS: Record<AgeGroup, string> = {
   adult: "Dewasa",
   teenager: "Remaja",
@@ -25,24 +31,20 @@ export function getAgeGroup(age: number | null | undefined): AgeGroup | null {
 }
 
 /**
- * Auto-bucket a kid's age into a fair bracket.
- * Younger kids use finer (0.5y) brackets; older kids use wider ones.
- * Deterministic — pure function of age.
+ * Auto-bucket a kid's age into a fair default bracket when admin
+ * hasn't defined custom brackets. Used as fallback only.
  */
 export function getKidsBracket(age: number): string {
   if (age < 0) return "Tidak valid";
   if (age < 4) {
-    // 0.5y bins for ages 0..4
     const lo = Math.floor(age * 2) / 2;
     const hi = lo + 0.5;
     return `${formatAge(lo)} - ${formatAge(hi)} thn`;
   }
   if (age < 7) {
-    // 1y bins for ages 4..7
     const lo = Math.floor(age);
     return `${lo} - ${lo + 1} thn`;
   }
-  // 2y bins for ages 7..13
   const lo = Math.floor((age - 7) / 2) * 2 + 7;
   return `${lo} - ${lo + 2} thn`;
 }
@@ -51,8 +53,40 @@ function formatAge(n: number): string {
   return n % 1 === 0 ? `${n}` : n.toFixed(1);
 }
 
+export function formatBracket(b: AgeBracket): string {
+  if (b.label && b.label.trim()) return b.label.trim();
+  return `${formatAge(b.min)} - ${formatAge(b.max)} thn`;
+}
+
+/**
+ * Find which admin-defined bracket an age falls into.
+ * Inclusive lower bound, exclusive upper bound — except the last
+ * bracket which is inclusive on both ends so edge ages (e.g. exactly 3)
+ * still land in the final range.
+ */
+export function findBracket(
+  age: number | null | undefined,
+  brackets: AgeBracket[] | null | undefined
+): AgeBracket | null {
+  if (age == null || isNaN(age) || !brackets || brackets.length === 0) return null;
+  const sorted = [...brackets].sort((a, b) => a.min - b.min);
+  for (let i = 0; i < sorted.length; i++) {
+    const b = sorted[i];
+    const isLast = i === sorted.length - 1;
+    if (age >= b.min && (isLast ? age <= b.max : age < b.max)) return b;
+  }
+  return null;
+}
+
 export function isAgeMatchingCategory(age: number | null, category: AgeCategory): boolean {
   if (category === "mixed") return true;
   if (age == null) return false;
   return getAgeGroup(age) === category;
+}
+
+export function isAgeInBracket(age: number, min?: number | null, max?: number | null): boolean {
+  if (min == null && max == null) return true;
+  if (min != null && age < min) return false;
+  if (max != null && age > max) return false;
+  return true;
 }
