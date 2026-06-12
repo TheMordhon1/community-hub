@@ -84,6 +84,9 @@ export function CreateMatchDialog({
       setMaxParticipants("2");
       setSelectionMode("manual");
       setSpinFor(null);
+      setBracketMin("");
+      setBracketMax("");
+      setBracketLabel("");
     }
   }, [open, competition.events, is17an]);
 
