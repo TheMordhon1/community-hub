@@ -334,6 +334,87 @@ export function CreateCompetitionDialog({
             </p>
           </div>
 
+          {(ageCategory === "kids" || ageCategory === "mixed") && (
+            <div className="space-y-2 rounded-lg border p-3 bg-muted/30">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-semibold">Grup Umur Anak (opsional)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Tentukan rentang umur anak agar pengelompokan adil (mis. 1.5 - 2 thn).
+                  Jika kosong, sistem akan mengelompokkan otomatis.
+                </p>
+              </div>
+
+              {kidsBrackets.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {kidsBrackets.map((b, idx) => (
+                    <Badge key={idx} variant="secondary" className="gap-1 pr-1">
+                      {formatBracket(b)}
+                      <button
+                        type="button"
+                        className="ml-1 rounded hover:bg-background/50 p-0.5"
+                        onClick={() => setKidsBrackets((prev) => prev.filter((_, i) => i !== idx))}
+                        aria-label="Hapus"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid grid-cols-[1fr_1fr_1.4fr_auto] gap-2 items-end pt-1">
+                <div>
+                  <Label className="text-xs">Min (thn)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={newBracketMin}
+                    onChange={(e) => setNewBracketMin(e.target.value)}
+                    placeholder="1.5"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Max (thn)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={newBracketMax}
+                    onChange={(e) => setNewBracketMax(e.target.value)}
+                    placeholder="2"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Label (opsional)</Label>
+                  <Input
+                    value={newBracketLabel}
+                    onChange={(e) => setNewBracketLabel(e.target.value)}
+                    placeholder="Balita"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  onClick={() => {
+                    const min = Number(newBracketMin.replace(",", "."));
+                    const max = Number(newBracketMax.replace(",", "."));
+                    if (isNaN(min) || isNaN(max) || min < 0 || max <= min) return;
+                    setKidsBrackets((prev) =>
+                      [...prev, { min, max, label: newBracketLabel.trim() || undefined }].sort(
+                        (a, b) => a.min - b.min
+                      )
+                    );
+                    setNewBracketMin("");
+                    setNewBracketMax("");
+                    setNewBracketLabel("");
+                  }}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="max-participants">Maks. Peserta (opsional)</Label>
             <Input
