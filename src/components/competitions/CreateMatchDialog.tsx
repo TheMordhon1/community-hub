@@ -159,6 +159,11 @@ export function CreateMatchDialog({
         match_datetime: matchDatetime || undefined,
         location: location || undefined,
         max_participants: targetCount,
+        age_bracket_min:
+          bracketMin.trim() === "" ? null : Number(bracketMin.replace(",", ".")),
+        age_bracket_max:
+          bracketMax.trim() === "" ? null : Number(bracketMax.replace(",", ".")),
+        age_bracket_label: bracketLabel.trim() || null,
       },
       {
         onSuccess: (result) => {
