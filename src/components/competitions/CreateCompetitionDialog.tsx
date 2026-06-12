@@ -20,8 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Trophy } from "lucide-react";
+import { Loader2, Trophy, Plus, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useCreateCompetition, useUpdateCompetition } from "@/hooks/useCompetitions";
 import type { 
   EventCompetition, 
@@ -34,7 +35,7 @@ import {
   MATCH_TYPE_LABELS,
   PARTICIPANT_TYPE_LABELS,
 } from "@/types/competition";
-import { AGE_CATEGORY_LABELS, AGE_CATEGORY_OPTIONS, type AgeCategory } from "@/lib/age-groups";
+import { AGE_CATEGORY_LABELS, AGE_CATEGORY_OPTIONS, formatBracket, type AgeCategory, type AgeBracket } from "@/lib/age-groups";
 
 interface CreateCompetitionDialogProps {
   open: boolean;
@@ -68,6 +69,10 @@ export function CreateCompetitionDialog({
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(eventId);
   const [isPoint, setIsPoint] = useState(true);
   const [ageCategory, setAgeCategory] = useState<AgeCategory>("mixed");
+  const [kidsBrackets, setKidsBrackets] = useState<AgeBracket[]>([]);
+  const [newBracketMin, setNewBracketMin] = useState("");
+  const [newBracketMax, setNewBracketMax] = useState("");
+  const [newBracketLabel, setNewBracketLabel] = useState("");
 
   const { data: events, isLoading: isLoadingEvents } = useQuery({
     queryKey: ["all-events-for-selection"],
@@ -100,6 +105,10 @@ export function CreateCompetitionDialog({
     setSelectedEventId(eventId);
     setIsPoint(true);
     setAgeCategory("mixed");
+    setKidsBrackets([]);
+    setNewBracketMin("");
+    setNewBracketMax("");
+    setNewBracketLabel("");
   }, [eventId]);
 
   useEffect(() => {
@@ -114,6 +123,8 @@ export function CreateCompetitionDialog({
       setSelectedEventId(editingCompetition.event_id || undefined);
       setIsPoint(editingCompetition.is_point !== false);
       setAgeCategory((editingCompetition.age_category as AgeCategory) || "mixed");
+      const eb = (editingCompetition as unknown as { kids_brackets?: AgeBracket[] | null }).kids_brackets;
+      setKidsBrackets(Array.isArray(eb) ? eb : []);
     } else {
       resetForm();
     }
