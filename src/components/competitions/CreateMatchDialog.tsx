@@ -372,6 +372,44 @@ export function CreateMatchDialog({
               </div>
             )}
 
+            <div className="space-y-2 rounded-md border p-3 bg-muted/20">
+              <Label className="text-sm font-semibold">Grup Umur untuk Match Ini (opsional)</Label>
+              <p className="text-xs text-muted-foreground">
+                Mis. "Makan Kerupuk Anak 1.5 - 2 thn". Kosongkan jika tidak dibatasi umur.
+              </p>
+              <div className="grid grid-cols-[1fr_1fr_1.4fr] gap-2 pt-1">
+                <div className="space-y-1">
+                  <Label className="text-xs">Min (thn)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={bracketMin}
+                    onChange={(e) => setBracketMin(e.target.value)}
+                    placeholder="1.5"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Max (thn)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={bracketMax}
+                    onChange={(e) => setBracketMax(e.target.value)}
+                    placeholder="2"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Label (opsional)</Label>
+                  <Input
+                    value={bracketLabel}
+                    onChange={(e) => setBracketLabel(e.target.value)}
+                    placeholder="Balita"
+                  />
+                </div>
+              </div>
+            </div>
+
+
             <div className="space-y-2">
               <Label>Waktu Pertandingan</Label>
               <Input
