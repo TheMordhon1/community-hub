@@ -30,9 +30,12 @@ import { useNaturalSort } from "@/hooks/useNaturalSort";
 import {
   getAgeGroup,
   getKidsBracket,
+  findBracket,
+  formatBracket,
   AGE_GROUP_LABELS,
   AGE_CATEGORY_LABELS,
   type AgeCategory,
+  type AgeBracket,
 } from "@/lib/age-groups";
 import type { EventCompetitionWithDetails } from "@/types/competition";
 import type { Profile, House, Event } from "@/types/database";
