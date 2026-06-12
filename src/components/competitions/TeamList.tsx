@@ -17,7 +17,7 @@ import { Plus, Users, Trash2, Crown, Sparkles } from "lucide-react";
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
 import { useDeleteTeam } from "@/hooks/useCompetitions";
 import { getInitials } from "@/lib/utils";
-import { getKidsBracket, AGE_GROUP_LABELS, type AgeCategory } from "@/lib/age-groups";
+import { getKidsBracket, AGE_GROUP_LABELS, findBracket, formatBracket, type AgeCategory, type AgeBracket } from "@/lib/age-groups";
 import { SpinWheelDialog } from "./SpinWheelDialog";
 
 interface TeamListProps {
@@ -42,15 +42,28 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
 
   const teams = competition.teams || [];
   const ageCategory = (competition.age_category as AgeCategory) || "mixed";
+  const customBrackets: AgeBracket[] | null = Array.isArray(competition.kids_brackets)
+    ? (competition.kids_brackets as AgeBracket[])
+    : null;
 
-  // Group kids by auto-computed age bracket for fair grouping display.
+  // Group kids by custom or auto-computed age bracket for fair display.
   const groupedTeams = useMemo(() => {
     const groups = new Map<string, CompetitionTeamWithMembers[]>();
     for (const t of teams) {
       let key = "Lainnya";
-      if (ageCategory === "kids" || (ageCategory === "mixed" && t.age_group === "kids")) {
+      const isKid =
+        ageCategory === "kids" || (ageCategory === "mixed" && t.age_group === "kids");
+      if (isKid) {
         if (t.age != null) {
-          key = `Anak-anak · ${getKidsBracket(Number(t.age))}`;
+          const ageNum = Number(t.age);
+          if (customBrackets && customBrackets.length > 0) {
+            const match = findBracket(ageNum, customBrackets);
+            key = match
+              ? `Anak-anak · ${formatBracket(match)}`
+              : `Anak-anak · Di luar grup (${ageNum} thn)`;
+          } else {
+            key = `Anak-anak · ${getKidsBracket(ageNum)}`;
+          }
         } else {
           key = "Anak-anak · (umur belum diisi)";
         }
@@ -61,7 +74,7 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
       groups.get(key)!.push(t);
     }
     return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [teams, ageCategory]);
+  }, [teams, ageCategory, customBrackets]);
 
   if (teams.length === 0) {
     return (
