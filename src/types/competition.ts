@@ -1,5 +1,5 @@
 import type { Profile, House, Event } from './database';
-import type { AgeCategory } from '@/lib/age-groups';
+import type { AgeCategory, AgeBracket } from '@/lib/age-groups';
 
 export type CompetitionFormat = 'knockout' | 'round_robin' | 'league' | 'swiss' | '17an' | 'custom';
 export type MatchType = '1v1' | '2v2' | '3v3' | '5v5' | '11v11' | 'custom';
@@ -21,6 +21,7 @@ export interface EventCompetition {
   status: CompetitionStatus;
   is_point: boolean;
   age_category: AgeCategory;
+  kids_brackets: AgeBracket[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -81,6 +82,9 @@ export interface CompetitionMatch {
   is_point: boolean;
   is_final: boolean;
   max_participants: number | null;
+  age_bracket_min: number | null;
+  age_bracket_max: number | null;
+  age_bracket_label: string | null;
   created_at: string;
   updated_at: string;
 }
