@@ -50,6 +50,9 @@ export function CreateMatchDialog({
   const [maxParticipants, setMaxParticipants] = useState<string>("2");
   const [selectionMode, setSelectionMode] = useState<SelectionMode>("manual");
   const [spinFor, setSpinFor] = useState<{ matchId: string; target: number } | null>(null);
+  const [bracketMin, setBracketMin] = useState("");
+  const [bracketMax, setBracketMax] = useState("");
+  const [bracketLabel, setBracketLabel] = useState("");
 
   const is17an = competition.format === "17an";
   const allTeams = competition.teams || [];
