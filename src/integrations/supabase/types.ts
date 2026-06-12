@@ -212,6 +212,9 @@ export type Database = {
       }
       competition_matches: {
         Row: {
+          age_bracket_label: string | null
+          age_bracket_max: number | null
+          age_bracket_min: number | null
           competition_id: string
           created_at: string
           group_name: string | null
@@ -235,6 +238,9 @@ export type Database = {
           winner_id: string | null
         }
         Insert: {
+          age_bracket_label?: string | null
+          age_bracket_max?: number | null
+          age_bracket_min?: number | null
           competition_id: string
           created_at?: string
           group_name?: string | null
@@ -258,6 +264,9 @@ export type Database = {
           winner_id?: string | null
         }
         Update: {
+          age_bracket_label?: string | null
+          age_bracket_max?: number | null
+          age_bracket_min?: number | null
           competition_id?: string
           created_at?: string
           group_name?: string | null
@@ -584,6 +593,7 @@ export type Database = {
           format: string
           id: string
           is_point: boolean | null
+          kids_brackets: Json | null
           match_type: string
           max_participants: number | null
           participant_type: string
@@ -601,6 +611,7 @@ export type Database = {
           format?: string
           id?: string
           is_point?: boolean | null
+          kids_brackets?: Json | null
           match_type?: string
           max_participants?: number | null
           participant_type?: string
@@ -618,6 +629,7 @@ export type Database = {
           format?: string
           id?: string
           is_point?: boolean | null
+          kids_brackets?: Json | null
           match_type?: string
           max_participants?: number | null
           participant_type?: string
