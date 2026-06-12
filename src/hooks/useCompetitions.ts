@@ -30,7 +30,7 @@ export function useEventCompetitions(eventId: string | undefined) {
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      return data as EventCompetition[];
+      return data as unknown as EventCompetition[];
     },
     enabled: !!eventId,
   });
@@ -56,7 +56,7 @@ export function useAllCompetitions() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as (EventCompetition & {
+      return data as unknown as (EventCompetition & {
         events: { title: string; status: string; event_date: string; end_date: string | null } | null;
       })[];
     },

@@ -21,7 +21,7 @@ export interface EventCompetition {
   status: CompetitionStatus;
   is_point: boolean;
   age_category: AgeCategory;
-  kids_brackets: AgeBracket[] | null | unknown;
+  kids_brackets: AgeBracket[] | null;
   created_at: string;
   updated_at: string;
 }
