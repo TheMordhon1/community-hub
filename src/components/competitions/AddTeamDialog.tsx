@@ -255,6 +255,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           <DialogTitle>Pendaftaran Peserta</DialogTitle>
           <DialogDescription>
             Kategori: <span className="font-medium">{AGE_CATEGORY_LABELS[ageCategory]}</span>
+            {" · "}
+            <span className="font-medium">{GENDER_CATEGORY_LABELS[genderCategory]}</span>
             {isPaidEvent && " · Rumah harus sudah membayar."}
           </DialogDescription>
         </DialogHeader>
