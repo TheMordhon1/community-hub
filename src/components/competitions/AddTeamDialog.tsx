@@ -394,6 +394,39 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
               </Alert>
             )}
           </div>
+
+          <div className="space-y-2">
+            <Label>
+              Jenis Kelamin
+              {genderCategory !== "mixed" && <span className="text-destructive"> *</span>}
+            </Label>
+            <RadioGroup
+              value={gender}
+              onValueChange={(v) => setGender(v as Gender)}
+              className="flex gap-4"
+            >
+              <div className="flex items-center gap-2">
+                <RadioGroupItem id="g-male" value="male" />
+                <Label htmlFor="g-male" className="font-normal cursor-pointer">
+                  {GENDER_LABELS.male}
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem id="g-female" value="female" />
+                <Label htmlFor="g-female" className="font-normal cursor-pointer">
+                  {GENDER_LABELS.female}
+                </Label>
+              </div>
+            </RadioGroup>
+            {genderMismatch && (
+              <Alert variant="destructive" className="mt-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Kompetisi ini khusus {GENDER_CATEGORY_LABELS[genderCategory]}.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
         </div>
 
         <DialogFooter className="shrink-0 pt-2 border-t">
@@ -408,7 +441,9 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
               !selectedHouse ||
               ageValue == null ||
               isNaN(ageValue) ||
-              !!categoryMismatch
+              !!categoryMismatch ||
+              (genderCategory !== "mixed" && !gender) ||
+              genderMismatch
             }
           >
             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
