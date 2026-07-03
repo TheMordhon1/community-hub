@@ -394,6 +394,7 @@ export type Database = {
           age_group: string | null
           competition_id: string
           created_at: string
+          gender: string | null
           house_id: string | null
           id: string
           is_eliminated: boolean | null
@@ -408,6 +409,7 @@ export type Database = {
           age_group?: string | null
           competition_id: string
           created_at?: string
+          gender?: string | null
           house_id?: string | null
           id?: string
           is_eliminated?: boolean | null
@@ -422,6 +424,7 @@ export type Database = {
           age_group?: string | null
           competition_id?: string
           created_at?: string
+          gender?: string | null
           house_id?: string | null
           id?: string
           is_eliminated?: boolean | null
@@ -591,6 +594,7 @@ export type Database = {
           custom_match_label: string | null
           event_id: string | null
           format: string
+          gender_category: string
           id: string
           is_point: boolean | null
           kids_brackets: Json | null
@@ -609,6 +613,7 @@ export type Database = {
           custom_match_label?: string | null
           event_id?: string | null
           format?: string
+          gender_category?: string
           id?: string
           is_point?: boolean | null
           kids_brackets?: Json | null
@@ -627,6 +632,7 @@ export type Database = {
           custom_match_label?: string | null
           event_id?: string | null
           format?: string
+          gender_category?: string
           id?: string
           is_point?: boolean | null
           kids_brackets?: Json | null

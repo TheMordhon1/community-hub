@@ -21,6 +21,7 @@ import {
   PARTICIPANT_TYPE_LABELS,
   STATUS_LABELS,
 } from "@/types/competition";
+import { AGE_CATEGORY_LABELS, GENDER_CATEGORY_LABELS, type AgeCategory, type GenderCategory } from "@/lib/age-groups";
 import { useDeleteCompetition } from "@/hooks/useCompetitions";
 
 interface CompetitionCardProps {
@@ -115,11 +116,19 @@ export function CompetitionCard({
             </div>
           </div>
 
-          {competition.max_participants && (
-            <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-2 py-1 w-fit">
-              Maks. {competition.max_participants} peserta
-            </p>
-          )}
+          <div className="flex flex-wrap gap-1.5">
+            <Badge variant="secondary" className="text-[10px]">
+              {AGE_CATEGORY_LABELS[(competition.age_category as AgeCategory) || "mixed"]}
+            </Badge>
+            <Badge variant="outline" className="text-[10px]">
+              {GENDER_CATEGORY_LABELS[((competition as unknown as { gender_category?: GenderCategory }).gender_category) || "mixed"]}
+            </Badge>
+            {competition.max_participants && (
+              <Badge variant="outline" className="text-[10px]">
+                Maks. {competition.max_participants}
+              </Badge>
+            )}
+          </div>
 
           {/* Actions */}
           <div className="flex gap-2 pt-2 mt-auto">

@@ -32,10 +32,15 @@ import {
   getKidsBracket,
   findBracket,
   formatBracket,
+  isGenderMatchingCategory,
   AGE_GROUP_LABELS,
   AGE_CATEGORY_LABELS,
+  GENDER_CATEGORY_LABELS,
+  GENDER_LABELS,
   type AgeCategory,
   type AgeBracket,
+  type GenderCategory,
+  type Gender,
 } from "@/lib/age-groups";
 import type { EventCompetitionWithDetails } from "@/types/competition";
 import type { Profile, House, Event } from "@/types/database";
@@ -52,12 +57,14 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
   const [manualName, setManualName] = useState("");
   const [selectedHouse, setSelectedHouse] = useState<string>("");
   const [ageInput, setAgeInput] = useState<string>("");
+  const [gender, setGender] = useState<Gender | "">("");
 
   const { toast } = useToast();
   const { naturalSort } = useNaturalSort();
   const createTeamMutation = useCreateTeam();
 
   const ageCategory = (competition.age_category as AgeCategory) || "mixed";
+  const genderCategory = ((competition as unknown as { gender_category?: GenderCategory }).gender_category) || "mixed";
 
   // Parent event for paid-event status
   const { data: event } = useQuery({
@@ -129,6 +136,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       setManualName("");
       setSelectedHouse("");
       setAgeInput("");
+      setGender("");
     }
   }, [open]);
 
@@ -153,6 +161,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
 
   const categoryMismatch =
     ageGroup && ageCategory !== "mixed" && ageGroup !== ageCategory;
+  const genderMismatch =
+    genderCategory !== "mixed" && gender !== "" && !isGenderMatchingCategory(gender as Gender, genderCategory);
 
   const selectedProfile = profiles?.find((p) => p.id === selectedProfileId);
   const finalName =
@@ -198,6 +208,22 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       });
       return;
     }
+    if (genderCategory !== "mixed" && !gender) {
+      toast({
+        variant: "destructive",
+        title: "Jenis kelamin wajib dipilih",
+        description: `Kompetisi ini khusus ${GENDER_CATEGORY_LABELS[genderCategory]}.`,
+      });
+      return;
+    }
+    if (genderMismatch) {
+      toast({
+        variant: "destructive",
+        title: "Jenis kelamin tidak sesuai",
+        description: `Kompetisi ini khusus ${GENDER_CATEGORY_LABELS[genderCategory]}.`,
+      });
+      return;
+    }
 
     const existingSeeds = competition.teams?.map((t) => t.seed_number || 0) || [];
     const nextSeed = existingSeeds.length > 0 ? Math.max(...existingSeeds) + 1 : 1;
@@ -212,6 +238,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         user_id: source === "user" ? selectedProfileId : null,
         age: ageValue,
         age_group: ageGroup,
+        gender: gender || null,
       },
       {
         onSuccess: () => onOpenChange(false),
@@ -228,6 +255,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           <DialogTitle>Pendaftaran Peserta</DialogTitle>
           <DialogDescription>
             Kategori: <span className="font-medium">{AGE_CATEGORY_LABELS[ageCategory]}</span>
+            {" · "}
+            <span className="font-medium">{GENDER_CATEGORY_LABELS[genderCategory]}</span>
             {isPaidEvent && " · Rumah harus sudah membayar."}
           </DialogDescription>
         </DialogHeader>
@@ -365,6 +394,39 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
               </Alert>
             )}
           </div>
+
+          <div className="space-y-2">
+            <Label>
+              Jenis Kelamin
+              {genderCategory !== "mixed" && <span className="text-destructive"> *</span>}
+            </Label>
+            <RadioGroup
+              value={gender}
+              onValueChange={(v) => setGender(v as Gender)}
+              className="flex gap-4"
+            >
+              <div className="flex items-center gap-2">
+                <RadioGroupItem id="g-male" value="male" />
+                <Label htmlFor="g-male" className="font-normal cursor-pointer">
+                  {GENDER_LABELS.male}
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem id="g-female" value="female" />
+                <Label htmlFor="g-female" className="font-normal cursor-pointer">
+                  {GENDER_LABELS.female}
+                </Label>
+              </div>
+            </RadioGroup>
+            {genderMismatch && (
+              <Alert variant="destructive" className="mt-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Kompetisi ini khusus {GENDER_CATEGORY_LABELS[genderCategory]}.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
         </div>
 
         <DialogFooter className="shrink-0 pt-2 border-t">
@@ -379,7 +441,9 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
               !selectedHouse ||
               ageValue == null ||
               isNaN(ageValue) ||
-              !!categoryMismatch
+              !!categoryMismatch ||
+              (genderCategory !== "mixed" && !gender) ||
+              genderMismatch
             }
           >
             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

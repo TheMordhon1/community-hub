@@ -35,7 +35,7 @@ import {
   MATCH_TYPE_LABELS,
   PARTICIPANT_TYPE_LABELS,
 } from "@/types/competition";
-import { AGE_CATEGORY_LABELS, AGE_CATEGORY_OPTIONS, formatBracket, type AgeCategory, type AgeBracket } from "@/lib/age-groups";
+import { AGE_CATEGORY_LABELS, AGE_CATEGORY_OPTIONS, GENDER_CATEGORY_LABELS, GENDER_CATEGORY_OPTIONS, formatBracket, type AgeCategory, type AgeBracket, type GenderCategory } from "@/lib/age-groups";
 
 interface CreateCompetitionDialogProps {
   open: boolean;
@@ -69,6 +69,7 @@ export function CreateCompetitionDialog({
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(eventId);
   const [isPoint, setIsPoint] = useState(true);
   const [ageCategory, setAgeCategory] = useState<AgeCategory>("mixed");
+  const [genderCategory, setGenderCategory] = useState<GenderCategory>("mixed");
   const [kidsBrackets, setKidsBrackets] = useState<AgeBracket[]>([]);
   const [newBracketMin, setNewBracketMin] = useState("");
   const [newBracketMax, setNewBracketMax] = useState("");
@@ -105,6 +106,7 @@ export function CreateCompetitionDialog({
     setSelectedEventId(eventId);
     setIsPoint(true);
     setAgeCategory("mixed");
+    setGenderCategory("mixed");
     setKidsBrackets([]);
     setNewBracketMin("");
     setNewBracketMax("");
@@ -123,6 +125,7 @@ export function CreateCompetitionDialog({
       setSelectedEventId(editingCompetition.event_id || undefined);
       setIsPoint(editingCompetition.is_point !== false);
       setAgeCategory((editingCompetition.age_category as AgeCategory) || "mixed");
+      setGenderCategory(((editingCompetition as unknown as { gender_category?: GenderCategory }).gender_category) || "mixed");
       const eb = (editingCompetition as unknown as { kids_brackets?: AgeBracket[] | null }).kids_brackets;
       setKidsBrackets(Array.isArray(eb) ? eb : []);
     } else {
@@ -157,6 +160,7 @@ export function CreateCompetitionDialog({
       max_participants: maxParticipants ? parseInt(maxParticipants) : undefined,
       is_point: isPoint,
       age_category: ageCategory,
+      gender_category: genderCategory,
       kids_brackets:
         (ageCategory === "kids" || ageCategory === "mixed") && kidsBrackets.length > 0
           ? kidsBrackets
@@ -309,30 +313,48 @@ export function CreateCompetitionDialog({
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Kategori Umur</Label>
-            <Select value={ageCategory} onValueChange={(v) => setAgeCategory(v as AgeCategory)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {AGE_CATEGORY_OPTIONS.map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {AGE_CATEGORY_LABELS[key]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              {ageCategory === "kids"
-                ? "Anak-anak (<13 thn). Sistem akan kelompokkan otomatis berdasarkan umur peserta."
-                : ageCategory === "teenager"
-                ? "Remaja (13-17 thn)."
-                : ageCategory === "adult"
-                ? "Dewasa (18 thn ke atas)."
-                : "Terbuka untuk semua umur."}
-            </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Kategori Umur</Label>
+              <Select value={ageCategory} onValueChange={(v) => setAgeCategory(v as AgeCategory)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AGE_CATEGORY_OPTIONS.map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {AGE_CATEGORY_LABELS[key]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Jenis Kelamin</Label>
+              <Select value={genderCategory} onValueChange={(v) => setGenderCategory(v as GenderCategory)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {GENDER_CATEGORY_OPTIONS.map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {GENDER_CATEGORY_LABELS[key]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+          <p className="text-xs text-muted-foreground">
+            {ageCategory === "kids"
+              ? "Anak-anak (<13 thn). Sistem akan kelompokkan otomatis berdasarkan umur peserta."
+              : ageCategory === "teenager"
+              ? "Remaja (13-17 thn)."
+              : ageCategory === "adult"
+              ? "Dewasa (18 thn ke atas)."
+              : "Terbuka untuk semua umur."}
+            {genderCategory !== "mixed" && ` · Khusus ${GENDER_CATEGORY_LABELS[genderCategory].toLowerCase()}.`}
+          </p>
 
           {(ageCategory === "kids" || ageCategory === "mixed") && (
             <div className="space-y-2 rounded-lg border p-3 bg-muted/30">
