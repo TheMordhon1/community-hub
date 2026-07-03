@@ -32,10 +32,15 @@ import {
   getKidsBracket,
   findBracket,
   formatBracket,
+  isGenderMatchingCategory,
   AGE_GROUP_LABELS,
   AGE_CATEGORY_LABELS,
+  GENDER_CATEGORY_LABELS,
+  GENDER_LABELS,
   type AgeCategory,
   type AgeBracket,
+  type GenderCategory,
+  type Gender,
 } from "@/lib/age-groups";
 import type { EventCompetitionWithDetails } from "@/types/competition";
 import type { Profile, House, Event } from "@/types/database";
@@ -52,12 +57,14 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
   const [manualName, setManualName] = useState("");
   const [selectedHouse, setSelectedHouse] = useState<string>("");
   const [ageInput, setAgeInput] = useState<string>("");
+  const [gender, setGender] = useState<Gender | "">("");
 
   const { toast } = useToast();
   const { naturalSort } = useNaturalSort();
   const createTeamMutation = useCreateTeam();
 
   const ageCategory = (competition.age_category as AgeCategory) || "mixed";
+  const genderCategory = ((competition as unknown as { gender_category?: GenderCategory }).gender_category) || "mixed";
 
   // Parent event for paid-event status
   const { data: event } = useQuery({
@@ -129,6 +136,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       setManualName("");
       setSelectedHouse("");
       setAgeInput("");
+      setGender("");
     }
   }, [open]);
 
@@ -153,6 +161,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
 
   const categoryMismatch =
     ageGroup && ageCategory !== "mixed" && ageGroup !== ageCategory;
+  const genderMismatch =
+    genderCategory !== "mixed" && gender !== "" && !isGenderMatchingCategory(gender as Gender, genderCategory);
 
   const selectedProfile = profiles?.find((p) => p.id === selectedProfileId);
   const finalName =
@@ -198,6 +208,22 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       });
       return;
     }
+    if (genderCategory !== "mixed" && !gender) {
+      toast({
+        variant: "destructive",
+        title: "Jenis kelamin wajib dipilih",
+        description: `Kompetisi ini khusus ${GENDER_CATEGORY_LABELS[genderCategory]}.`,
+      });
+      return;
+    }
+    if (genderMismatch) {
+      toast({
+        variant: "destructive",
+        title: "Jenis kelamin tidak sesuai",
+        description: `Kompetisi ini khusus ${GENDER_CATEGORY_LABELS[genderCategory]}.`,
+      });
+      return;
+    }
 
     const existingSeeds = competition.teams?.map((t) => t.seed_number || 0) || [];
     const nextSeed = existingSeeds.length > 0 ? Math.max(...existingSeeds) + 1 : 1;
@@ -212,6 +238,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         user_id: source === "user" ? selectedProfileId : null,
         age: ageValue,
         age_group: ageGroup,
+        gender: gender || null,
       },
       {
         onSuccess: () => onOpenChange(false),
