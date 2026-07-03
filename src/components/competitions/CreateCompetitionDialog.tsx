@@ -35,7 +35,7 @@ import {
   MATCH_TYPE_LABELS,
   PARTICIPANT_TYPE_LABELS,
 } from "@/types/competition";
-import { AGE_CATEGORY_LABELS, AGE_CATEGORY_OPTIONS, formatBracket, type AgeCategory, type AgeBracket } from "@/lib/age-groups";
+import { AGE_CATEGORY_LABELS, AGE_CATEGORY_OPTIONS, GENDER_CATEGORY_LABELS, GENDER_CATEGORY_OPTIONS, formatBracket, type AgeCategory, type AgeBracket, type GenderCategory } from "@/lib/age-groups";
 
 interface CreateCompetitionDialogProps {
   open: boolean;
@@ -69,6 +69,7 @@ export function CreateCompetitionDialog({
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(eventId);
   const [isPoint, setIsPoint] = useState(true);
   const [ageCategory, setAgeCategory] = useState<AgeCategory>("mixed");
+  const [genderCategory, setGenderCategory] = useState<GenderCategory>("mixed");
   const [kidsBrackets, setKidsBrackets] = useState<AgeBracket[]>([]);
   const [newBracketMin, setNewBracketMin] = useState("");
   const [newBracketMax, setNewBracketMax] = useState("");
@@ -105,6 +106,7 @@ export function CreateCompetitionDialog({
     setSelectedEventId(eventId);
     setIsPoint(true);
     setAgeCategory("mixed");
+    setGenderCategory("mixed");
     setKidsBrackets([]);
     setNewBracketMin("");
     setNewBracketMax("");
@@ -123,6 +125,7 @@ export function CreateCompetitionDialog({
       setSelectedEventId(editingCompetition.event_id || undefined);
       setIsPoint(editingCompetition.is_point !== false);
       setAgeCategory((editingCompetition.age_category as AgeCategory) || "mixed");
+      setGenderCategory(((editingCompetition as unknown as { gender_category?: GenderCategory }).gender_category) || "mixed");
       const eb = (editingCompetition as unknown as { kids_brackets?: AgeBracket[] | null }).kids_brackets;
       setKidsBrackets(Array.isArray(eb) ? eb : []);
     } else {
@@ -157,6 +160,7 @@ export function CreateCompetitionDialog({
       max_participants: maxParticipants ? parseInt(maxParticipants) : undefined,
       is_point: isPoint,
       age_category: ageCategory,
+      gender_category: genderCategory,
       kids_brackets:
         (ageCategory === "kids" || ageCategory === "mixed") && kidsBrackets.length > 0
           ? kidsBrackets
