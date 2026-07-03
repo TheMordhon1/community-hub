@@ -23,6 +23,32 @@ export const AGE_CATEGORY_LABELS: Record<AgeCategory, string> = {
 
 export const AGE_CATEGORY_OPTIONS: AgeCategory[] = ["mixed", "adult", "teenager", "kids"];
 
+// Gender categories for competitions
+export type GenderCategory = "mixed" | "male" | "female";
+export type Gender = "male" | "female";
+
+export const GENDER_CATEGORY_LABELS: Record<GenderCategory, string> = {
+  mixed: "Campuran",
+  male: "Laki-laki",
+  female: "Perempuan",
+};
+
+export const GENDER_LABELS: Record<Gender, string> = {
+  male: "Laki-laki",
+  female: "Perempuan",
+};
+
+export const GENDER_CATEGORY_OPTIONS: GenderCategory[] = ["mixed", "male", "female"];
+
+export function isGenderMatchingCategory(
+  gender: Gender | null | undefined,
+  category: GenderCategory
+): boolean {
+  if (category === "mixed") return true;
+  if (!gender) return false;
+  return gender === category;
+}
+
 export function getAgeGroup(age: number | null | undefined): AgeGroup | null {
   if (age == null || isNaN(age) || age < 0) return null;
   if (age < 13) return "kids";
