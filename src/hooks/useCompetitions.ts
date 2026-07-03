@@ -238,9 +238,10 @@ export function useCreateCompetition() {
       registration_deadline?: string;
       is_point?: boolean;
       age_category?: string;
+      gender_category?: string;
       kids_brackets?: { min: number; max: number; label?: string }[] | null;
     }) => {
-      const { error } = await supabase.from("event_competitions").insert(data);
+      const { error } = await supabase.from("event_competitions").insert(data as never);
 
       if (error) throw error;
     },
@@ -283,12 +284,13 @@ export function useUpdateCompetition() {
       status?: CompetitionStatus;
       is_point?: boolean;
       age_category?: string;
+      gender_category?: string;
       kids_brackets?: { min: number; max: number; label?: string }[] | null;
     }) => {
       const { id, event_id, ...updateData } = data;
       const { error } = await supabase
         .from("event_competitions")
-        .update(updateData)
+        .update(updateData as never)
         .eq("id", id);
 
       if (error) throw error;
@@ -361,10 +363,11 @@ export function useCreateTeam() {
       user_id?: string | null;
       age?: number | null;
       age_group?: string | null;
+      gender?: string | null;
     }) => {
       const { data: team, error } = await supabase
         .from("competition_teams")
-        .insert(data)
+        .insert(data as never)
         .select()
         .single();
 
