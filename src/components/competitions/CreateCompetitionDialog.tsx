@@ -75,6 +75,9 @@ export function CreateCompetitionDialog({
   const [newBracketMin, setNewBracketMin] = useState("");
   const [newBracketMax, setNewBracketMax] = useState("");
   const [newBracketLabel, setNewBracketLabel] = useState("");
+  const [groupCount, setGroupCount] = useState("3");
+  const [setsPerMatch, setSetsPerMatch] = useState("2");
+  const [advancePerGroup, setAdvancePerGroup] = useState("2");
 
   const { data: events, isLoading: isLoadingEvents } = useQuery({
     queryKey: ["all-events-for-selection"],
@@ -129,6 +132,12 @@ export function CreateCompetitionDialog({
       setGenderCategory(((editingCompetition as unknown as { gender_category?: GenderCategory }).gender_category) || "mixed");
       const eb = (editingCompetition as unknown as { kids_brackets?: AgeBracket[] | null }).kids_brackets;
       setKidsBrackets(Array.isArray(eb) ? eb : []);
+      const gc = (editingCompetition as unknown as { group_count?: number | null }).group_count;
+      const sp = (editingCompetition as unknown as { sets_per_match?: number | null }).sets_per_match;
+      const ap = (editingCompetition as unknown as { advance_per_group?: number | null }).advance_per_group;
+      setGroupCount(gc ? String(gc) : "3");
+      setSetsPerMatch(sp ? String(sp) : "2");
+      setAdvancePerGroup(ap ? String(ap) : "2");
     } else {
       resetForm();
     }
@@ -166,6 +175,9 @@ export function CreateCompetitionDialog({
         (ageCategory === "kids" || ageCategory === "mixed") && kidsBrackets.length > 0
           ? kidsBrackets
           : null,
+      group_count: format === "liga_grup" ? Math.max(2, parseInt(groupCount) || 3) : null,
+      sets_per_match: format === "liga_grup" ? Math.max(1, parseInt(setsPerMatch) || 2) : null,
+      advance_per_group: format === "liga_grup" ? Math.max(1, parseInt(advancePerGroup) || 2) : null,
     };
 
     // Handle "none" value from select
