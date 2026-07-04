@@ -310,6 +310,31 @@ export function CreateCompetitionDialog({
             </div>
           </div>
 
+          {format === "liga_grup" && (
+            <div className="space-y-3 rounded-lg border p-3 bg-primary/5 border-primary/20">
+              <Label className="text-sm font-semibold">Konfigurasi Liga Grup + Gugur</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Jumlah Grup</Label>
+                  <Input type="number" min="2" max="14" value={groupCount} onChange={(e) => setGroupCount(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Set / Match</Label>
+                  <Input type="number" min="1" value={setsPerMatch} onChange={(e) => setSetsPerMatch(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Lolos / Grup</Label>
+                  <Input type="number" min="1" value={advancePerGroup} onChange={(e) => setAdvancePerGroup(e.target.value)} />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Skor per match = jumlah set menang (mis. 2-1). Top {advancePerGroup} tim tiap grup lolos ke babak gugur → Juara 1, 2, 3.
+              </p>
+            </div>
+          )}
+
+
+
           <div className="space-y-2">
             <Label>Tipe Peserta</Label>
             <Select value={participantType} onValueChange={(v) => setParticipantType(v as ParticipantType)}>

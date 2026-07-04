@@ -32,6 +32,10 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   const [deletingTeam, setDeletingTeam] = useState<CompetitionTeamWithMembers | null>(null);
   const [isSpinOpen, setIsSpinOpen] = useState(false);
   const deleteTeamMutation = useDeleteTeam();
+  const updateTeamGroup = useUpdateTeamGroup();
+  const isLigaGrup = competition.format === "liga_grup";
+  const groupCount = competition.group_count ?? 3;
+  const groupOptions = GROUP_LETTERS.slice(0, groupCount);
 
   const handleDeleteTeam = () => {
     if (!deletingTeam) return;
@@ -40,6 +44,15 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
       competition_id: competition.id,
     });
     setDeletingTeam(null);
+  };
+
+  const handleAutoAssignGroups = () => {
+    const assignment = distributeTeamsToGroups(teams.map((t) => t.id), groupCount);
+    Object.entries(assignment).forEach(([g, ids]) => {
+      ids.forEach((id) => {
+        updateTeamGroup.mutate({ id, competition_id: competition.id, group_name: g });
+      });
+    });
   };
 
   const teams = competition.teams || [];
