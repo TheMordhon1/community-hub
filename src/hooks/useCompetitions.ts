@@ -199,13 +199,14 @@ export function useCompetitionDetails(competitionId: string | undefined) {
           return {
             ...match,
             status: match.status as MatchStatus,
+            stage: (match as unknown as { stage: string | null }).stage as CompetitionMatch["stage"],
             is_point: (match as unknown as CompetitionMatch).is_point ?? true,
             is_final: (match as unknown as CompetitionMatch).is_final ?? false,
             team1: match.team1_id ? teamMap.get(match.team1_id) : undefined,
             team2: match.team2_id ? teamMap.get(match.team2_id) : undefined,
             winner: match.winner_id ? teamMap.get(match.winner_id) : undefined,
             participants,
-          };
+          } as CompetitionMatchWithTeams;
         }) || [];
 
       return {

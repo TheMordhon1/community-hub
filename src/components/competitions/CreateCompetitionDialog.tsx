@@ -48,6 +48,7 @@ const FORMAT_DESCRIPTIONS: Record<CompetitionFormat, string> = {
   knockout: "Sistem Gugur: Pemenang lanjut ke babak berikutnya, yang kalah langsung berhenti. Cocok untuk kompetisi cepat.",
   round_robin: "Round Robin: Semua peserta saling bertemu satu sama lain. Pemenang ditentukan dari poin terbanyak.",
   league: "Liga: Sistem klasemen poin seperti liga sepak bola. Berjalan dalam periode waktu tertentu.",
+  liga_grup: "Liga Grup + Gugur: Peserta dibagi ke beberapa grup (A, B, C…), main round-robin dalam grup dengan 2 set (1 poin per set menang). Top peserta setiap grup lolos ke babak gugur hingga Juara 1, 2, 3.",
   swiss: "Sistem Swiss: Format turnamen adil tanpa eliminasi. Peserta akan melawan lawan dengan skor yang setara di setiap ronde.",
   "17an": "Lomba 17an: Format santai untuk lomba kemerdekaan. Mencatat peserta dan membagi grup secara sederhana jika diperlukan.",
   custom: "Format Bebas: Aturan main ditentukan sendiri oleh panitia sesuai kesepakatan.",
