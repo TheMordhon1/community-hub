@@ -241,6 +241,9 @@ export function useCreateCompetition() {
       age_category?: string;
       gender_category?: string;
       kids_brackets?: { min: number; max: number; label?: string }[] | null;
+      group_count?: number | null;
+      sets_per_match?: number | null;
+      advance_per_group?: number | null;
     }) => {
       const { error } = await supabase.from("event_competitions").insert(data as never);
 
@@ -287,6 +290,9 @@ export function useUpdateCompetition() {
       age_category?: string;
       gender_category?: string;
       kids_brackets?: { min: number; max: number; label?: string }[] | null;
+      group_count?: number | null;
+      sets_per_match?: number | null;
+      advance_per_group?: number | null;
     }) => {
       const { id, event_id, ...updateData } = data;
       const { error } = await supabase
@@ -365,6 +371,7 @@ export function useCreateTeam() {
       age?: number | null;
       age_group?: string | null;
       gender?: string | null;
+      group_name?: string | null;
     }) => {
       const { data: team, error } = await supabase
         .from("competition_teams")
