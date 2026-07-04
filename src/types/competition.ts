@@ -1,11 +1,12 @@
 import type { Profile, House, Event } from './database';
 import type { AgeCategory, AgeBracket, GenderCategory, Gender } from '@/lib/age-groups';
 
-export type CompetitionFormat = 'knockout' | 'round_robin' | 'league' | 'swiss' | '17an' | 'custom';
+export type CompetitionFormat = 'knockout' | 'round_robin' | 'league' | 'liga_grup' | 'swiss' | '17an' | 'custom';
 export type MatchType = '1v1' | '2v2' | '3v3' | '5v5' | '11v11' | 'custom';
 export type ParticipantType = 'user' | 'house' | 'team';
 export type CompetitionStatus = 'registration' | 'ongoing' | 'completed' | 'cancelled';
 export type MatchStatus = 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
+export type MatchStage = 'group' | 'knockout';
 
 export interface EventCompetition {
   id: string;
@@ -23,6 +24,9 @@ export interface EventCompetition {
   age_category: AgeCategory;
   gender_category: GenderCategory;
   kids_brackets: AgeBracket[] | null;
+  group_count: number | null;
+  sets_per_match: number | null;
+  advance_per_group: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +44,7 @@ export interface CompetitionTeam {
   age: number | null;
   age_group: string | null;
   gender: Gender | string | null;
+  group_name: string | null;
   created_at: string;
   house?: House;
 }
@@ -87,6 +92,8 @@ export interface CompetitionMatch {
   age_bracket_min: number | null;
   age_bracket_max: number | null;
   age_bracket_label: string | null;
+  stage: MatchStage | null;
+  sets_data: { team1_score: number; team2_score: number }[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -123,6 +130,7 @@ export const FORMAT_LABELS: Record<CompetitionFormat, string> = {
   knockout: 'Sistem Gugur',
   round_robin: 'Round Robin',
   league: 'Liga',
+  liga_grup: 'Liga Grup + Gugur',
   swiss: 'Swiss System',
   '17an': 'Lomba 17an',
   custom: 'Custom',
