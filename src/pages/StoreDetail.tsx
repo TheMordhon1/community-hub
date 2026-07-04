@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,7 +21,8 @@ import {
 import { 
   Store, MapPin, Phone, Globe, ExternalLink, Edit, Trash2, Plus, 
   Package, CheckCircle, XCircle, Clock, Power, AlertCircle, ShoppingCart, 
-  ArrowRight, Minus, Loader2, Tag, ArrowLeft, Copy
+  ArrowRight, Minus, Loader2, Tag, ArrowLeft, Copy,
+  Gift, Info
 } from "lucide-react";
 import { toast } from "sonner";
 import { CatalogItemDialog } from "@/components/stores/CatalogItemDialog";
@@ -32,13 +33,16 @@ import { differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Tables } from "@/integrations/supabase/types";
 import { StoreStatusBadge } from "@/components/stores/StoreStatusBadge";
-import { useMyVouchers, useMarkVoucherUsed, PointRedemption } from "@/hooks/useGamification";
+import { useMyVouchers, useMarkVoucherUsed, PointRedemption, useStoreRedemptions, useClaimStoreRedemption, useValidateStoreVoucher } from "@/hooks/useGamification";
 
 type CatalogItem = Tables<"store_catalog_items">;
 
 export default function StoreDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const validateCode = searchParams.get('validate_voucher');
+
   const { profile, canManageContent } = useAuth();
   const queryClient = useQueryClient();
   const [catalogDialog, setCatalogDialog] = useState<{ open: boolean; item?: CatalogItem }>({ open: false });
@@ -46,9 +50,13 @@ export default function StoreDetail() {
   const [showCart, setShowCart] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState<PointRedemption | null>(null);
+  const [validationConfirm, setValidationConfirm] = useState<{ open: boolean; code: string } | null>(null);
 
   const { data: myVouchers } = useMyVouchers(profile?.id);
   const markVoucherUsedMutation = useMarkVoucherUsed();
+  const { data: storeRedemptions } = useStoreRedemptions(canManageContent() || profile?.id ? id : undefined);
+  const claimStoreRedemptionMutation = useClaimStoreRedemption();
+  const validateStoreVoucherMutation = useValidateStoreVoucher();
 
   const { data: store, isLoading } = useQuery({
     queryKey: ["store", id],
@@ -88,7 +96,7 @@ export default function StoreDetail() {
     enabled: !!store?.verified_by,
   });
 
-  const { data: houseMembers } = useQuery({
+  const { data: houseMembers, isLoading: houseMembersLoading } = useQuery({
     queryKey: ["house-members", store?.house_id],
     queryFn: async () => {
       if (!store?.house_id) return [];
@@ -192,6 +200,28 @@ export default function StoreDetail() {
   const discount = getVoucherDiscount(selectedVoucher);
   const finalPrice = Math.max(0, cartTotalPrice - discount);
 
+  useEffect(() => {
+    if (selectedVoucher && !store?.use_external_website && cartTotalPrice < discount) {
+      setSelectedVoucher(null);
+      toast.error(`Voucher dibatalkan karena total belanja kurang dari Rp ${discount.toLocaleString("id-ID")}`);
+    }
+  }, [cartTotalPrice, selectedVoucher, discount, store?.use_external_website]);
+
+  useEffect(() => {
+    if (validateCode && id && store && !isLoading && !houseMembersLoading) {
+      if (!canManageStore) {
+        toast.error("Hanya pemilik toko yang dapat melakukan validasi voucher.");
+        setSearchParams(params => {
+          params.delete('validate_voucher');
+          return params;
+        });
+        return;
+      }
+
+      setValidationConfirm({ open: true, code: validateCode });
+    }
+  }, [validateCode, id, canManageStore, store, isLoading, houseMembersLoading]);
+
   const handleCheckout = () => {
     if (!store || !profile) return;
     
@@ -203,8 +233,13 @@ export default function StoreDetail() {
     let voucherText = "";
     if (selectedVoucher) {
       voucherText = `\n\nVoucher digunakan: ${selectedVoucher.reward_item?.name}`;
+      if (selectedVoucher.redeem_code) {
+        voucherText += `\nKode Voucher: ${selectedVoucher.redeem_code}`;
+        const validateUrl = `${window.location.origin}/stores/${id}?validate_voucher=${selectedVoucher.redeem_code}`;
+        voucherText += `\nLink Validasi UMKM: ${validateUrl}`;
+      }
       if (discount > 0) {
-        voucherText += ` (Diskon: Rp ${discount.toLocaleString("id-ID")})`;
+        voucherText += `\n(Diskon: Rp ${discount.toLocaleString("id-ID")})`;
       }
     }
 
@@ -216,14 +251,6 @@ export default function StoreDetail() {
       .replace("{no_rumah}", userHouseInfo ? `Blok ${userHouseInfo.block} No. ${userHouseInfo.number}` : "-")
       .replace("{daftar_pesanan}", orderList)
       .replace("{total_harga}", `Rp ${finalPrice.toLocaleString("id-ID")}${voucherText}`);
-
-    // Mark voucher as used before opening WA
-    if (selectedVoucher && id) {
-      markVoucherUsedMutation.mutate({ 
-        redemptionId: selectedVoucher.id, 
-        storeId: id 
-      });
-    }
 
     window.open(`${waLink}?text=${encodeURIComponent(message)}`, "_blank");
   };
@@ -524,6 +551,54 @@ export default function StoreDetail() {
               </div>
             </CardContent>
           </Card>
+
+          {canManageStore && storeRedemptions && storeRedemptions.length > 0 && (
+            <Card className="border-slate-100 shadow-sm rounded-3xl overflow-hidden bg-emerald-50/30">
+              <CardHeader className="pb-3 border-b border-emerald-100/50 bg-emerald-50/50">
+                <div className="flex items-center gap-2 text-emerald-800">
+                  <Gift className="w-5 h-5" />
+                  <CardTitle className="text-base font-black">Voucher Digunakan</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3 max-h-[300px] overflow-y-auto">
+                {storeRedemptions.map((redemption) => (
+                  <div key={redemption.id} className="bg-white p-3 rounded-2xl border border-emerald-100 shadow-sm space-y-2">
+                    <div className="flex justify-between items-start">
+                      <p className="text-xs font-bold text-slate-800 line-clamp-1">{redemption.reward_item?.name}</p>
+                      <Badge variant="outline" className={cn("text-[9px]", redemption.store_claimed_at ? "bg-slate-50 text-slate-500 border-slate-200" : "bg-emerald-50 text-emerald-700 border-emerald-200")}>
+                        {redemption.points_spent} Poin
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-center text-[10px] text-slate-500">
+                      <p className="font-medium text-slate-700 truncate max-w-[120px]">
+                        Oleh: {redemption.user_profile?.full_name || 'User'}
+                      </p>
+                      <p>
+                        {redemption.used_at ? new Date(redemption.used_at).toLocaleDateString('id-ID') : '-'}
+                      </p>
+                    </div>
+                    {!redemption.store_claimed_at ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full h-8 text-[10px] font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                        onClick={() => claimStoreRedemptionMutation.mutate(redemption.id)}
+                        disabled={claimStoreRedemptionMutation.isPending}
+                      >
+                        {claimStoreRedemptionMutation.isPending ? "Memproses..." : "Klaim ke Pengurus"}
+                      </Button>
+                    ) : (
+                      <div className="bg-slate-50 rounded-lg p-1.5 text-center border border-slate-100">
+                        <p className="text-[10px] font-bold text-slate-500">
+                          Diklaim pada {new Date(redemption.store_claimed_at).toLocaleDateString('id-ID')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="lg:col-span-2">
@@ -549,17 +624,76 @@ export default function StoreDetail() {
                       Toko ini menggunakan platform eksternal untuk katalog lengkap dan sistem pemesanan.
                     </p>
                   </div>
-                  <a 
-                    href={store.website_url?.startsWith('http') ? store.website_url : `https://${store.website_url}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full max-w-xs"
-                  >
-                    <Button size="lg" className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-lg shadow-xl shadow-blue-200 group transition-all">
-                      Buka Website 
-                      <ExternalLink className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
-                    </Button>
-                  </a>
+                  <div className="w-full max-w-xs space-y-4">
+                    {myVouchers && myVouchers.length > 0 && (
+                      <div className="space-y-2 text-left">
+                        <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest pl-1 text-center">Punya Voucher?</p>
+                        <div className="flex flex-col gap-2">
+                          {myVouchers.map((v) => (
+                            <div 
+                              key={v.id}
+                              className={cn(
+                                "flex items-center justify-between p-3 rounded-2xl border-2 transition-all cursor-pointer",
+                                selectedVoucher?.id === v.id 
+                                  ? "border-primary bg-primary/5 shadow-sm" 
+                                  : "border-slate-100 bg-slate-50/50 hover:border-slate-200"
+                              )}
+                              onClick={() => setSelectedVoucher(selectedVoucher?.id === v.id ? null : v)}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={cn("p-2 rounded-xl", selectedVoucher?.id === v.id ? "bg-primary text-white" : "bg-white text-slate-400")}>
+                                  <Tag className="w-4 h-4" />
+                                </div>
+                                <div className="text-left">
+                                  <p className="text-sm font-bold text-slate-800 leading-tight">{v.reward_item?.name}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {selectedVoucher && (
+                          <div className="bg-primary/10 border border-primary/20 rounded-xl p-3 flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-primary">Kode: <span className="font-mono tracking-widest">{selectedVoucher.redeem_code}</span></span>
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-6 px-2 text-[10px] uppercase font-bold tracking-wider"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(selectedVoucher.redeem_code || "");
+                                  toast.success("Kode disalin!");
+                                }}
+                              >
+                                Salin
+                              </Button>
+                            </div>
+                            <div className="flex items-start gap-1.5 mt-1 border-t border-primary/10 pt-2 text-[10px] text-primary/80 font-medium leading-tight">
+                              <Info className="w-3.5 h-3.5 shrink-0" />
+                              <p>Pastikan Anda memasukkan kode ini saat checkout di website toko, atau berikan kepada pemilik UMKM secara manual.</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    <a 
+                      href={store.website_url?.startsWith('http') ? store.website_url : `https://${store.website_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full"
+                      onClick={() => {
+                        if (selectedVoucher && id) {
+                          toast.success("Silakan masukkan kode voucher saat bertransaksi di website toko.");
+                        }
+                      }}
+                    >
+                      <Button size="lg" className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-lg shadow-xl shadow-blue-200 group transition-all">
+                        Buka Website 
+                        <ExternalLink className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+                      </Button>
+                    </a>
+                  </div>
                   <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest bg-white/50 px-4 py-1 rounded-full border border-blue-100 shadow-sm">
                     {store.website_url}
                   </p>
@@ -788,7 +922,18 @@ export default function StoreDetail() {
                                 ? "border-primary bg-primary/5 shadow-sm" 
                                 : "border-slate-100 bg-slate-50/50 hover:border-slate-200"
                             )}
-                            onClick={() => setSelectedVoucher(selectedVoucher?.id === v.id ? null : v)}
+                            onClick={() => {
+                              if (selectedVoucher?.id === v.id) {
+                                setSelectedVoucher(null);
+                              } else {
+                                const vDiscount = getVoucherDiscount(v);
+                                if (cartTotalPrice < vDiscount) {
+                                  toast.error(`Minimal belanja Rp ${vDiscount.toLocaleString("id-ID")} untuk menggunakan voucher ini`);
+                                  return;
+                                }
+                                setSelectedVoucher(v);
+                              }
+                            }}
                           >
                             <div className="flex items-center gap-3">
                               <div className={cn("p-2 rounded-xl", selectedVoucher?.id === v.id ? "bg-primary text-white" : "bg-white text-slate-400")}>
@@ -848,6 +993,52 @@ export default function StoreDetail() {
         mode="edit"
         initialData={store}
       />
+
+      <AlertDialog 
+        open={!!validationConfirm?.open} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setSearchParams(params => {
+              params.delete('validate_voucher');
+              return params;
+            });
+            setValidationConfirm(null);
+          }
+        }}
+      >
+        <AlertDialogContent className="rounded-3xl border-t-4 border-white/20 shadow-2xl p-6 bg-slate-50/95 backdrop-blur-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-black text-slate-800 tracking-tight">Setujui Penggunaan Voucher</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600 font-medium leading-relaxed mt-2">
+              Apakah Anda (pemilik UMKM) menyetujui penggunaan voucher dengan kode{" "}
+              <span className="font-mono font-bold text-slate-900 bg-white/80 border border-slate-100 px-2 py-0.5 rounded-lg shadow-sm">
+                {validationConfirm?.code}
+              </span>{" "}
+              untuk transaksi di toko Anda?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4 gap-2">
+            <AlertDialogCancel className="rounded-2xl font-bold">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              onClick={() => {
+                if (validationConfirm?.code && id) {
+                  validateStoreVoucherMutation.mutate({ code: validationConfirm.code, storeId: id }, {
+                    onSuccess: (data: { success: boolean; message: string }) => {
+                      toast.success(data.message || "Voucher berhasil divalidasi!");
+                    },
+                    onError: (err: Error) => {
+                      toast.error(err.message || "Gagal memvalidasi voucher");
+                    }
+                  });
+                }
+              }}
+            >
+              Setujui
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

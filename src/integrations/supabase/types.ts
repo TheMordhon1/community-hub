@@ -1309,6 +1309,7 @@ export type Database = {
           usage_limit: number | null
           used_at: string | null
           used_in_id: string | null
+          store_claimed_at: string | null
           user_id: string
         }
         Insert: {
@@ -1323,6 +1324,7 @@ export type Database = {
           usage_limit?: number | null
           used_at?: string | null
           used_in_id?: string | null
+          store_claimed_at?: string | null
           user_id: string
         }
         Update: {
@@ -1337,6 +1339,7 @@ export type Database = {
           usage_limit?: number | null
           used_at?: string | null
           used_in_id?: string | null
+          store_claimed_at?: string | null
           user_id?: string
         }
         Relationships: [

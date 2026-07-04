@@ -40,6 +40,7 @@ export type PointRedemption = {
   usage_limit: number;
   created_at: string;
   used_at?: string;
+  store_claimed_at?: string;
   reward_item?: RewardItem;
   user_profile?: Profile;
 };
@@ -414,7 +415,74 @@ export function useMarkVoucherUsed() {
   });
 }
 
+export function useStoreRedemptions(storeId: string | undefined) {
+  return useQuery({
+    queryKey: ["store-redemptions", storeId],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const { data, error } = await typedSupabase
+        .from("point_redemptions")
+        .select(`
+          *,
+          reward_item:reward_items(*),
+          user_profile:profiles(*)
+        `)
+        .eq("used_in_id", storeId)
+        .order("used_at", { ascending: false });
+      
+      if (error) throw error;
+      return data as PointRedemption[];
+    },
+    enabled: !!storeId,
+  });
+}
 
+export function useClaimStoreRedemption() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (redemptionId: string) => {
+      const { error } = await typedSupabase
+        .from("point_redemptions")
+        .update({ 
+          store_claimed_at: new Date().toISOString(),
+        } as unknown as never)
+        .eq("id", redemptionId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["store-redemptions"] });
+    },
+  });
+}
 
-
-
+export function useValidateStoreVoucher() {
+  const queryClient = useQueryClient();
+  return useMutation<
+    { success: boolean; message: string },
+    Error,
+    { code: string; storeId: string }
+  >({
+    mutationFn: async ({ code, storeId }) => {
+      const { data, error } = await (typedSupabase.rpc as unknown as (
+        fn: string,
+        args: { p_redeem_code: string; p_store_id: string }
+      ) => Promise<{ data: { success: boolean; message: string } | null; error: { message: string } | null }>)('validate_store_voucher', {
+        p_redeem_code: code,
+        p_store_id: storeId,
+      });
+      
+      if (error) throw error;
+      if (!data) throw new Error("Gagal memvalidasi voucher");
+      
+      if (!data.success) {
+        throw new Error(data.message);
+      }
+      
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["store-redemptions"] });
+    },
+  });
+}

@@ -40,6 +40,7 @@ import {
   ExternalLink,
   Trophy,
   Gift,
+  Copy,
 } from "lucide-react";
 import {
   Popover,
@@ -97,10 +98,12 @@ type ProfileForm = z.infer<typeof profileSchema>;
 type HouseStatusForm = z.infer<typeof houseStatusSchema>;
 
 import { useAwardPoints, useMyRedemptions } from "@/hooks/useGamification";
+import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
   const { profile, role, pengurusTitle, user } = useAuth();
   const { toast } = useToast();
+  const router = useNavigate();
   const queryClient = useQueryClient();
   const awardPoints = useAwardPoints();
   const { data: myRedemptions } = useMyRedemptions(user?.id);
@@ -1333,13 +1336,54 @@ export default function Profile() {
                           <div className="flex items-center justify-between gap-4 relative z-10">
                             <div>
                               <p className="text-[9px] font-black uppercase text-emerald-600 tracking-widest leading-none mb-1.5">Kode Penukaran</p>
-                              <p className="font-mono font-black text-emerald-700 text-xl tracking-[0.2em]">{redemption.redeem_code}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-mono font-black text-emerald-700 text-xl tracking-[0.2em]">{redemption.redeem_code}</p>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 rounded-lg hover:bg-emerald-100 hover:text-emerald-600 transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(redemption.redeem_code || "");
+                                    toast({ title: "Tersalin", description: "Kode penukaran berhasil disalin" });
+                                  }}
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
                             </div>
                             <div className="text-right">
                               <p className="text-[9px] font-black uppercase text-emerald-600 tracking-widest leading-none mb-1.5">Penggunaan</p>
                               <p className="text-sm font-black text-emerald-800">{redemption.usage_count} / {redemption.usage_limit}</p>
                             </div>
                           </div>
+                          
+                          <div className="relative z-10 pt-2 border-t border-emerald-200/50 mt-2">
+                            <div className="flex items-start gap-2 bg-white/50 p-2.5 rounded-xl border border-emerald-100">
+                              <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                              <div className="text-xs text-emerald-800 font-medium w-full">
+                                <p className="font-bold mb-0.5">Cara Penggunaan:</p>
+                                {redemption.reward_item?.reward_type === 'voucher' ? (
+                                  <div className="space-y-2">
+                                    <p>Pilih voucher ini saat berbelanja di <strong>UMKM Warga</strong> untuk mendapatkan diskon otomatis.</p>
+                                    <Button 
+                                      size="sm" 
+                                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-8 mt-1"
+                                      onClick={() => router("/stores")}
+                                    >
+                                      <Store className="w-3.5 h-3.5 mr-1.5" />
+                                      Belanja Sekarang
+                                    </Button>
+                                  </div>
+                                ) : redemption.reward_item?.reward_type === 'ipl_discount' ? (
+                                  <p>Berikan kode ini kepada pengurus saat melakukan pembayaran IPL (Iuran Pemeliharaan Lingkungan).</p>
+                                ) : (
+                                  <p>Tunjukkan kode ini kepada pengurus untuk mengklaim hadiah fisik Anda.</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
                           <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-700">
                             <Trophy className="w-24 h-24 text-emerald-600" />
                           </div>

@@ -95,7 +95,7 @@ export default function RedeemPoints() {
                 <Button 
                   className="w-full font-bold h-11" 
                   disabled={userPoints < item.points_cost || item.stock <= 0 || redeemMutation.isPending}
-                  onClick={() => redeemMutation.mutate({ user_id: user?.id!, item_id: item.id, points_cost: item.points_cost })}
+                  onClick={() => redeemMutation.mutate({ user_id: user!.id, item_id: item.id, points_cost: item.points_cost })}
                 >
                   {redeemMutation.isPending ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
