@@ -206,7 +206,7 @@ export function useCompetitionDetails(competitionId: string | undefined) {
             team2: match.team2_id ? teamMap.get(match.team2_id) : undefined,
             winner: match.winner_id ? teamMap.get(match.winner_id) : undefined,
             participants,
-          } as CompetitionMatchWithTeams;
+          } as unknown as CompetitionMatchWithTeams;
         }) || [];
 
       return {
