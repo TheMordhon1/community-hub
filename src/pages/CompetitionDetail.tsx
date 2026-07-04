@@ -577,6 +577,20 @@ export default function CompetitionDetail() {
                         </DropdownMenuItem>
                       )}
 
+                      {isLigaGrup && allTeamsAssigned && !groupMatchesExist && canManage && (
+                        <DropdownMenuItem onClick={handleGenerateGroupSchedule} disabled={generateGroup.isPending}>
+                          <RefreshCw className={`w-4 h-4 mr-2 ${generateGroup.isPending ? 'animate-spin' : ''}`} />
+                          Generate Jadwal Grup
+                        </DropdownMenuItem>
+                      )}
+                      {isLigaGrup && groupsDone && !knockoutExists && canManage && (
+                        <DropdownMenuItem onClick={handleGenerateKnockout} disabled={generateKnockout.isPending}>
+                          <Trophy className="w-4 h-4 mr-2" />
+                          Generate Babak Gugur
+                        </DropdownMenuItem>
+                      )}
+
+
                       {canModifyMatches && (
                         <DropdownMenuItem onClick={() => setIsCreateMatchOpen(true)}>
                           <Swords className="w-4 h-4 mr-2" />
@@ -619,8 +633,17 @@ export default function CompetitionDetail() {
                   </Button>
                 )}
               </div>
+              {isLigaGrup && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <Trophy className="w-4 h-4" /> Klasemen Fase Grup
+                  </h3>
+                  <GroupStandings competition={competition} />
+                </div>
+              )}
               <MatchList competition={competition} canManage={canModifyMatches} />
             </TabsContent>
+
 
             <TabsContent value="teams" className="space-y-4">
               <TeamList
