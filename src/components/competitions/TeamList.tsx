@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,11 +14,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Users, Trash2, Crown, Sparkles } from "lucide-react";
+import { Plus, Users, Trash2, Crown, Sparkles, Shuffle } from "lucide-react";
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
-import { useDeleteTeam } from "@/hooks/useCompetitions";
+import { useDeleteTeam, useUpdateTeamGroup } from "@/hooks/useCompetitions";
 import { getInitials } from "@/lib/utils";
 import { getKidsBracket, AGE_GROUP_LABELS, findBracket, formatBracket, type AgeCategory, type AgeBracket } from "@/lib/age-groups";
+import { GROUP_LETTERS, distributeTeamsToGroups } from "@/lib/liga-group";
 import { SpinWheelDialog } from "./SpinWheelDialog";
 
 interface TeamListProps {
