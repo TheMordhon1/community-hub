@@ -231,6 +231,8 @@ export type Database = {
           round_number: number
           score1: string | null
           score2: string | null
+          sets_data: Json | null
+          stage: string | null
           status: string
           team1_id: string | null
           team2_id: string | null
@@ -257,6 +259,8 @@ export type Database = {
           round_number?: number
           score1?: string | null
           score2?: string | null
+          sets_data?: Json | null
+          stage?: string | null
           status?: string
           team1_id?: string | null
           team2_id?: string | null
@@ -283,6 +287,8 @@ export type Database = {
           round_number?: number
           score1?: string | null
           score2?: string | null
+          sets_data?: Json | null
+          stage?: string | null
           status?: string
           team1_id?: string | null
           team2_id?: string | null
@@ -395,6 +401,7 @@ export type Database = {
           competition_id: string
           created_at: string
           gender: string | null
+          group_name: string | null
           house_id: string | null
           id: string
           is_eliminated: boolean | null
@@ -410,6 +417,7 @@ export type Database = {
           competition_id: string
           created_at?: string
           gender?: string | null
+          group_name?: string | null
           house_id?: string | null
           id?: string
           is_eliminated?: boolean | null
@@ -425,6 +433,7 @@ export type Database = {
           competition_id?: string
           created_at?: string
           gender?: string | null
+          group_name?: string | null
           house_id?: string | null
           id?: string
           is_eliminated?: boolean | null
@@ -589,12 +598,14 @@ export type Database = {
       }
       event_competitions: {
         Row: {
+          advance_per_group: number | null
           age_category: string
           created_at: string
           custom_match_label: string | null
           event_id: string | null
           format: string
           gender_category: string
+          group_count: number | null
           id: string
           is_point: boolean | null
           kids_brackets: Json | null
@@ -603,17 +614,20 @@ export type Database = {
           participant_type: string
           registration_deadline: string | null
           rules: string | null
+          sets_per_match: number | null
           sport_name: string
           status: string
           updated_at: string
         }
         Insert: {
+          advance_per_group?: number | null
           age_category?: string
           created_at?: string
           custom_match_label?: string | null
           event_id?: string | null
           format?: string
           gender_category?: string
+          group_count?: number | null
           id?: string
           is_point?: boolean | null
           kids_brackets?: Json | null
@@ -622,17 +636,20 @@ export type Database = {
           participant_type?: string
           registration_deadline?: string | null
           rules?: string | null
+          sets_per_match?: number | null
           sport_name: string
           status?: string
           updated_at?: string
         }
         Update: {
+          advance_per_group?: number | null
           age_category?: string
           created_at?: string
           custom_match_label?: string | null
           event_id?: string | null
           format?: string
           gender_category?: string
+          group_count?: number | null
           id?: string
           is_point?: boolean | null
           kids_brackets?: Json | null
@@ -641,6 +658,7 @@ export type Database = {
           participant_type?: string
           registration_deadline?: string | null
           rules?: string | null
+          sets_per_match?: number | null
           sport_name?: string
           status?: string
           updated_at?: string
