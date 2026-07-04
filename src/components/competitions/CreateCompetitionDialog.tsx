@@ -48,6 +48,7 @@ const FORMAT_DESCRIPTIONS: Record<CompetitionFormat, string> = {
   knockout: "Sistem Gugur: Pemenang lanjut ke babak berikutnya, yang kalah langsung berhenti. Cocok untuk kompetisi cepat.",
   round_robin: "Round Robin: Semua peserta saling bertemu satu sama lain. Pemenang ditentukan dari poin terbanyak.",
   league: "Liga: Sistem klasemen poin seperti liga sepak bola. Berjalan dalam periode waktu tertentu.",
+  liga_grup: "Liga Grup + Gugur: Peserta dibagi ke beberapa grup (A, B, C…), main round-robin dalam grup dengan 2 set (1 poin per set menang). Top peserta setiap grup lolos ke babak gugur hingga Juara 1, 2, 3.",
   swiss: "Sistem Swiss: Format turnamen adil tanpa eliminasi. Peserta akan melawan lawan dengan skor yang setara di setiap ronde.",
   "17an": "Lomba 17an: Format santai untuk lomba kemerdekaan. Mencatat peserta dan membagi grup secara sederhana jika diperlukan.",
   custom: "Format Bebas: Aturan main ditentukan sendiri oleh panitia sesuai kesepakatan.",
@@ -74,6 +75,9 @@ export function CreateCompetitionDialog({
   const [newBracketMin, setNewBracketMin] = useState("");
   const [newBracketMax, setNewBracketMax] = useState("");
   const [newBracketLabel, setNewBracketLabel] = useState("");
+  const [groupCount, setGroupCount] = useState("3");
+  const [setsPerMatch, setSetsPerMatch] = useState("2");
+  const [advancePerGroup, setAdvancePerGroup] = useState("2");
 
   const { data: events, isLoading: isLoadingEvents } = useQuery({
     queryKey: ["all-events-for-selection"],
@@ -128,6 +132,12 @@ export function CreateCompetitionDialog({
       setGenderCategory(((editingCompetition as unknown as { gender_category?: GenderCategory }).gender_category) || "mixed");
       const eb = (editingCompetition as unknown as { kids_brackets?: AgeBracket[] | null }).kids_brackets;
       setKidsBrackets(Array.isArray(eb) ? eb : []);
+      const gc = (editingCompetition as unknown as { group_count?: number | null }).group_count;
+      const sp = (editingCompetition as unknown as { sets_per_match?: number | null }).sets_per_match;
+      const ap = (editingCompetition as unknown as { advance_per_group?: number | null }).advance_per_group;
+      setGroupCount(gc ? String(gc) : "3");
+      setSetsPerMatch(sp ? String(sp) : "2");
+      setAdvancePerGroup(ap ? String(ap) : "2");
     } else {
       resetForm();
     }
@@ -165,6 +175,9 @@ export function CreateCompetitionDialog({
         (ageCategory === "kids" || ageCategory === "mixed") && kidsBrackets.length > 0
           ? kidsBrackets
           : null,
+      group_count: format === "liga_grup" ? Math.max(2, parseInt(groupCount) || 3) : null,
+      sets_per_match: format === "liga_grup" ? Math.max(1, parseInt(setsPerMatch) || 2) : null,
+      advance_per_group: format === "liga_grup" ? Math.max(1, parseInt(advancePerGroup) || 2) : null,
     };
 
     // Handle "none" value from select
@@ -296,6 +309,31 @@ export function CreateCompetitionDialog({
               )}
             </div>
           </div>
+
+          {format === "liga_grup" && (
+            <div className="space-y-3 rounded-lg border p-3 bg-primary/5 border-primary/20">
+              <Label className="text-sm font-semibold">Konfigurasi Liga Grup + Gugur</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Jumlah Grup</Label>
+                  <Input type="number" min="2" max="14" value={groupCount} onChange={(e) => setGroupCount(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Set / Match</Label>
+                  <Input type="number" min="1" value={setsPerMatch} onChange={(e) => setSetsPerMatch(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Lolos / Grup</Label>
+                  <Input type="number" min="1" value={advancePerGroup} onChange={(e) => setAdvancePerGroup(e.target.value)} />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Skor per match = jumlah set menang (mis. 2-1). Top {advancePerGroup} tim tiap grup lolos ke babak gugur → Juara 1, 2, 3.
+              </p>
+            </div>
+          )}
+
+
 
           <div className="space-y-2">
             <Label>Tipe Peserta</Label>

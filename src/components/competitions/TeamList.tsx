@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,11 +14,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Users, Trash2, Crown, Sparkles } from "lucide-react";
+import { Plus, Users, Trash2, Crown, Sparkles, Shuffle } from "lucide-react";
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
-import { useDeleteTeam } from "@/hooks/useCompetitions";
+import { useDeleteTeam, useUpdateTeamGroup } from "@/hooks/useCompetitions";
 import { getInitials } from "@/lib/utils";
 import { getKidsBracket, AGE_GROUP_LABELS, findBracket, formatBracket, type AgeCategory, type AgeBracket } from "@/lib/age-groups";
+import { GROUP_LETTERS, distributeTeamsToGroups } from "@/lib/liga-group";
 import { SpinWheelDialog } from "./SpinWheelDialog";
 
 interface TeamListProps {
@@ -30,6 +32,10 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   const [deletingTeam, setDeletingTeam] = useState<CompetitionTeamWithMembers | null>(null);
   const [isSpinOpen, setIsSpinOpen] = useState(false);
   const deleteTeamMutation = useDeleteTeam();
+  const updateTeamGroup = useUpdateTeamGroup();
+  const isLigaGrup = competition.format === "liga_grup";
+  const groupCount = competition.group_count ?? 3;
+  const groupOptions = GROUP_LETTERS.slice(0, groupCount);
 
   const handleDeleteTeam = () => {
     if (!deletingTeam) return;
@@ -38,6 +44,15 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
       competition_id: competition.id,
     });
     setDeletingTeam(null);
+  };
+
+  const handleAutoAssignGroups = () => {
+    const assignment = distributeTeamsToGroups(teams.map((t) => t.id), groupCount);
+    Object.entries(assignment).forEach(([g, ids]) => {
+      ids.forEach((id) => {
+        updateTeamGroup.mutate({ id, competition_id: competition.id, group_name: g });
+      });
+    });
   };
 
   const teams = competition.teams || [];
@@ -97,6 +112,12 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
     <>
       <div className="space-y-4">
         <div className="flex flex-wrap justify-end gap-2">
+          {isLigaGrup && canManage && teams.length >= groupCount && (
+            <Button size="sm" variant="outline" onClick={handleAutoAssignGroups}>
+              <Shuffle className="w-4 h-4 mr-1" />
+              Bagi Grup Otomatis
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
@@ -113,6 +134,7 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
             </Button>
           )}
         </div>
+
 
         {groupedTeams.map(([groupLabel, groupTeams]) => (
           <div key={groupLabel} className="space-y-2">
@@ -151,12 +173,41 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                                 {AGE_GROUP_LABELS[team.age_group as keyof typeof AGE_GROUP_LABELS]}
                               </Badge>
                             )}
+                            {team.group_name && (
+                              <Badge className="text-xs bg-primary/15 text-primary hover:bg-primary/20">
+                                Grup {team.group_name}
+                              </Badge>
+                            )}
                             {team.is_eliminated && (
                               <Badge variant="destructive" className="text-xs">
                                 Tereliminasi
                               </Badge>
                             )}
                           </div>
+                          {isLigaGrup && canManage && (
+                            <div className="mt-2">
+                              <Select
+                                value={team.group_name || "none"}
+                                onValueChange={(v) =>
+                                  updateTeamGroup.mutate({
+                                    id: team.id,
+                                    competition_id: competition.id,
+                                    group_name: v === "none" ? null : v,
+                                  })
+                                }
+                              >
+                                <SelectTrigger className="h-7 text-xs w-32">
+                                  <SelectValue placeholder="Pilih grup" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">— Belum di-assign —</SelectItem>
+                                  {groupOptions.map((g) => (
+                                    <SelectItem key={g} value={g}>Grup {g}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
                         </div>
                       </div>
                       {canManage && (

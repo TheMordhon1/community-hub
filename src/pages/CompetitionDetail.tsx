@@ -10,7 +10,18 @@ import {
   useDeleteCompetition,
   useAdvance17anRound,
   useResetAllMatches,
+  useGenerateGroupSchedule,
+  useGenerateKnockoutFromGroups,
 } from "@/hooks/useCompetitions";
+import {
+  areAllGroupMatchesCompleted,
+  computeStandings,
+  hasGroupMatches,
+  hasKnockoutMatches,
+  seedKnockoutFromStandings,
+  type StandingRow,
+} from "@/lib/liga-group";
+import { GroupStandings } from "@/components/competitions/GroupStandings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,6 +95,8 @@ export default function CompetitionDetail() {
   const updateCompetition = useUpdateCompetition();
   const deleteCompetition = useDeleteCompetition();
   const advanceRound = useAdvance17anRound();
+  const generateGroup = useGenerateGroupSchedule();
+  const generateKnockout = useGenerateKnockoutFromGroups();
   const resetAllMatches = useResetAllMatches();
 
   const [isAddTeamOpen, setIsAddTeamOpen] = useState(false);
@@ -176,6 +189,38 @@ export default function CompetitionDetail() {
       onSuccess: () => setIsResetAllOpen(false)
     });
   };
+
+  const isLigaGrup = competition?.format === "liga_grup";
+  const teamsInGroups = competition?.teams?.filter((t) => !!t.group_name) || [];
+  const allTeamsAssigned = !!competition?.teams?.length && teamsInGroups.length === competition.teams.length;
+  const groupNamesSet = Array.from(new Set(teamsInGroups.map((t) => t.group_name!))).sort();
+  const groupMatchesExist = competition ? hasGroupMatches(competition.matches || []) : false;
+  const knockoutExists = competition ? hasKnockoutMatches(competition.matches || []) : false;
+  const groupsDone = competition ? areAllGroupMatchesCompleted(competition.matches || []) : false;
+
+  const handleGenerateGroupSchedule = () => {
+    if (!competition) return;
+    generateGroup.mutate({ competition_id: competition.id });
+  };
+
+  const handleGenerateKnockout = () => {
+    if (!competition) return;
+    const advance = competition.advance_per_group ?? 2;
+    const standingsByGroup: Record<string, StandingRow[]> = {};
+    groupNamesSet.forEach((g) => {
+      standingsByGroup[g] = computeStandings(competition.teams || [], competition.matches || [], g);
+    });
+    const pairs = seedKnockoutFromStandings(standingsByGroup, advance);
+    generateKnockout.mutate({
+      competition_id: competition.id,
+      pairs,
+      match_datetime: competition.events?.event_date
+        ? `${competition.events.event_date.split("T")[0]}T${competition.events.event_time || "08:00"}`
+        : null,
+      location: competition.events?.location || null,
+    });
+  };
+
 
   const shareUrl = `${window.location.origin}${eventId ? `/events/${eventId}` : ""}/competitions/${competitionId}`;
   const shareText = `${competition?.sport_name}\n\nFormat: ${competition ? FORMAT_LABELS[competition.format] : ""}\nTipe: ${competition ? MATCH_TYPE_LABELS[competition.match_type] : ""}`;
@@ -532,6 +577,20 @@ export default function CompetitionDetail() {
                         </DropdownMenuItem>
                       )}
 
+                      {isLigaGrup && allTeamsAssigned && !groupMatchesExist && canManage && (
+                        <DropdownMenuItem onClick={handleGenerateGroupSchedule} disabled={generateGroup.isPending}>
+                          <RefreshCw className={`w-4 h-4 mr-2 ${generateGroup.isPending ? 'animate-spin' : ''}`} />
+                          Generate Jadwal Grup
+                        </DropdownMenuItem>
+                      )}
+                      {isLigaGrup && groupsDone && !knockoutExists && canManage && (
+                        <DropdownMenuItem onClick={handleGenerateKnockout} disabled={generateKnockout.isPending}>
+                          <Trophy className="w-4 h-4 mr-2" />
+                          Generate Babak Gugur
+                        </DropdownMenuItem>
+                      )}
+
+
                       {canModifyMatches && (
                         <DropdownMenuItem onClick={() => setIsCreateMatchOpen(true)}>
                           <Swords className="w-4 h-4 mr-2" />
@@ -574,8 +633,17 @@ export default function CompetitionDetail() {
                   </Button>
                 )}
               </div>
+              {isLigaGrup && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <Trophy className="w-4 h-4" /> Klasemen Fase Grup
+                  </h3>
+                  <GroupStandings competition={competition} />
+                </div>
+              )}
               <MatchList competition={competition} canManage={canModifyMatches} />
             </TabsContent>
+
 
             <TabsContent value="teams" className="space-y-4">
               <TeamList
