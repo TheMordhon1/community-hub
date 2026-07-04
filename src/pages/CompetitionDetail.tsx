@@ -10,7 +10,18 @@ import {
   useDeleteCompetition,
   useAdvance17anRound,
   useResetAllMatches,
+  useGenerateGroupSchedule,
+  useGenerateKnockoutFromGroups,
 } from "@/hooks/useCompetitions";
+import {
+  areAllGroupMatchesCompleted,
+  computeStandings,
+  hasGroupMatches,
+  hasKnockoutMatches,
+  seedKnockoutFromStandings,
+  type StandingRow,
+} from "@/lib/liga-group";
+import { GroupStandings } from "@/components/competitions/GroupStandings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,6 +95,8 @@ export default function CompetitionDetail() {
   const updateCompetition = useUpdateCompetition();
   const deleteCompetition = useDeleteCompetition();
   const advanceRound = useAdvance17anRound();
+  const generateGroup = useGenerateGroupSchedule();
+  const generateKnockout = useGenerateKnockoutFromGroups();
   const resetAllMatches = useResetAllMatches();
 
   const [isAddTeamOpen, setIsAddTeamOpen] = useState(false);
