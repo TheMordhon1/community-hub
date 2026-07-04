@@ -92,6 +92,18 @@ export function MatchList({ competition, canManage }: MatchListProps) {
     return acc;
   }, {} as Record<number, CompetitionMatchWithTeams[]>);
 
+  // Sort matches within each round by datetime (nulls last), then by match_number
+  const timeOf = (m: CompetitionMatchWithTeams) =>
+    m.match_datetime ? new Date(m.match_datetime).getTime() : Number.POSITIVE_INFINITY;
+
+  Object.keys(matchesByRound).forEach((r) => {
+    matchesByRound[Number(r)].sort((a, b) => {
+      const diff = timeOf(a) - timeOf(b);
+      if (diff !== 0) return diff;
+      return (a.match_number || 0) - (b.match_number || 0);
+    });
+  });
+
   const getRoundName = (round: number, totalRounds: number, matches: CompetitionMatchWithTeams[]) => {
     // Check if there's a custom phase label in any match of this round
     const customLabel = matches.find(m => m.phase_label)?.phase_label;
@@ -121,10 +133,17 @@ export function MatchList({ competition, canManage }: MatchListProps) {
     }
   };
 
+  // Order phases by earliest match datetime, then by round number
+  const sortedRoundEntries = Object.entries(matchesByRound).sort(([ra, ma], [rb, mb]) => {
+    const ta = Math.min(...ma.map(timeOf));
+    const tb = Math.min(...mb.map(timeOf));
+    if (ta !== tb) return ta - tb;
+    return Number(ra) - Number(rb);
+  });
+
   return (
     <div className="space-y-6">
-      {Object.entries(matchesByRound)
-        .sort(([a], [b]) => Number(a) - Number(b))
+      {sortedRoundEntries
         .map(([round, roundMatches]) => (
           <div key={round} className="space-y-3">
             <h4 className="font-semibold text-lg flex items-center justify-between gap-2">
