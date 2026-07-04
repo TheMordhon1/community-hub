@@ -112,6 +112,12 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
     <>
       <div className="space-y-4">
         <div className="flex flex-wrap justify-end gap-2">
+          {isLigaGrup && canManage && teams.length >= groupCount && (
+            <Button size="sm" variant="outline" onClick={handleAutoAssignGroups}>
+              <Shuffle className="w-4 h-4 mr-1" />
+              Bagi Grup Otomatis
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
@@ -128,6 +134,7 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
             </Button>
           )}
         </div>
+
 
         {groupedTeams.map(([groupLabel, groupTeams]) => (
           <div key={groupLabel} className="space-y-2">
@@ -166,12 +173,41 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                                 {AGE_GROUP_LABELS[team.age_group as keyof typeof AGE_GROUP_LABELS]}
                               </Badge>
                             )}
+                            {team.group_name && (
+                              <Badge className="text-xs bg-primary/15 text-primary hover:bg-primary/20">
+                                Grup {team.group_name}
+                              </Badge>
+                            )}
                             {team.is_eliminated && (
                               <Badge variant="destructive" className="text-xs">
                                 Tereliminasi
                               </Badge>
                             )}
                           </div>
+                          {isLigaGrup && canManage && (
+                            <div className="mt-2">
+                              <Select
+                                value={team.group_name || "none"}
+                                onValueChange={(v) =>
+                                  updateTeamGroup.mutate({
+                                    id: team.id,
+                                    competition_id: competition.id,
+                                    group_name: v === "none" ? null : v,
+                                  })
+                                }
+                              >
+                                <SelectTrigger className="h-7 text-xs w-32">
+                                  <SelectValue placeholder="Pilih grup" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">— Belum di-assign —</SelectItem>
+                                  {groupOptions.map((g) => (
+                                    <SelectItem key={g} value={g}>Grup {g}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
                         </div>
                       </div>
                       {canManage && (
