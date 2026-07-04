@@ -190,6 +190,38 @@ export default function CompetitionDetail() {
     });
   };
 
+  const isLigaGrup = competition?.format === "liga_grup";
+  const teamsInGroups = competition?.teams?.filter((t) => !!t.group_name) || [];
+  const allTeamsAssigned = !!competition?.teams?.length && teamsInGroups.length === competition.teams.length;
+  const groupNamesSet = Array.from(new Set(teamsInGroups.map((t) => t.group_name!))).sort();
+  const groupMatchesExist = competition ? hasGroupMatches(competition.matches || []) : false;
+  const knockoutExists = competition ? hasKnockoutMatches(competition.matches || []) : false;
+  const groupsDone = competition ? areAllGroupMatchesCompleted(competition.matches || []) : false;
+
+  const handleGenerateGroupSchedule = () => {
+    if (!competition) return;
+    generateGroup.mutate({ competition_id: competition.id });
+  };
+
+  const handleGenerateKnockout = () => {
+    if (!competition) return;
+    const advance = competition.advance_per_group ?? 2;
+    const standingsByGroup: Record<string, StandingRow[]> = {};
+    groupNamesSet.forEach((g) => {
+      standingsByGroup[g] = computeStandings(competition.teams || [], competition.matches || [], g);
+    });
+    const pairs = seedKnockoutFromStandings(standingsByGroup, advance);
+    generateKnockout.mutate({
+      competition_id: competition.id,
+      pairs,
+      match_datetime: competition.events?.event_date
+        ? `${competition.events.event_date.split("T")[0]}T${competition.events.event_time || "08:00"}`
+        : null,
+      location: competition.events?.location || null,
+    });
+  };
+
+
   const shareUrl = `${window.location.origin}${eventId ? `/events/${eventId}` : ""}/competitions/${competitionId}`;
   const shareText = `${competition?.sport_name}\n\nFormat: ${competition ? FORMAT_LABELS[competition.format] : ""}\nTipe: ${competition ? MATCH_TYPE_LABELS[competition.match_type] : ""}`;
 
