@@ -1261,3 +1261,283 @@ export function useAssignMatchTeams() {
     },
   });
 }
+
+// ============================================================================
+// Liga Grup + Gugur helpers
+// ============================================================================
+
+// Update team group assignment (Grup A, B, C…)
+export function useUpdateTeamGroup() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: {
+      id: string;
+      competition_id: string;
+      group_name: string | null;
+    }) => {
+      const { error } = await supabase
+        .from("competition_teams")
+        .update({ group_name: data.group_name } as never)
+        .eq("id", data.id);
+      if (error) throw error;
+      return { competition_id: data.competition_id };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal memperbarui grup peserta",
+      });
+    },
+  });
+}
+
+// Generate round-robin group-stage schedule.
+// Deletes any prior group-stage matches, then creates one match per pair
+// inside each group. score1/score2 = number of sets won.
+export function useGenerateGroupSchedule() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { competition_id: string }) => {
+      const { competition_id } = data;
+
+      const { data: comp, error: cErr } = await supabase
+        .from("event_competitions")
+        .select("*, events(*)")
+        .eq("id", competition_id)
+        .single();
+      if (cErr) throw cErr;
+
+      const { data: teams, error: tErr } = await supabase
+        .from("competition_teams")
+        .select("id, group_name")
+        .eq("competition_id", competition_id);
+      if (tErr) throw tErr;
+
+      const grouped = new Map<string, string[]>();
+      (teams || []).forEach((t) => {
+        const g = (t as { group_name: string | null }).group_name;
+        if (!g) return;
+        if (!grouped.has(g)) grouped.set(g, []);
+        grouped.get(g)!.push(t.id);
+      });
+
+      if (grouped.size === 0) {
+        throw new Error("Belum ada peserta yang di-assign ke grup");
+      }
+
+      // Delete existing group-stage matches
+      await supabase
+        .from("competition_matches")
+        .delete()
+        .eq("competition_id", competition_id)
+        .eq("stage", "group");
+
+      const eventDateStr = (comp as { events?: { event_date?: string; event_time?: string; location?: string } })?.events?.event_date;
+      const datePart = eventDateStr
+        ? eventDateStr.includes("T")
+          ? eventDateStr.split("T")[0]
+          : eventDateStr
+        : null;
+      const eventTime = (comp as { events?: { event_time?: string } })?.events?.event_time || "08:00";
+      const match_datetime = datePart ? `${datePart}T${eventTime}` : null;
+      const location = (comp as { events?: { location?: string } })?.events?.location || null;
+
+      let matchCounter = 0;
+      for (const [groupName, teamIds] of Array.from(grouped.entries()).sort(([a], [b]) => a.localeCompare(b))) {
+        for (let i = 0; i < teamIds.length; i++) {
+          for (let j = i + 1; j < teamIds.length; j++) {
+            matchCounter += 1;
+            const { data: newMatch, error: mErr } = await supabase
+              .from("competition_matches")
+              .insert({
+                competition_id,
+                round_number: 1,
+                match_number: matchCounter,
+                team1_id: teamIds[i],
+                team2_id: teamIds[j],
+                status: "scheduled",
+                match_datetime,
+                location,
+                phase_label: `Fase Grup — Grup ${groupName}`,
+                group_name: groupName,
+                stage: "group",
+              } as never)
+              .select()
+              .single();
+            if (mErr) throw mErr;
+
+            const { error: pErr } = await supabase
+              .from("competition_match_participants")
+              .insert([
+                { match_id: newMatch.id, team_id: teamIds[i] },
+                { match_id: newMatch.id, team_id: teamIds[j] },
+              ]);
+            if (pErr) throw pErr;
+          }
+        }
+      }
+
+      return { competition_id };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
+      toast({
+        title: "Berhasil",
+        description: "Jadwal fase grup berhasil dibuat",
+      });
+    },
+    onError: (err: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: err.message || "Gagal membuat jadwal grup",
+      });
+    },
+  });
+}
+
+// Generate knockout bracket seeded from group standings.
+// Advances top-N per group per competition.advance_per_group setting.
+export function useGenerateKnockoutFromGroups() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: {
+      competition_id: string;
+      pairs: { team1_id: string; team2_id: string; label: string }[];
+      match_datetime?: string | null;
+      location?: string | null;
+    }) => {
+      const { competition_id, pairs, match_datetime, location } = data;
+      if (pairs.length === 0) throw new Error("Tidak ada tim yang lolos");
+
+      // Delete previous knockout matches
+      await supabase
+        .from("competition_matches")
+        .delete()
+        .eq("competition_id", competition_id)
+        .eq("stage", "knockout");
+
+      // Determine rounds needed (round-up to power of 2)
+      const rounds = Math.max(1, Math.ceil(Math.log2(pairs.length * 2)));
+      const matchMap = new Map<string, string>();
+      for (let r = 1; r <= rounds; r++) {
+        const count = Math.pow(2, rounds - r);
+        for (let m = 1; m <= count; m++) matchMap.set(`${r}-${m}`, crypto.randomUUID());
+      }
+
+      const roundLabel = (r: number) => {
+        const fromEnd = rounds - r + 1;
+        if (fromEnd === 1) return "Final";
+        if (fromEnd === 2) return "Semi Final";
+        if (fromEnd === 3) return "Perempat Final";
+        return `Babak Gugur ${r}`;
+      };
+
+      const rows: Record<string, unknown>[] = [];
+      for (let r = 1; r <= rounds; r++) {
+        const count = Math.pow(2, rounds - r);
+        for (let m = 1; m <= count; m++) {
+          const id = matchMap.get(`${r}-${m}`)!;
+          const next = r < rounds ? matchMap.get(`${r + 1}-${Math.ceil(m / 2)}`) : null;
+          let team1_id: string | null = null;
+          let team2_id: string | null = null;
+          let phase_label: string | null = roundLabel(r);
+          if (r === 1) {
+            const pair = pairs[m - 1];
+            if (pair) {
+              team1_id = pair.team1_id;
+              team2_id = pair.team2_id;
+              phase_label = `${roundLabel(r)} — ${pair.label}`;
+            }
+          }
+          rows.push({
+            id,
+            competition_id,
+            round_number: r,
+            match_number: m,
+            next_match_id: next,
+            team1_id,
+            team2_id,
+            status: "scheduled",
+            match_datetime: match_datetime ?? null,
+            location: location ?? null,
+            phase_label,
+            stage: "knockout",
+            is_final: r === rounds,
+          });
+        }
+      }
+
+      // Add a 3rd-place playoff if there is a semi-final round
+      if (rounds >= 2) {
+        rows.push({
+          id: crypto.randomUUID(),
+          competition_id,
+          round_number: rounds,
+          match_number: 99,
+          next_match_id: null,
+          team1_id: null,
+          team2_id: null,
+          status: "scheduled",
+          match_datetime: match_datetime ?? null,
+          location: location ?? null,
+          phase_label: "Perebutan Juara 3",
+          stage: "knockout",
+          is_final: false,
+        });
+      }
+
+      const { error: insErr } = await supabase
+        .from("competition_matches")
+        .insert(rows as never);
+      if (insErr) throw insErr;
+
+      // Create participant records for round-1 matches
+      const round1 = rows.filter((r) => r.round_number === 1 && r.team1_id && r.team2_id);
+      const partRows: { match_id: string; team_id: string }[] = [];
+      round1.forEach((r) => {
+        partRows.push({ match_id: r.id as string, team_id: r.team1_id as string });
+        partRows.push({ match_id: r.id as string, team_id: r.team2_id as string });
+      });
+      if (partRows.length > 0) {
+        const { error: pErr } = await supabase
+          .from("competition_match_participants")
+          .insert(partRows);
+        if (pErr) throw pErr;
+      }
+
+      return { competition_id };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
+      toast({
+        title: "Berhasil",
+        description: "Babak gugur berhasil dibuat dari juara & runner-up grup",
+      });
+    },
+    onError: (err: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: err.message || "Gagal membuat babak gugur",
+      });
+    },
+  });
+}
+
