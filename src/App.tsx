@@ -87,9 +87,8 @@ function AppRoutes() {
         }
       />
       <Route element={<AppLayout />}>
-        <Route path="/live-matches" element={<LiveMatches />} />
-        
         <Route element={<ProtectedRoute />}>
+          <Route path="/live-matches" element={<LiveMatches />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/announcements" element={<Announcements />} />
           <Route path="/announcements/:id" element={<AnnouncementDetail />} />
