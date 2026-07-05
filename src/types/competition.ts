@@ -52,8 +52,9 @@ export interface CompetitionTeam {
 export interface CompetitionTeamMember {
   id: string;
   team_id: string;
-  user_id: string;
+  user_id: string | null;
   is_captain: boolean | null;
+  name: string | null;
   created_at: string;
   profile?: Profile;
 }

@@ -29,6 +29,13 @@ interface ParticipantScore {
   winner_rank: number | null;
 }
 
+
+interface SetScore {
+  set_number: number;
+  score1: number;
+  score2: number;
+}
+
 export function LiveScoreDialog({
   open,
   onOpenChange,
@@ -123,12 +130,16 @@ export function LiveScoreDialog({
       competition_id: competition.id,
       status: "ongoing" as const,
       participant_scores: hasParticipants 
-        ? participantScores.map(ps => ({
-            id: ps.id,
-            score: ps.score.toString(),
-            is_winner: ps.isWinner || (ps.winner_rank === 1),
-            winner_rank: ps.winner_rank
-          }))
+        ? participantScores.map(ps => {
+            const participant = match.participants?.find(p => p.id === ps.id);
+            return {
+              id: ps.id,
+              team_id: participant?.team_id,
+              score: ps.score.toString(),
+              is_winner: ps.isWinner || (ps.winner_rank === 1),
+              winner_rank: ps.winner_rank
+            };
+          })
         : (() => {
             const res = [];
             if (match.team1_id) {
@@ -177,12 +188,16 @@ export function LiveScoreDialog({
       competition_id: competition.id,
       status: "completed" as const,
       participant_scores: hasParticipants 
-        ? participantScores.map(ps => ({
-            id: ps.id,
-            score: ps.score.toString(),
-            is_winner: ps.isWinner,
-            winner_rank: ps.winner_rank
-          }))
+        ? participantScores.map(ps => {
+            const participant = match.participants?.find(p => p.id === ps.id);
+            return {
+              id: ps.id,
+              team_id: participant?.team_id,
+              score: ps.score.toString(),
+              is_winner: ps.isWinner,
+              winner_rank: ps.winner_rank
+            };
+          })
         : (() => {
             const res = [];
             if (match.team1_id) {
@@ -312,7 +327,7 @@ export function LiveScoreDialog({
                               <div className="flex flex-wrap gap-1 mb-2">
                                 {(participant.team as CompetitionTeamWithMembers).members!.map((m) => (
                                   <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
-                                    {m.profile?.full_name || "Pemain"}
+                                    {m.profile?.full_name || m.name || "Pemain"}
                                   </Badge>
                                 ))}
                               </div>
@@ -429,7 +444,7 @@ export function LiveScoreDialog({
                     <div className="flex flex-wrap justify-center gap-1 mb-3 max-w-[200px]">
                       {(match.team1 as CompetitionTeamWithMembers).members!.map((m) => (
                         <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
-                          {m.profile?.full_name || "Pemain"}
+                          {m.profile?.full_name || m.name || "Pemain"}
                         </Badge>
                       ))}
                     </div>
@@ -482,7 +497,7 @@ export function LiveScoreDialog({
                     <div className="flex flex-wrap justify-center gap-1 mb-3 max-w-[200px]">
                       {(match.team2 as CompetitionTeamWithMembers).members!.map((m) => (
                         <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
-                          {m.profile?.full_name || "Pemain"}
+                          {m.profile?.full_name || m.name || "Pemain"}
                         </Badge>
                       ))}
                     </div>

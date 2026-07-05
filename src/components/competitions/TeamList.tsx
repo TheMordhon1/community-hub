@@ -230,11 +230,11 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                               <Avatar className="w-6 h-6">
                                 <AvatarImage src={member.profile?.avatar_url || ""} />
                                 <AvatarFallback className="text-xs">
-                                  {getInitials(member.profile?.full_name)}
+                                  {getInitials(member.profile?.full_name || member.name || "")}
                                 </AvatarFallback>
                               </Avatar>
                               <span className="text-sm line-clamp-1">
-                                {member.profile?.full_name || "Unknown"}
+                                {member.profile?.full_name || member.name || "(tanpa nama)"}
                               </span>
                               {member.is_captain && (
                                 <Crown className="w-3 h-3 text-yellow-500" />

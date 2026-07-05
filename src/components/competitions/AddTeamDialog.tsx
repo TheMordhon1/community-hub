@@ -63,6 +63,25 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
   const { naturalSort } = useNaturalSort();
   const createTeamMutation = useCreateTeam();
 
+  const teamSize = useMemo(() => {
+    switch (competition?.match_type) {
+      case "1v1": return 1;
+      case "2v2": return 2;
+      case "3v3": return 3;
+      case "5v5": return 5;
+      case "11v11": return 11;
+      default: return 1;
+    }
+  }, [competition?.match_type]);
+
+  const isTeam = teamSize > 1;
+
+  const [members, setMembers] = useState<{ source: "user" | "manual"; profileId: string; name: string }[]>(
+    () => Array.from({ length: teamSize }, () => ({ source: "user", profileId: "", name: "" }))
+  );
+  const [teamName, setTeamName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
   const ageCategory = (competition.age_category as AgeCategory) || "mixed";
   const genderCategory = ((competition as unknown as { gender_category?: GenderCategory }).gender_category) || "mixed";
 
@@ -130,7 +149,11 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
   }, [sortedHouses, isPaidEvent, paidHouseIds]);
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      setMembers(Array.from({ length: teamSize }, () => ({ source: "user" as const, profileId: "", name: "" })));
+      setTeamName("");
+      setSubmitting(false);
+    } else {
       setSource("user");
       setSelectedProfileId("");
       setManualName("");
@@ -138,7 +161,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       setAgeInput("");
       setGender("");
     }
-  }, [open]);
+  }, [open, teamSize]);
 
   const houseLabel = (id: string) => {
     const h = houses?.find((x) => x.id === id);
@@ -168,35 +191,71 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
   const finalName =
     source === "user" ? selectedProfile?.full_name?.trim() || "" : manualName.trim();
 
+  const memberNames = useMemo(() => {
+    return members.map((m) => {
+      if (m.source === "user") {
+        const prof = profiles?.find((p) => p.id === m.profileId);
+        return prof?.full_name?.trim() || "";
+      }
+      return m.name.trim();
+    });
+  }, [members, profiles]);
+
+  const finalParticipantName = isTeam
+    ? memberNames.filter(Boolean).join(" & ")
+    : finalName;
+
+  const finalTeamName = isTeam
+    ? (teamName.trim() || finalParticipantName)
+    : finalParticipantName;
+
+  const isFormInvalid = isTeam
+    ? memberNames.some((name) => !name)
+    : !finalName;
+
   const handleSubmit = async () => {
-    if (!finalName) {
-      toast({
-        variant: "destructive",
-        title: "Nama peserta wajib diisi",
-      });
-      return;
+    if (isTeam) {
+      const hasEmptyMember = memberNames.some((name) => !name);
+      if (hasEmptyMember) {
+        toast({
+          variant: "destructive",
+          title: "Nama anggota wajib diisi",
+          description: `Harap lengkapi semua ${teamSize} nama anggota tim.`,
+        });
+        return;
+      }
+    } else {
+      if (!finalName) {
+        toast({
+          variant: "destructive",
+          title: "Nama peserta wajib diisi",
+        });
+        return;
+      }
     }
-    if (!selectedHouse) {
-      toast({
-        variant: "destructive",
-        title: "Nomor rumah wajib dipilih",
-        description: "Setiap peserta harus terhubung ke nomor rumah.",
-      });
-      return;
+    if (!isTeam && isPaidEvent) {
+      if (!selectedHouse) {
+        toast({
+          variant: "destructive",
+          title: "Nomor rumah wajib dipilih",
+          description: "Untuk event berbayar, nomor rumah wajib dipilih.",
+        });
+        return;
+      }
+      if (!paidHouseIds.has(selectedHouse)) {
+        toast({
+          variant: "destructive",
+          title: "Rumah belum membayar",
+          description: "Hanya rumah yang sudah lunas yang bisa didaftarkan.",
+        });
+        return;
+      }
     }
-    if (isPaidEvent && !paidHouseIds.has(selectedHouse)) {
+    if (ageValue != null && (isNaN(ageValue) || ageValue < 0)) {
       toast({
         variant: "destructive",
-        title: "Rumah belum membayar",
-        description: "Hanya rumah yang sudah lunas yang bisa didaftarkan.",
-      });
-      return;
-    }
-    if (ageValue == null || isNaN(ageValue) || ageValue < 0) {
-      toast({
-        variant: "destructive",
-        title: "Umur wajib diisi",
-        description: "Masukkan umur peserta untuk pengelompokan yang adil.",
+        title: "Umur tidak valid",
+        description: "Masukkan umur yang valid atau kosongkan jika tidak diketahui.",
       });
       return;
     }
@@ -208,7 +267,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       });
       return;
     }
-    if (genderCategory !== "mixed" && !gender) {
+    if (!isTeam && genderCategory !== "mixed" && !gender) {
       toast({
         variant: "destructive",
         title: "Jenis kelamin wajib dipilih",
@@ -216,7 +275,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       });
       return;
     }
-    if (genderMismatch) {
+    if (!isTeam && genderMismatch) {
       toast({
         variant: "destructive",
         title: "Jenis kelamin tidak sesuai",
@@ -228,22 +287,72 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
     const existingSeeds = competition.teams?.map((t) => t.seed_number || 0) || [];
     const nextSeed = existingSeeds.length > 0 ? Math.max(...existingSeeds) + 1 : 1;
 
-    createTeamMutation.mutate(
-      {
-        competition_id: competition.id,
-        name: finalName,
-        house_id: selectedHouse,
-        seed_number: nextSeed,
-        participant_name: finalName,
-        user_id: source === "user" ? selectedProfileId : null,
-        age: ageValue,
-        age_group: ageGroup,
-        gender: gender || null,
-      },
-      {
-        onSuccess: () => onOpenChange(false),
+    if (isTeam) {
+      setSubmitting(true);
+      try {
+        const team = await createTeamMutation.mutateAsync({
+          competition_id: competition.id,
+          name: finalTeamName,
+          house_id: selectedHouse || null,
+          seed_number: nextSeed,
+          participant_name: finalParticipantName,
+          user_id: null,
+          age: ageValue,
+          age_group: ageGroup,
+          gender: gender || null,
+        });
+
+        if (team) {
+          const memberInserts = members.map((m, index) => ({
+            team_id: team.id,
+            user_id: m.source === "user" && m.profileId ? m.profileId : null,
+            name: m.source === "manual" ? m.name.trim() : null,
+            is_captain: index === 0,
+          }));
+
+          const { error: membersError } = await supabase
+            .from("competition_team_members")
+            .insert(memberInserts);
+
+          if (membersError) {
+            console.error("Error adding team members:", membersError);
+            toast({
+              variant: "destructive",
+              title: "Peringatan",
+              description: "Tim berhasil dibuat, tetapi gagal menambahkan anggota.",
+            });
+          }
+        }
+
+        onOpenChange(false);
+      } catch (err) {
+        console.error(err);
+        toast({
+          variant: "destructive",
+          title: "Gagal",
+          description: "Gagal menambahkan tim ke kompetisi.",
+        });
+      } finally {
+        setSubmitting(false);
       }
-    );
+    } else {
+      createTeamMutation.mutate(
+        {
+          competition_id: competition.id,
+          name: finalName,
+          house_id: selectedHouse || null,
+          seed_number: nextSeed,
+          participant_name: finalName,
+          user_id: source === "user" ? selectedProfileId : null,
+          age: ageValue,
+          age_group: ageGroup,
+          gender: gender || null,
+        },
+        {
+          onSuccess: () => onOpenChange(false),
+        }
+      );
+    }
   };
 
   const isPending = createTeamMutation.isPending;
@@ -284,149 +393,235 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         )}
 
         <div className="flex-1 overflow-y-auto py-2 space-y-4 pr-1">
-          <div className="space-y-2">
-            <Label>Sumber Peserta</Label>
-            <RadioGroup
-              value={source}
-              onValueChange={(v) => setSource(v as "user" | "manual")}
-              className="flex gap-4"
-            >
-              <div className="flex items-center gap-2">
-                <RadioGroupItem id="src-user" value="user" />
-                <Label htmlFor="src-user" className="font-normal cursor-pointer">
-                  Warga Terdaftar
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem id="src-manual" value="manual" />
-                <Label htmlFor="src-manual" className="font-normal cursor-pointer">
-                  Manual
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {source === "user" ? (
+          {!isTeam && (
             <div className="space-y-2">
-              <Label>Pilih Warga <span className="text-destructive">*</span></Label>
-              <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih warga" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(profiles || []).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.full_name || "(tanpa nama)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Sumber Peserta</Label>
+              <RadioGroup
+                value={source}
+                onValueChange={(v) => setSource(v as "user" | "manual")}
+                className="flex gap-4"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem id="src-user" value="user" />
+                  <Label htmlFor="src-user" className="font-normal cursor-pointer">
+                    Warga Terdaftar
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem id="src-manual" value="manual" />
+                  <Label htmlFor="src-manual" className="font-normal cursor-pointer">
+                    Manual
+                  </Label>
+                </div>
+              </RadioGroup>
             </div>
-          ) : (
+          )}
+
+          {isTeam && (
             <div className="space-y-2">
-              <Label htmlFor="manual-name">
-                Nama Peserta <span className="text-destructive">*</span>
-              </Label>
+              <Label htmlFor="team-name">Nama Tim (Opsional)</Label>
               <Input
-                id="manual-name"
-                value={manualName}
-                onChange={(e) => setManualName(e.target.value)}
-                placeholder="Nama peserta"
+                id="team-name"
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="Nama tim (kosongkan untuk gabungan nama)"
               />
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label>
-              Nomor Rumah <span className="text-destructive">*</span>
-            </Label>
-            <Select value={selectedHouse} onValueChange={setSelectedHouse}>
-              <SelectTrigger>
-                <SelectValue placeholder="Pilih rumah" />
-              </SelectTrigger>
-              <SelectContent>
-                {eligibleHouses.length === 0 ? (
-                  <div className="p-2 text-sm text-muted-foreground text-center">
-                    Tidak ada rumah tersedia
+          {isTeam ? (
+            <div className="space-y-4">
+              {members.map((member, i) => (
+                <div key={i} className="space-y-2 border-l-2 border-primary/20 pl-3 py-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-muted-foreground">
+                      Anggota {i + 1} {i === 0 && "(Kapten)"} <span className="text-destructive">*</span>
+                    </Label>
+                    <RadioGroup
+                      value={member.source}
+                      onValueChange={(v) => {
+                        const updated = [...members];
+                        updated[i] = { ...updated[i], source: v as "user" | "manual", profileId: "", name: "" };
+                        setMembers(updated);
+                      }}
+                      className="flex gap-3"
+                    >
+                      <div className="flex items-center gap-1">
+                        <RadioGroupItem id={`src-user-${i}`} value="user" className="h-3 w-3" />
+                        <Label htmlFor={`src-user-${i}`} className="text-xs font-normal cursor-pointer">
+                          Warga
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <RadioGroupItem id={`src-manual-${i}`} value="manual" className="h-3 w-3" />
+                        <Label htmlFor={`src-manual-${i}`} className="text-xs font-normal cursor-pointer">
+                          Manual
+                        </Label>
+                      </div>
+                    </RadioGroup>
                   </div>
-                ) : (
-                  eligibleHouses.map((h) => (
-                    <SelectItem key={h.id} value={h.id}>
-                      Blok {h.block} No. {h.number}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="age">
-              Umur (tahun) <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="age"
-              type="text"
-              inputMode="decimal"
-              value={ageInput}
-              onChange={(e) => setAgeInput(e.target.value)}
-              placeholder="contoh: 1.6, 7, 25"
-            />
-            <p className="text-xs text-muted-foreground">
-              Gunakan desimal untuk anak-anak (mis. 1.6 = 1 thn 7 bln).
-            </p>
-            {ageGroup && (
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <Badge variant="secondary">
-                  Kategori: {AGE_GROUP_LABELS[ageGroup]}
-                </Badge>
-                {kidsBracket && (
-                  <Badge variant="outline">Grup Anak: {kidsBracket}</Badge>
-                )}
+                  {member.source === "user" ? (
+                    <Select
+                      value={member.profileId}
+                      onValueChange={(v) => {
+                        const updated = [...members];
+                        updated[i] = { ...updated[i], profileId: v };
+                        setMembers(updated);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={`Pilih warga untuk anggota ${i + 1}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(profiles || []).map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.full_name || "(tanpa nama)"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      value={member.name}
+                      onChange={(e) => {
+                        const updated = [...members];
+                        updated[i] = { ...updated[i], name: e.target.value };
+                        setMembers(updated);
+                      }}
+                      placeholder={`Nama anggota ${i + 1}`}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            source === "user" ? (
+              <div className="space-y-2">
+                <Label>Pilih Warga <span className="text-destructive">*</span></Label>
+                <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih warga" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(profiles || []).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.full_name || "(tanpa nama)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-            {categoryMismatch && (
-              <Alert variant="destructive" className="mt-2">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Umur tidak masuk kategori {AGE_CATEGORY_LABELS[ageCategory]} untuk kompetisi ini.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>
-              Jenis Kelamin
-              {genderCategory !== "mixed" && <span className="text-destructive"> *</span>}
-            </Label>
-            <RadioGroup
-              value={gender}
-              onValueChange={(v) => setGender(v as Gender)}
-              className="flex gap-4"
-            >
-              <div className="flex items-center gap-2">
-                <RadioGroupItem id="g-male" value="male" />
-                <Label htmlFor="g-male" className="font-normal cursor-pointer">
-                  {GENDER_LABELS.male}
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="manual-name">
+                  Nama Peserta <span className="text-destructive">*</span>
                 </Label>
+                <Input
+                  id="manual-name"
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                  placeholder="Nama peserta"
+                />
               </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem id="g-female" value="female" />
-                <Label htmlFor="g-female" className="font-normal cursor-pointer">
-                  {GENDER_LABELS.female}
+            )
+          )}
+
+          {!isTeam && (
+            <>
+              <div className="space-y-2">
+                <Label>
+                  Nomor Rumah
                 </Label>
+                <Select value={selectedHouse} onValueChange={setSelectedHouse}>
+                  <SelectTrigger>
+                  <SelectValue placeholder="Pilih rumah" />
+                </SelectTrigger>
+                <SelectContent>
+                  {eligibleHouses.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground text-center">
+                      Tidak ada rumah tersedia
+                    </div>
+                  ) : (
+                    eligibleHouses.map((h) => (
+                      <SelectItem key={h.id} value={h.id}>
+                        Blok {h.block} No. {h.number}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="age">
+                  Umur (tahun)
+                </Label>
+                <Input
+                  id="age"
+                  type="text"
+                  inputMode="decimal"
+                  value={ageInput}
+                  onChange={(e) => setAgeInput(e.target.value)}
+                  placeholder="contoh: 1.6, 7, 25"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Gunakan desimal untuk anak-anak (mis. 1.6 = 1 thn 7 bln).
+                </p>
+                {ageGroup && (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <Badge variant="secondary">
+                      Kategori: {AGE_GROUP_LABELS[ageGroup]}
+                    </Badge>
+                    {kidsBracket && (
+                      <Badge variant="outline">Grup Anak: {kidsBracket}</Badge>
+                    )}
+                  </div>
+                )}
+                {categoryMismatch && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Umur tidak masuk kategori {AGE_CATEGORY_LABELS[ageCategory]} untuk kompetisi ini.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
-            </RadioGroup>
-            {genderMismatch && (
-              <Alert variant="destructive" className="mt-2">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Kompetisi ini khusus {GENDER_CATEGORY_LABELS[genderCategory]}.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
+            </>
+          )}
+
+          {!isTeam && (
+            <div className="space-y-2">
+              <Label>
+                Jenis Kelamin
+                {genderCategory !== "mixed" && <span className="text-destructive"> *</span>}
+              </Label>
+              <RadioGroup
+                value={gender}
+                onValueChange={(v) => setGender(v as Gender)}
+                className="flex gap-4"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem id="g-male" value="male" />
+                  <Label htmlFor="g-male" className="font-normal cursor-pointer">
+                    {GENDER_LABELS.male}
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem id="g-female" value="female" />
+                  <Label htmlFor="g-female" className="font-normal cursor-pointer">
+                    {GENDER_LABELS.female}
+                  </Label>
+                </div>
+              </RadioGroup>
+              {genderMismatch && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Kompetisi ini khusus {GENDER_CATEGORY_LABELS[genderCategory]}.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
         </div>
 
         <DialogFooter className="shrink-0 pt-2 border-t">
@@ -437,13 +632,13 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
             onClick={handleSubmit}
             disabled={
               isPending ||
-              !finalName ||
-              !selectedHouse ||
-              ageValue == null ||
-              isNaN(ageValue) ||
+              submitting ||
+              isFormInvalid ||
+              (!isTeam && isPaidEvent && !selectedHouse) ||
+              (ageInput.trim() !== "" && (ageValue == null || isNaN(ageValue))) ||
               !!categoryMismatch ||
-              (genderCategory !== "mixed" && !gender) ||
-              genderMismatch
+              (!isTeam && genderCategory !== "mixed" && !gender) ||
+              (!isTeam && genderMismatch)
             }
           >
             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

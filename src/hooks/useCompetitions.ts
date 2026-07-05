@@ -111,21 +111,22 @@ export function useCompetitionDetails(competitionId: string | undefined) {
 
         if (membersError) throw membersError;
 
-        // Fetch member profiles
-        const userIds = membersData?.map((m) => m.user_id) || [];
+        // Fetch member profiles (only for members with a linked user_id)
+        const userIds = (membersData || []).map((m) => m.user_id).filter(Boolean) as string[];
+        let profileMap = new Map<string, any>();
         if (userIds.length > 0) {
           const { data: profiles } = await supabase
             .from("profiles")
             .select("*")
             .in("id", userIds);
-
-          const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
-          members =
-            membersData?.map((m) => ({
-              ...m,
-              profile: profileMap.get(m.user_id),
-            })) || [];
+          profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
         }
+
+        members =
+          (membersData || []).map((m) => ({
+            ...m,
+            profile: m.user_id ? profileMap.get(m.user_id) : undefined,
+          }));
       }
 
       // Fetch matches
