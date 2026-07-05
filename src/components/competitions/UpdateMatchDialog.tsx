@@ -54,6 +54,8 @@ export function UpdateMatchDialog({
   const [matchDatetime, setMatchDatetime] = useState("");
   const [isPoint, setIsPoint] = useState(true);
   const [isFinal, setIsFinal] = useState(false);
+  const [sets, setSets] = useState<{ team1_score: number | ""; team2_score: number | "" }[]>([]);
+
 
   const { toast } = useToast();
   const updateMutation = useUpdateMatch();
