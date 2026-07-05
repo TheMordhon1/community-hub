@@ -254,7 +254,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         return;
       }
     }
-    if (ageValue != null && (isNaN(ageValue) || ageValue < 0)) {
+    if (ageCategory === "kids" && ageValue != null && (isNaN(ageValue) || ageValue < 0)) {
       toast({
         variant: "destructive",
         title: "Umur tidak valid",
@@ -262,27 +262,11 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       });
       return;
     }
-    if (categoryMismatch) {
+    if (ageCategory === "kids" && categoryMismatch) {
       toast({
         variant: "destructive",
         title: "Umur tidak sesuai kategori",
         description: `Kompetisi ini untuk kategori ${AGE_CATEGORY_LABELS[ageCategory]}.`,
-      });
-      return;
-    }
-    if (!isActualTeamMode && genderCategory !== "mixed" && !gender) {
-      toast({
-        variant: "destructive",
-        title: "Jenis kelamin wajib dipilih",
-        description: `Kompetisi ini khusus ${GENDER_CATEGORY_LABELS[genderCategory]}.`,
-      });
-      return;
-    }
-    if (!isActualTeamMode && genderMismatch) {
-      toast({
-        variant: "destructive",
-        title: "Jenis kelamin tidak sesuai",
-        description: `Kompetisi ini khusus ${GENDER_CATEGORY_LABELS[genderCategory]}.`,
       });
       return;
     }
@@ -631,8 +615,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
             </div>
           )}
 
-          {!isActualTeamMode && (
-            <>
+          {!isActualTeamMode && ageCategory === "kids" && (
               <div className="space-y-2">
                 <Label htmlFor="age">
                   Umur (tahun)
@@ -667,11 +650,12 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                   </Alert>
                 )}
               </div>
+          )}
 
+          {!isActualTeamMode && genderCategory === "mixed" && (
               <div className="space-y-2">
                 <Label>
                   Jenis Kelamin
-                  {genderCategory !== "mixed" && <span className="text-destructive"> *</span>}
                 </Label>
                 <RadioGroup
                   value={gender}
@@ -700,7 +684,6 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                   </Alert>
                 )}
               </div>
-            </>
           )}
         </div>
 
@@ -715,10 +698,9 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
               submitting ||
               isFormInvalid ||
               (!isTeam && isPaidEvent && !selectedHouse) ||
-              (ageInput.trim() !== "" && (ageValue == null || isNaN(ageValue))) ||
+              (ageCategory === "kids" && ageInput.trim() !== "" && (ageValue == null || isNaN(ageValue))) ||
               !!categoryMismatch ||
-              (!isActualTeamMode && genderCategory !== "mixed" && !gender) ||
-              (!isActualTeamMode && genderMismatch)
+              (!isActualTeamMode && genderCategory === "mixed" && genderMismatch)
             }
           >
             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

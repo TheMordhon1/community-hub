@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,15 +16,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Users, Trash2, Edit2, Crown, Sparkles, Shuffle } from "lucide-react";
+import { Plus, Users, Trash2, Edit2, Crown, Sparkles, Shuffle, Loader2 } from "lucide-react";
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
 import { useDeleteTeam, useUpdateTeamGroup } from "@/hooks/useCompetitions";
+import { useToast } from "@/hooks/use-toast";
 import { getInitials } from "@/lib/utils";
 import { getKidsBracket, AGE_GROUP_LABELS, findBracket, formatBracket, type AgeCategory, type AgeBracket } from "@/lib/age-groups";
 import { GROUP_LETTERS, distributeTeamsToGroups } from "@/lib/liga-group";
 import { SpinWheelDialog } from "./SpinWheelDialog";
 import { EditTeamDialog } from "./EditTeamDialog";
 import { SpinWheelGroupTeamsDialog } from "./SpinWheelGroupTeamsDialog";
+import { AssignIndividualsDialog } from "./AssignIndividualsDialog";
 
 interface TeamListProps {
   competition: EventCompetitionWithDetails;
@@ -35,7 +39,10 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   const [editingTeam, setEditingTeam] = useState<CompetitionTeamWithMembers | null>(null);
   const [isSpinOpen, setIsSpinOpen] = useState(false);
   const [isGroupSpinOpen, setIsGroupSpinOpen] = useState(false);
+  const [isManualAssignOpen, setIsManualAssignOpen] = useState(false);
 
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const deleteTeamMutation = useDeleteTeam();
   const updateTeamGroup = useUpdateTeamGroup();
   const isLigaGrup = competition.format === "liga_grup";
@@ -53,6 +60,49 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
       competition_id: competition.id,
     });
     setDeletingTeam(null);
+  };
+
+  const handleAutoGroupIndividuals = async () => {
+    const teamSize = (() => {
+      switch (competition.match_type) {
+        case "1v1": return 1;
+        case "2v2": return 2;
+        case "3v3": return 3;
+        case "5v5": return 5;
+        case "11v11": return 11;
+        default: return 1;
+      }
+    })();
+    if (individualRegistrants.length < teamSize) {
+      toast({ variant: "destructive", title: "Tidak Cukup", description: `Butuh minimal ${teamSize} peserta individu.` });
+      return;
+    }
+    const shuffled = [...individualRegistrants].sort(() => Math.random() - 0.5);
+    const existingSeeds = teams.map((t) => t.seed_number || 0);
+    let nextSeed = existingSeeds.length > 0 ? Math.max(...existingSeeds) + 1 : 1;
+    let created = 0;
+    try {
+      for (let i = 0; i + teamSize <= shuffled.length; i += teamSize) {
+        const chunk = shuffled.slice(i, i + teamSize);
+        const name = chunk.map((p) => p.name).join(" & ");
+        const { data: newTeam, error: teamError } = await supabase
+          .from("competition_teams")
+          .insert({ competition_id: competition.id, name, participant_name: name, is_individual: false, seed_number: nextSeed++ })
+          .select().single();
+        if (teamError) throw teamError;
+        const memberInserts = chunk.map((p, idx) => ({ team_id: newTeam.id, user_id: p.user_id || null, name: p.user_id ? null : p.name, is_captain: idx === 0 }));
+        const { error: mErr } = await supabase.from("competition_team_members").insert(memberInserts);
+        if (mErr) throw mErr;
+        const { error: dErr } = await supabase.from("competition_teams").delete().in("id", chunk.map((p) => p.id));
+        if (dErr) throw dErr;
+        created++;
+      }
+      toast({ title: "Berhasil!", description: `${created} tim berhasil dibentuk secara acak.` });
+      queryClient.invalidateQueries({ queryKey: ["competition-details", competition.id] });
+    } catch (err) {
+      console.error(err);
+      toast({ variant: "destructive", title: "Gagal", description: "Terjadi kesalahan saat membagi tim secara acak." });
+    }
   };
 
   const handleAutoAssignGroups = () => {
@@ -280,16 +330,36 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                   {individualRegistrants.length}
                 </Badge>
               </div>
-              {canManage && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setIsGroupSpinOpen(true)}
-                  className="gap-1.5"
-                >
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  Bagi Tim (Spin Wheel)
-                </Button>
+              {canManage && individualRegistrants.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsManualAssignOpen(true)}
+                    className="gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Manual
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsGroupSpinOpen(true)}
+                    className="gap-1.5"
+                  >
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    Spin Wheel
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleAutoGroupIndividuals}
+                    className="gap-1.5"
+                  >
+                    <Shuffle className="w-4 h-4" />
+                    Acak Otomatis
+                  </Button>
+                </div>
               )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -299,12 +369,12 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                     <div>
                       <h4 className="font-semibold">{team.name}</h4>
                       <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                        {team.age != null && (
+                        {ageCategory === "kids" && team.age != null && (
                           <Badge variant="outline" className="text-xs">
                             {Number(team.age)} thn
                           </Badge>
                         )}
-                        {team.gender && (
+                        {ageCategory === "kids" && team.gender && (
                           <Badge variant="outline" className="text-xs capitalize">
                             {team.gender === "male" ? "Laki-laki" : "Perempuan"}
                           </Badge>
@@ -373,6 +443,12 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
       <SpinWheelGroupTeamsDialog
         open={isGroupSpinOpen}
         onOpenChange={setIsGroupSpinOpen}
+        competition={competition}
+      />
+
+      <AssignIndividualsDialog
+        open={isManualAssignOpen}
+        onOpenChange={setIsManualAssignOpen}
         competition={competition}
       />
 
