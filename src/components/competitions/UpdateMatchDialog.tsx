@@ -117,6 +117,23 @@ export function UpdateMatchDialog({
     }
   }, [match]);
 
+  // Derive sets-won and effective score/winner from the sets editor
+  const validSets = sets.filter(
+    (s) => s.team1_score !== "" && s.team2_score !== "" && !(Number(s.team1_score) === 0 && Number(s.team2_score) === 0)
+  );
+  const setsWon1 = validSets.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length;
+  const setsWon2 = validSets.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length;
+  const useSets = validSets.length > 0 && !!match?.team1_id && !!match?.team2_id;
+  const effectiveScore1 = useSets ? String(setsWon1) : score1;
+  const effectiveScore2 = useSets ? String(setsWon2) : score2;
+  const effectiveWinnerId = useSets
+    ? setsWon1 > setsWon2
+      ? match?.team1_id || ""
+      : setsWon2 > setsWon1
+      ? match?.team2_id || ""
+      : ""
+    : winnerId;
+
   const handleSubmit = () => {
     if (!match) return;
 
@@ -124,26 +141,29 @@ export function UpdateMatchDialog({
       ? match.participants.map(p => ({
           id: p.id,
           team_id: p.team_id,
-          score: participantScores[p.id] || null,
-          is_winner: participantWinners[p.id] || (participantRanks[p.id] === 1),
+          score: useSets
+            ? (p.team_id === match.team1_id ? String(setsWon1) : p.team_id === match.team2_id ? String(setsWon2) : participantScores[p.id] || null)
+            : (participantScores[p.id] || null),
+          is_winner: useSets
+            ? p.team_id === effectiveWinnerId
+            : (participantWinners[p.id] || (participantRanks[p.id] === 1)),
           winner_rank: participantRanks[p.id] || null,
         }))
       : (() => {
-          // If no participants records yet, create them via team_ids
           const res = [];
           if (match.team1_id) {
             res.push({
               team_id: match.team1_id,
-              score: score1 || null,
-              is_winner: winnerId === match.team1_id || winnerRank1 === 1,
+              score: effectiveScore1 || null,
+              is_winner: effectiveWinnerId === match.team1_id || winnerRank1 === 1,
               winner_rank: winnerRank1
             });
           }
           if (match.team2_id) {
             res.push({
               team_id: match.team2_id,
-              score: score2 || null,
-              is_winner: winnerId === match.team2_id || winnerRank2 === 1,
+              score: effectiveScore2 || null,
+              is_winner: effectiveWinnerId === match.team2_id || winnerRank2 === 1,
               winner_rank: winnerRank2
             });
           }
@@ -154,9 +174,9 @@ export function UpdateMatchDialog({
       {
         id: match.id,
         competition_id: competition.id,
-        score1: score1 || null,
-        score2: score2 || null,
-        winner_id: winnerId || null,
+        score1: effectiveScore1 || null,
+        score2: effectiveScore2 || null,
+        winner_id: effectiveWinnerId || null,
         status,
         location: location || null,
         notes: notes || null,
@@ -164,8 +184,10 @@ export function UpdateMatchDialog({
         match_datetime: matchDatetime || null,
         is_point: isPoint,
         is_final: isFinal,
+        sets_data: useSets ? validSets.map((s) => ({ team1_score: Number(s.team1_score), team2_score: Number(s.team2_score) })) : null,
         participant_scores: participantsData,
       },
+
       {
         onSuccess: () => {
           onOpenChange(false);
