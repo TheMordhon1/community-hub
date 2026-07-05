@@ -239,6 +239,80 @@ export function UpdateMatchDialog({
             />
           </div>
 
+          {/* Per-Set Scores (Badminton-style best of N) */}
+          {match.team1_id && match.team2_id && (
+            <div className="space-y-2 rounded-lg border p-3 bg-primary/5 border-primary/20">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-bold uppercase tracking-wider text-primary">Skor Per Set</Label>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setSets((prev) => [...prev, { team1_score: "", team2_score: "" }])}
+                  >
+                    <Plus className="w-3 h-3" /> Tambah Set
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <div className="text-center">{match.team1?.name || "Tim 1"}</div>
+                <div />
+                <div className="text-center">{match.team2?.name || "Tim 2"}</div>
+                <div />
+              </div>
+              {sets.map((s, i) => (
+                <div key={i} className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    value={s.team1_score}
+                    onChange={(e) =>
+                      setSets((prev) => prev.map((x, ix) => (ix === i ? { ...x, team1_score: e.target.value === "" ? "" : Number(e.target.value) } : x)))
+                    }
+                    className="text-center font-mono"
+                    placeholder="0"
+                  />
+                  <span className="text-xs text-muted-foreground font-bold">Set {i + 1}</span>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    value={s.team2_score}
+                    onChange={(e) =>
+                      setSets((prev) => prev.map((x, ix) => (ix === i ? { ...x, team2_score: e.target.value === "" ? "" : Number(e.target.value) } : x)))
+                    }
+                    className="text-center font-mono"
+                    placeholder="0"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => setSets((prev) => prev.filter((_, ix) => ix !== i))}
+                    disabled={sets.length <= 1}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              ))}
+              {useSets && (
+                <div className="flex items-center justify-between pt-2 border-t border-dashed text-xs">
+                  <span className="text-muted-foreground">Set dimenangkan</span>
+                  <span className="font-mono font-bold">
+                    {setsWon1} - {setsWon2}
+                  </span>
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                Contoh: Set 1 (21-19), Set 2 (14-21), Set 3 (21-17). Pemenang match ditentukan otomatis dari set terbanyak.
+              </p>
+            </div>
+          )}
+
+
+
           {/* Participants Scores */}
           <div className="space-y-3">
             <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Skor Peserta</Label>
