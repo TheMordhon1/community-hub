@@ -57,8 +57,6 @@ export function computeStandings(
     const s2 = parseInt(m.score2 ?? "0", 10) || 0;
     r1.played += 1;
     r2.played += 1;
-    r1.points += s1;
-    r2.points += s2;
     r1.setsFor += s1;
     r1.setsAgainst += s2;
     r2.setsFor += s2;
@@ -66,16 +64,21 @@ export function computeStandings(
     if (s1 > s2) {
       r1.wins += 1;
       r2.losses += 1;
+      r1.points += 2;
     } else if (s2 > s1) {
       r2.wins += 1;
       r1.losses += 1;
+      r2.points += 2;
     } else {
       r1.draws += 1;
       r2.draws += 1;
+      r1.points += 1;
+      r2.points += 1;
     }
     r1.diff = r1.setsFor - r1.setsAgainst;
     r2.diff = r2.setsFor - r2.setsAgainst;
   }
+
 
   return Array.from(rows.values()).sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
