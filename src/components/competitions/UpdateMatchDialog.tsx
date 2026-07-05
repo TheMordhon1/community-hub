@@ -71,6 +71,13 @@ export function UpdateMatchDialog({
       setPhaseLabel(match.phase_label || "");
       setIsPoint(match.is_point !== false);
       setIsFinal(match.is_final || false);
+      if (Array.isArray(match.sets_data) && match.sets_data.length > 0) {
+        setSets(match.sets_data.map((s) => ({ team1_score: s.team1_score ?? 0, team2_score: s.team2_score ?? 0 })));
+      } else {
+        const defaultSets = Math.max(2, competition.sets_per_match ?? 2);
+        setSets(Array.from({ length: defaultSets }, () => ({ team1_score: "" as const, team2_score: "" as const })));
+      }
+
       
       // Handle simple winner ranks for 1v1
       if (match.participants && match.participants.length >= 2) {
