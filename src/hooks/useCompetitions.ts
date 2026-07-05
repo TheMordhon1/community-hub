@@ -657,6 +657,9 @@ export function useUpdateMatch() {
       queryClient.invalidateQueries({
         queryKey: ["competition-details", variables.competition_id],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["live-matches"],
+      });
       
       // Handle progression if match is completed with a winner
       if (variables.status === "completed" && variables.winner_id && variables.id) {

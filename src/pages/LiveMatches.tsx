@@ -74,6 +74,15 @@ export default function LiveMatches() {
   const [selectedMatch, setSelectedMatch] = useState<MatchData | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"live" | "upcoming" | "completed" | "standings">("live");
+  const [openMemberPopover, setOpenMemberPopover] = useState<string | null>(null);
+
+  // Close member popover on any click outside
+  useEffect(() => {
+    if (!openMemberPopover) return;
+    const handler = () => setOpenMemberPopover(null);
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [openMemberPopover]);
 
   // Fetch matches (ongoing, scheduled, and completed)
   const { data: matches = [], isLoading, error } = useQuery<MatchData[]>({
@@ -160,6 +169,16 @@ export default function LiveMatches() {
     },
   });
 
+  // Sync selectedMatch with fresh data from refetch so dialog always shows latest score
+  useEffect(() => {
+    if (dialogOpen && selectedMatch && matches.length > 0) {
+      const freshMatch = matches.find((m) => m.id === selectedMatch.id);
+      if (freshMatch) {
+        setSelectedMatch(freshMatch);
+      }
+    }
+  }, [matches]);
+
   const compIds = Array.from(new Set(matches.map(m => m.competition_id)));
   const { data: allTeams = [] } = useQuery({
     queryKey: ["live-teams", compIds],
@@ -222,23 +241,50 @@ export default function LiveMatches() {
     if (!team) return <span className="truncate max-w-full inline-block align-bottom">{defaultName}</span>;
     
     if (team.members && team.members.length > 0) {
+      const popoverId = team.id;
+      const isPopoverOpen = openMemberPopover === popoverId;
       return (
-        <Tooltip>
-          <TooltipTrigger className="cursor-help inline-flex items-center gap-1 hover:text-primary transition-colors max-w-full">
-            <span className="truncate">{team.name}</span>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            <div className="text-sm font-semibold mb-1">Anggota Tim:</div>
-            <ul className="text-xs space-y-1">
-              {team.members.map(m => (
-                <li key={m.id} className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  {(m.name?.trim() || m.profile?.full_name?.trim()) || "Pemain"}
-                </li>
-              ))}
-            </ul>
-          </TooltipContent>
-        </Tooltip>
+        <div className="relative inline-flex flex-col items-center max-w-full">
+          {isPopoverOpen && (
+            <div
+              className="absolute bottom-full mb-2 z-50 bg-popover text-popover-foreground border border-border rounded-lg shadow-lg p-3 min-w-[140px] text-left animate-in fade-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-sm font-semibold mb-1.5">Anggota Tim:</div>
+              <ul className="text-xs space-y-1">
+                {team.members.map(m => (
+                  <li key={m.id} className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                    {(m.name?.trim() || m.profile?.full_name?.trim()) || "Pemain"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <Tooltip>
+            <TooltipTrigger
+              className="cursor-pointer inline-flex items-center gap-1 hover:text-primary transition-colors max-w-full"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenMemberPopover(isPopoverOpen ? null : popoverId);
+              }}
+            >
+              <span className="truncate">{team.name}</span>
+              <Users className="w-3 h-3 shrink-0 opacity-50" />
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <div className="text-sm font-semibold mb-1">Anggota Tim:</div>
+              <ul className="text-xs space-y-1">
+                {team.members.map(m => (
+                  <li key={m.id} className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    {(m.name?.trim() || m.profile?.full_name?.trim()) || "Pemain"}
+                  </li>
+                ))}
+              </ul>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       );
     }
     
@@ -412,6 +458,15 @@ export default function LiveMatches() {
                               <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-1">
                                 Skor Set
                               </span>
+                              {match.sets_data && match.sets_data.length > 0 && (
+                                <div className="mt-2 text-[10px] font-mono font-medium flex flex-wrap gap-1 justify-center max-w-[120px]">
+                                  {match.sets_data.map((set, idx) => (
+                                    <span key={idx} className={`px-1.5 py-0.5 rounded border ${idx === match.sets_data!.length - 1 && match.status === 'ongoing' ? 'bg-primary/10 border-primary/30 text-primary shadow-sm' : 'bg-muted/50 border-border text-muted-foreground'}`}>
+                                      {set.team1_score}-{set.team2_score}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
 
                             {/* Team 2 */}
@@ -630,6 +685,18 @@ export default function LiveMatches() {
                                   {setsWon2}
                                 </span>
                               </div>
+                              <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-1">
+                                Skor Set
+                              </span>
+                              {match.sets_data && match.sets_data.length > 0 && (
+                                <div className="mt-2 text-[10px] font-mono font-medium flex flex-wrap gap-1 justify-center max-w-[120px]">
+                                  {match.sets_data.map((set, idx) => (
+                                    <span key={idx} className="px-1.5 py-0.5 rounded border bg-muted/50 border-border text-muted-foreground">
+                                      {set.team1_score}-{set.team2_score}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
 
                             {/* Team 2 */}

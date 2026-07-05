@@ -225,7 +225,7 @@ export function SpinWheelGroupTeamsDialog({
       const shuffled = [...unassignedTeams].sort(() => Math.random() - 0.5);
       
       let createdCount = 0;
-      let existingSeeds = competition.teams?.map((t) => t.seed_number || 0) || [];
+      const existingSeeds = competition.teams?.map((t) => t.seed_number || 0) || [];
       let nextSeed = existingSeeds.length > 0 ? Math.max(...existingSeeds) + 1 : 1;
 
       // Group into chunks of teamSize

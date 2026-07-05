@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, Competitio
 import { toast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LiveScoreDialogProps {
   open: boolean;
@@ -50,30 +51,25 @@ export default function LiveScoreDialog({
   const [participantScores, setParticipantScores] = useState<ParticipantScore[]>([]);
   const [sets, setSets] = useState<{ team1_score: number; team2_score: number }[]>([]);
   const [activeSetIndex, setActiveSetIndex] = useState(0);
+  // Track whether the user has unsaved local edits — if true, remote updates won't overwrite
+  const isDirty = useRef(false);
+  // Track the last match id we initialized from to detect dialog open/switch
+  const lastInitMatchId = useRef<string | null>(null);
 
   const updateMutation = useUpdateMatch();
   const is17an = competition.format === "17an";
 
-  useEffect(() => {
-    if (match && open) {
-      const cached = localStorage.getItem(`live_score_${match.id}`);
-      
-      if (is17an) {
-        if (match.participants && match.participants.length > 0) {
-          if (cached) {
-            try {
-              const parsed = JSON.parse(cached);
-              if (Array.isArray(parsed.participants)) {
-                setParticipantScores(parsed.participants);
-              } else {
-                setParticipantScores(match.participants.map(p => ({
-                  id: p.id,
-                  score: parseInt(p.score || "0", 10),
-                  isWinner: p.is_winner || false,
-                  winner_rank: p.winner_rank || null
-                })));
-              }
-            } catch {
+  const initFromMatch = (match: CompetitionMatchWithTeams) => {
+    const cached = localStorage.getItem(`live_score_${match.id}`);
+
+    if (is17an) {
+      if (match.participants && match.participants.length > 0) {
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed.participants)) {
+              setParticipantScores(parsed.participants);
+            } else {
               setParticipantScores(match.participants.map(p => ({
                 id: p.id,
                 score: parseInt(p.score || "0", 10),
@@ -81,7 +77,7 @@ export default function LiveScoreDialog({
                 winner_rank: p.winner_rank || null
               })));
             }
-          } else {
+          } catch {
             setParticipantScores(match.participants.map(p => ({
               id: p.id,
               score: parseInt(p.score || "0", 10),
@@ -89,39 +85,34 @@ export default function LiveScoreDialog({
               winner_rank: p.winner_rank || null
             })));
           }
-        }
-      } else {
-        const s1 = parseInt(match.score1 || "0", 10) || 0;
-        const s2 = parseInt(match.score2 || "0", 10) || 0;
-
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            setScore1(parsed.score1 || 0);
-            setScore2(parsed.score2 || 0);
-            setWinnerRank1(parsed.winnerRank1 || null);
-            setWinnerRank2(parsed.winnerRank2 || null);
-            if (Array.isArray(parsed.sets)) {
-              setSets(parsed.sets);
-              setActiveSetIndex(parsed.activeSetIndex ?? 0);
-            } else {
-              setSets([{ team1_score: s1, team2_score: s2 }]);
-              setActiveSetIndex(0);
-            }
-          } catch {
-            setScore1(s1);
-            setScore2(s2);
-            setWinnerRank1(match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank || null);
-            setWinnerRank2(match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank || null);
-            if (Array.isArray(match.sets_data) && match.sets_data.length > 0) {
-              setSets(match.sets_data.map(s => ({ team1_score: s.team1_score ?? 0, team2_score: s.team2_score ?? 0 })));
-              setActiveSetIndex(match.sets_data.length - 1);
-            } else {
-              setSets([{ team1_score: s1, team2_score: s2 }]);
-              setActiveSetIndex(0);
-            }
-          }
         } else {
+          setParticipantScores(match.participants.map(p => ({
+            id: p.id,
+            score: parseInt(p.score || "0", 10),
+            isWinner: p.is_winner || false,
+            winner_rank: p.winner_rank || null
+          })));
+        }
+      }
+    } else {
+      const s1 = parseInt(match.score1 || "0", 10) || 0;
+      const s2 = parseInt(match.score2 || "0", 10) || 0;
+
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          setScore1(parsed.score1 || 0);
+          setScore2(parsed.score2 || 0);
+          setWinnerRank1(parsed.winnerRank1 || null);
+          setWinnerRank2(parsed.winnerRank2 || null);
+          if (Array.isArray(parsed.sets)) {
+            setSets(parsed.sets);
+            setActiveSetIndex(parsed.activeSetIndex ?? 0);
+          } else {
+            setSets([{ team1_score: s1, team2_score: s2 }]);
+            setActiveSetIndex(0);
+          }
+        } catch {
           setScore1(s1);
           setScore2(s2);
           setWinnerRank1(match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank || null);
@@ -134,7 +125,68 @@ export default function LiveScoreDialog({
             setActiveSetIndex(0);
           }
         }
+      } else {
+        setScore1(s1);
+        setScore2(s2);
+        setWinnerRank1(match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank || null);
+        setWinnerRank2(match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank || null);
+        if (Array.isArray(match.sets_data) && match.sets_data.length > 0) {
+          setSets(match.sets_data.map(s => ({ team1_score: s.team1_score ?? 0, team2_score: s.team2_score ?? 0 })));
+          setActiveSetIndex(match.sets_data.length - 1);
+        } else {
+          setSets([{ team1_score: s1, team2_score: s2 }]);
+          setActiveSetIndex(0);
+        }
       }
+    }
+  };
+
+  const syncFromDb = (match: CompetitionMatchWithTeams) => {
+    // Sync directly from DB data (no localStorage) — used for remote updates
+    if (is17an) {
+      if (match.participants && match.participants.length > 0) {
+        setParticipantScores(match.participants.map(p => ({
+          id: p.id,
+          score: parseInt(p.score || "0", 10),
+          isWinner: p.is_winner || false,
+          winner_rank: p.winner_rank || null
+        })));
+      }
+    } else {
+      const s1 = parseInt(match.score1 || "0", 10) || 0;
+      const s2 = parseInt(match.score2 || "0", 10) || 0;
+      setScore1(s1);
+      setScore2(s2);
+      setWinnerRank1(match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank || null);
+      setWinnerRank2(match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank || null);
+      if (Array.isArray(match.sets_data) && match.sets_data.length > 0) {
+        setSets(match.sets_data.map(s => ({ team1_score: s.team1_score ?? 0, team2_score: s.team2_score ?? 0 })));
+        setActiveSetIndex(match.sets_data.length - 1);
+      } else {
+        setSets([{ team1_score: s1, team2_score: s2 }]);
+        setActiveSetIndex(0);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (match && open) {
+      const isNewMatch = lastInitMatchId.current !== match.id;
+      if (isNewMatch) {
+        // First open or switched to a different match — always init from cache/DB
+        isDirty.current = false;
+        lastInitMatchId.current = match.id;
+        initFromMatch(match);
+      } else if (!isDirty.current || readOnly) {
+        // Same match, no local edits (or readOnly viewer) — accept remote update
+        syncFromDb(match);
+      }
+      // If isDirty, local user is actively editing → don't overwrite their changes
+    }
+    if (!open) {
+      // Reset dirty flag when dialog closes
+      isDirty.current = false;
+      lastInitMatchId.current = null;
     }
   }, [match, open, is17an]);
 
@@ -151,6 +203,7 @@ export default function LiveScoreDialog({
 
 
   const updateTeam1Score = (delta: number) => {
+    isDirty.current = true;
     setSets(prev => prev.map((s, idx) => {
       if (idx === activeSetIndex) {
         return { ...s, team1_score: Math.max(0, s.team1_score + delta) };
@@ -160,12 +213,31 @@ export default function LiveScoreDialog({
   };
 
   const updateTeam2Score = (delta: number) => {
+    isDirty.current = true;
     setSets(prev => prev.map((s, idx) => {
       if (idx === activeSetIndex) {
         return { ...s, team2_score: Math.max(0, s.team2_score + delta) };
       }
       return s;
     }));
+  };
+
+  // Refresh match data from DB after a successful save
+  const fetchAndSyncMatch = async () => {
+    if (!match) return;
+    const { data, error } = await supabase
+      .from('competition_matches')
+      .select('*')
+      .eq('id', match.id)
+      .single();
+    if (error) {
+      console.error('Failed to refetch match:', error);
+      return;
+    }
+    // Cast the raw data to the expected type; status is a string that matches MatchStatus
+    const fresh = data as CompetitionMatchWithTeams;
+    // Optionally ensure status is a valid MatchStatus
+    syncFromDb(fresh);
   };
 
   const handleUpdateProgress = () => {
@@ -209,6 +281,8 @@ export default function LiveScoreDialog({
 
     updateMutation.mutate(mutationData, {
       onSuccess: () => {
+        // After saving, reset dirty flag so remote updates from other users are accepted again
+        isDirty.current = false;
         toast({
           title: "Tersimpan",
           description: "Skor sementara berhasil disimpan.",
@@ -280,18 +354,21 @@ export default function LiveScoreDialog({
   };
 
   const updateParticipantScore = (id: string, delta: number) => {
+    isDirty.current = true;
     setParticipantScores(prev => prev.map(p => 
       p.id === id ? { ...p, score: Math.max(0, p.score + delta) } : p
     ));
   };
 
   const toggleParticipantWinner = (id: string) => {
+    isDirty.current = true;
     setParticipantScores(prev => prev.map(p => 
       p.id === id ? { ...p, isWinner: !p.isWinner, winner_rank: !p.isWinner ? p.winner_rank : null } : p
     ));
   };
 
   const setParticipantRank = (id: string, rank: number | null) => {
+    isDirty.current = true;
     setParticipantScores(prev => prev.map(p => 
       p.id === id ? { ...p, rank, isWinner: rank !== null ? true : p.isWinner } : p
     ));
@@ -328,7 +405,7 @@ export default function LiveScoreDialog({
           <p className="text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
             <span>{competition.sport_name}</span>
             <span className="opacity-30">•</span>
-            <span>{match.phase_label || (is17an ? `Sesi ${match.match_number}` : `Babak ${match.round_number} (Match ${match.match_number})`)}</span>
+                       <span>{match.phase_label || (is17an ? `Sesi ${match.match_number}` : `Babak ${match.round_number} (Match ${match.match_number})`)}</span>
             {match.group_name && (
               <>
                 <span className="opacity-30">•</span>
