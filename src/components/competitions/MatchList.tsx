@@ -384,6 +384,27 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                         )}
                       </div>
 
+                      {/* Per-set breakdown */}
+                      {Array.isArray(match.sets_data) && match.sets_data.length > 0 && (
+                        <div className="mt-3 pt-3 border-t">
+                          <div className="flex flex-wrap gap-1.5">
+                            {match.sets_data.map((s, i) => {
+                              const t1w = Number(s.team1_score) > Number(s.team2_score);
+                              const t2w = Number(s.team2_score) > Number(s.team1_score);
+                              return (
+                                <Badge key={i} variant="outline" className="text-[10px] font-mono">
+                                  Set {i + 1}:{" "}
+                                  <span className={t1w ? "font-bold text-primary ml-1" : "ml-1"}>{s.team1_score}</span>
+                                  <span className="mx-0.5 text-muted-foreground">-</span>
+                                  <span className={t2w ? "font-bold text-primary" : ""}>{s.team2_score}</span>
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+
                       {/* Match Details */}
                       {(match.match_datetime || match.location || match.age_bracket_label || match.age_bracket_min != null || match.age_bracket_max != null) && (
                         <div className="mt-3 pt-3 border-t text-xs text-muted-foreground space-y-1">
