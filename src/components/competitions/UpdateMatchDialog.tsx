@@ -19,7 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Trophy, Medal } from "lucide-react";
+import { Loader2, Trophy, Medal, Plus, X } from "lucide-react";
+
 import { useUpdateMatch } from "@/hooks/useCompetitions";
 import { useToast } from "@/hooks/use-toast";
 import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, MatchStatus } from "@/types/competition";
