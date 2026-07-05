@@ -75,8 +75,9 @@ export function GroupStandings({ competition }: Props) {
                 </TableBody>
               </Table>
               <p className="text-[10px] text-muted-foreground p-2 border-t">
-                Top {advance} tim lolos ke babak gugur.
+                Menang match = 2 poin, seri = 1 poin. Top {advance} tim lolos ke babak gugur.
               </p>
+
             </CardContent>
           </Card>
         );

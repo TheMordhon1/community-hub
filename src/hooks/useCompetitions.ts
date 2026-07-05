@@ -583,9 +583,11 @@ export function useUpdateMatch() {
       phase_label?: string | null;
       is_point?: boolean;
       is_final?: boolean;
+      sets_data?: { team1_score: number; team2_score: number }[] | null;
       participant_scores?: { id?: string; team_id?: string; score: string | null; is_winner?: boolean; winner_rank?: number | null }[];
     }) => {
       const { id, competition_id, participant_scores, ...updateData } = data;
+
       const { error } = await supabase
         .from("competition_matches")
         .update(updateData)

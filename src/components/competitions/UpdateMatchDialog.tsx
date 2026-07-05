@@ -19,7 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Trophy, Medal } from "lucide-react";
+import { Loader2, Trophy, Medal, Plus, X } from "lucide-react";
+
 import { useUpdateMatch } from "@/hooks/useCompetitions";
 import { useToast } from "@/hooks/use-toast";
 import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, MatchStatus } from "@/types/competition";
@@ -53,6 +54,8 @@ export function UpdateMatchDialog({
   const [matchDatetime, setMatchDatetime] = useState("");
   const [isPoint, setIsPoint] = useState(true);
   const [isFinal, setIsFinal] = useState(false);
+  const [sets, setSets] = useState<{ team1_score: number | ""; team2_score: number | "" }[]>([]);
+
 
   const { toast } = useToast();
   const updateMutation = useUpdateMatch();
@@ -68,6 +71,13 @@ export function UpdateMatchDialog({
       setPhaseLabel(match.phase_label || "");
       setIsPoint(match.is_point !== false);
       setIsFinal(match.is_final || false);
+      if (Array.isArray(match.sets_data) && match.sets_data.length > 0) {
+        setSets(match.sets_data.map((s) => ({ team1_score: s.team1_score ?? 0, team2_score: s.team2_score ?? 0 })));
+      } else {
+        const defaultSets = Math.max(2, competition.sets_per_match ?? 2);
+        setSets(Array.from({ length: defaultSets }, () => ({ team1_score: "" as const, team2_score: "" as const })));
+      }
+
       
       // Handle simple winner ranks for 1v1
       if (match.participants && match.participants.length >= 2) {
@@ -107,6 +117,23 @@ export function UpdateMatchDialog({
     }
   }, [match]);
 
+  // Derive sets-won and effective score/winner from the sets editor
+  const validSets = sets.filter(
+    (s) => s.team1_score !== "" && s.team2_score !== "" && !(Number(s.team1_score) === 0 && Number(s.team2_score) === 0)
+  );
+  const setsWon1 = validSets.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length;
+  const setsWon2 = validSets.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length;
+  const useSets = validSets.length > 0 && !!match?.team1_id && !!match?.team2_id;
+  const effectiveScore1 = useSets ? String(setsWon1) : score1;
+  const effectiveScore2 = useSets ? String(setsWon2) : score2;
+  const effectiveWinnerId = useSets
+    ? setsWon1 > setsWon2
+      ? match?.team1_id || ""
+      : setsWon2 > setsWon1
+      ? match?.team2_id || ""
+      : ""
+    : winnerId;
+
   const handleSubmit = () => {
     if (!match) return;
 
@@ -114,26 +141,29 @@ export function UpdateMatchDialog({
       ? match.participants.map(p => ({
           id: p.id,
           team_id: p.team_id,
-          score: participantScores[p.id] || null,
-          is_winner: participantWinners[p.id] || (participantRanks[p.id] === 1),
+          score: useSets
+            ? (p.team_id === match.team1_id ? String(setsWon1) : p.team_id === match.team2_id ? String(setsWon2) : participantScores[p.id] || null)
+            : (participantScores[p.id] || null),
+          is_winner: useSets
+            ? p.team_id === effectiveWinnerId
+            : (participantWinners[p.id] || (participantRanks[p.id] === 1)),
           winner_rank: participantRanks[p.id] || null,
         }))
       : (() => {
-          // If no participants records yet, create them via team_ids
           const res = [];
           if (match.team1_id) {
             res.push({
               team_id: match.team1_id,
-              score: score1 || null,
-              is_winner: winnerId === match.team1_id || winnerRank1 === 1,
+              score: effectiveScore1 || null,
+              is_winner: effectiveWinnerId === match.team1_id || winnerRank1 === 1,
               winner_rank: winnerRank1
             });
           }
           if (match.team2_id) {
             res.push({
               team_id: match.team2_id,
-              score: score2 || null,
-              is_winner: winnerId === match.team2_id || winnerRank2 === 1,
+              score: effectiveScore2 || null,
+              is_winner: effectiveWinnerId === match.team2_id || winnerRank2 === 1,
               winner_rank: winnerRank2
             });
           }
@@ -144,9 +174,9 @@ export function UpdateMatchDialog({
       {
         id: match.id,
         competition_id: competition.id,
-        score1: score1 || null,
-        score2: score2 || null,
-        winner_id: winnerId || null,
+        score1: effectiveScore1 || null,
+        score2: effectiveScore2 || null,
+        winner_id: effectiveWinnerId || null,
         status,
         location: location || null,
         notes: notes || null,
@@ -154,8 +184,10 @@ export function UpdateMatchDialog({
         match_datetime: matchDatetime || null,
         is_point: isPoint,
         is_final: isFinal,
+        sets_data: useSets ? validSets.map((s) => ({ team1_score: Number(s.team1_score), team2_score: Number(s.team2_score) })) : null,
         participant_scores: participantsData,
       },
+
       {
         onSuccess: () => {
           onOpenChange(false);
@@ -206,6 +238,80 @@ export function UpdateMatchDialog({
               onChange={(e) => setMatchDatetime(e.target.value)}
             />
           </div>
+
+          {/* Per-Set Scores (Badminton-style best of N) */}
+          {match.team1_id && match.team2_id && (
+            <div className="space-y-2 rounded-lg border p-3 bg-primary/5 border-primary/20">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-bold uppercase tracking-wider text-primary">Skor Per Set</Label>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setSets((prev) => [...prev, { team1_score: "", team2_score: "" }])}
+                  >
+                    <Plus className="w-3 h-3" /> Tambah Set
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <div className="text-center">{match.team1?.name || "Tim 1"}</div>
+                <div />
+                <div className="text-center">{match.team2?.name || "Tim 2"}</div>
+                <div />
+              </div>
+              {sets.map((s, i) => (
+                <div key={i} className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    value={s.team1_score}
+                    onChange={(e) =>
+                      setSets((prev) => prev.map((x, ix) => (ix === i ? { ...x, team1_score: e.target.value === "" ? "" : Number(e.target.value) } : x)))
+                    }
+                    className="text-center font-mono"
+                    placeholder="0"
+                  />
+                  <span className="text-xs text-muted-foreground font-bold">Set {i + 1}</span>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    value={s.team2_score}
+                    onChange={(e) =>
+                      setSets((prev) => prev.map((x, ix) => (ix === i ? { ...x, team2_score: e.target.value === "" ? "" : Number(e.target.value) } : x)))
+                    }
+                    className="text-center font-mono"
+                    placeholder="0"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => setSets((prev) => prev.filter((_, ix) => ix !== i))}
+                    disabled={sets.length <= 1}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              ))}
+              {useSets && (
+                <div className="flex items-center justify-between pt-2 border-t border-dashed text-xs">
+                  <span className="text-muted-foreground">Set dimenangkan</span>
+                  <span className="font-mono font-bold">
+                    {setsWon1} - {setsWon2}
+                  </span>
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                Contoh: Set 1 (21-19), Set 2 (14-21), Set 3 (21-17). Pemenang match ditentukan otomatis dari set terbanyak.
+              </p>
+            </div>
+          )}
+
+
 
           {/* Participants Scores */}
           <div className="space-y-3">
