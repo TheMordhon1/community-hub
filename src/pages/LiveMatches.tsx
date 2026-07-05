@@ -259,8 +259,8 @@ export default function LiveMatches() {
 
   return (
     <TooltipProvider>
-      <section className="min-h-screen bg-background p-6">
-        <div className="space-y-8">
+      <section className="min-h-screen bg-background p-3 sm:p-6">
+        <div className="space-y-6 sm:space-y-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Link to="/dashboard">
@@ -270,8 +270,8 @@ export default function LiveMatches() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
               >
-                <h1 className="font-display text-3xl font-bold tracking-tight">Skor Live & Jadwal</h1>
-                <p className="text-muted-foreground mt-1 text-lg">
+                <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">Skor Live & Jadwal</h1>
+                <p className="text-muted-foreground mt-1 text-sm sm:text-base leading-snug max-w-lg">
                   Pantau skor pertandingan yang sedang berlangsung secara real-time dan lihat jadwal pertandingan mendatang.
                 </p>
               </motion.div>
@@ -295,37 +295,41 @@ export default function LiveMatches() {
         </Card>
       ) : (
         <Tabs defaultValue="live" value={activeTab} onValueChange={(v) => setActiveTab(v as "live" | "upcoming" | "completed" | "standings")} className="space-y-4">
-          <TabsList className="flex overflow-x-auto w-full max-w-[600px] h-12 p-1 bg-muted/60 border rounded-xl no-scrollbar">
-            <TabsTrigger value="live" className="flex-1 min-w-[100px] rounded-lg gap-1.5 text-xs font-semibold">
-              <Radio className={`w-3.5 h-3.5 ${ongoingMatches.length > 0 ? "text-red-500 animate-pulse" : ""}`} />
-              Live
+          <TabsList className="grid grid-cols-4 w-full h-11 p-1 bg-muted/60 border rounded-xl">
+            <TabsTrigger value="live" className="rounded-lg gap-1 text-[11px] sm:text-xs font-semibold px-1">
+              <Radio className={`w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0 ${ongoingMatches.length > 0 ? "text-red-500 animate-pulse" : ""}`} />
+              <span className="hidden xs:inline">Live</span>
+              <span className="xs:hidden">Live</span>
               {ongoingMatches.length > 0 && (
-                <Badge variant="destructive" className="ml-1 px-1.5 py-0 text-[10px] font-bold">
+                <Badge variant="destructive" className="ml-0.5 px-1 py-0 text-[9px] font-bold">
                   {ongoingMatches.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="upcoming" className="flex-1 min-w-[100px] rounded-lg gap-1.5 text-xs font-semibold">
-              <Calendar className="w-3.5 h-3.5 shrink-0" />
-              Akan Datang
+            <TabsTrigger value="upcoming" className="rounded-lg gap-1 text-[11px] sm:text-xs font-semibold px-1">
+              <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Akan Datang</span>
+              <span className="sm:hidden">Datang</span>
               {upcomingMatches.length > 0 && (
-                <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px] font-semibold bg-muted-foreground/10 shrink-0">
+                <Badge variant="secondary" className="ml-0.5 px-1 py-0 text-[9px] font-semibold bg-muted-foreground/10 shrink-0">
                   {upcomingMatches.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="completed" className="flex-1 min-w-[100px] rounded-lg gap-1.5 text-xs font-semibold">
-              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-              Selesai
+            <TabsTrigger value="completed" className="rounded-lg gap-1 text-[11px] sm:text-xs font-semibold px-1">
+              <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Selesai</span>
+              <span className="sm:hidden">Selesai</span>
               {completedMatches.length > 0 && (
-                <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px] font-semibold bg-muted-foreground/10 shrink-0">
+                <Badge variant="secondary" className="ml-0.5 px-1 py-0 text-[9px] font-semibold bg-muted-foreground/10 shrink-0">
                   {completedMatches.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="standings" className="flex-1 min-w-[100px] rounded-lg gap-1.5 text-xs font-semibold">
-              <Trophy className="w-3.5 h-3.5 shrink-0" />
-              Klasemen
+            <TabsTrigger value="standings" className="rounded-lg gap-1 text-[11px] sm:text-xs font-semibold px-1">
+              <Trophy className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Klasemen</span>
+              <span className="sm:hidden">Klas.</span>
             </TabsTrigger>
           </TabsList>
 
@@ -343,7 +347,7 @@ export default function LiveMatches() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
                 {ongoingMatches.map((match) => {
                   const is17an = match.competition?.format === "17an";
                   const setsWon1 = Array.isArray(match.sets_data) 
@@ -375,7 +379,7 @@ export default function LiveMatches() {
                         </Badge>
                       </div>
 
-                      <CardContent className="p-5 flex-1 flex flex-col justify-between gap-4">
+                      <CardContent className="p-4 sm:p-5 flex-1 flex flex-col justify-between gap-3 sm:gap-4">
                         <div className="text-center text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
                           {match.phase_label || "Group Stage"} {match.group_name ? `• ${match.group_name}` : ""}
                         </div>
@@ -384,7 +388,7 @@ export default function LiveMatches() {
                           <div className="flex items-center justify-between gap-2 py-2">
                             {/* Team 1 */}
                             <div className="flex-1 text-center min-w-0">
-                              <div className="font-bold text-sm sm:text-base">
+                              <div className="font-bold text-sm">
                                 {renderTeamName(match.team1, "TBD")}
                               </div>
                               {match.sets_data && (
@@ -484,7 +488,7 @@ export default function LiveMatches() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
                 {upcomingMatches.map((match) => {
                   const is17an = match.competition?.format === "17an";
 
@@ -505,7 +509,7 @@ export default function LiveMatches() {
                         </Badge>
                       </div>
 
-                      <CardContent className="p-5 flex-1 flex flex-col justify-between gap-4">
+                      <CardContent className="p-4 sm:p-5 flex-1 flex flex-col justify-between gap-3 sm:gap-4">
                         <div className="text-center text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
                           {match.phase_label || "Group Stage"} {match.group_name ? `• ${match.group_name}` : ""}
                         </div>
@@ -565,7 +569,7 @@ export default function LiveMatches() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
                 {completedMatches.map((match) => {
                   const is17an = match.competition?.format === "17an";
                   const setsWon1 = Array.isArray(match.sets_data) 
@@ -596,7 +600,7 @@ export default function LiveMatches() {
                         </Badge>
                       </div>
 
-                      <CardContent className="p-5 flex-1 flex flex-col justify-between gap-4">
+                      <CardContent className="p-4 sm:p-5 flex-1 flex flex-col justify-between gap-3 sm:gap-4">
                         <div className="text-center text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
                           {match.phase_label || "Group Stage"} {match.group_name ? `• ${match.group_name}` : ""}
                         </div>
