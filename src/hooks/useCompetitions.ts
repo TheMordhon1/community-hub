@@ -15,6 +15,7 @@ import type {
   MatchStatus,
   CompetitionMatchParticipant,
 } from "@/types/competition";
+import type { Profile } from "@/types/database";
 import { useToast } from "@/hooks/use-toast";
 
 // Fetch competitions for an event
@@ -113,7 +114,7 @@ export function useCompetitionDetails(competitionId: string | undefined) {
 
         // Fetch member profiles (only for members with a linked user_id)
         const userIds = (membersData || []).map((m) => m.user_id).filter(Boolean) as string[];
-        let profileMap = new Map<string, any>();
+        let profileMap = new Map<string, Profile>();
         if (userIds.length > 0) {
           const { data: profiles } = await supabase
             .from("profiles")
@@ -373,6 +374,7 @@ export function useCreateTeam() {
       age_group?: string | null;
       gender?: string | null;
       group_name?: string | null;
+      is_individual?: boolean | null;
     }) => {
       const { data: team, error } = await supabase
         .from("competition_teams")
@@ -516,6 +518,9 @@ export function useCreateMatch() {
       age_bracket_min?: number | null;
       age_bracket_max?: number | null;
       age_bracket_label?: string | null;
+      stage?: string | null;
+      phase_label?: string | null;
+      group_name?: string | null;
     }) => {
       const { team_ids, ...matchData } = data;
       const { data: match, error } = await supabase
@@ -585,15 +590,39 @@ export function useUpdateMatch() {
       is_final?: boolean;
       sets_data?: { team1_score: number; team2_score: number }[] | null;
       participant_scores?: { id?: string; team_id?: string; score: string | null; is_winner?: boolean; winner_rank?: number | null }[];
+      stage?: string | null;
+      group_name?: string | null;
+      round_number?: number;
+      match_number?: number;
+      team1_id?: string | null;
+      team2_id?: string | null;
+      team_ids?: string[];
     }) => {
-      const { id, competition_id, participant_scores, ...updateData } = data;
+      const { id, competition_id, participant_scores, team_ids, ...updateData } = data;
 
       const { error } = await supabase
-        .from("competition_matches")
-        .update(updateData)
-        .eq("id", id);
+          .from("competition_matches")
+          .update(updateData)
+          .eq("id", id);
 
       if (error) throw error;
+
+      if (team_ids) {
+        // Replace participants set
+        const { error: delErr } = await supabase
+          .from("competition_match_participants")
+          .delete()
+          .eq("match_id", id);
+        if (delErr) throw delErr;
+
+        if (team_ids.length > 0) {
+          const rows = team_ids.map((team_id) => ({ match_id: id, team_id }));
+          const { error: insErr } = await supabase
+            .from("competition_match_participants")
+            .insert(rows);
+          if (insErr) throw insErr;
+        }
+      }
 
       if (participant_scores && participant_scores.length > 0) {
         for (const ps of participant_scores) {

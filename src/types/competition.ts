@@ -45,6 +45,7 @@ export interface CompetitionTeam {
   age_group: string | null;
   gender: Gender | string | null;
   group_name: string | null;
+  is_individual: boolean | null;
   created_at: string;
   house?: House;
 }

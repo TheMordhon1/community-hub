@@ -14,13 +14,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Users, Trash2, Crown, Sparkles, Shuffle } from "lucide-react";
+import { Plus, Users, Trash2, Edit2, Crown, Sparkles, Shuffle } from "lucide-react";
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
 import { useDeleteTeam, useUpdateTeamGroup } from "@/hooks/useCompetitions";
 import { getInitials } from "@/lib/utils";
 import { getKidsBracket, AGE_GROUP_LABELS, findBracket, formatBracket, type AgeCategory, type AgeBracket } from "@/lib/age-groups";
 import { GROUP_LETTERS, distributeTeamsToGroups } from "@/lib/liga-group";
 import { SpinWheelDialog } from "./SpinWheelDialog";
+import { EditTeamDialog } from "./EditTeamDialog";
+import { SpinWheelGroupTeamsDialog } from "./SpinWheelGroupTeamsDialog";
 
 interface TeamListProps {
   competition: EventCompetitionWithDetails;
@@ -30,12 +32,19 @@ interface TeamListProps {
 
 export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   const [deletingTeam, setDeletingTeam] = useState<CompetitionTeamWithMembers | null>(null);
+  const [editingTeam, setEditingTeam] = useState<CompetitionTeamWithMembers | null>(null);
   const [isSpinOpen, setIsSpinOpen] = useState(false);
+  const [isGroupSpinOpen, setIsGroupSpinOpen] = useState(false);
+
   const deleteTeamMutation = useDeleteTeam();
   const updateTeamGroup = useUpdateTeamGroup();
   const isLigaGrup = competition.format === "liga_grup";
   const groupCount = competition.group_count ?? 3;
   const groupOptions = GROUP_LETTERS.slice(0, groupCount);
+
+  const teams = competition.teams || [];
+  const formedTeams = useMemo(() => teams.filter((t) => !t.is_individual), [teams]);
+  const individualRegistrants = useMemo(() => teams.filter((t) => t.is_individual), [teams]);
 
   const handleDeleteTeam = () => {
     if (!deletingTeam) return;
@@ -47,7 +56,7 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   };
 
   const handleAutoAssignGroups = () => {
-    const assignment = distributeTeamsToGroups(teams.map((t) => t.id), groupCount);
+    const assignment = distributeTeamsToGroups(formedTeams.map((t) => t.id), groupCount);
     Object.entries(assignment).forEach(([g, ids]) => {
       ids.forEach((id) => {
         updateTeamGroup.mutate({ id, competition_id: competition.id, group_name: g });
@@ -55,7 +64,6 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
     });
   };
 
-  const teams = competition.teams || [];
   const ageCategory = (competition.age_category as AgeCategory) || "mixed";
   const customBrackets: AgeBracket[] | null = Array.isArray(competition.kids_brackets)
     ? (competition.kids_brackets as AgeBracket[])
@@ -64,7 +72,7 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   // Group kids by custom or auto-computed age bracket for fair display.
   const groupedTeams = useMemo(() => {
     const groups = new Map<string, CompetitionTeamWithMembers[]>();
-    for (const t of teams) {
+    for (const t of formedTeams) {
       let key = "Lainnya";
       const isKid =
         ageCategory === "kids" || (ageCategory === "mixed" && t.age_group === "kids");
@@ -89,7 +97,7 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
       groups.get(key)!.push(t);
     }
     return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [teams, ageCategory, customBrackets]);
+  }, [formedTeams, ageCategory, customBrackets]);
 
   if (teams.length === 0) {
     return (
@@ -110,9 +118,9 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="flex flex-wrap justify-end gap-2">
-          {isLigaGrup && canManage && teams.length >= groupCount && (
+          {isLigaGrup && canManage && formedTeams.length >= groupCount && (
             <Button size="sm" variant="outline" onClick={handleAutoAssignGroups}>
               <Shuffle className="w-4 h-4 mr-1" />
               Bagi Grup Otomatis
@@ -134,7 +142,6 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
             </Button>
           )}
         </div>
-
 
         {groupedTeams.map(([groupLabel, groupTeams]) => (
           <div key={groupLabel} className="space-y-2">
@@ -211,13 +218,24 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                         </div>
                       </div>
                       {canManage && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeletingTeam(team)}
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
+                        <div className="flex gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            onClick={() => setEditingTeam(team)}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive/80"
+                            onClick={() => setDeletingTeam(team)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       )}
                     </div>
 
@@ -250,6 +268,80 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
             </div>
           </div>
         ))}
+
+        {individualRegistrants.length > 0 && (
+          <div className="space-y-2 pt-4 border-t">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Pendaftar Individu (Belum Masuk Tim)
+                </h3>
+                <Badge variant="secondary" className="text-xs">
+                  {individualRegistrants.length}
+                </Badge>
+              </div>
+              {canManage && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsGroupSpinOpen(true)}
+                  className="gap-1.5"
+                >
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  Bagi Tim (Spin Wheel)
+                </Button>
+              )}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {individualRegistrants.map((team, index) => (
+                <Card key={team.id}>
+                  <CardContent className="p-4 flex items-start justify-between">
+                    <div>
+                      <h4 className="font-semibold">{team.name}</h4>
+                      <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                        {team.age != null && (
+                          <Badge variant="outline" className="text-xs">
+                            {Number(team.age)} thn
+                          </Badge>
+                        )}
+                        {team.gender && (
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {team.gender === "male" ? "Laki-laki" : "Perempuan"}
+                          </Badge>
+                        )}
+                        {team.age_group && (
+                          <Badge variant="secondary" className="text-xs">
+                            {AGE_GROUP_LABELS[team.age_group as keyof typeof AGE_GROUP_LABELS]}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    {canManage && (
+                      <div className="flex gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          onClick={() => setEditingTeam(team)}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive/80"
+                          onClick={() => setDeletingTeam(team)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <AlertDialog open={!!deletingTeam} onOpenChange={(open) => !open && setDeletingTeam(null)}>
@@ -257,7 +349,7 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Tim</AlertDialogTitle>
             <AlertDialogDescription>
-              Apakah Anda yakin ingin menghapus tim "{deletingTeam?.name}"?
+              Apakah Anda yakin ingin menghapus tim/peserta "{deletingTeam?.name}"?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -276,6 +368,19 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
         open={isSpinOpen}
         onOpenChange={setIsSpinOpen}
         teams={teams}
+      />
+
+      <SpinWheelGroupTeamsDialog
+        open={isGroupSpinOpen}
+        onOpenChange={setIsGroupSpinOpen}
+        competition={competition}
+      />
+
+      <EditTeamDialog
+        open={!!editingTeam}
+        onOpenChange={(open) => !open && setEditingTeam(null)}
+        team={editingTeam}
+        competition={competition}
       />
     </>
   );

@@ -19,7 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Trophy, Medal, Plus, X } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Loader2, Trophy, Medal, Plus, X, Swords } from "lucide-react";
 
 import { useUpdateMatch } from "@/hooks/useCompetitions";
 import { useToast } from "@/hooks/use-toast";
@@ -56,6 +57,18 @@ export function UpdateMatchDialog({
   const [isFinal, setIsFinal] = useState(false);
   const [sets, setSets] = useState<{ team1_score: number | ""; team2_score: number | "" }[]>([]);
 
+  // Additional editable fields
+  const [roundNumber, setRoundNumber] = useState("1");
+  const [matchNumber, setMatchNumber] = useState("1");
+  const [stage, setStage] = useState<string>("knockout");
+  const [groupName, setGroupName] = useState("");
+  const [team1Id, setTeam1Id] = useState("");
+  const [team2Id, setTeam2Id] = useState("");
+
+  const is17an = competition.format === "17an";
+  const isTeamMatchFormat = competition.match_type && competition.match_type !== "1v1";
+  const allTeams = competition.teams || [];
+
 
   const { toast } = useToast();
   const updateMutation = useUpdateMatch();
@@ -71,6 +84,13 @@ export function UpdateMatchDialog({
       setPhaseLabel(match.phase_label || "");
       setIsPoint(match.is_point !== false);
       setIsFinal(match.is_final || false);
+      setRoundNumber(String(match.round_number || 1));
+      setMatchNumber(String(match.match_number || 1));
+      setStage(match.stage || "knockout");
+      setGroupName(match.group_name || "");
+      setTeam1Id(match.team1_id || "");
+      setTeam2Id(match.team2_id || "");
+
       if (Array.isArray(match.sets_data) && match.sets_data.length > 0) {
         setSets(match.sets_data.map((s) => ({ team1_score: s.team1_score ?? 0, team2_score: s.team2_score ?? 0 })));
       } else {
@@ -115,7 +135,7 @@ export function UpdateMatchDialog({
         setMatchDatetime("");
       }
     }
-  }, [match]);
+  }, [match, competition.sets_per_match]);
 
   // Derive sets-won and effective score/winner from the sets editor
   const validSets = sets.filter(
@@ -137,38 +157,54 @@ export function UpdateMatchDialog({
   const handleSubmit = () => {
     if (!match) return;
 
-    const participantsData = (match.participants && match.participants.length > 0)
-      ? match.participants.map(p => ({
-          id: p.id,
-          team_id: p.team_id,
-          score: useSets
-            ? (p.team_id === match.team1_id ? String(setsWon1) : p.team_id === match.team2_id ? String(setsWon2) : participantScores[p.id] || null)
-            : (participantScores[p.id] || null),
-          is_winner: useSets
-            ? p.team_id === effectiveWinnerId
-            : (participantWinners[p.id] || (participantRanks[p.id] === 1)),
-          winner_rank: participantRanks[p.id] || null,
-        }))
-      : (() => {
-          const res = [];
-          if (match.team1_id) {
-            res.push({
-              team_id: match.team1_id,
-              score: effectiveScore1 || null,
-              is_winner: effectiveWinnerId === match.team1_id || winnerRank1 === 1,
-              winner_rank: winnerRank1
-            });
-          }
-          if (match.team2_id) {
-            res.push({
-              team_id: match.team2_id,
-              score: effectiveScore2 || null,
-              is_winner: effectiveWinnerId === match.team2_id || winnerRank2 === 1,
-              winner_rank: winnerRank2
-            });
-          }
-          return res.length > 0 ? res : undefined;
-        })();
+    if (!is17an) {
+      if (!team1Id || team1Id === "none" || !team2Id || team2Id === "none") {
+        toast({
+          variant: "destructive",
+          title: "Tim Belum Lengkap",
+          description: "Untuk format pertandingan ini, Anda wajib memilih kedua Tim 1 dan Tim 2.",
+        });
+        return;
+      }
+      if (team1Id === team2Id) {
+        toast({
+          variant: "destructive",
+          title: "Kesalahan Tim",
+          description: "Tim 1 dan Tim 2 tidak boleh sama.",
+        });
+        return;
+      }
+    }
+
+    const teamIds = [team1Id, team2Id].filter(id => id && id !== "none");
+
+    const participantsData = (!is17an)
+      ? teamIds.map((tId) => {
+          const isTeam1 = tId === team1Id;
+          const scoreVal = isTeam1 ? effectiveScore1 : effectiveScore2;
+          const isWinner = isTeam1
+            ? (effectiveWinnerId === team1Id || winnerRank1 === 1)
+            : (effectiveWinnerId === team2Id || winnerRank2 === 1);
+          const rankVal = isTeam1 ? winnerRank1 : winnerRank2;
+          
+          const existing = match.participants?.find(p => p.team_id === tId);
+          return {
+            id: existing?.id,
+            team_id: tId,
+            score: scoreVal || null,
+            is_winner: isWinner,
+            winner_rank: rankVal,
+          };
+        })
+      : (match.participants && match.participants.length > 0)
+        ? match.participants.map(p => ({
+            id: p.id,
+            team_id: p.team_id,
+            score: participantScores[p.id] || null,
+            is_winner: participantWinners[p.id] || (participantRanks[p.id] === 1),
+            winner_rank: participantRanks[p.id] || null,
+          }))
+        : undefined;
 
     updateMutation.mutate(
       {
@@ -181,11 +217,18 @@ export function UpdateMatchDialog({
         location: location || null,
         notes: notes || null,
         phase_label: phaseLabel || null,
-        match_datetime: matchDatetime || null,
+        match_datetime: matchDatetime ? new Date(matchDatetime).toISOString() : null,
         is_point: isPoint,
         is_final: isFinal,
         sets_data: useSets ? validSets.map((s) => ({ team1_score: Number(s.team1_score), team2_score: Number(s.team2_score) })) : null,
         participant_scores: participantsData,
+        stage: stage || null,
+        group_name: stage === "group" ? (groupName.trim() || null) : null,
+        round_number: parseInt(roundNumber, 10) || 1,
+        match_number: parseInt(matchNumber, 10) || 1,
+        team1_id: !is17an ? team1Id : null,
+        team2_id: !is17an ? team2Id : null,
+        team_ids: teamIds.length > 0 ? teamIds : undefined,
       },
 
       {
@@ -220,14 +263,132 @@ export function UpdateMatchDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
-          <div className="space-y-2">
-            <Label htmlFor="phase-label">Nama Babak (Fase)</Label>
-            <Input
-              id="phase-label"
-              value={phaseLabel}
-              onChange={(e) => setPhaseLabel(e.target.value)}
-              placeholder="Contoh: Babak 1, Final, dll."
-            />
+          {/* Round & Match Numbers */}
+          {!isTeamMatchFormat && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Babak (Round)</Label>
+                <Input
+                  value={roundNumber}
+                  onChange={(e) => setRoundNumber(e.target.value)}
+                  placeholder="Contoh: 1"
+                  type="number"
+                  min="1"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Nomor Sesi/Match</Label>
+                <Input
+                  value={matchNumber}
+                  onChange={(e) => setMatchNumber(e.target.value)}
+                  placeholder="Contoh: 1"
+                  type="number"
+                  min="1"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Team Selection */}
+          {!is17an && (
+            <div className="space-y-3">
+              <div className="text-xs text-amber-600 dark:text-amber-400 font-medium bg-amber-500/10 border border-amber-500/25 rounded-md p-2 flex items-center gap-2">
+                <Swords className="w-3.5 h-3.5 shrink-0" />
+                <span>Pertandingan format ini wajib mempertemukan <strong>2 tim berbeda</strong>.</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1">
+                    Tim 1 <span className="text-destructive font-bold">*</span>
+                  </Label>
+                  <Select value={team1Id} onValueChange={setTeam1Id}>
+                    <SelectTrigger className={!team1Id || team1Id === "none" ? "border-amber-500/50" : ""}>
+                      <SelectValue placeholder="Pilih Tim 1" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Pilih Tim 1</SelectItem>
+                      {allTeams.map((team) => (
+                        <SelectItem key={team.id} value={team.id} disabled={team.id === team2Id}>
+                          {team.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1">
+                    Tim 2 <span className="text-destructive font-bold">*</span>
+                  </Label>
+                  <Select value={team2Id} onValueChange={setTeam2Id}>
+                    <SelectTrigger className={!team2Id || team2Id === "none" ? "border-amber-500/50" : ""}>
+                      <SelectValue placeholder="Pilih Tim 2" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Pilih Tim 2</SelectItem>
+                      {allTeams.map((team) => (
+                        <SelectItem key={team.id} value={team.id} disabled={team.id === team1Id}>
+                          {team.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Stage & Group Configuration */}
+          <div className="space-y-3 rounded-md border p-3 bg-muted/10">
+            <div className="space-y-2">
+              <Label>Tahap (Stage)</Label>
+              <RadioGroup
+                value={stage}
+                onValueChange={(v) => {
+                  setStage(v);
+                  if (v === "group") {
+                    setPhaseLabel("Group Stage");
+                    if (!groupName) setGroupName("A");
+                  } else if (phaseLabel === "Group Stage") {
+                    setPhaseLabel("Babak Penyisihan");
+                  }
+                }}
+                className="flex gap-4"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem id="edit-stage-group" value="group" />
+                  <Label htmlFor="edit-stage-group" className="font-normal cursor-pointer text-xs">
+                    Babak Grup
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem id="edit-stage-knockout" value="knockout" />
+                  <Label htmlFor="edit-stage-knockout" className="font-normal cursor-pointer text-xs">
+                    Babak Gugur
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="space-y-1">
+                <Label className="text-xs">Label Babak / Fase</Label>
+                <Input
+                  value={phaseLabel}
+                  onChange={(e) => setPhaseLabel(e.target.value)}
+                  placeholder="Contoh: Semifinal, Final, Group Stage"
+                />
+              </div>
+              {stage === "group" && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Nama Grup</Label>
+                  <Input
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                    placeholder="Contoh: A, B, C"
+                  />
+                </div>
+              )}
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="match-datetime">Waktu Pertandingan</Label>
@@ -314,10 +475,11 @@ export function UpdateMatchDialog({
 
 
           {/* Participants Scores */}
-          <div className="space-y-3">
-            <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Skor Peserta</Label>
-            <div className="grid gap-3">
-              {match.participants?.map((p) => (
+          {is17an && match.participants && match.participants.length > 0 && (
+            <div className="space-y-3">
+              <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Skor Peserta</Label>
+              <div className="grid gap-3">
+                {match.participants.map((p) => (
                   <div key={p.id} className="p-3 rounded-lg border bg-muted/30 space-y-3">
                     <div className="flex items-center gap-3">
                       <div className="flex-1 font-medium">{p.team?.name || "Peserta"}</div>
@@ -341,112 +503,125 @@ export function UpdateMatchDialog({
                       </Button>
                     </div>
 
-                    <div className="flex gap-2 pt-2 border-t border-dashed">
+                    {isFinal && (
+                      <div className="flex gap-2 pt-2 border-t border-dashed">
+                        {[1, 2, 3].map((r) => (
+                          <Button
+                            key={r}
+                            variant={participantRanks[p.id] === r ? "default" : "outline"}
+                            size="sm"
+                            className={`h-8 flex-1 gap-1 text-[10px] uppercase font-bold tracking-tighter ${
+                              participantRanks[p.id] === r 
+                                ? (r === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : r === 2 ? 'bg-slate-400 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-700') 
+                                : ''
+                            }`}
+                            onClick={() => setParticipantRanks(prev => ({ ...prev, [p.id]: prev[p.id] === r ? null : r }))}
+                          >
+                            <Medal className="w-3 h-3" />
+                            Juara {r}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Two-team score and ranking editor (for non-17an match formats) */}
+          {!is17an && (
+            <div className="space-y-4">
+              <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Skor & Hasil Akhir</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="font-semibold text-xs text-foreground">
+                    {allTeams.find((t) => t.id === team1Id)?.name || "Tim 1"}
+                  </Label>
+                  <Input
+                    value={score1}
+                    onChange={(e) => setScore1(e.target.value)}
+                    placeholder="Skor"
+                    type="number"
+                  />
+                  {isFinal && (
+                    <div className="flex gap-1 pt-1">
                       {[1, 2, 3].map((r) => (
                         <Button
                           key={r}
-                          variant={participantRanks[p.id] === r ? "default" : "outline"}
+                          variant={winnerRank1 === r ? "default" : "outline"}
                           size="sm"
-                          className={`h-8 flex-1 gap-1 text-[10px] uppercase font-bold tracking-tighter ${
-                            participantRanks[p.id] === r 
+                          className={`h-7 flex-1 gap-1 text-[9px] uppercase font-bold tracking-tighter ${
+                            winnerRank1 === r 
                               ? (r === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : r === 2 ? 'bg-slate-400 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-700') 
                               : ''
                           }`}
-                          onClick={() => setParticipantRanks(prev => ({ ...prev, [p.id]: prev[p.id] === r ? null : r }))}
+                          onClick={() => {
+                            setWinnerRank1(winnerRank1 === r ? null : r);
+                            if (r === 1 && winnerRank1 !== r) setWinnerId(team1Id);
+                          }}
                         >
-                          <Medal className="w-3 h-3" />
                           Juara {r}
                         </Button>
                       ))}
                     </div>
-                  </div>
-              ))}
-              
-              {(!match.participants || match.participants.length === 0) && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>{match.team1?.name || "Tim 1"}</Label>
-                      <Input
-                        value={score1}
-                        onChange={(e) => setScore1(e.target.value)}
-                        placeholder="Skor"
-                        type="number"
-                      />
-                      <div className="flex gap-1 pt-1">
-                        {[1, 2, 3].map((r) => (
-                          <Button
-                            key={r}
-                            variant={winnerRank1 === r ? "default" : "outline"}
-                            size="sm"
-                            className={`h-7 flex-1 gap-1 text-[9px] uppercase font-bold tracking-tighter ${
-                              winnerRank1 === r 
-                                ? (r === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : r === 2 ? 'bg-slate-400 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-700') 
-                                : ''
-                            }`}
-                            onClick={() => {
-                                setWinnerRank1(winnerRank1 === r ? null : r);
-                                if (r === 1 && winnerRank1 !== r) setWinnerId(match.team1_id || "");
-                            }}
-                          >
-                            Juara {r}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{match.team2?.name || "Tim 2"}</Label>
-                      <Input
-                        value={score2}
-                        onChange={(e) => setScore2(e.target.value)}
-                        placeholder="Skor"
-                        type="number"
-                      />
-                      <div className="flex gap-1 pt-1">
-                        {[1, 2, 3].map((r) => (
-                          <Button
-                            key={r}
-                            variant={winnerRank2 === r ? "default" : "outline"}
-                            size="sm"
-                            className={`h-7 flex-1 gap-1 text-[9px] uppercase font-bold tracking-tighter ${
-                              winnerRank2 === r 
-                                ? (r === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : r === 2 ? 'bg-slate-400 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-700') 
-                                : ''
-                            }`}
-                            onClick={() => {
-                                setWinnerRank2(winnerRank2 === r ? null : r);
-                                if (r === 1 && winnerRank2 !== r) setWinnerId(match.team2_id || "");
-                            }}
-                          >
-                            Juara {r}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              )}
+                <div className="space-y-2">
+                  <Label className="font-semibold text-xs text-foreground">
+                    {allTeams.find((t) => t.id === team2Id)?.name || "Tim 2"}
+                  </Label>
+                  <Input
+                    value={score2}
+                    onChange={(e) => setScore2(e.target.value)}
+                    placeholder="Skor"
+                    type="number"
+                  />
+                  {isFinal && (
+                    <div className="flex gap-1 pt-1">
+                      {[1, 2, 3].map((r) => (
+                        <Button
+                          key={r}
+                          variant={winnerRank2 === r ? "default" : "outline"}
+                          size="sm"
+                          className={`h-7 flex-1 gap-1 text-[9px] uppercase font-bold tracking-tighter ${
+                            winnerRank2 === r 
+                              ? (r === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : r === 2 ? 'bg-slate-400 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-700') 
+                              : ''
+                          }`}
+                          onClick={() => {
+                            setWinnerRank2(winnerRank2 === r ? null : r);
+                            if (r === 1 && winnerRank2 !== r) setWinnerId(team2Id);
+                          }}
+                        >
+                          Juara {r}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Winner (Standard fallback) */}
-          {(!match.participants || match.participants.length === 0) && (
+          {/* Winner (Direct Selection fallback for team match formats) */}
+          {!is17an && (
             <div className="space-y-2">
               <Label>Pemenang Utama</Label>
-              <Select value={winnerId} onValueChange={setWinnerId}>
+              <Select value={winnerId || "none"} onValueChange={(v) => setWinnerId(v === "none" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih pemenang" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={null}>Belum ditentukan</SelectItem>
-                  {match.team1_id && (
-                    <SelectItem value={match.team1_id}>
-                      {match.team1?.name || "Tim 1"}
+                  <SelectItem value="none">Belum ditentukan</SelectItem>
+                  {team1Id && team1Id !== "none" && (
+                    <SelectItem value={team1Id}>
+                      {allTeams.find(t => t.id === team1Id)?.name || "Tim 1"}
                     </SelectItem>
                   )}
-                  {match.team2_id && (
-                    <SelectItem value={match.team2_id}>
-                      {match.team2?.name || "Tim 2"}
+                  {team2Id && team2Id !== "none" && (
+                    <SelectItem value={team2Id}>
+                      {allTeams.find(t => t.id === team2Id)?.name || "Tim 2"}
                     </SelectItem>
                   )}
                 </SelectContent>

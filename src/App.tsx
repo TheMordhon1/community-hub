@@ -44,6 +44,7 @@ import RAB from "./pages/RAB";
 import AnnouncementCategoriesAdmin from "./pages/admin/AnnouncementCategories";
 import GamificationSettings from "./pages/GamificationSettings";
 import RedeemPoints from "./pages/RedeemPoints";
+import LiveMatches from "@/pages/LiveMatches";
 
 const queryClient = new QueryClient();
 
@@ -85,8 +86,10 @@ function AppRoutes() {
           </AuthRedirect>
         }
       />
-      <Route element={<ProtectedRoute />}>
-        <Route element={<AppLayout />}>
+      <Route element={<AppLayout />}>
+        <Route path="/live-matches" element={<LiveMatches />} />
+        
+        <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/announcements" element={<Announcements />} />
           <Route path="/announcements/:id" element={<AnnouncementDetail />} />

@@ -75,6 +75,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
   }, [competition?.match_type]);
 
   const isTeam = teamSize > 1;
+  const [regMode, setRegMode] = useState<"team" | "individual">("team");
+  const isActualTeamMode = isTeam && regMode === "team";
 
   const [members, setMembers] = useState<{ source: "user" | "manual"; profileId: string; name: string }[]>(
     () => Array.from({ length: teamSize }, () => ({ source: "user", profileId: "", name: "" }))
@@ -150,6 +152,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
 
   useEffect(() => {
     if (open) {
+      setRegMode(isTeam ? "team" : "individual");
       setMembers(Array.from({ length: teamSize }, () => ({ source: "user" as const, profileId: "", name: "" })));
       setTeamName("");
       setSubmitting(false);
@@ -161,7 +164,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       setAgeInput("");
       setGender("");
     }
-  }, [open, teamSize]);
+  }, [open, teamSize, isTeam]);
 
   const houseLabel = (id: string) => {
     const h = houses?.find((x) => x.id === id);
@@ -201,20 +204,20 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
     });
   }, [members, profiles]);
 
-  const finalParticipantName = isTeam
+  const finalParticipantName = isActualTeamMode
     ? memberNames.filter(Boolean).join(" & ")
     : finalName;
 
-  const finalTeamName = isTeam
+  const finalTeamName = isActualTeamMode
     ? (teamName.trim() || finalParticipantName)
     : finalParticipantName;
 
-  const isFormInvalid = isTeam
+  const isFormInvalid = isActualTeamMode
     ? memberNames.some((name) => !name)
     : !finalName;
 
   const handleSubmit = async () => {
-    if (isTeam) {
+    if (isActualTeamMode) {
       const hasEmptyMember = memberNames.some((name) => !name);
       if (hasEmptyMember) {
         toast({
@@ -267,7 +270,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       });
       return;
     }
-    if (!isTeam && genderCategory !== "mixed" && !gender) {
+    if (!isActualTeamMode && genderCategory !== "mixed" && !gender) {
       toast({
         variant: "destructive",
         title: "Jenis kelamin wajib dipilih",
@@ -275,7 +278,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       });
       return;
     }
-    if (!isTeam && genderMismatch) {
+    if (!isActualTeamMode && genderMismatch) {
       toast({
         variant: "destructive",
         title: "Jenis kelamin tidak sesuai",
@@ -287,7 +290,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
     const existingSeeds = competition.teams?.map((t) => t.seed_number || 0) || [];
     const nextSeed = existingSeeds.length > 0 ? Math.max(...existingSeeds) + 1 : 1;
 
-    if (isTeam) {
+    if (isActualTeamMode) {
       setSubmitting(true);
       try {
         const team = await createTeamMutation.mutateAsync({
@@ -300,6 +303,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           age: ageValue,
           age_group: ageGroup,
           gender: gender || null,
+          is_individual: false,
         });
 
         if (team) {
@@ -335,7 +339,57 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       } finally {
         setSubmitting(false);
       }
+    } else if (isTeam) {
+      // Individual registration in a team competition
+      setSubmitting(true);
+      try {
+        const team = await createTeamMutation.mutateAsync({
+          competition_id: competition.id,
+          name: finalName,
+          house_id: null, // house is hidden for >1v1
+          seed_number: nextSeed,
+          participant_name: finalName,
+          user_id: source === "user" ? selectedProfileId : null,
+          age: ageValue,
+          age_group: ageGroup,
+          gender: gender || null,
+          is_individual: true,
+        });
+
+        if (team) {
+          const memberInsert = {
+            team_id: team.id,
+            user_id: source === "user" ? selectedProfileId : null,
+            name: source === "manual" ? manualName.trim() : null,
+            is_captain: true,
+          };
+
+          const { error: memberError } = await supabase
+            .from("competition_team_members")
+            .insert(memberInsert);
+
+          if (memberError) {
+            console.error("Error adding team member:", memberError);
+            toast({
+              variant: "destructive",
+              title: "Peringatan",
+              description: "Peserta terdaftar, tetapi detail anggota gagal disimpan.",
+            });
+          }
+        }
+        onOpenChange(false);
+      } catch (err) {
+        console.error(err);
+        toast({
+          variant: "destructive",
+          title: "Gagal",
+          description: "Gagal mendaftarkan peserta.",
+        });
+      } finally {
+        setSubmitting(false);
+      }
     } else {
+      // 1v1 Individual registration
       createTeamMutation.mutate(
         {
           competition_id: competition.id,
@@ -347,6 +401,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           age: ageValue,
           age_group: ageGroup,
           gender: gender || null,
+          is_individual: false,
         },
         {
           onSuccess: () => onOpenChange(false),
@@ -393,7 +448,31 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         )}
 
         <div className="flex-1 overflow-y-auto py-2 space-y-4 pr-1">
-          {!isTeam && (
+          {isTeam && (
+            <div className="space-y-2 pb-2 border-b">
+              <Label>Cara Mendaftar</Label>
+              <RadioGroup
+                value={regMode}
+                onValueChange={(v) => setRegMode(v as "team" | "individual")}
+                className="flex gap-4"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem id="reg-team" value="team" />
+                  <Label htmlFor="reg-team" className="font-normal cursor-pointer">
+                    Daftar Sebagai Tim ({teamSize} Orang)
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem id="reg-individual" value="individual" />
+                  <Label htmlFor="reg-individual" className="font-normal cursor-pointer">
+                    Daftar Individu (Satu per Satu)
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+          )}
+
+          {!isActualTeamMode && (
             <div className="space-y-2">
               <Label>Sumber Peserta</Label>
               <RadioGroup
@@ -417,7 +496,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
             </div>
           )}
 
-          {isTeam && (
+          {isActualTeamMode && (
             <div className="space-y-2">
               <Label htmlFor="team-name">Nama Tim (Opsional)</Label>
               <Input
@@ -429,7 +508,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
             </div>
           )}
 
-          {isTeam ? (
+          {isActualTeamMode ? (
             <div className="space-y-4">
               {members.map((member, i) => (
                 <div key={i} className="space-y-2 border-l-2 border-primary/20 pl-3 py-1">
@@ -526,14 +605,13 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
             )
           )}
 
-          {!isTeam && (
-            <>
-              <div className="space-y-2">
-                <Label>
-                  Nomor Rumah
-                </Label>
-                <Select value={selectedHouse} onValueChange={setSelectedHouse}>
-                  <SelectTrigger>
+          {!isTeam && !isActualTeamMode && (
+            <div className="space-y-2">
+              <Label>
+                Nomor Rumah
+              </Label>
+              <Select value={selectedHouse} onValueChange={setSelectedHouse}>
+                <SelectTrigger>
                   <SelectValue placeholder="Pilih rumah" />
                 </SelectTrigger>
                 <SelectContent>
@@ -551,7 +629,11 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+          )}
+
+          {!isActualTeamMode && (
+            <>
+              <div className="space-y-2">
                 <Label htmlFor="age">
                   Umur (tahun)
                 </Label>
@@ -585,42 +667,40 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                   </Alert>
                 )}
               </div>
-            </>
-          )}
 
-          {!isTeam && (
-            <div className="space-y-2">
-              <Label>
-                Jenis Kelamin
-                {genderCategory !== "mixed" && <span className="text-destructive"> *</span>}
-              </Label>
-              <RadioGroup
-                value={gender}
-                onValueChange={(v) => setGender(v as Gender)}
-                className="flex gap-4"
-              >
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem id="g-male" value="male" />
-                  <Label htmlFor="g-male" className="font-normal cursor-pointer">
-                    {GENDER_LABELS.male}
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem id="g-female" value="female" />
-                  <Label htmlFor="g-female" className="font-normal cursor-pointer">
-                    {GENDER_LABELS.female}
-                  </Label>
-                </div>
-              </RadioGroup>
-              {genderMismatch && (
-                <Alert variant="destructive" className="mt-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Kompetisi ini khusus {GENDER_CATEGORY_LABELS[genderCategory]}.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
+              <div className="space-y-2">
+                <Label>
+                  Jenis Kelamin
+                  {genderCategory !== "mixed" && <span className="text-destructive"> *</span>}
+                </Label>
+                <RadioGroup
+                  value={gender}
+                  onValueChange={(v) => setGender(v as Gender)}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem id="g-male" value="male" />
+                    <Label htmlFor="g-male" className="font-normal cursor-pointer">
+                      {GENDER_LABELS.male}
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem id="g-female" value="female" />
+                    <Label htmlFor="g-female" className="font-normal cursor-pointer">
+                      {GENDER_LABELS.female}
+                    </Label>
+                  </div>
+                </RadioGroup>
+                {genderMismatch && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Kompetisi ini khusus {GENDER_CATEGORY_LABELS[genderCategory]}.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </>
           )}
         </div>
 
@@ -637,8 +717,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
               (!isTeam && isPaidEvent && !selectedHouse) ||
               (ageInput.trim() !== "" && (ageValue == null || isNaN(ageValue))) ||
               !!categoryMismatch ||
-              (!isTeam && genderCategory !== "mixed" && !gender) ||
-              (!isTeam && genderMismatch)
+              (!isActualTeamMode && genderCategory !== "mixed" && !gender) ||
+              (!isActualTeamMode && genderMismatch)
             }
           >
             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
 export interface ContactMethod {
   platform: string;
@@ -108,7 +109,7 @@ export function useCreateContact() {
     mutationFn: async (contact: Omit<Contact, "id" | "created_at" | "updated_at">) => {
       const { data, error } = await supabase
         .from("emergency_contacts")
-        .insert(contact as any)
+        .insert(contact as unknown as TablesInsert<"emergency_contacts">)
         .select()
         .single();
       if (error) throw error;
@@ -130,7 +131,7 @@ export function useUpdateContact() {
     mutationFn: async ({ id, ...updates }: Partial<Contact> & { id: string }) => {
       const { data, error } = await supabase
         .from("emergency_contacts")
-        .update(updates as any)
+        .update(updates as unknown as TablesUpdate<"emergency_contacts">)
         .eq("id", id)
         .select()
         .single();

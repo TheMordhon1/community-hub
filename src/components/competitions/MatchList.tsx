@@ -8,7 +8,7 @@ import { id as idLocale } from "date-fns/locale";
 import type { EventCompetitionWithDetails, CompetitionMatchWithTeams } from "@/types/competition";
 import { MATCH_STATUS_LABELS } from "@/types/competition";
 import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
-import { LiveScoreDialog } from "@/components/competitions/LiveScoreDialog";
+import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
 import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
 import { Play } from "lucide-react";
 import { useResetMatch, useDeleteMatch, useUpdateMatch, useAssignMatchTeams } from "@/hooks/useCompetitions";
@@ -178,15 +178,35 @@ export function MatchList({ competition, canManage }: MatchListProps) {
             </h4>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {roundMatches.map((match) => (
+              {roundMatches.map((match, index) => (
                 <Card key={match.id} className="overflow-hidden">
                   <CardContent className="p-0">
                     {/* Match Header */}
                     <div className="flex items-center justify-between px-4 py-2 bg-muted/50 border-b">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          Match {match.match_number}
-                        </span>
+                        <div className="flex items-center gap-1 group relative">
+                          <span className="text-xs text-muted-foreground">
+                            {match.notes ? match.notes : `Match ${index + 1}`} {match.group_name && `· Grup ${match.group_name}`}
+                          </span>
+                          {canManage && (
+                            <button
+                              onClick={() => {
+                                const newLabel = window.prompt("Ubah Label Pertandingan (kosongkan untuk kembali ke default):", match.notes || `Match ${index + 1}`);
+                                if (newLabel !== null) {
+                                  updateMutation.mutate({
+                                    id: match.id,
+                                    competition_id: competition.id,
+                                    notes: newLabel || null
+                                  });
+                                }
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary"
+                              title="Ubah Label"
+                            >
+                              <Edit className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                         {match.is_final && (
                           <Trophy className="w-3 h-3 text-yellow-500 fill-yellow-500 animate-pulse" />
                         )}
@@ -276,17 +296,17 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                                 <div className="flex items-center gap-2">
                                   {match.is_point !== false && (
                                     <>
-                                      {(p.is_winner && !p.winner_rank) && (
-                                        <CheckCircle2 className="w-4 h-4 text-primary" />
-                                      )}
-                                      {p.winner_rank === 1 && (
-                                        <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                                      )}
-                                      {p.winner_rank === 2 && (
-                                        <Trophy className="w-4 h-4 text-slate-400 fill-slate-400" />
-                                      )}
-                                      {p.winner_rank === 3 && (
-                                        <Trophy className="w-4 h-4 text-amber-600 fill-amber-600" />
+                                      {match.is_final ? (
+                                        <>
+                                          {p.winner_rank === 1 && <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />}
+                                          {p.winner_rank === 2 && <Trophy className="w-4 h-4 text-slate-400 fill-slate-400" />}
+                                          {p.winner_rank === 3 && <Trophy className="w-4 h-4 text-amber-600 fill-amber-600" />}
+                                          {(p.is_winner && !p.winner_rank) && <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />}
+                                        </>
+                                      ) : (
+                                        <>
+                                          {p.is_winner && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                                        </>
                                       )}
                                     </>
                                   )}
@@ -299,10 +319,14 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                                     p.score || "-"
                                   ) : (
                                     p.is_winner && (
-                                      p.winner_rank === 1 ? <Trophy className="w-5 h-5 text-yellow-500 fill-yellow-500" /> :
-                                      p.winner_rank === 2 ? <Trophy className="w-5 h-5 text-slate-400 fill-slate-400" /> :
-                                      p.winner_rank === 3 ? <Trophy className="w-5 h-5 text-amber-600 fill-amber-600" /> :
-                                      <CheckCircle2 className="w-5 h-5 text-primary" />
+                                      match.is_final ? (
+                                        p.winner_rank === 1 ? <Trophy className="w-5 h-5 text-yellow-500 fill-yellow-500" /> :
+                                        p.winner_rank === 2 ? <Trophy className="w-5 h-5 text-slate-400 fill-slate-400" /> :
+                                        p.winner_rank === 3 ? <Trophy className="w-5 h-5 text-amber-600 fill-amber-600" /> :
+                                        <Trophy className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                                      ) : (
+                                        <CheckCircle2 className="w-5 h-5 text-primary" />
+                                      )
                                     )
                                   )}
                                 </span>
@@ -316,18 +340,28 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                               <div className="flex items-center gap-2">
                                 {match.is_point !== false && (
                                   <>
-                                    {match.winner_id === match.team1_id && !match.participants?.some(p => p.team_id === match.team1_id && p.winner_rank) && (
-                                      <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                                    )}
-                                    {match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 1 && (
-                                      <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                                    )}
-                                    {match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 2 && (
-                                      <Trophy className="w-4 h-4 text-slate-400 fill-slate-400" />
-                                    )}
-                                    {match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 3 && (
-                                      <Trophy className="w-4 h-4 text-amber-600 fill-amber-600" />
-                                    )}
+                                      {match.is_final ? (
+                                        <>
+                                          {match.winner_id === match.team1_id && !match.participants?.some(p => p.team_id === match.team1_id && p.winner_rank) && (
+                                            <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                          )}
+                                          {match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 1 && (
+                                            <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                          )}
+                                          {match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 2 && (
+                                            <Trophy className="w-4 h-4 text-slate-400 fill-slate-400" />
+                                          )}
+                                          {match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 3 && (
+                                            <Trophy className="w-4 h-4 text-amber-600 fill-amber-600" />
+                                          )}
+                                        </>
+                                      ) : (
+                                        <>
+                                          {(match.winner_id === match.team1_id || match.participants?.find(p => p.team_id === match.team1_id)?.is_winner) && (
+                                            <CheckCircle2 className="w-4 h-4 text-primary" />
+                                          )}
+                                        </>
+                                      )}
                                   </>
                                 )}
                                 <span className={`text-sm ${!match.team1 ? 'text-muted-foreground italic' : ''}`}>
@@ -338,8 +372,8 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                                 {match.is_point !== false ? (
                                   match.score1 || "-"
                                 ) : (
-                                  (match.winner_id === match.team1_id || match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 1) && (
-                                    <Trophy className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                                  ((match.winner_id === match.team1_id || match.participants?.find(p => p.team_id === match.team1_id)?.is_winner || match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 1)) && (
+                                    match.is_final ? <Trophy className="w-5 h-5 text-yellow-500 fill-yellow-500" /> : <CheckCircle2 className="w-5 h-5 text-primary" />
                                   )
                                 )}
                               </span>
@@ -352,18 +386,28 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                               <div className="flex items-center gap-2">
                                 {match.is_point !== false && (
                                   <>
-                                    {match.winner_id === match.team2_id && !match.participants?.some(p => p.team_id === match.team2_id && p.winner_rank) && (
-                                      <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                                    )}
-                                    {match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 1 && (
-                                      <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                                    )}
-                                    {match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 2 && (
-                                      <Trophy className="w-4 h-4 text-slate-400 fill-slate-400" />
-                                    )}
-                                    {match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 3 && (
-                                      <Trophy className="w-4 h-4 text-amber-600 fill-amber-600" />
-                                    )}
+                                      {match.is_final ? (
+                                        <>
+                                          {match.winner_id === match.team2_id && !match.participants?.some(p => p.team_id === match.team2_id && p.winner_rank) && (
+                                            <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                          )}
+                                          {match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 1 && (
+                                            <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                          )}
+                                          {match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 2 && (
+                                            <Trophy className="w-4 h-4 text-slate-400 fill-slate-400" />
+                                          )}
+                                          {match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 3 && (
+                                            <Trophy className="w-4 h-4 text-amber-600 fill-amber-600" />
+                                          )}
+                                        </>
+                                      ) : (
+                                        <>
+                                          {(match.winner_id === match.team2_id || match.participants?.find(p => p.team_id === match.team2_id)?.is_winner) && (
+                                            <CheckCircle2 className="w-4 h-4 text-primary" />
+                                          )}
+                                        </>
+                                      )}
                                   </>
                                 )}
                                 <span className={`text-sm ${!match.team2 ? 'text-muted-foreground italic' : ''}`}>
@@ -374,8 +418,8 @@ export function MatchList({ competition, canManage }: MatchListProps) {
                                 {match.is_point !== false ? (
                                   match.score2 || "-"
                                 ) : (
-                                  (match.winner_id === match.team2_id || match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 1) && (
-                                    <Trophy className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                                  ((match.winner_id === match.team2_id || match.participants?.find(p => p.team_id === match.team2_id)?.is_winner || match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 1)) && (
+                                    match.is_final ? <Trophy className="w-5 h-5 text-yellow-500 fill-yellow-500" /> : <CheckCircle2 className="w-5 h-5 text-primary" />
                                   )
                                 )}
                               </span>

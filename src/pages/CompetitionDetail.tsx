@@ -458,8 +458,7 @@ export default function CompetitionDetail() {
         </div>
       </div>
 
-      {(competition.matches?.some(m => m.participants?.some(p => p.winner_rank)) || 
-        competition.matches?.some(m => m.is_final && m.status === 'completed' && m.winner_id)) && (
+      {competition.matches?.some(m => m.is_final && (m.participants?.some(p => p.winner_rank) || (m.status === 'completed' && m.winner_id))) && (
         <div className="fixed bottom-6 inset-x-0 flex flex-col md:flex-row items-center justify-center gap-4 z-50 px-6">
           {canManage && (
             <div className="bg-background/95 backdrop-blur-md border rounded-full px-4 py-2 shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4">

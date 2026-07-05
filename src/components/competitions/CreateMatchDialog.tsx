@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, Users, Sparkles, Shuffle, MousePointerClick } from "lucide-react";
+import { Loader2, Users, Sparkles, Shuffle, MousePointerClick, Swords } from "lucide-react";
 import { useCreateMatch } from "@/hooks/useCompetitions";
 import { useToast } from "@/hooks/use-toast";
 import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
@@ -54,13 +54,35 @@ export function CreateMatchDialog({
   const [bracketMax, setBracketMax] = useState("");
   const [bracketLabel, setBracketLabel] = useState("");
 
+  // Simplified Match Stage/Phase States
+  const [stage, setStage] = useState<string>("knockout");
+  const [phaseLabel, setPhaseLabel] = useState("");
+  const [groupName, setGroupName] = useState("");
+
   const is17an = competition.format === "17an";
+  const isTeamMatchFormat = competition.match_type && competition.match_type !== "1v1";
   const allTeams = competition.teams || [];
 
   useEffect(() => {
     if (open) {
       setMaxParticipants(is17an ? "3" : "2");
       setSelectionMode("manual");
+      
+      const isGroupStageDefault = competition.format === "liga_grup";
+      setStage(isGroupStageDefault ? "group" : "knockout");
+      setPhaseLabel(isGroupStageDefault ? "Group Stage" : "Babak Penyisihan");
+      setGroupName(isGroupStageDefault ? "A" : "");
+
+      if (isTeamMatchFormat) {
+        const existingMatches = competition.matches || [];
+        const nextNum = existingMatches.length > 0
+          ? Math.max(...existingMatches.map(m => m.match_number || 0)) + 1
+          : 1;
+        setMatchNumber(String(nextNum));
+        setRoundNumber("1");
+        setMaxParticipants("2");
+      }
+
       if (competition.events) {
         if (!location) setLocation(competition.events.location || "");
         if (!matchDatetime) {
@@ -87,8 +109,35 @@ export function CreateMatchDialog({
       setBracketMin("");
       setBracketMax("");
       setBracketLabel("");
+      setStage("knockout");
+      setPhaseLabel("");
+      setGroupName("");
     }
-  }, [open, competition.events, is17an]);
+  }, [open, competition.events, competition.format, competition.match_type, is17an, isTeamMatchFormat]);
+
+  // Group auto-fill effect based on selected teams
+  useEffect(() => {
+    if (stage === "group") {
+      let detectedGroup = "";
+      if (!is17an) {
+        const t1 = allTeams.find((t) => t.id === team1Id);
+        const t2 = allTeams.find((t) => t.id === team2Id);
+        if (t1?.group_name) {
+          detectedGroup = t1.group_name;
+        } else if (t2?.group_name) {
+          detectedGroup = t2.group_name;
+        }
+      } else {
+        const firstSelected = allTeams.find((t) => selectedTeamIds.includes(t.id));
+        if (firstSelected?.group_name) {
+          detectedGroup = firstSelected.group_name;
+        }
+      }
+      if (detectedGroup) {
+        setGroupName(detectedGroup);
+      }
+    }
+  }, [stage, team1Id, team2Id, selectedTeamIds, allTeams, is17an]);
 
   const createMutation = useCreateMatch();
   const assignTeams = useAssignMatchTeams();
@@ -102,7 +151,21 @@ export function CreateMatchDialog({
   const targetCount = Math.max(1, parseInt(maxParticipants, 10) || 1);
 
   const handleSubmit = () => {
-    if (!roundNumber || !matchNumber) {
+    let finalRound = roundNumber;
+    let finalMatch = matchNumber;
+
+    if (isTeamMatchFormat) {
+      if (!finalRound) finalRound = "1";
+      if (!finalMatch) {
+        const existingMatches = competition.matches || [];
+        const nextNum = existingMatches.length > 0
+          ? Math.max(...existingMatches.map(m => m.match_number || 0)) + 1
+          : 1;
+        finalMatch = String(nextNum);
+      }
+    }
+
+    if (!finalRound || !finalMatch) {
       toast({
         variant: "destructive",
         title: "Data Tidak Lengkap",
@@ -118,7 +181,15 @@ export function CreateMatchDialog({
       if (is17an) {
         teamIds = selectedTeamIds;
       } else {
-        if (team1Id && team1Id !== "none" && team2Id && team2Id !== "none" && team1Id === team2Id) {
+        if (!team1Id || team1Id === "none" || !team2Id || team2Id === "none") {
+          toast({
+            variant: "destructive",
+            title: "Tim Belum Lengkap",
+            description: "Untuk format pertandingan ini, Anda wajib memilih kedua Tim 1 dan Tim 2.",
+          });
+          return;
+        }
+        if (team1Id === team2Id) {
           toast({
             variant: "destructive",
             title: "Kesalahan Tim",
@@ -126,8 +197,8 @@ export function CreateMatchDialog({
           });
           return;
         }
-        if (team1Id && team1Id !== "none") teamIds.push(team1Id);
-        if (team2Id && team2Id !== "none") teamIds.push(team2Id);
+        teamIds.push(team1Id);
+        teamIds.push(team2Id);
       }
     } else if (selectionMode === "random") {
       if (allTeams.length < targetCount) {
@@ -146,8 +217,8 @@ export function CreateMatchDialog({
     createMutation.mutate(
       {
         competition_id: competition.id,
-        round_number: parseInt(roundNumber, 10),
-        match_number: parseInt(matchNumber, 10),
+        round_number: parseInt(finalRound, 10),
+        match_number: parseInt(finalMatch, 10),
         team1_id: !is17an && selectionMode === "manual" && team1Id && team1Id !== "none" ? team1Id : undefined,
         team2_id: !is17an && selectionMode === "manual" && team2Id && team2Id !== "none" ? team2Id : undefined,
         team_ids:
@@ -156,7 +227,7 @@ export function CreateMatchDialog({
             : selectionMode === "manual" && is17an
               ? teamIds
               : undefined,
-        match_datetime: matchDatetime || undefined,
+        match_datetime: matchDatetime ? new Date(matchDatetime).toISOString() : undefined,
         location: location || undefined,
         max_participants: targetCount,
         age_bracket_min:
@@ -164,6 +235,9 @@ export function CreateMatchDialog({
         age_bracket_max:
           bracketMax.trim() === "" ? null : Number(bracketMax.replace(",", ".")),
         age_bracket_label: bracketLabel.trim() || null,
+        stage: stage || null,
+        phase_label: phaseLabel.trim() || null,
+        group_name: stage === "group" ? (groupName.trim() || null) : null,
       },
       {
         onSuccess: (result) => {
@@ -199,48 +273,52 @@ export function CreateMatchDialog({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Babak (Round)</Label>
-                <Input
-                  value={roundNumber}
-                  onChange={(e) => setRoundNumber(e.target.value)}
-                  placeholder="Contoh: 1"
-                  type="number"
-                  min="1"
-                />
+            {!isTeamMatchFormat && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Babak (Round)</Label>
+                  <Input
+                    value={roundNumber}
+                    onChange={(e) => setRoundNumber(e.target.value)}
+                    placeholder="Contoh: 1"
+                    type="number"
+                    min="1"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nomor Sesi/Match</Label>
+                  <Input
+                    value={matchNumber}
+                    onChange={(e) => setMatchNumber(e.target.value)}
+                    placeholder="Contoh: 1"
+                    type="number"
+                    min="1"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Nomor Sesi/Match</Label>
-                <Input
-                  value={matchNumber}
-                  onChange={(e) => setMatchNumber(e.target.value)}
-                  placeholder="Contoh: 1"
-                  type="number"
-                  min="1"
-                />
-              </div>
-            </div>
+            )}
 
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Jumlah Peserta per Match
-              </Label>
-              <Input
-                value={maxParticipants}
-                onChange={(e) => setMaxParticipants(e.target.value)}
-                onBlur={(e) => {
-                  const v = parseInt(e.target.value, 10);
-                  if (!v || v < 1) setMaxParticipants("1");
-                }}
-                type="number"
-                min="1"
-              />
-              <p className="text-xs text-muted-foreground">
-                Batas jumlah peserta yang akan bertanding pada match ini.
-              </p>
-            </div>
+            {!isTeamMatchFormat && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Jumlah Peserta per Match
+                </Label>
+                <Input
+                  value={maxParticipants}
+                  onChange={(e) => setMaxParticipants(e.target.value)}
+                  onBlur={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    if (!v || v < 1) setMaxParticipants("1");
+                  }}
+                  type="number"
+                  min="1"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Batas jumlah peserta yang akan bertanding pada match ini.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Cara Memilih Peserta</Label>
@@ -327,38 +405,48 @@ export function CreateMatchDialog({
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Tim 1</Label>
-                    <Select value={team1Id} onValueChange={setTeam1Id}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih Tim 1" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Belum ditentukan</SelectItem>
-                        {allTeams.map((team) => (
-                          <SelectItem key={team.id} value={team.id}>
-                            {team.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="space-y-3">
+                  <div className="text-xs text-amber-600 dark:text-amber-400 font-medium bg-amber-500/10 border border-amber-500/25 rounded-md p-2 flex items-center gap-2">
+                    <Swords className="w-3.5 h-3.5 shrink-0" />
+                    <span>Pertandingan format ini wajib mempertemukan <strong>2 tim berbeda</strong>.</span>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Tim 2</Label>
-                    <Select value={team2Id} onValueChange={setTeam2Id}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih Tim 2" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Belum ditentukan</SelectItem>
-                        {allTeams.map((team) => (
-                          <SelectItem key={team.id} value={team.id}>
-                            {team.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1">
+                        Tim 1 <span className="text-destructive font-bold">*</span>
+                      </Label>
+                      <Select value={team1Id} onValueChange={setTeam1Id}>
+                        <SelectTrigger className={!team1Id || team1Id === "none" ? "border-amber-500/50" : ""}>
+                          <SelectValue placeholder="Pilih Tim 1" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Pilih Tim 1</SelectItem>
+                          {allTeams.map((team) => (
+                            <SelectItem key={team.id} value={team.id} disabled={team.id === team2Id}>
+                              {team.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1">
+                        Tim 2 <span className="text-destructive font-bold">*</span>
+                      </Label>
+                      <Select value={team2Id} onValueChange={setTeam2Id}>
+                        <SelectTrigger className={!team2Id || team2Id === "none" ? "border-amber-500/50" : ""}>
+                          <SelectValue placeholder="Pilih Tim 2" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Pilih Tim 2</SelectItem>
+                          {allTeams.map((team) => (
+                            <SelectItem key={team.id} value={team.id} disabled={team.id === team1Id}>
+                              {team.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
               )
@@ -372,40 +460,58 @@ export function CreateMatchDialog({
               </div>
             )}
 
-            <div className="space-y-2 rounded-md border p-3 bg-muted/20">
-              <Label className="text-sm font-semibold">Grup Umur untuk Match Ini (opsional)</Label>
-              <p className="text-xs text-muted-foreground">
-                Mis. "Makan Kerupuk Anak 1.5 - 2 thn". Kosongkan jika tidak dibatasi umur.
-              </p>
-              <div className="grid grid-cols-[1fr_1fr_1.4fr] gap-2 pt-1">
+            {/* Stage, Phase & Group Configurations */}
+            <div className="space-y-3 rounded-md border p-3 bg-muted/10">
+              <Label className="text-sm font-semibold">Tahapan Pertandingan</Label>
+              
+              <div className="space-y-2">
+                <Label>Tahap (Stage)</Label>
+                <RadioGroup
+                  value={stage}
+                  onValueChange={(v) => {
+                    setStage(v);
+                    if (v === "group") {
+                      setPhaseLabel("Group Stage");
+                    } else if (phaseLabel === "Group Stage") {
+                      setPhaseLabel("Babak Penyisihan");
+                    }
+                  }}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem id="stage-group" value="group" />
+                    <Label htmlFor="stage-group" className="font-normal cursor-pointer">
+                      Babak Grup
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem id="stage-knockout" value="knockout" />
+                    <Label htmlFor="stage-knockout" className="font-normal cursor-pointer">
+                      Babak Gugur (Knockout)
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
                 <div className="space-y-1">
-                  <Label className="text-xs">Min (thn)</Label>
+                  <Label className="text-xs">Label Babak / Fase</Label>
                   <Input
-                    type="text"
-                    inputMode="decimal"
-                    value={bracketMin}
-                    onChange={(e) => setBracketMin(e.target.value)}
-                    placeholder="1.5"
+                    value={phaseLabel}
+                    onChange={(e) => setPhaseLabel(e.target.value)}
+                    placeholder="Contoh: Semifinal, Final, Group Stage"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Max (thn)</Label>
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    value={bracketMax}
-                    onChange={(e) => setBracketMax(e.target.value)}
-                    placeholder="2"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Label (opsional)</Label>
-                  <Input
-                    value={bracketLabel}
-                    onChange={(e) => setBracketLabel(e.target.value)}
-                    placeholder="Balita"
-                  />
-                </div>
+                {stage === "group" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Nama Grup</Label>
+                    <Input
+                      value={groupName}
+                      onChange={(e) => setGroupName(e.target.value)}
+                      placeholder="Contoh: A, B, C"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

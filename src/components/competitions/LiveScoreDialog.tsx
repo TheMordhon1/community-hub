@@ -36,7 +36,7 @@ interface SetScore {
   score2: number;
 }
 
-export function LiveScoreDialog({
+export default function LiveScoreDialog({
   open,
   onOpenChange,
   match,
@@ -48,6 +48,8 @@ export function LiveScoreDialog({
   const [winnerRank1, setWinnerRank1] = useState<number | null>(null);
   const [winnerRank2, setWinnerRank2] = useState<number | null>(null);
   const [participantScores, setParticipantScores] = useState<ParticipantScore[]>([]);
+  const [sets, setSets] = useState<{ team1_score: number; team2_score: number }[]>([]);
+  const [activeSetIndex, setActiveSetIndex] = useState(0);
 
   const updateMutation = useUpdateMatch();
   const is17an = competition.format === "17an";
@@ -56,13 +58,22 @@ export function LiveScoreDialog({
     if (match && open) {
       const cached = localStorage.getItem(`live_score_${match.id}`);
       
-      if (match.participants && match.participants.length > 0) {
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            if (Array.isArray(parsed.participants)) {
-              setParticipantScores(parsed.participants);
-            } else {
+      if (is17an) {
+        if (match.participants && match.participants.length > 0) {
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed.participants)) {
+                setParticipantScores(parsed.participants);
+              } else {
+                setParticipantScores(match.participants.map(p => ({
+                  id: p.id,
+                  score: parseInt(p.score || "0", 10),
+                  isWinner: p.is_winner || false,
+                  winner_rank: p.winner_rank || null
+                })));
+              }
+            } catch {
               setParticipantScores(match.participants.map(p => ({
                 id: p.id,
                 score: parseInt(p.score || "0", 10),
@@ -70,7 +81,7 @@ export function LiveScoreDialog({
                 winner_rank: p.winner_rank || null
               })));
             }
-          } catch {
+          } else {
             setParticipantScores(match.participants.map(p => ({
               id: p.id,
               score: parseInt(p.score || "0", 10),
@@ -78,15 +89,11 @@ export function LiveScoreDialog({
               winner_rank: p.winner_rank || null
             })));
           }
-        } else {
-          setParticipantScores(match.participants.map(p => ({
-            id: p.id,
-            score: parseInt(p.score || "0", 10),
-            isWinner: p.is_winner || false,
-            winner_rank: p.winner_rank || null
-          })));
         }
       } else {
+        const s1 = parseInt(match.score1 || "0", 10) || 0;
+        const s2 = parseInt(match.score2 || "0", 10) || 0;
+
         if (cached) {
           try {
             const parsed = JSON.parse(cached);
@@ -94,74 +101,110 @@ export function LiveScoreDialog({
             setScore2(parsed.score2 || 0);
             setWinnerRank1(parsed.winnerRank1 || null);
             setWinnerRank2(parsed.winnerRank2 || null);
+            if (Array.isArray(parsed.sets)) {
+              setSets(parsed.sets);
+              setActiveSetIndex(parsed.activeSetIndex ?? 0);
+            } else {
+              setSets([{ team1_score: s1, team2_score: s2 }]);
+              setActiveSetIndex(0);
+            }
           } catch {
-            setScore1(parseInt(match.score1 || "0", 10) || 0);
-            setScore2(parseInt(match.score2 || "0", 10) || 0);
+            setScore1(s1);
+            setScore2(s2);
             setWinnerRank1(match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank || null);
             setWinnerRank2(match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank || null);
+            if (Array.isArray(match.sets_data) && match.sets_data.length > 0) {
+              setSets(match.sets_data.map(s => ({ team1_score: s.team1_score ?? 0, team2_score: s.team2_score ?? 0 })));
+              setActiveSetIndex(match.sets_data.length - 1);
+            } else {
+              setSets([{ team1_score: s1, team2_score: s2 }]);
+              setActiveSetIndex(0);
+            }
           }
         } else {
-          setScore1(parseInt(match.score1 || "0", 10) || 0);
-          setScore2(parseInt(match.score2 || "0", 10) || 0);
+          setScore1(s1);
+          setScore2(s2);
           setWinnerRank1(match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank || null);
           setWinnerRank2(match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank || null);
+          if (Array.isArray(match.sets_data) && match.sets_data.length > 0) {
+            setSets(match.sets_data.map(s => ({ team1_score: s.team1_score ?? 0, team2_score: s.team2_score ?? 0 })));
+            setActiveSetIndex(match.sets_data.length - 1);
+          } else {
+            setSets([{ team1_score: s1, team2_score: s2 }]);
+            setActiveSetIndex(0);
+          }
         }
       }
     }
-  }, [match, open]);
+  }, [match, open, is17an]);
 
   useEffect(() => {
     if (match && open) {
-      const data = match.participants && match.participants.length > 0
+      const data = is17an
         ? { participants: participantScores }
-        : { score1, score2, winnerRank1, winnerRank2 };
+        : { score1, score2, winnerRank1, winnerRank2, sets, activeSetIndex };
       
       localStorage.setItem(`live_score_${match.id}`, JSON.stringify(data));
     }
-  }, [score1, score2, winnerRank1, winnerRank2, participantScores, match, open]);
+  }, [score1, score2, winnerRank1, winnerRank2, participantScores, sets, activeSetIndex, match, open, is17an]);
 
-  const hasParticipants = !!(match?.participants && match.participants.length > 0);
+
+
+  const updateTeam1Score = (delta: number) => {
+    setSets(prev => prev.map((s, idx) => {
+      if (idx === activeSetIndex) {
+        return { ...s, team1_score: Math.max(0, s.team1_score + delta) };
+      }
+      return s;
+    }));
+  };
+
+  const updateTeam2Score = (delta: number) => {
+    setSets(prev => prev.map((s, idx) => {
+      if (idx === activeSetIndex) {
+        return { ...s, team2_score: Math.max(0, s.team2_score + delta) };
+      }
+      return s;
+    }));
+  };
 
   const handleUpdateProgress = () => {
     if (!match) return;
+
+    const setsWon1 = sets.filter(s => s.team1_score > s.team2_score).length;
+    const setsWon2 = sets.filter(s => s.team2_score > s.team1_score).length;
+
+    const participantScoresToSave = is17an
+      ? participantScores.map(ps => {
+          const participant = match.participants?.find(p => p.id === ps.id);
+          return {
+            id: ps.id,
+            team_id: participant?.team_id,
+            score: ps.score.toString(),
+            is_winner: ps.isWinner || (ps.winner_rank === 1),
+            winner_rank: ps.winner_rank
+          };
+        })
+      : match.participants?.map(p => {
+          const isTeam1 = p.team_id === match.team1_id;
+          const scoreVal = isTeam1 ? setsWon1 : setsWon2;
+          return {
+            id: p.id,
+            team_id: p.team_id,
+            score: scoreVal.toString(),
+            is_winner: false,
+            winner_rank: null
+          };
+        });
 
     const mutationData = {
       id: match.id,
       competition_id: competition.id,
       status: "ongoing" as const,
-      participant_scores: hasParticipants 
-        ? participantScores.map(ps => {
-            const participant = match.participants?.find(p => p.id === ps.id);
-            return {
-              id: ps.id,
-              team_id: participant?.team_id,
-              score: ps.score.toString(),
-              is_winner: ps.isWinner || (ps.winner_rank === 1),
-              winner_rank: ps.winner_rank
-            };
-          })
-        : (() => {
-            const res = [];
-            if (match.team1_id) {
-              res.push({
-                team_id: match.team1_id,
-                score: score1.toString(),
-                is_winner: winnerRank1 === 1,
-                winner_rank: winnerRank1
-              });
-            }
-            if (match.team2_id) {
-              res.push({
-                team_id: match.team2_id,
-                score: score2.toString(),
-                is_winner: winnerRank2 === 1,
-                winner_rank: winnerRank2
-              });
-            }
-            return res.length > 0 ? res : undefined;
-          })(),
-      score1: !hasParticipants ? score1.toString() : undefined,
-      score2: !hasParticipants ? score2.toString() : undefined,
+      participant_scores: participantScoresToSave,
+      score1: !is17an ? setsWon1.toString() : undefined,
+      score2: !is17an ? setsWon2.toString() : undefined,
+      sets_data: !is17an ? sets : undefined,
     };
 
     updateMutation.mutate(mutationData, {
@@ -177,50 +220,51 @@ export function LiveScoreDialog({
   const handleFinishMatch = () => {
     if (!match) return;
 
+    const setsWon1 = sets.filter(s => s.team1_score > s.team2_score).length;
+    const setsWon2 = sets.filter(s => s.team2_score > s.team1_score).length;
+
     let winnerId: string | null = null;
-    if (!hasParticipants) {
-      if (score1 > score2) winnerId = match.team1_id;
-      else if (score2 > score1) winnerId = match.team2_id;
+    if (!is17an) {
+      if (setsWon1 > setsWon2) winnerId = match.team1_id;
+      else if (setsWon2 > setsWon1) winnerId = match.team2_id;
     }
+
+    const participantScoresToSave = is17an
+      ? participantScores.map(ps => {
+          const participant = match.participants?.find(p => p.id === ps.id);
+          return {
+            id: ps.id,
+            team_id: participant?.team_id,
+            score: ps.score.toString(),
+            is_winner: ps.isWinner,
+            winner_rank: ps.winner_rank
+          };
+        })
+      : match.participants?.map(p => {
+          const isTeam1 = p.team_id === match.team1_id;
+          const scoreVal = isTeam1 ? setsWon1 : setsWon2;
+          const isWinnerVal = isTeam1 ? winnerId === match.team1_id : winnerId === match.team2_id;
+          const rankVal = isTeam1
+            ? (winnerId === match.team1_id ? 1 : 2)
+            : (winnerId === match.team2_id ? 1 : 2);
+          return {
+            id: p.id,
+            team_id: p.team_id,
+            score: scoreVal.toString(),
+            is_winner: isWinnerVal,
+            winner_rank: rankVal
+          };
+        });
 
     const mutationData = {
       id: match.id,
       competition_id: competition.id,
       status: "completed" as const,
-      participant_scores: hasParticipants 
-        ? participantScores.map(ps => {
-            const participant = match.participants?.find(p => p.id === ps.id);
-            return {
-              id: ps.id,
-              team_id: participant?.team_id,
-              score: ps.score.toString(),
-              is_winner: ps.isWinner,
-              winner_rank: ps.winner_rank
-            };
-          })
-        : (() => {
-            const res = [];
-            if (match.team1_id) {
-              res.push({
-                team_id: match.team1_id,
-                score: score1.toString(),
-                is_winner: winnerRank1 === 1,
-                winner_rank: winnerRank1
-              });
-            }
-            if (match.team2_id) {
-              res.push({
-                team_id: match.team2_id,
-                score: score2.toString(),
-                is_winner: winnerRank2 === 1,
-                winner_rank: winnerRank2
-              });
-            }
-            return res.length > 0 ? res : undefined;
-          })(),
-      score1: !hasParticipants ? score1.toString() : undefined,
-      score2: !hasParticipants ? score2.toString() : undefined,
+      participant_scores: participantScoresToSave,
+      score1: !is17an ? setsWon1.toString() : undefined,
+      score2: !is17an ? setsWon2.toString() : undefined,
       winner_id: winnerId,
+      sets_data: !is17an ? sets : undefined,
     };
 
     updateMutation.mutate(mutationData, {
@@ -297,7 +341,7 @@ export function LiveScoreDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-auto px-6 py-2">
-          {hasParticipants ? (
+          {is17an ? (
             <ScrollArea className="h-full pr-4">
               <div className="space-y-4 py-2">
                 {participantScores.map((ps) => {
@@ -407,31 +451,64 @@ export function LiveScoreDialog({
                         </div>
                       </div>
 
-                        {!readOnly && (
-                          <div className="flex gap-2 pt-2 border-t border-dashed">
-                            {[1, 2, 3].map((r) => (
-                              <Button
-                                key={r}
-                                variant={ps.winner_rank === r ? "default" : "outline"}
-                                size="sm"
-                                className={`h-8 flex-1 gap-1 text-[10px] uppercase font-bold tracking-tighter transition-all ${
-                                  ps.winner_rank === r ? getRankColor(r) : 'text-muted-foreground hover:text-primary hover:border-primary/50'
-                                }`}
-                                onClick={() => setParticipantRank(ps.id, ps.winner_rank === r ? null : r)}
-                              >
-                                <Trophy className="w-3 h-3" />
-                                Juara {r}
-                              </Button>
-                            ))}
-                          </div>
-                        )}
+                         {!readOnly && match.is_final && (
+                           <div className="flex gap-2 pt-2 border-t border-dashed">
+                             {[1, 2, 3].map((r) => (
+                               <Button
+                                 key={r}
+                                 variant={ps.winner_rank === r ? "default" : "outline"}
+                                 size="sm"
+                                 className={`h-8 flex-1 gap-1 text-[10px] uppercase font-bold tracking-tighter transition-all ${
+                                   ps.winner_rank === r ? getRankColor(r) : 'text-muted-foreground hover:text-primary hover:border-primary/50'
+                                 }`}
+                                 onClick={() => setParticipantRank(ps.id, ps.winner_rank === r ? null : r)}
+                               >
+                                 <Trophy className="w-3 h-3" />
+                                 Juara {r}
+                               </Button>
+                             ))}
+                           </div>
+                         )}
                     </div>
                   );
                 })}
               </div>
             </ScrollArea>
           ) : (
-            <div className="py-6 sm:py-10 flex flex-col items-center gap-4">
+            <div className="py-6 sm:py-10 flex flex-col items-center gap-6">
+              {/* Set Navigation Tabs */}
+              <div className="flex flex-col items-center gap-2 border rounded-2xl p-4 w-full bg-primary/5 border-primary/20">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold uppercase tracking-wider text-primary">Set Aktif:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {sets.map((_, idx) => (
+                      <Button
+                        key={idx}
+                        variant={idx === activeSetIndex ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 w-16 text-xs font-bold"
+                        onClick={() => setActiveSetIndex(idx)}
+                      >
+                        Set {idx + 1}
+                      </Button>
+                    ))}
+                    {!readOnly && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1 text-[10px] px-2 font-bold uppercase tracking-wider"
+                        onClick={() => {
+                          setSets(prev => [...prev, { team1_score: 0, team2_score: 0 }]);
+                          setActiveSetIndex(sets.length);
+                        }}
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Set baru
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="flex flex-row items-center justify-between w-full gap-2 sm:gap-8">
                 {/* Team 1: Score on the left */}
                 <div className="flex flex-col items-center flex-1 min-w-0">
@@ -444,7 +521,7 @@ export function LiveScoreDialog({
                     <div className="flex flex-wrap justify-center gap-1 mb-3 max-w-[200px]">
                       {(match.team1 as CompetitionTeamWithMembers).members!.map((m) => (
                         <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
-                          {m.profile?.full_name || m.name || "Pemain"}
+                          {(m.profile?.full_name?.trim() || m.name?.trim()) || "Pemain"}
                         </Badge>
                       ))}
                     </div>
@@ -452,21 +529,23 @@ export function LiveScoreDialog({
                   <div className="flex flex-col items-center gap-3">
                     <div className="bg-muted w-24 h-24 sm:w-[180px] sm:h-24 rounded-xl sm:rounded-3xl flex items-center justify-center relative overflow-hidden border-2 border-transparent transition-all duration-500 shadow-inner">
                       <div className="absolute inset-0 bg-gradient-to-b from-black/5 to-transparent pointer-events-none" />
-                      <span className="text-5xl sm:text-6xl font-black tracking-tighter z-10">{score1}</span>
+                      <span className="text-5xl sm:text-6xl font-black tracking-tighter z-10">
+                        {sets[activeSetIndex]?.team1_score ?? 0}
+                      </span>
                     </div>
                     {!readOnly && (
                       <div className="flex items-center gap-3">
-                        <Button variant="outline" size="icon" className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0" onClick={() => setScore1(s => Math.max(0, s - 1))}>
+                        <Button variant="outline" size="icon" className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0" onClick={() => updateTeam1Score(-1)}>
                           <Minus className="w-5 h-5 sm:w-6 sm:h-6" />
                         </Button>
-                        <Button variant="default" size="icon" className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0 shadow-md" onClick={() => setScore1(s => s + 1)}>
+                        <Button variant="default" size="icon" className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0 shadow-md" onClick={() => updateTeam1Score(1)}>
                           <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
                         </Button>
                       </div>
                     )}
                     
                     {/* Rank Selection Team 1 */}
-                    {!readOnly && (
+                    {!readOnly && match.is_final && (
                       <div className="flex gap-1 mt-2">
                         {[1, 2, 3].map((r) => (
                           <Button
@@ -488,16 +567,17 @@ export function LiveScoreDialog({
 
                 <div className="text-xl sm:text-3xl font-black text-muted-foreground/20 italic">VS</div>
 
+                {/* Team 2: Score on the right */}
                 <div className="flex flex-col items-center flex-1 min-w-0">
                   <h3 className="font-bold text-xs sm:text-xl text-center line-clamp-1 mb-1">
                     {match.team2?.name || "TBD"}
                   </h3>
-                                 {/* Players List Team 2 */}
+                  {/* Players List Team 2 */}
                   {(match.team2 as CompetitionTeamWithMembers)?.members && (match.team2 as CompetitionTeamWithMembers).members!.length > 0 && (
                     <div className="flex flex-wrap justify-center gap-1 mb-3 max-w-[200px]">
                       {(match.team2 as CompetitionTeamWithMembers).members!.map((m) => (
                         <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
-                          {m.profile?.full_name || m.name || "Pemain"}
+                          {(m.profile?.full_name?.trim() || m.name?.trim()) || "Pemain"}
                         </Badge>
                       ))}
                     </div>
@@ -505,20 +585,22 @@ export function LiveScoreDialog({
                   <div className="flex flex-col items-center gap-3">
                     <div className="bg-muted w-24 h-24 sm:w-[180px] sm:h-24 rounded-xl sm:rounded-3xl flex items-center justify-center relative overflow-hidden border-2 border-transparent transition-all duration-500 shadow-inner">
                       <div className="absolute inset-0 bg-gradient-to-b from-black/5 to-transparent pointer-events-none" />
-                      <span className="text-5xl sm:text-6xl font-black tracking-tighter z-10">{score2}</span>
+                      <span className="text-5xl sm:text-6xl font-black tracking-tighter z-10">
+                        {sets[activeSetIndex]?.team2_score ?? 0}
+                      </span>
                     </div>
                     {!readOnly && (
                       <div className="flex items-center gap-3">
-                        <Button variant="outline" size="icon" className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0" onClick={() => setScore2(s => Math.max(0, s - 1))}>
+                        <Button variant="outline" size="icon" className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0" onClick={() => updateTeam2Score(-1)}>
                           <Minus className="w-5 h-5 sm:w-6 sm:h-6" />
                         </Button>
-                        <Button variant="default" size="icon" className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0 shadow-md" onClick={() => setScore2(s => s + 1)}>
+                        <Button variant="default" size="icon" className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0 shadow-md" onClick={() => updateTeam2Score(1)}>
                           <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
                         </Button>
                       </div>
                     )}
                     {/* Rank Selection Team 2 */}
-                    {!readOnly && (
+                    {!readOnly && match.is_final && (
                       <div className="flex gap-1 mt-2">
                         {[1, 2, 3].map((r) => (
                           <Button
@@ -537,6 +619,14 @@ export function LiveScoreDialog({
                     )}
                   </div>
                 </div>
+              </div>
+
+              {/* Set Win Summary Footer */}
+              <div className="flex items-center justify-between w-full border-t border-dashed pt-4 text-xs font-semibold">
+                <span className="text-muted-foreground uppercase tracking-wider">Set Dimenangkan:</span>
+                <span className="font-mono text-sm bg-primary/10 border border-primary/20 rounded-md px-2.5 py-1 text-primary">
+                  {sets.filter(s => s.team1_score > s.team2_score).length} - {sets.filter(s => s.team2_score > s.team1_score).length}
+                </span>
               </div>
             </div>
           )}

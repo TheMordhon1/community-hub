@@ -408,6 +408,7 @@ export type Database = {
           house_id: string | null
           id: string
           is_eliminated: boolean | null
+          is_individual: boolean | null
           logo_url: string | null
           name: string
           participant_name: string | null
@@ -424,6 +425,7 @@ export type Database = {
           house_id?: string | null
           id?: string
           is_eliminated?: boolean | null
+          is_individual?: boolean | null
           logo_url?: string | null
           name: string
           participant_name?: string | null
@@ -440,6 +442,7 @@ export type Database = {
           house_id?: string | null
           id?: string
           is_eliminated?: boolean | null
+          is_individual?: boolean | null
           logo_url?: string | null
           name?: string
           participant_name?: string | null

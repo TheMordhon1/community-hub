@@ -82,6 +82,28 @@ export function computeStandings(
 
   return Array.from(rows.values()).sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
+
+    // Head-to-Head tiebreaker
+    const h2hMatch = matches.find(m => 
+      m.stage === "group" && m.group_name === groupName && m.status === "completed" &&
+      ((m.team1_id === a.team.id && m.team2_id === b.team.id) || (m.team1_id === b.team.id && m.team2_id === a.team.id))
+    );
+    
+    if (h2hMatch) {
+      if (h2hMatch.winner_id === a.team.id) return -1;
+      if (h2hMatch.winner_id === b.team.id) return 1;
+      
+      const s1 = parseInt(h2hMatch.score1 ?? "0", 10) || 0;
+      const s2 = parseInt(h2hMatch.score2 ?? "0", 10) || 0;
+      if (h2hMatch.team1_id === a.team.id) {
+        if (s1 > s2) return -1;
+        if (s2 > s1) return 1;
+      } else {
+        if (s2 > s1) return -1;
+        if (s1 > s2) return 1;
+      }
+    }
+
     if (b.diff !== a.diff) return b.diff - a.diff;
     if (b.wins !== a.wins) return b.wins - a.wins;
     return a.team.name.localeCompare(b.team.name);
