@@ -42,6 +42,37 @@ import {
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
 import type { Profile, House } from "@/types/database";
 
+import { MemberAvatarSelector } from "./MemberAvatarSelector";
+
+const parseMemberName = (rawName: string | null | undefined) => {
+  if (!rawName) return { name: "", avatarUrl: "" };
+  const parts = rawName.split("||");
+  return {
+    name: parts[0] || "",
+    avatarUrl: parts[1] || ""
+  };
+};
+
+const serializeMemberName = (name: string, avatarUrl: string) => {
+  const trimmedName = name.trim();
+  const trimmedAvatar = avatarUrl.trim();
+  if (!trimmedAvatar) return trimmedName;
+  return `${trimmedName}||${trimmedAvatar}`;
+};
+
+const deleteAvatarFromStorage = async (url: string) => {
+  if (!url || !url.includes("competition-avatars")) return;
+  try {
+    const match = url.match(/\/competition-avatars\/([^?]+)/);
+    if (match && match[1]) {
+      const filePath = match[1];
+      await supabase.storage.from("competition-avatars").remove([filePath]);
+    }
+  } catch (err) {
+    console.error("Failed to delete avatar from storage:", err);
+  }
+};
+
 interface EditTeamDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -77,7 +108,8 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
   const [gender, setGender] = useState<Gender | "">("");
 
   // Roster members (for full team mode)
-  const [members, setMembers] = useState<{ source: "user" | "manual"; profileId: string; name: string }[]>([]);
+  const [members, setMembers] = useState<{ source: "user" | "manual"; profileId: string; name: string; avatarUrl: string; houseBlock: string; houseNumber: string }[]>([]);
+  const [singleAvatarUrl, setSingleAvatarUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const ageCategory = (competition.age_category as AgeCategory) || "mixed";
@@ -119,18 +151,26 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
       if (isActualIndividual) {
         setSource(team.user_id ? "user" : "manual");
         setSelectedProfileId(team.user_id || "");
-        setManualName(team.participant_name || "");
+        const parsed = parseMemberName(team.participant_name || team.name);
+        setManualName(parsed.name);
+        setSingleAvatarUrl(team.logo_url || parsed.avatarUrl || "");
       } else {
         // Map existing members
-        const existingMembers = (team.members || []).map(m => ({
-          source: (m.user_id ? "user" : "manual") as "user" | "manual",
-          profileId: m.user_id || "",
-          name: m.name || "",
-        }));
+        const existingMembers = (team.members || []).map(m => {
+          const parsed = parseMemberName(m.name);
+          return {
+            source: (m.user_id ? "user" : "manual") as "user" | "manual",
+            profileId: m.user_id || "",
+            name: parsed.name,
+            avatarUrl: parsed.avatarUrl || "",
+            houseBlock: (m as unknown as { house_block?: string | null }).house_block || "",
+            houseNumber: (m as unknown as { house_number?: string | null }).house_number || "",
+          };
+        });
 
         // Pad to match team size if needed
         while (existingMembers.length < teamSize) {
-          existingMembers.push({ source: "user", profileId: "", name: "" });
+          existingMembers.push({ source: "user", profileId: "", name: "", avatarUrl: "", houseBlock: "", houseNumber: "" });
         }
         setMembers(existingMembers);
       }
@@ -221,6 +261,22 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
 
     setSubmitting(true);
     try {
+      // Track old avatars to clean up
+      const oldAvatars = (team.members || []).map(m => parseMemberName(m.name).avatarUrl).filter(Boolean);
+      if (team.logo_url) {
+        oldAvatars.push(team.logo_url);
+      }
+
+      // Track new avatars that should be kept
+      const newAvatars: string[] = [];
+      if (!isTeam || isIndividual) {
+        if (singleAvatarUrl) newAvatars.push(singleAvatarUrl);
+      } else {
+        members.forEach(m => {
+          if (m.avatarUrl) newAvatars.push(m.avatarUrl);
+        });
+      }
+
       if (!isTeam || isIndividual) {
         // Update individual team
         const { error: teamError } = await supabase
@@ -233,6 +289,7 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
             age: ageValue,
             age_group: ageGroup,
             gender: gender || null,
+            logo_url: singleAvatarUrl || null,
           })
           .eq("id", team.id);
 
@@ -246,7 +303,7 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
             .insert({
               team_id: team.id,
               user_id: source === "user" ? selectedProfileId : null,
-              name: source === "manual" ? manualName.trim() : null,
+              name: serializeMemberName(finalName, singleAvatarUrl),
               is_captain: true,
             });
           if (memError) console.error("Error updating member roster:", memError);
@@ -262,6 +319,7 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
             age: ageValue,
             age_group: ageGroup,
             gender: gender || null,
+            logo_url: null,
           })
           .eq("id", team.id);
 
@@ -270,18 +328,30 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
         // Re-create team members
         await supabase.from("competition_team_members").delete().eq("team_id", team.id);
 
-        const memberInserts = members.map((m, index) => ({
-          team_id: team.id,
-          user_id: m.source === "user" && m.profileId ? m.profileId : null,
-          name: m.source === "manual" ? m.name.trim() : null,
-          is_captain: index === 0,
-        }));
+        const memberInserts = members.map((m, index) => {
+          const prof = profiles?.find((p) => p.id === m.profileId);
+          const baseName = m.source === "user" ? (prof?.full_name || "") : m.name;
+          return {
+            team_id: team.id,
+            user_id: m.source === "user" && m.profileId ? m.profileId : null,
+            name: serializeMemberName(baseName, m.avatarUrl),
+            is_captain: index === 0,
+            house_block: m.source === "manual" && m.houseBlock.trim() ? m.houseBlock.trim() : null,
+            house_number: m.source === "manual" && m.houseNumber.trim() ? m.houseNumber.trim() : null,
+          };
+        });
 
         const { error: membersError } = await supabase
           .from("competition_team_members")
           .insert(memberInserts);
 
         if (membersError) throw membersError;
+      }
+
+      // Safe clean up of unused avatars
+      const unused = oldAvatars.filter(url => url && !newAvatars.includes(url));
+      for (const url of unused) {
+        await deleteAvatarFromStorage(url);
       }
 
       queryClient.invalidateQueries({
@@ -362,7 +432,7 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
                       value={member.source}
                       onValueChange={(v) => {
                         const updated = [...members];
-                        updated[i] = { ...updated[i], source: v as "user" | "manual", profileId: "", name: "" };
+                        updated[i] = { ...updated[i], source: v as "user" | "manual", profileId: "", name: "", avatarUrl: "" };
                         setMembers(updated);
                       }}
                       className="flex gap-3"
@@ -402,49 +472,115 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Input
-                      value={member.name}
-                      onChange={(e) => {
-                        const updated = [...members];
-                        updated[i] = { ...updated[i], name: e.target.value };
-                        setMembers(updated);
-                      }}
-                      placeholder={`Nama anggota ${i + 1}`}
-                    />
+                    <div className="space-y-2">
+                      <Input
+                        value={member.name}
+                        onChange={(e) => {
+                          const updated = [...members];
+                          updated[i] = { ...updated[i], name: e.target.value };
+                          setMembers(updated);
+                        }}
+                        placeholder={`Nama anggota ${i + 1}`}
+                      />
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <Label className="text-xs text-muted-foreground">Blok</Label>
+                          <Input
+                            value={member.houseBlock}
+                            onChange={(e) => {
+                              const updated = [...members];
+                              updated[i] = { ...updated[i], houseBlock: e.target.value };
+                              setMembers(updated);
+                            }}
+                            placeholder="A"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Label className="text-xs text-muted-foreground">No. Rumah</Label>
+                          <Input
+                            value={member.houseNumber}
+                            onChange={(e) => {
+                              const updated = [...members];
+                              updated[i] = { ...updated[i], houseNumber: e.target.value };
+                              setMembers(updated);
+                            }}
+                            placeholder="12"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   )}
+                  <MemberAvatarSelector
+                    avatarUrl={member.avatarUrl}
+                    onChange={(url) => {
+                      const updated = [...members];
+                      updated[i] = { ...updated[i], avatarUrl: url };
+                      setMembers(updated);
+                    }}
+                    defaultFallbackName={
+                      member.source === "user"
+                        ? profiles?.find((p) => p.id === member.profileId)?.full_name || `Anggota ${i + 1}`
+                        : member.name || `Anggota ${i + 1}`
+                    }
+                    isRegisteredUser={member.source === "user" && !!member.profileId}
+                    userProfileAvatar={
+                      member.source === "user"
+                        ? profiles?.find((p) => p.id === member.profileId)?.avatar_url
+                        : null
+                    }
+                  />
                 </div>
               ))}
             </div>
           ) : (
-            source === "user" ? (
-              <div className="space-y-2">
-                <Label>Pilih Warga <span className="text-destructive">*</span></Label>
-                <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih warga" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(profiles || []).map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.full_name || "(tanpa nama)"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label htmlFor="edit-manual-name">
-                  Nama Peserta <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="edit-manual-name"
-                  value={manualName}
-                  onChange={(e) => setManualName(e.target.value)}
-                  placeholder="Nama peserta"
-                />
-              </div>
-            )
+            <>
+              {source === "user" ? (
+                <div className="space-y-2">
+                  <Label>Pilih Warga <span className="text-destructive">*</span></Label>
+                  <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih warga" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(profiles || []).map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.full_name || "(tanpa nama)"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="edit-manual-name">
+                    Nama Peserta <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="edit-manual-name"
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                    placeholder="Nama peserta"
+                  />
+                </div>
+              )}
+              <MemberAvatarSelector
+                avatarUrl={singleAvatarUrl}
+                onChange={setSingleAvatarUrl}
+                defaultFallbackName={
+                  source === "user"
+                    ? profiles?.find((p) => p.id === selectedProfileId)?.full_name || "Peserta"
+                    : manualName || "Peserta"
+                }
+                isRegisteredUser={source === "user" && !!selectedProfileId}
+                userProfileAvatar={
+                  source === "user"
+                    ? profiles?.find((p) => p.id === selectedProfileId)?.avatar_url
+                    : null
+                }
+              />
+            </>
           )}
 
           {!isTeam && (

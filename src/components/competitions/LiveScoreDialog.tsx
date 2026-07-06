@@ -446,11 +446,15 @@ export default function LiveScoreDialog({
                             {/* Players List */}
                             {(participant?.team as CompetitionTeamWithMembers)?.members && (participant.team as CompetitionTeamWithMembers).members!.length > 0 && (
                               <div className="flex flex-wrap gap-1 mb-2">
-                                {(participant.team as CompetitionTeamWithMembers).members!.map((m) => (
-                                  <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
-                                    {m.profile?.full_name || m.name || "Pemain"}
-                                  </Badge>
-                                ))}
+                                {(participant.team as CompetitionTeamWithMembers).members!.map((m) => {
+                                  const name = m.profile?.full_name?.trim() || m.name?.trim() || "Pemain";
+                                  const house = (m.profile as (typeof m.profile & { house?: { block: string; number: string } }) | undefined)?.house;
+                                  return (
+                                    <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
+                                      {name}{house ? ` (${house.block}.${house.number})` : ""}
+                                    </Badge>
+                                  );
+                                })}
                               </div>
                             )}
                           {match.is_point !== false && (
@@ -596,11 +600,15 @@ export default function LiveScoreDialog({
                   {/* Players List Team 1 */}
                   {(match.team1 as CompetitionTeamWithMembers)?.members && (match.team1 as CompetitionTeamWithMembers).members!.length > 0 && (
                     <div className="flex flex-wrap justify-center gap-1 mb-3 max-w-[200px]">
-                      {(match.team1 as CompetitionTeamWithMembers).members!.map((m) => (
-                        <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
-                          {(m.profile?.full_name?.trim() || m.name?.trim()) || "Pemain"}
-                        </Badge>
-                      ))}
+                      {(match.team1 as CompetitionTeamWithMembers).members!.map((m) => {
+                        const name = m.profile?.full_name?.trim() || m.name?.trim() || "Pemain";
+                        const house = (m.profile as (typeof m.profile & { house?: { block: string; number: string } }) | undefined)?.house;
+                        return (
+                          <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
+                            {name}{house ? ` (${house.block}.${house.number})` : ""}
+                          </Badge>
+                        );
+                      })}
                     </div>
                   )}
                   <div className="flex flex-col items-center gap-3">
@@ -652,11 +660,15 @@ export default function LiveScoreDialog({
                   {/* Players List Team 2 */}
                   {(match.team2 as CompetitionTeamWithMembers)?.members && (match.team2 as CompetitionTeamWithMembers).members!.length > 0 && (
                     <div className="flex flex-wrap justify-center gap-1 mb-3 max-w-[200px]">
-                      {(match.team2 as CompetitionTeamWithMembers).members!.map((m) => (
-                        <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
-                          {(m.profile?.full_name?.trim() || m.name?.trim()) || "Pemain"}
-                        </Badge>
-                      ))}
+                      {(match.team2 as CompetitionTeamWithMembers).members!.map((m) => {
+                        const name = m.profile?.full_name?.trim() || m.name?.trim() || "Pemain";
+                        const house = (m.profile as (typeof m.profile & { house?: { block: string; number: string } }) | undefined)?.house;
+                        return (
+                          <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
+                            {name}{house ? ` (${house.block}.${house.number})` : ""}
+                          </Badge>
+                        );
+                      })}
                     </div>
                   )}
                   <div className="flex flex-col items-center gap-3">

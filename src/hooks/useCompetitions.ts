@@ -18,6 +18,29 @@ import type {
 import type { Profile } from "@/types/database";
 import { useToast } from "@/hooks/use-toast";
 
+const parseMemberName = (rawName: string | null | undefined) => {
+  if (!rawName) return { name: "", avatarUrl: "" };
+  const parts = rawName.split("||");
+  return {
+    name: parts[0] || "",
+    avatarUrl: parts[1] || ""
+  };
+};
+
+const deleteAvatarFromStorage = async (url: string) => {
+  if (!url || !url.includes("competition-avatars")) return;
+  try {
+    const match = url.match(/\/competition-avatars\/([^?]+)/);
+    if (match && match[1]) {
+      const filePath = match[1];
+      await supabase.storage.from("competition-avatars").remove([filePath]);
+    }
+  } catch (err) {
+    console.error("Failed to delete avatar from storage:", err);
+  }
+};
+
+
 // Fetch competitions for an event
 export function useEventCompetitions(eventId: string | undefined) {
   return useQuery({
@@ -104,6 +127,7 @@ export function useCompetitionDetails(competitionId: string | undefined) {
       // Fetch team members
       const teamIds = teams?.map((t) => t.id) || [];
       let members: CompetitionTeamMember[] = [];
+      let profileMap = new Map<string, Profile & { house?: { block: string; number: string } }>();
       if (teamIds.length > 0) {
         const { data: membersData, error: membersError } = await supabase
           .from("competition_team_members")
@@ -114,20 +138,61 @@ export function useCompetitionDetails(competitionId: string | undefined) {
 
         // Fetch member profiles (only for members with a linked user_id)
         const userIds = (membersData || []).map((m) => m.user_id).filter(Boolean) as string[];
-        let profileMap = new Map<string, Profile>();
         if (userIds.length > 0) {
           const { data: profiles } = await supabase
             .from("profiles")
             .select("*")
             .in("id", userIds);
           profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+
+          // Step 1: get house_id for each registered member
+          const { data: residents } = await supabase
+            .from("house_residents")
+            .select("user_id, house_id")
+            .in("user_id", userIds);
+
+          const residentHouseIds = [...new Set((residents || []).map((r) => r.house_id).filter(Boolean))] as string[];
+
+          // Step 2: fetch the actual house rows
+          if (residentHouseIds.length > 0) {
+            const { data: memberHouses } = await supabase
+              .from("houses")
+              .select("id, block, number")
+              .in("id", residentHouseIds);
+
+            const houseById = new Map((memberHouses || []).map((h) => [h.id, h]));
+            (residents || []).forEach((r) => {
+              const house = r.house_id ? houseById.get(r.house_id) : null;
+              if (house && profileMap.has(r.user_id)) {
+                const profile = profileMap.get(r.user_id)!;
+                profileMap.set(r.user_id, { ...profile, house: { block: house.block, number: house.number } });
+              }
+            });
+          }
         }
 
         members =
-          (membersData || []).map((m) => ({
-            ...m,
-            profile: m.user_id ? profileMap.get(m.user_id) : undefined,
-          }));
+          (membersData || []).map((m) => {
+            const profile = m.user_id ? profileMap.get(m.user_id) : undefined;
+            // For manual members, attach house from stored house_block/house_number columns
+            const manualHouse =
+              !m.user_id &&
+              (m as unknown as { house_block?: string | null }).house_block &&
+              (m as unknown as { house_number?: string | null }).house_number
+                ? {
+                    block: (m as unknown as { house_block: string }).house_block,
+                    number: (m as unknown as { house_number: string }).house_number,
+                  }
+                : undefined;
+            return {
+              ...m,
+              profile: profile
+                ? profile
+                : manualHouse
+                ? ({ house: manualHouse } as Profile & { house?: { block: string; number: string } })
+                : undefined,
+            };
+          });
       }
 
       // Fetch matches
@@ -180,11 +245,24 @@ export function useCompetitionDetails(competitionId: string | undefined) {
 
       // Map members & houses to teams
       const teamsWithMembers =
-        teams?.map((team) => ({
-          ...team,
-          members: members.filter((m) => m.team_id === team.id),
-          house: team.house_id ? (houseMap.get(team.house_id) as unknown as import("@/types/database").House | undefined) : undefined,
-        })) || [];
+        teams?.map((team) => {
+          let teamMembers = members.filter((m) => m.team_id === team.id);
+          if (teamMembers.length === 0) {
+            teamMembers = [{
+              id: `synth-${team.id}`,
+              team_id: team.id,
+              user_id: team.user_id,
+              is_captain: true,
+              name: team.participant_name || team.name,
+              profile: team.user_id ? profileMap.get(team.user_id) : undefined,
+            } as CompetitionTeamMember];
+          }
+          return {
+            ...team,
+            members: teamMembers,
+            house: team.house_id ? (houseMap.get(team.house_id) as unknown as import("@/types/database").House | undefined) : undefined,
+          };
+        }) || [];
 
 
       // Map teams to matches
@@ -408,12 +486,35 @@ export function useDeleteTeam() {
 
   return useMutation({
     mutationFn: async (data: { id: string; competition_id: string }) => {
+      // Fetch logo_url and member names first to delete old avatars from storage
+      const { data: teamData } = await supabase
+        .from("competition_teams")
+        .select("logo_url, members:competition_team_members(name)")
+        .eq("id", data.id)
+        .maybeSingle();
+
       const { error } = await supabase
         .from("competition_teams")
         .delete()
         .eq("id", data.id);
 
       if (error) throw error;
+
+      // Safe clean up of storage files
+      if (teamData) {
+        if (teamData.logo_url) {
+          await deleteAvatarFromStorage(teamData.logo_url);
+        }
+        if (teamData.members && Array.isArray(teamData.members)) {
+          for (const member of teamData.members) {
+            const parsed = parseMemberName(member.name);
+            if (parsed.avatarUrl) {
+              await deleteAvatarFromStorage(parsed.avatarUrl);
+            }
+          }
+        }
+      }
+
       return { competition_id: data.competition_id };
     },
     onSuccess: (result) => {
@@ -475,12 +576,27 @@ export function useRemoveTeamMember() {
 
   return useMutation({
     mutationFn: async (data: { id: string; competition_id: string }) => {
+      // Fetch member name to clean up storage if custom avatar exists
+      const { data: memberData } = await supabase
+        .from("competition_team_members")
+        .select("name")
+        .eq("id", data.id)
+        .maybeSingle();
+
       const { error } = await supabase
         .from("competition_team_members")
         .delete()
         .eq("id", data.id);
 
       if (error) throw error;
+
+      if (memberData && memberData.name) {
+        const parsed = parseMemberName(memberData.name);
+        if (parsed.avatarUrl) {
+          await deleteAvatarFromStorage(parsed.avatarUrl);
+        }
+      }
+
       return { competition_id: data.competition_id };
     },
     onSuccess: (result) => {

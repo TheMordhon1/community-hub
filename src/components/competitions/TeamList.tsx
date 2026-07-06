@@ -16,7 +16,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Users, Trash2, Edit2, Crown, Sparkles, Shuffle, Loader2 } from "lucide-react";
+import { Plus, Users, Trash2, Edit2, Crown, Sparkles, Shuffle, Loader2, Pencil, Check, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
 import { useDeleteTeam, useUpdateTeamGroup } from "@/hooks/useCompetitions";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +28,42 @@ import { SpinWheelDialog } from "./SpinWheelDialog";
 import { EditTeamDialog } from "./EditTeamDialog";
 import { SpinWheelGroupTeamsDialog } from "./SpinWheelGroupTeamsDialog";
 import { AssignIndividualsDialog } from "./AssignIndividualsDialog";
+
+const parseMemberName = (rawName: string | null | undefined) => {
+  if (!rawName) return { name: "", avatarUrl: "" };
+  const parts = rawName.split("||");
+  return {
+    name: parts[0] || "",
+    avatarUrl: parts[1] || ""
+  };
+};
+
+const serializeMemberName = (name: string, avatarUrl: string) => {
+  const trimmedName = name.trim();
+  const trimmedAvatar = avatarUrl.trim();
+  if (!trimmedAvatar) return trimmedName;
+  return `${trimmedName}||${trimmedAvatar}`;
+};
+
+const getMemberAvatar = (
+  member: { name: string | null; user_id?: string | null; profile?: { avatar_url?: string | null } },
+  teamLogoUrl?: string | null
+) => {
+  const parsed = parseMemberName(member.name);
+  if (parsed.avatarUrl) return parsed.avatarUrl;
+  if (member.profile?.avatar_url) return member.profile.avatar_url;
+  if (teamLogoUrl) return teamLogoUrl;
+  return "";
+};
+
+const capitalizeName = (name: string | null | undefined): string => {
+  if (!name) return "";
+  return name
+    .toLowerCase()
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
 
 interface TeamListProps {
   competition: EventCompetitionWithDetails;
@@ -40,11 +77,34 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   const [isSpinOpen, setIsSpinOpen] = useState(false);
   const [isGroupSpinOpen, setIsGroupSpinOpen] = useState(false);
   const [isManualAssignOpen, setIsManualAssignOpen] = useState(false);
+  // Inline member name editing
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [editingMemberName, setEditingMemberName] = useState("");
+  const [savingMemberId, setSavingMemberId] = useState<string | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const deleteTeamMutation = useDeleteTeam();
   const updateTeamGroup = useUpdateTeamGroup();
+
+  const handleSaveMemberName = async (memberId: string, teamId: string, oldRawName: string | null) => {
+    const newName = editingMemberName.trim();
+    if (!newName) return;
+    setSavingMemberId(memberId);
+    const parsed = parseMemberName(oldRawName);
+    const serializedName = serializeMemberName(newName, parsed.avatarUrl);
+    const { error } = await supabase
+      .from("competition_team_members")
+      .update({ name: serializedName })
+      .eq("id", memberId);
+    setSavingMemberId(null);
+    if (error) {
+      toast({ variant: "destructive", title: "Gagal", description: "Gagal menyimpan nama anggota." });
+    } else {
+      setEditingMemberId(null);
+      queryClient.invalidateQueries({ queryKey: ["competition-details", competition.id] });
+    }
+  };
   const isLigaGrup = competition.format === "liga_grup";
   const groupCount = competition.group_count ?? 3;
   const groupOptions = GROUP_LETTERS.slice(0, groupCount);
@@ -293,22 +353,77 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                       <div className="space-y-2">
                         <p className="text-xs text-muted-foreground uppercase">Anggota</p>
                         <div className="space-y-1">
-                          {team.members.map((member) => (
-                            <div key={member.id} className="flex items-center gap-2">
-                              <Avatar className="w-6 h-6">
-                                <AvatarImage src={member.profile?.avatar_url || ""} />
-                                <AvatarFallback className="text-xs">
-                                  {getInitials(member.profile?.full_name || member.name || "")}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm line-clamp-1">
-                                {member.profile?.full_name || member.name || "(tanpa nama)"}
-                              </span>
-                              {member.is_captain && (
-                                <Crown className="w-3 h-3 text-yellow-500" />
-                              )}
-                            </div>
-                          ))}
+                          {team.members.map((member) => {
+                            const isManual = !member.user_id;
+                            const parsedName = parseMemberName(member.name);
+                            const displayName = capitalizeName(parsedName.name || member.profile?.full_name || "(tanpa nama)");
+                            const avatarUrl = getMemberAvatar(member, team.logo_url);
+                            const memberHouse = (member.profile as (typeof member.profile & { house?: { block: string; number: string } }) | undefined)?.house;
+                            const isEditing = editingMemberId === member.id;
+                            const isSaving = savingMemberId === member.id;
+
+                            return (
+                              <div key={member.id} className="flex items-center gap-2">
+                                <Avatar className="w-6 h-6 shrink-0">
+                                  <AvatarImage src={avatarUrl || ""} />
+                                  <AvatarFallback className="text-xs">
+                                    {getInitials(displayName)}
+                                  </AvatarFallback>
+                                </Avatar>
+
+                                {isEditing ? (
+                                  <div className="flex items-center gap-1 flex-1">
+                                    <Input
+                                      className="h-6 text-xs px-2 py-0 flex-1"
+                                      value={editingMemberName}
+                                      autoFocus
+                                      onChange={(e) => setEditingMemberName(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") handleSaveMemberName(member.id, team.id, member.name);
+                                        if (e.key === "Escape") setEditingMemberId(null);
+                                      }}
+                                    />
+                                    <button
+                                      className="text-primary hover:text-primary/80 disabled:opacity-50"
+                                      disabled={isSaving || !editingMemberName.trim()}
+                                      onClick={() => handleSaveMemberName(member.id, team.id, member.name)}
+                                    >
+                                      {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                    </button>
+                                    <button
+                                      className="text-muted-foreground hover:text-foreground"
+                                      onClick={() => setEditingMemberId(null)}
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                    <span className="text-sm line-clamp-1">{displayName}</span>
+                                    {memberHouse && (
+                                      <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">
+                                        {memberHouse.block}.{memberHouse.number}
+                                      </Badge>
+                                    )}
+                                    {member.is_captain && (
+                                      <Crown className="w-3 h-3 text-yellow-500 shrink-0" />
+                                    )}
+                                    {canManage && isManual && (
+                                      <button
+                                        className="ml-auto text-muted-foreground hover:text-foreground shrink-0"
+                                        onClick={() => {
+                                          setEditingMemberId(member.id);
+                                          setEditingMemberName(parsedName.name);
+                                        }}
+                                      >
+                                        <Pencil className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

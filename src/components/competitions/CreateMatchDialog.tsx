@@ -86,7 +86,14 @@ export function CreateMatchDialog({
     !!a && !!b && a !== b && metPairs.has([a, b].sort().join("|"));
 
   // Same-day conflict detection: warn when selected teams already have a match on this date
-  const selectedDateStr = matchDatetime ? format(parseISO(matchDatetime), "yyyy-MM-dd") : null;
+  const selectedDateStr = (() => {
+    if (!matchDatetime) return null;
+    try {
+      return format(parseISO(matchDatetime), "yyyy-MM-dd");
+    } catch {
+      return null;
+    }
+  })();
 
   const sameDayConflicts = useMemo(() => {
     if (!selectedDateStr) return [];
@@ -485,8 +492,15 @@ export function CreateMatchDialog({
                                 value={team.id}
                                 disabled={team.id === team2Id || met}
                               >
-                                {team.name}
-                                {met ? " (sudah bertemu)" : ""}
+                                <span className="flex items-center gap-2">
+                                  <span>{team.name}</span>
+                                  {team.group_name && (
+                                    <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                      Grup {team.group_name}
+                                    </span>
+                                  )}
+                                  {met && <span className="text-xs text-amber-600">(sudah bertemu)</span>}
+                                </span>
                               </SelectItem>
                             );
                           })}
@@ -511,8 +525,15 @@ export function CreateMatchDialog({
                                 value={team.id}
                                 disabled={team.id === team1Id || met}
                               >
-                                {team.name}
-                                {met ? " (sudah bertemu)" : ""}
+                                <span className="flex items-center gap-2">
+                                  <span>{team.name}</span>
+                                  {team.group_name && (
+                                    <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                      Grup {team.group_name}
+                                    </span>
+                                  )}
+                                  {met && <span className="text-xs text-amber-600">(sudah bertemu)</span>}
+                                </span>
                               </SelectItem>
                             );
                           })}

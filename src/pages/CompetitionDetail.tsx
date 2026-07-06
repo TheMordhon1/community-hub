@@ -546,12 +546,41 @@ export default function CompetitionDetail() {
             </TabsList>
 
             <TabsContent value="matches" className="space-y-4">
-              <div className="flex justify-end items-center gap-2">
-                {canManage && (
+              {/* Lanjutkan Babak shortcut — only for 17an format */}
+              {canManage && competition.format === "17an" && competition.matches && competition.matches.length > 0 && (
+                <div className="flex justify-end">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setIsAdvanceRoundDialogOpen(true)}
+                    disabled={advanceRound.isPending}
+                    className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 h-9"
+                  >
+                    {advanceRound.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Trophy className="w-4 h-4 mr-2" />
+                    )}
+                    Lanjutkan Babak
+                  </Button>
+                </div>
+              )}
+              {isLigaGrup && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <Trophy className="w-4 h-4" /> Klasemen Fase Grup
+                  </h3>
+                  <GroupStandings competition={competition} />
+                </div>
+              )}
+              <MatchList
+                competition={competition}
+                canManage={canModifyMatches}
+                headerActions={canManage ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-9 px-3 gap-2">
-                        <MoreVertical className="w-4 h-4" />
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-muted">
+                        <MoreVertical className="w-4 h-4 text-muted-foreground" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
@@ -561,7 +590,7 @@ export default function CompetitionDetail() {
                           Bagi Grup/Lawan
                         </DropdownMenuItem>
                       )}
-                      
+
                       {competition.format === "17an" && competition.matches && competition.matches.length > 0 && (
                         <DropdownMenuItem onClick={() => setIsAdvanceRoundDialogOpen(true)} disabled={advanceRound.isPending}>
                           <Trophy className="w-4 h-4 mr-2" />
@@ -589,7 +618,6 @@ export default function CompetitionDetail() {
                         </DropdownMenuItem>
                       )}
 
-
                       {canModifyMatches && (
                         <DropdownMenuItem onClick={() => setIsCreateMatchOpen(true)}>
                           <Swords className="w-4 h-4 mr-2" />
@@ -600,7 +628,7 @@ export default function CompetitionDetail() {
                       {competition.matches && competition.matches.length > 0 && (
                         <>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => setIsResetAllOpen(true)}
                             disabled={resetAllMatches.isPending}
                             className="text-destructive focus:text-destructive focus:bg-destructive/5"
@@ -612,35 +640,8 @@ export default function CompetitionDetail() {
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                )}
-
-                {/* Primary Action Shortcut (if needed) */}
-                {canManage && competition.format === "17an" && competition.matches && competition.matches.length > 0 && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setIsAdvanceRoundDialogOpen(true)}
-                    disabled={advanceRound.isPending}
-                    className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 h-9"
-                  >
-                    {advanceRound.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Trophy className="w-4 h-4 mr-2" />
-                    )}
-                    Lanjutkan Babak
-                  </Button>
-                )}
-              </div>
-              {isLigaGrup && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                    <Trophy className="w-4 h-4" /> Klasemen Fase Grup
-                  </h3>
-                  <GroupStandings competition={competition} />
-                </div>
-              )}
-              <MatchList competition={competition} canManage={canModifyMatches} />
+                ) : undefined}
+              />
             </TabsContent>
 
 

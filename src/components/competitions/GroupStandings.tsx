@@ -1,78 +1,93 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trophy, Medal, Users } from "lucide-react";
+import { Trophy, Medal } from "lucide-react";
 import type { EventCompetitionWithDetails } from "@/types/competition";
 import { computeStandings, GROUP_LETTERS } from "@/lib/liga-group";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Users } from "lucide-react";
 
 interface Props {
   competition: EventCompetitionWithDetails;
 }
 
-// Self-contained team name cell that supports click + hover to reveal members
+type MemberWithHouse = {
+  id: string;
+  name?: string | null;
+  profile?: {
+    full_name: string | null;
+    house?: { block: string; number: string };
+  };
+};
+
+const capitalizeName = (name: string | null | undefined): string => {
+  if (!name) return "";
+  return name
+    .toLowerCase()
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
+// Unified click+hover popover for team member list
 function TeamNameWithMembers({
   team,
 }: {
   team: {
     id: string;
     name: string;
-    members?: { id: string; name?: string | null; profile?: { full_name: string | null } }[];
+    members?: MemberWithHouse[];
   };
 }) {
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    const handler = () => setOpen(false);
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, [open]);
-
   return (
-    <div className="relative inline-flex items-center">
-      {open && (
-        <div
-          className="absolute bottom-full mb-2 left-0 z-50 bg-popover text-popover-foreground border border-border rounded-lg shadow-lg p-3 min-w-[140px] animate-in fade-in zoom-in-95 duration-150"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="text-sm font-semibold mb-1.5">Anggota Tim:</div>
-          <ul className="text-xs space-y-1">
-            {team.members?.map((m) => (
-              <li key={m.id} className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                {m.name?.trim() || m.profile?.full_name?.trim() || "Peserta"}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <Tooltip>
-        <TooltipTrigger
-          className="cursor-pointer flex items-center gap-1 hover:text-primary transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            setOpen((prev) => !prev);
-          }}
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+          onClick={() => setOpen((v) => !v)}
         >
           {team.name}
           <Users className="w-3 h-3 text-muted-foreground shrink-0" />
-        </TooltipTrigger>
-        <TooltipContent>
-          <div className="text-sm font-semibold mb-1">Anggota Tim:</div>
-          <ul className="text-xs space-y-1">
-            {team.members?.map((m) => (
-              <li key={m.id} className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                {m.name?.trim() || m.profile?.full_name?.trim() || "Peserta"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-auto min-w-[160px] p-3"
+        side="top"
+        align="start"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+      >
+        <div className="text-xs font-semibold mb-2 text-foreground">Anggota Tim:</div>
+        <ul className="space-y-1.5">
+          {team.members?.map((m) => {
+            const name = capitalizeName(m.name?.trim() || m.profile?.full_name?.trim() || "Peserta");
+            const house = m.profile?.house;
+            return (
+              <li key={m.id} className="flex items-center gap-2 text-xs">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                <span>{name}</span>
+                {house && (
+                  <span className="text-[10px] text-muted-foreground bg-muted px-1 py-0.5 rounded font-mono">
+                    {house.block}.{house.number}
+                  </span>
+                )}
               </li>
-            ))}
-          </ul>
-        </TooltipContent>
-      </Tooltip>
-    </div>
+            );
+          })}
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }
+
 
 export function GroupStandings({ competition }: Props) {
   const teams = competition.teams || [];
@@ -95,7 +110,7 @@ export function GroupStandings({ competition }: Props) {
   }
 
   return (
-    <TooltipProvider>
+    <>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {groups.map((g) => {
           const rows = computeStandings(teams, matches, g);
@@ -172,6 +187,6 @@ export function GroupStandings({ competition }: Props) {
           );
         })}
       </div>
-    </TooltipProvider>
+    </>
   );
 }

@@ -45,6 +45,24 @@ import {
 import type { EventCompetitionWithDetails } from "@/types/competition";
 import type { Profile, House, Event } from "@/types/database";
 
+import { MemberAvatarSelector } from "./MemberAvatarSelector";
+
+const parseMemberName = (rawName: string | null | undefined) => {
+  if (!rawName) return { name: "", avatarUrl: "" };
+  const parts = rawName.split("||");
+  return {
+    name: parts[0] || "",
+    avatarUrl: parts[1] || ""
+  };
+};
+
+const serializeMemberName = (name: string, avatarUrl: string) => {
+  const trimmedName = name.trim();
+  const trimmedAvatar = avatarUrl.trim();
+  if (!trimmedAvatar) return trimmedName;
+  return `${trimmedName}||${trimmedAvatar}`;
+};
+
 interface AddTeamDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -78,9 +96,10 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
   const [regMode, setRegMode] = useState<"team" | "individual">("team");
   const isActualTeamMode = isTeam && regMode === "team";
 
-  const [members, setMembers] = useState<{ source: "user" | "manual"; profileId: string; name: string }[]>(
-    () => Array.from({ length: teamSize }, () => ({ source: "user", profileId: "", name: "" }))
+  const [members, setMembers] = useState<{ source: "user" | "manual"; profileId: string; name: string; avatarUrl: string; houseBlock: string; houseNumber: string }[]>(
+    () => Array.from({ length: teamSize }, () => ({ source: "user", profileId: "", name: "", avatarUrl: "", houseBlock: "", houseNumber: "" }))
   );
+  const [singleAvatarUrl, setSingleAvatarUrl] = useState("");
   const [teamName, setTeamName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -153,13 +172,15 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
   useEffect(() => {
     if (open) {
       setRegMode(isTeam ? "team" : "individual");
-      setMembers(Array.from({ length: teamSize }, () => ({ source: "user" as const, profileId: "", name: "" })));
+      setMembers(Array.from({ length: teamSize }, () => ({ source: "user" as const, profileId: "", name: "", avatarUrl: "", houseBlock: "", houseNumber: "" })));
+      setSingleAvatarUrl("");
       setTeamName("");
       setSubmitting(false);
     } else {
       setSource("user");
       setSelectedProfileId("");
       setManualName("");
+      setSingleAvatarUrl("");
       setSelectedHouse("");
       setAgeInput("");
       setGender("");
@@ -291,12 +312,18 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         });
 
         if (team) {
-          const memberInserts = members.map((m, index) => ({
-            team_id: team.id,
-            user_id: m.source === "user" && m.profileId ? m.profileId : null,
-            name: m.source === "manual" ? m.name.trim() : null,
-            is_captain: index === 0,
-          }));
+          const memberInserts = members.map((m, index) => {
+            const prof = profiles?.find((p) => p.id === m.profileId);
+            const baseName = m.source === "user" ? (prof?.full_name || "") : m.name;
+            return {
+              team_id: team.id,
+              user_id: m.source === "user" && m.profileId ? m.profileId : null,
+              name: serializeMemberName(baseName, m.avatarUrl),
+              is_captain: index === 0,
+              house_block: m.source === "manual" && m.houseBlock.trim() ? m.houseBlock.trim() : null,
+              house_number: m.source === "manual" && m.houseNumber.trim() ? m.houseNumber.trim() : null,
+            };
+          });
 
           const { error: membersError } = await supabase
             .from("competition_team_members")
@@ -338,13 +365,14 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           age_group: ageGroup,
           gender: gender || null,
           is_individual: true,
+          logo_url: singleAvatarUrl || null,
         });
 
         if (team) {
           const memberInsert = {
             team_id: team.id,
             user_id: source === "user" ? selectedProfileId : null,
-            name: source === "manual" ? manualName.trim() : null,
+            name: serializeMemberName(finalName, singleAvatarUrl),
             is_captain: true,
           };
 
@@ -386,6 +414,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           age_group: ageGroup,
           gender: gender || null,
           is_individual: false,
+          logo_url: singleAvatarUrl || null,
         },
         {
           onSuccess: () => onOpenChange(false),
@@ -544,49 +573,115 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Input
-                      value={member.name}
-                      onChange={(e) => {
-                        const updated = [...members];
-                        updated[i] = { ...updated[i], name: e.target.value };
-                        setMembers(updated);
-                      }}
-                      placeholder={`Nama anggota ${i + 1}`}
-                    />
+                    <div className="space-y-2">
+                      <Input
+                        value={member.name}
+                        onChange={(e) => {
+                          const updated = [...members];
+                          updated[i] = { ...updated[i], name: e.target.value };
+                          setMembers(updated);
+                        }}
+                        placeholder={`Nama anggota ${i + 1}`}
+                      />
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <Label className="text-xs text-muted-foreground">Blok</Label>
+                          <Input
+                            value={member.houseBlock}
+                            onChange={(e) => {
+                              const updated = [...members];
+                              updated[i] = { ...updated[i], houseBlock: e.target.value };
+                              setMembers(updated);
+                            }}
+                            placeholder="A"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Label className="text-xs text-muted-foreground">No. Rumah</Label>
+                          <Input
+                            value={member.houseNumber}
+                            onChange={(e) => {
+                              const updated = [...members];
+                              updated[i] = { ...updated[i], houseNumber: e.target.value };
+                              setMembers(updated);
+                            }}
+                            placeholder="12"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   )}
+                  <MemberAvatarSelector
+                    avatarUrl={member.avatarUrl}
+                    onChange={(url) => {
+                      const updated = [...members];
+                      updated[i] = { ...updated[i], avatarUrl: url };
+                      setMembers(updated);
+                    }}
+                    defaultFallbackName={
+                      member.source === "user"
+                        ? profiles?.find((p) => p.id === member.profileId)?.full_name || `Anggota ${i + 1}`
+                        : member.name || `Anggota ${i + 1}`
+                    }
+                    isRegisteredUser={member.source === "user" && !!member.profileId}
+                    userProfileAvatar={
+                      member.source === "user"
+                        ? profiles?.find((p) => p.id === member.profileId)?.avatar_url
+                        : null
+                    }
+                  />
                 </div>
               ))}
             </div>
           ) : (
-            source === "user" ? (
-              <div className="space-y-2">
-                <Label>Pilih Warga <span className="text-destructive">*</span></Label>
-                <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih warga" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(profiles || []).map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.full_name || "(tanpa nama)"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label htmlFor="manual-name">
-                  Nama Peserta <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="manual-name"
-                  value={manualName}
-                  onChange={(e) => setManualName(e.target.value)}
-                  placeholder="Nama peserta"
-                />
-              </div>
-            )
+            <>
+              {source === "user" ? (
+                <div className="space-y-2">
+                  <Label>Pilih Warga <span className="text-destructive">*</span></Label>
+                  <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih warga" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(profiles || []).map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.full_name || "(tanpa nama)"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="manual-name">
+                    Nama Peserta <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="manual-name"
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                    placeholder="Nama peserta"
+                  />
+                </div>
+              )}
+              <MemberAvatarSelector
+                avatarUrl={singleAvatarUrl}
+                onChange={setSingleAvatarUrl}
+                defaultFallbackName={
+                  source === "user"
+                    ? profiles?.find((p) => p.id === selectedProfileId)?.full_name || "Peserta"
+                    : manualName || "Peserta"
+                }
+                isRegisteredUser={source === "user" && !!selectedProfileId}
+                userProfileAvatar={
+                  source === "user"
+                    ? profiles?.find((p) => p.id === selectedProfileId)?.avatar_url
+                    : null
+                }
+              />
+            </>
           )}
 
           {!isTeam && !isActualTeamMode && (

@@ -378,7 +378,7 @@ export default function Payments() {
             amount: payment.amount,
             description: `Iuran ${MONTHS[payment.month - 1]} ${
               payment.year
-            } - Rumah ${payment.house?.block} - ${payment.house?.number}`,
+            } - Rumah ${payment.house?.block}.${payment.house?.number}`,
             category: "iuran",
             recorded_by: user?.id,
             payment_id: paymentId,
