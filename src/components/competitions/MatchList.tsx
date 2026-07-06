@@ -440,6 +440,25 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                       {MATCH_STATUS_LABELS[match.status]}
                     </Badge>
                     <div className="flex items-center gap-1.5">
+                      {match.status === "scheduled" && canManage && (
+                        <Button
+                          size="sm"
+                          className="h-7 text-[10px] sm:text-xs px-2 sm:px-3 bg-primary hover:bg-primary/90 shadow-sm font-bold"
+                          onClick={() => {
+                            updateMutation.mutate({
+                              id: match.id,
+                              competition_id: competition.id,
+                              status: 'ongoing'
+                            });
+                          }}
+                          disabled={updateMutation.isPending}
+                        >
+                          <Play className="w-3 h-3 mr-1" />
+                          <span className="hidden xs:inline">Mulai Match</span>
+                          <span className="xs:hidden">Mulai</span>
+                        </Button>
+                      )}
+
                       {match.status === "ongoing" && canManage && (
                         <Button
                           size="sm"

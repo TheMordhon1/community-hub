@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Trophy, Clock, MapPin, Radio, Calendar, Users, Eye, CheckCircle2, ArrowLeft, X, GitBranch, Play, Swords } from "lucide-react";
+import { Loader2, Trophy, Clock, MapPin, Radio, Calendar, Users, Eye, CheckCircle2, ArrowLeft, X, GitBranch, Play, Swords, RefreshCw } from "lucide-react";
 import { format, parseISO, isToday, isTomorrow } from "date-fns";
 import { id } from "date-fns/locale";
 import { Link, useSearchParams } from "react-router-dom";
@@ -113,6 +113,23 @@ export default function LiveMatches() {
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>("all");
   const [selectedPhase, setSelectedPhase] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [autoRefresh, setAutoRefresh] = useState(false);
+
+  const startMatchMutation = useMutation({
+    mutationFn: async (matchId: string) => {
+      const { data, error } = await supabase
+        .from("competition_matches")
+        .update({ status: "ongoing" })
+        .eq("id", matchId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["live-matches"] });
+    },
+  });
 
   // Close member popover on any click outside
   useEffect(() => {
@@ -123,7 +140,7 @@ export default function LiveMatches() {
   }, [openMemberPopover]);
 
   // Fetch matches (ongoing, scheduled, and completed)
-  const { data: matches = [], isLoading, error } = useQuery<MatchData[]>({
+  const { data: matches = [], isLoading, error, refetch, isFetching } = useQuery<MatchData[]>({
     queryKey: ["live-matches"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -234,6 +251,7 @@ export default function LiveMatches() {
       return rawMatches as unknown as MatchData[];
     },
     refetchInterval: (query) => {
+      if (autoRefresh) return 10000;
       const hasOngoing = query.state?.data?.some((m) => m.status === "ongoing");
       return hasOngoing ? 10000 : 30000; // Refetch every 10s if ongoing, else 30s
     },
@@ -625,10 +643,23 @@ export default function LiveMatches() {
                 animate={{ opacity: 1, x: 0 }}
               >
                 <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">Skor Live & Jadwal</h1>
-                <p className="text-muted-foreground mt-1 text-sm sm:text-base leading-snug max-w-lg">
-                  Pantau skor pertandingan yang sedang berlangsung secara real-time dan lihat jadwal pertandingan mendatang.
-                </p>
               </motion.div>
+            </div>
+            <div className="flex items-center">
+              <Button
+                variant={autoRefresh ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  refetch();
+                  setAutoRefresh(true);
+                }}
+                className="gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">
+                  {autoRefresh ? "Auto Refresh: ON" : "Refresh"}
+                </span>
+              </Button>
             </div>
           </div>
 
@@ -1071,11 +1102,27 @@ export default function LiveMatches() {
                               <span>{match.location}</span>
                             </div>
                           )}
-                          <div className="flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-muted-foreground/60" />
-                            <span className="font-semibold text-foreground/80">
-                              {formatMatchTime(match.match_datetime)}
+                          <div className="flex items-center justify-between w-full mt-1.5">
+                            <span className="flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-muted-foreground/60" />
+                              <span className="font-semibold text-foreground/80">
+                                {formatMatchTime(match.match_datetime)}
+                              </span>
                             </span>
+                            {canManageContent() && (
+                              <Button
+                                size="sm"
+                                className="h-7 text-[10px] gap-1 px-2.5 font-bold uppercase tracking-wider bg-primary hover:bg-primary/90"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startMatchMutation.mutate(match.id);
+                                }}
+                                disabled={startMatchMutation.isPending}
+                              >
+                                <Play className="w-3 h-3" />
+                                Mulai
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </CardContent>

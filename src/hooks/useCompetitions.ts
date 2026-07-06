@@ -88,7 +88,7 @@ export function useAllCompetitions() {
 }
 
 // Fetch single competition with all details
-export function useCompetitionDetails(competitionId: string | undefined) {
+export function useCompetitionDetails(competitionId: string | undefined, options?: { refetchInterval?: number }) {
   return useQuery({
     queryKey: ["competition-details", competitionId],
     queryFn: async () => {
@@ -298,6 +298,7 @@ export function useCompetitionDetails(competitionId: string | undefined) {
       } as EventCompetitionWithDetails;
     },
     enabled: !!competitionId,
+    refetchInterval: options?.refetchInterval,
   });
 }
 

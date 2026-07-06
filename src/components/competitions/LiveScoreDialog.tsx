@@ -7,8 +7,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Loader2, Minus, Plus, Trophy, Users, CheckCircle2, Medal } from "lucide-react";
+import { Loader2, Minus, Plus, Trophy, Users, CheckCircle2, Medal, RefreshCw } from "lucide-react";
 import { useUpdateMatch } from "@/hooks/useCompetitions";
 import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
 import { toast } from "@/hooks/use-toast";
@@ -46,10 +47,154 @@ interface SetScore {
 export default function LiveScoreDialog({
   open,
   onOpenChange,
-  match,
+  match: initialMatch,
   competition,
   readOnly = false,
 }: LiveScoreDialogProps) {
+  const [autoRefresh, setAutoRefresh] = useState(false);
+
+  const { data: latestMatch, refetch, isFetching } = useQuery({
+    queryKey: ["match-detail-live", initialMatch?.id],
+    queryFn: async () => {
+      if (!initialMatch?.id) return null;
+      const { data: rawMatch, error } = await supabase
+        .from("competition_matches")
+        .select(`
+          *,
+          team1:competition_teams!team1_id (
+            id,
+            name,
+            members:competition_team_members(id, name, user_id, house_block, house_number)
+          ),
+          team2:competition_teams!team2_id (
+            id,
+            name,
+            members:competition_team_members(id, name, user_id, house_block, house_number)
+          ),
+          participants:competition_match_participants (
+            id,
+            team_id,
+            score,
+            is_winner,
+            winner_rank,
+            team:competition_teams (
+              id,
+              name,
+              members:competition_team_members(id, name, user_id, house_block, house_number)
+            )
+          )
+        `)
+        .eq("id", initialMatch.id)
+        .single();
+
+      if (error) throw error;
+
+      const userIds = new Set<string>();
+
+      if (rawMatch.team1?.members) {
+        rawMatch.team1.members.forEach((mem) => { if (mem.user_id) userIds.add(mem.user_id); });
+      }
+      if (rawMatch.team2?.members) {
+        rawMatch.team2.members.forEach((mem) => { if (mem.user_id) userIds.add(mem.user_id); });
+      }
+      if (rawMatch.participants) {
+        rawMatch.participants.forEach((p) => {
+          p.team?.members?.forEach((mem) => { if (mem.user_id) userIds.add(mem.user_id); });
+        });
+      }
+
+      let profileMap = new Map<string, { id: string, full_name: string | null, house?: { block: string; number: string } }>();
+      if (userIds.size > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", Array.from(userIds));
+        profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+
+        const { data: residents } = await supabase
+          .from("house_residents")
+          .select("user_id, house_id")
+          .in("user_id", Array.from(userIds));
+        const residentHouseIds = [...new Set((residents || []).map((r) => r.house_id).filter(Boolean))] as string[];
+        if (residentHouseIds.length > 0) {
+          const { data: memberHouses } = await supabase
+            .from("houses")
+            .select("id, block, number")
+            .in("id", residentHouseIds);
+          const houseById = new Map((memberHouses || []).map((h) => [h.id, h]));
+          (residents || []).forEach((r) => {
+            const house = r.house_id ? houseById.get(r.house_id) : null;
+            if (house && profileMap.has(r.user_id)) {
+              const profile = profileMap.get(r.user_id)!;
+              profileMap.set(r.user_id, { ...profile, house: { block: house.block, number: house.number } });
+            }
+          });
+        }
+      }
+
+      interface TeamWithOptionalMembers {
+        members?: Array<{
+          id: string;
+          team_id?: string | null;
+          user_id?: string | null;
+          is_captain?: boolean | null;
+          name?: string | null;
+          created_at?: string;
+          house_block?: string | null;
+          house_number?: string | null;
+          profile?: {
+            full_name?: string | null;
+            avatar_url?: string | null;
+            house?: {
+              block: string;
+              number: string;
+            };
+          };
+        }>;
+      }
+
+      const attachProfile = (team: TeamWithOptionalMembers | null | undefined) => {
+        if (!team || !team.members) return;
+        team.members = team.members.map((mem) => {
+          if (mem.user_id && profileMap.has(mem.user_id)) {
+            const profile = profileMap.get(mem.user_id)!;
+            return {
+              ...mem,
+              profile: {
+                full_name: profile.full_name,
+                avatar_url: null,
+                house: profile.house ? { block: profile.house.block, number: profile.house.number } : undefined
+              }
+            };
+          }
+          const manualHouse =
+            mem.house_block && mem.house_number
+              ? { block: mem.house_block, number: mem.house_number }
+              : undefined;
+          return {
+            ...mem,
+            profile: manualHouse ? { house: manualHouse } : undefined,
+          };
+        });
+      };
+
+      attachProfile(rawMatch.team1);
+      attachProfile(rawMatch.team2);
+      rawMatch.participants?.forEach((p) => attachProfile(p.team));
+
+      return rawMatch as unknown as CompetitionMatchWithTeams;
+    },
+    enabled: !!initialMatch?.id && open,
+    refetchInterval: autoRefresh ? 10000 : false,
+  });
+
+  const match = (latestMatch || initialMatch) as CompetitionMatchWithTeams;
+
+  useEffect(() => {
+    if (!open) {
+      setAutoRefresh(false);
+    }
+  }, [open]);
   const [score1, setScore1] = useState(0);
   const [score2, setScore2] = useState(0);
   const [winnerRank1, setWinnerRank1] = useState<number | null>(null);
@@ -484,7 +629,18 @@ export default function LiveScoreDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md sm:max-w-3xl overflow-auto flex flex-col max-h-[95vh] p-0">
-        <DialogHeader className="shrink-0 p-6 pb-2">
+        <DialogHeader className="shrink-0 p-6 pb-2 relative">
+          <Button
+            variant={autoRefresh ? "default" : "outline"}
+            size="icon"
+            className="absolute right-12 top-6 h-8 w-8 rounded-full"
+            onClick={() => {
+              refetch();
+              setAutoRefresh(true);
+            }}
+          >
+            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+          </Button>
           <DialogTitle className="text-center text-xl">
             {readOnly ? "Detail Pertandingan" : (is17an ? "Pencatatan Hasil Sesi" : "Live Score Pertandingan")}
             {match.phase_label && <Badge variant="secondary" className="font-medium ml-2">{match.phase_label}</Badge>}

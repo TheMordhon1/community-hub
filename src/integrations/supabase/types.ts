@@ -368,6 +368,8 @@ export type Database = {
       competition_team_members: {
         Row: {
           created_at: string
+          house_block: string | null
+          house_number: string | null
           id: string
           is_captain: boolean | null
           name: string | null
@@ -376,6 +378,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          house_block?: string | null
+          house_number?: string | null
           id?: string
           is_captain?: boolean | null
           name?: string | null
@@ -384,6 +388,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          house_block?: string | null
+          house_number?: string | null
           id?: string
           is_captain?: boolean | null
           name?: string | null

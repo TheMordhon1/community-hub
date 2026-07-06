@@ -89,7 +89,10 @@ export default function CompetitionDetail() {
   const navigate = useNavigate();
   const { user, canManageContent, isAdmin } = useAuth();
 
-  const { data: competition, isLoading } = useCompetitionDetails(competitionId);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const { data: competition, isLoading, refetch, isFetching } = useCompetitionDetails(competitionId, {
+    refetchInterval: autoRefresh ? 10000 : undefined
+  });
   const generateBracket = useGenerateBracket();
   const generate17an = useGenerate17an();
   const updateCompetition = useUpdateCompetition();
@@ -328,13 +331,29 @@ export default function CompetitionDetail() {
                   {eventId ? "Kembali ke Acara" : "Kembali ke Daftar Kompetisi"}
                 </h1>
               </Link>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setIsShareOpen(true)}
-              >
-                <Share2 className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={autoRefresh ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    refetch();
+                    setAutoRefresh(true);
+                  }}
+                  className="gap-2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">
+                    {autoRefresh ? "Auto Refresh: ON" : "Refresh"}
+                  </span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsShareOpen(true)}
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Title and Status */}

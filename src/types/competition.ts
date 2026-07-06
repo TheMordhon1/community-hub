@@ -58,6 +58,8 @@ export interface CompetitionTeamMember {
   name: string | null;
   created_at: string;
   profile?: Profile;
+  house_block?: string | null;
+  house_number?: string | null;
 }
 
 export interface CompetitionMatchParticipant {
