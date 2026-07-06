@@ -235,7 +235,7 @@ export default function LiveScoreDialog({
       return;
     }
     // Cast the raw data to the expected type; status is a string that matches MatchStatus
-    const fresh = data as CompetitionMatchWithTeams;
+    const fresh = data as unknown as CompetitionMatchWithTeams;
     // Optionally ensure status is a valid MatchStatus
     syncFromDb(fresh);
   };

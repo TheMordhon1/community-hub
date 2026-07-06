@@ -223,6 +223,7 @@ export type Database = {
           is_point: boolean | null
           location: string | null
           match_datetime: string | null
+          match_label: string | null
           match_number: number
           max_participants: number | null
           next_match_id: string | null
@@ -251,6 +252,7 @@ export type Database = {
           is_point?: boolean | null
           location?: string | null
           match_datetime?: string | null
+          match_label?: string | null
           match_number?: number
           max_participants?: number | null
           next_match_id?: string | null
@@ -279,6 +281,7 @@ export type Database = {
           is_point?: boolean | null
           location?: string | null
           match_datetime?: string | null
+          match_label?: string | null
           match_number?: number
           max_participants?: number | null
           next_match_id?: string | null

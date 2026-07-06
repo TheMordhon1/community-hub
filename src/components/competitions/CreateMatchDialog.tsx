@@ -62,6 +62,27 @@ export function CreateMatchDialog({
   const is17an = competition.format === "17an";
   const isTeamMatchFormat = competition.match_type && competition.match_type !== "1v1";
   const allTeams = competition.teams || [];
+  const isLigaGrup = competition.format === "liga_grup";
+
+  // Teams eligible for selection (in liga_grup group stage, restrict to selected group)
+  const eligibleTeams =
+    isLigaGrup && stage === "group" && groupName
+      ? allTeams.filter((t) => t.group_name === groupName)
+      : allTeams;
+
+  // Pre-compute pairs that already met in group stage of the same group
+  const metPairs = new Set<string>();
+  if (isLigaGrup && stage === "group") {
+    for (const m of competition.matches || []) {
+      if (m.stage !== "group") continue;
+      if (groupName && m.group_name !== groupName) continue;
+      if (!m.team1_id || !m.team2_id) continue;
+      const key = [m.team1_id, m.team2_id].sort().join("|");
+      metPairs.add(key);
+    }
+  }
+  const hasMet = (a: string, b: string) =>
+    !!a && !!b && a !== b && metPairs.has([a, b].sort().join("|"));
 
   useEffect(() => {
     if (open) {
@@ -421,11 +442,19 @@ export function CreateMatchDialog({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Pilih Tim 1</SelectItem>
-                          {allTeams.map((team) => (
-                            <SelectItem key={team.id} value={team.id} disabled={team.id === team2Id}>
-                              {team.name}
-                            </SelectItem>
-                          ))}
+                          {eligibleTeams.map((team) => {
+                            const met = hasMet(team.id, team2Id);
+                            return (
+                              <SelectItem
+                                key={team.id}
+                                value={team.id}
+                                disabled={team.id === team2Id || met}
+                              >
+                                {team.name}
+                                {met ? " (sudah bertemu)" : ""}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>
@@ -439,15 +468,28 @@ export function CreateMatchDialog({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Pilih Tim 2</SelectItem>
-                          {allTeams.map((team) => (
-                            <SelectItem key={team.id} value={team.id} disabled={team.id === team1Id}>
-                              {team.name}
-                            </SelectItem>
-                          ))}
+                          {eligibleTeams.map((team) => {
+                            const met = hasMet(team.id, team1Id);
+                            return (
+                              <SelectItem
+                                key={team.id}
+                                value={team.id}
+                                disabled={team.id === team1Id || met}
+                              >
+                                {team.name}
+                                {met ? " (sudah bertemu)" : ""}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
+                  {isLigaGrup && stage === "group" && eligibleTeams.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Belum ada tim di Grup {groupName || "?"}. Isi Nama Grup atau assign tim ke grup ini terlebih dahulu.
+                    </p>
+                  )}
                 </div>
               )
             )}
