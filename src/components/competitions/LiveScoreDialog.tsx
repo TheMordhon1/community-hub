@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Loader2, Minus, Plus, Trophy, Users, CheckCircle2, Medal, RefreshCw } from "lucide-react";
-import { useUpdateMatch } from "@/hooks/useCompetitions";
+import { Loader2, Minus, Plus, Trophy, Users, CheckCircle2, Medal, RefreshCw, RotateCcw, Edit } from "lucide-react";
+import { useUpdateMatch, useResetMatch } from "@/hooks/useCompetitions";
 import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
 import { toast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,7 +19,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import { WinnerAnnounceDialog } from "./WinnerAnnounceDialog";
-
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { parseMemberName, capitalizeName } from "@/lib/utils";
 
 interface LiveScoreDialogProps {
@@ -28,6 +29,8 @@ interface LiveScoreDialogProps {
   match: CompetitionMatchWithTeams | null;
   competition: EventCompetitionWithDetails;
   readOnly?: boolean;
+  onEditMatch?: (match: CompetitionMatchWithTeams) => void;
+  canManage?: boolean;
 }
 
 interface ParticipantScore {
@@ -50,8 +53,10 @@ export default function LiveScoreDialog({
   match: initialMatch,
   competition,
   readOnly = false,
+  onEditMatch,
+  canManage = false,
 }: LiveScoreDialogProps) {
-  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   const { data: latestMatch, refetch, isFetching } = useQuery({
     queryKey: ["match-detail-live", initialMatch?.id],
@@ -185,13 +190,18 @@ export default function LiveScoreDialog({
       return rawMatch as unknown as CompetitionMatchWithTeams;
     },
     enabled: !!initialMatch?.id && open,
-    refetchInterval: autoRefresh ? 10000 : false,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status ?? initialMatch?.status;
+      return (autoRefresh && status !== 'completed') ? 10000 : false;
+    },
   });
 
   const match = (latestMatch || initialMatch) as CompetitionMatchWithTeams;
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      setAutoRefresh(true);
+    } else {
       setAutoRefresh(false);
     }
   }, [open]);
@@ -209,6 +219,29 @@ export default function LiveScoreDialog({
   const lastInitMatchId = useRef<string | null>(null);
 
   const updateMutation = useUpdateMatch();
+  const resetMatchMutation = useResetMatch();
+
+  const handleCancelGame = () => {
+    if (!match) return;
+    if (window.confirm("Apakah Anda yakin ingin membatalkan/reset pertandingan ini? Seluruh skor dan set akan dihapus, dan status kembali ke terjadwal.")) {
+      resetMatchMutation.mutate({
+        id: match.id,
+        competition_id: competition.id
+      }, {
+        onSuccess: () => {
+          localStorage.removeItem(`live_score_${match.id}`);
+          onOpenChange(false);
+        }
+      });
+    }
+  };
+
+  const handleEditGame = () => {
+    if (onEditMatch && match) {
+      onEditMatch(match);
+    }
+  };
+
   const is17an = competition.format === "17an";
 
   const winners17an = is17an
@@ -629,35 +662,52 @@ export default function LiveScoreDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md sm:max-w-3xl overflow-auto flex flex-col max-h-[95vh] p-0">
-        <DialogHeader className="shrink-0 p-6 pb-2 relative">
-          <Button
-            variant={autoRefresh ? "default" : "outline"}
-            size="icon"
-            className="absolute right-12 top-6 h-8 w-8 rounded-full"
-            onClick={() => {
-              refetch();
-              setAutoRefresh(true);
-            }}
-          >
-            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-          </Button>
-          <DialogTitle className="text-center text-xl">
-            {readOnly ? "Detail Pertandingan" : (is17an ? "Pencatatan Hasil Sesi" : "Live Score Pertandingan")}
-            {match.phase_label && <Badge variant="secondary" className="font-medium ml-2">{match.phase_label}</Badge>}
+        <DialogHeader className="shrink-0 p-6 pb-3 relative border-b">
+          <DialogTitle className="flex flex-col sm:flex-row items-center justify-center gap-2 text-center text-lg sm:text-xl font-bold leading-tight">
+            <span>{readOnly ? "Detail Pertandingan" : (is17an ? "Pencatatan Hasil Sesi" : "Live Score Pertandingan")}</span>
+            {match.phase_label && (
+              <Badge variant="secondary" className="font-semibold text-xs py-0.5 px-2.5 whitespace-nowrap bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                {match.phase_label}
+              </Badge>
+            )}
           </DialogTitle>
-          <p className="text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
-            <span>{competition.sport_name}</span>
-            <span className="opacity-30">•</span>
-                       <span>{match.phase_label || (is17an ? `Sesi ${match.match_number}` : `Babak ${match.round_number} (Match ${match.match_number})`)}</span>
+          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-muted-foreground text-xs sm:text-sm px-4 mt-1">
+            <span className="font-semibold text-foreground/80">{competition.sport_name}</span>
+            <span className="text-muted-foreground/30 hidden xs:inline">•</span>
+            <span className="text-muted-foreground/80">
+              {is17an ? `Sesi ${match.match_number}` : `Babak ${match.round_number} (Match ${match.match_number})`}
+            </span>
             {match.group_name && (
               <>
-                <span className="opacity-30">•</span>
-                <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider h-5 px-1.5 border-primary/30 text-primary">
+                <span className="text-muted-foreground/30 hidden xs:inline">•</span>
+                <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider h-5 px-2 border-primary/30 text-primary bg-primary/5 whitespace-nowrap">
                   Grup {match.group_name}
                 </Badge>
               </>
             )}
           </p>
+          {canManage && (
+            <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-dashed w-full">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 text-xs font-semibold hover:bg-muted"
+                onClick={handleEditGame}
+              >
+                <Edit className="w-3.5 h-3.5" />
+                <span>Edit Pertandingan</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-500/10 border-red-200"
+                onClick={handleCancelGame}
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Batalkan / Reset</span>
+              </Button>
+            </div>
+          )}
         </DialogHeader>
 
 
@@ -692,7 +742,8 @@ export default function LiveScoreDialog({
                             {(participant?.team as CompetitionTeamWithMembers)?.members && (participant.team as CompetitionTeamWithMembers).members!.length > 0 && (
                               <div className="flex flex-wrap gap-1 mb-2">
                                 {(participant.team as CompetitionTeamWithMembers).members!.map((m) => {
-                                  const name = m.profile?.full_name?.trim() || m.name?.trim() || "Pemain";
+                                  const parsed = parseMemberName(m.name);
+                                  const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
                                   const house = (m.profile as (typeof m.profile & { house?: { block: string; number: string } }) | undefined)?.house;
                                   return (
                                     <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
@@ -819,17 +870,32 @@ export default function LiveScoreDialog({
                       </Button>
                     ))}
                     {!readOnly && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-1 text-[10px] px-2 font-bold uppercase tracking-wider"
-                        onClick={() => {
-                          setSets(prev => [...prev, { team1_score: 0, team2_score: 0 }]);
-                          setActiveSetIndex(sets.length);
-                        }}
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Set baru
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1 text-[10px] px-2 font-bold uppercase tracking-wider"
+                          onClick={() => {
+                            setSets(prev => [...prev, { team1_score: 0, team2_score: 0 }]);
+                            setActiveSetIndex(sets.length);
+                          }}
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Set baru
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-8 gap-1 text-[10px] px-2.5 font-bold uppercase tracking-wider bg-red-500/10 text-red-600 hover:bg-red-500/20 border border-red-500/20"
+                          onClick={() => {
+                            if (window.confirm(`Reset skor Set ${activeSetIndex + 1} menjadi 0 - 0?`)) {
+                              setSets(prev => prev.map((s, idx) => idx === activeSetIndex ? { team1_score: 0, team2_score: 0 } : s));
+                              isDirty.current = true;
+                            }
+                          }}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" /> Reset Set
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -846,7 +912,8 @@ export default function LiveScoreDialog({
                   {(match.team1 as CompetitionTeamWithMembers)?.members && (match.team1 as CompetitionTeamWithMembers).members!.length > 0 && (
                     <div className="flex flex-wrap justify-center gap-1 mb-3 max-w-[200px]">
                       {(match.team1 as CompetitionTeamWithMembers).members!.map((m) => {
-                        const name = m.profile?.full_name?.trim() || m.name?.trim() || "Pemain";
+                        const parsed = parseMemberName(m.name);
+                        const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
                         const house = (m.profile as (typeof m.profile & { house?: { block: string; number: string } }) | undefined)?.house;
                         return (
                           <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
@@ -906,7 +973,8 @@ export default function LiveScoreDialog({
                   {(match.team2 as CompetitionTeamWithMembers)?.members && (match.team2 as CompetitionTeamWithMembers).members!.length > 0 && (
                     <div className="flex flex-wrap justify-center gap-1 mb-3 max-w-[200px]">
                       {(match.team2 as CompetitionTeamWithMembers).members!.map((m) => {
-                        const name = m.profile?.full_name?.trim() || m.name?.trim() || "Pemain";
+                        const parsed = parseMemberName(m.name);
+                        const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
                         const house = (m.profile as (typeof m.profile & { house?: { block: string; number: string } }) | undefined)?.house;
                         return (
                           <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
@@ -983,37 +1051,65 @@ export default function LiveScoreDialog({
           </motion.div>
         )}
 
-        <DialogFooter className="flex-col sm:flex-row gap-3 p-6 pt-2 shrink-0 bg-muted/5 border-t">
-          {!readOnly ? (
-            <>
+        <DialogFooter className="flex flex-col gap-4 p-6 pt-3 shrink-0 bg-muted/5 border-t w-full">
+          {/* Auto Refresh Row */}
+          {match.status !== "completed" && (
+            <div className="flex items-center justify-between gap-4 w-full bg-muted/30 border border-border/60 rounded-xl p-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                  <RefreshCw className={`w-4 h-4 ${isFetching && autoRefresh ? 'animate-spin' : ''}`} />
+                </div>
+                <div className="text-left min-w-0">
+                  <Label htmlFor="live-auto-refresh" className="text-xs font-bold block cursor-pointer">Auto Refresh (10s)</Label>
+                  <span className="text-[10px] text-muted-foreground block truncate">Sinkronisasi skor otomatis secara berkala</span>
+                </div>
+              </div>
+              <Switch
+                id="live-auto-refresh"
+                checked={autoRefresh}
+                onCheckedChange={(checked) => {
+                  setAutoRefresh(checked);
+                  if (checked) {
+                    refetch();
+                  }
+                }}
+              />
+            </div>
+          )}
+
+          {/* Action Buttons Row */}
+          <div className="flex flex-col sm:flex-row gap-3 w-full justify-end">
+            {!readOnly ? (
+              <>
+                <Button 
+                  variant="outline" 
+                  className="w-full sm:w-auto h-11" 
+                  onClick={handleUpdateProgress}
+                  disabled={updateMutation.isPending}
+                >
+                  {updateMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  Simpan Sementara
+                </Button>
+                <Button 
+                  variant="default" 
+                  className="w-full sm:flex-1 h-11 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20 font-bold" 
+                  onClick={handleFinishMatch}
+                  disabled={updateMutation.isPending}
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  {is17an ? "Selesaikan Sesi" : "Selesaikan Pertandingan"}
+                </Button>
+              </>
+            ) : (
               <Button 
                 variant="outline" 
-                className="w-full sm:w-auto h-11" 
-                onClick={handleUpdateProgress}
-                disabled={updateMutation.isPending}
+                className="w-full h-11 font-bold" 
+                onClick={() => onOpenChange(false)}
               >
-                {updateMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Simpan Sementara
+                Tutup
               </Button>
-              <Button 
-                variant="default" 
-                className="w-full sm:flex-1 h-11 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20 font-bold" 
-                onClick={handleFinishMatch}
-                disabled={updateMutation.isPending}
-              >
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-                {is17an ? "Selesaikan Sesi" : "Selesaikan Pertandingan"}
-              </Button>
-            </>
-          ) : (
-            <Button 
-              variant="outline" 
-              className="w-full h-11 font-bold" 
-              onClick={() => onOpenChange(false)}
-            >
-              Tutup
-            </Button>
-          )}
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
       <WinnerAnnounceDialog

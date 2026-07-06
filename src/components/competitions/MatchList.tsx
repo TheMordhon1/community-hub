@@ -60,6 +60,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
   const [selectedRound, setSelectedRound] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"list" | "chart">("list");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [selectedChartRound, setSelectedChartRound] = useState<string>("all");
 
   const resetMatch = useResetMatch();
   const deleteMatch = useDeleteMatch();
@@ -401,125 +402,41 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
               <CardContent className="p-0">
                 {/* Match Header */}
                 <div className="flex items-center justify-between px-4 py-2 bg-muted/50 border-b">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 group relative">
-                      <span className="text-xs text-muted-foreground">
-                        {match.notes ? match.notes : `Match ${index + 1}`} {match.group_name && `· Grup ${match.group_name}`}
-                      </span>
-                      {canManage && (
-                        <button
-                          onClick={() => {
-                            const newLabel = window.prompt("Ubah Label Pertandingan (kosongkan untuk kembali ke default):", match.notes || `Match ${index + 1}`);
-                            if (newLabel !== null) {
-                              updateMutation.mutate({
-                                id: match.id,
-                                competition_id: competition.id,
-                                notes: newLabel || null
-                              });
-                            }
-                          }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary"
-                          title="Ubah Label"
-                        >
-                          <Edit className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                    {match.is_final && (
-                      <Trophy className="w-3 h-3 text-yellow-500 fill-yellow-500 animate-pulse" />
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={getStatusVariant(match.status)} className={`text-xs ${match.status === 'ongoing' ? 'pl-5 relative' : ''}`}>
-                      {match.status === 'ongoing' && (
-                        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
-                        </span>
-                      )}
-                      {MATCH_STATUS_LABELS[match.status]}
-                    </Badge>
-                    <div className="flex items-center gap-1.5">
-                      {match.status === "scheduled" && canManage && (
-                        <Button
-                          size="sm"
-                          className="h-7 text-[10px] sm:text-xs px-2 sm:px-3 bg-primary hover:bg-primary/90 shadow-sm font-bold"
-                          onClick={() => {
+                  <div className="flex items-center gap-1.5 group relative min-w-0">
+                    <span className="text-xs font-semibold sm:font-normal text-muted-foreground truncate">
+                      {match.notes ? match.notes : `Match ${index + 1}`} {match.group_name && `· Grup ${match.group_name}`}
+                    </span>
+                    {canManage && (
+                      <button
+                        onClick={() => {
+                          const newLabel = window.prompt("Ubah Label Pertandingan (kosongkan untuk kembali ke default):", match.notes || `Match ${index + 1}`);
+                          if (newLabel !== null) {
                             updateMutation.mutate({
                               id: match.id,
                               competition_id: competition.id,
-                              status: 'ongoing'
+                              notes: newLabel || null
                             });
-                          }}
-                          disabled={updateMutation.isPending}
-                        >
-                          <Play className="w-3 h-3 mr-1" />
-                          <span className="hidden xs:inline">Mulai Match</span>
-                          <span className="xs:hidden">Mulai</span>
-                        </Button>
-                      )}
-
-                      {match.status === "ongoing" && canManage && (
-                        <Button
-                          size="sm"
-                          className="h-7 text-[10px] sm:text-xs px-2 sm:px-3 bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 font-bold"
-                          onClick={() => setLiveScoringMatch(match)}
-                        >
-                          <Play className="w-3 h-3 mr-1" />
-                          <span className="hidden xs:inline">Live Score</span>
-                          <span className="xs:hidden">Score</span>
-                        </Button>
-                      )}
-
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="h-7 text-[10px] sm:text-xs px-2 sm:px-3 gap-1"
-                        onClick={() => setViewingMatch(match)}
+                          }
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary shrink-0"
+                        title="Ubah Label"
                       >
-                        <Eye className="w-3 h-3" />
-                        <span>Detail</span>
-                      </Button>
-                      
-                      {canManage && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-muted">
-                              <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => setEditingMatch(match)}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit Pertandingan
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setSpinningMatch(match)}
-                              disabled={match.status === "completed" || allTeams.length === 0}
-                            >
-                              <Sparkles className="w-4 h-4 mr-2" />
-                              Spin Wheel Peserta
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => setMatchToReset(match.id)}
-                              className="text-amber-600 focus:text-amber-600 focus:bg-amber-50"
-                            >
-                              <RefreshCw className={`w-4 h-4 mr-2 ${resetMatch.isPending ? 'animate-spin' : ''}`} />
-                              Reset Skor
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => setMatchToDelete(match.id)}
-                              className="text-destructive focus:text-destructive focus:bg-destructive/5"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Hapus Pertandingan
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
+                        <Edit className="w-3 h-3" />
+                      </button>
+                    )}
+                    {match.is_final && (
+                      <Trophy className="w-3 h-3 text-yellow-500 fill-yellow-500 animate-pulse shrink-0" />
+                    )}
                   </div>
+                  <Badge variant={getStatusVariant(match.status)} className={`text-xs shrink-0 ${match.status === 'ongoing' ? 'pl-5 relative' : ''}`}>
+                    {match.status === 'ongoing' && (
+                      <span className="absolute left-1.5 top-1/2 -translate-y-1/2 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                      </span>
+                    )}
+                    {MATCH_STATUS_LABELS[match.status]}
+                  </Badge>
                 </div>
 
                 {/* Teams */}
@@ -727,31 +644,117 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                     </div>
                   )}
 
-                  {/* Match Details */}
-                  {(match.match_datetime || match.location || match.age_bracket_label || match.age_bracket_min != null || match.age_bracket_max != null) && (
-                    <div className="mt-3 pt-3 border-t text-xs text-muted-foreground space-y-1">
+                  {/* Match Details & Actions */}
+                  <div className="mt-3 pt-3 border-t flex flex-wrap justify-between gap-3 w-full">
+                    {/* Left: Date, Place and Age labels */}
+                    <div className="flex flex-1 flex-col gap-1.5 min-w-0 text-xs text-muted-foreground w-full sm:w-auto">
                       {(match.age_bracket_label || match.age_bracket_min != null || match.age_bracket_max != null) && (
-                        <Badge variant="secondary" className="text-[10px]">
-                          Umur:{" "}
-                          {match.age_bracket_label
-                            ? match.age_bracket_label
-                            : `${match.age_bracket_min ?? "?"} - ${match.age_bracket_max ?? "?"} thn`}
-                        </Badge>
+                        <div className="flex">
+                          <Badge variant="secondary" className="text-[10px] whitespace-nowrap">
+                            Umur:{" "}
+                            {match.age_bracket_label
+                              ? match.age_bracket_label
+                              : `${match.age_bracket_min ?? "?"} - ${match.age_bracket_max ?? "?"} thn`}
+                          </Badge>
+                        </div>
                       )}
                       {match.match_datetime && (
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {format(parseISO(match.match_datetime), "dd MMM yyyy, HH:mm", { locale: idLocale })}
+                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                          <Calendar className="w-3.5 h-3.5 shrink-0 text-muted-foreground/70" />
+                          <span>{format(parseISO(match.match_datetime), "dd MMM yyyy, HH:mm", { locale: idLocale })}</span>
                         </div>
                       )}
                       {match.location && (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {match.location}
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <MapPin className="w-3.5 h-3.5 shrink-0 text-muted-foreground/70" />
+                          <span className="truncate">{match.location}</span>
                         </div>
                       )}
+                      {!match.match_datetime && !match.location && !(match.age_bracket_label || match.age_bracket_min != null || match.age_bracket_max != null) && (
+                        <span className="text-[10px] text-muted-foreground/60 italic">Belum ada info jadwal</span>
+                      )}
                     </div>
-                  )}
+
+                    {/* Right: Actions */}
+                    <div className="flex flex-wrap items-center gap-1.5 shrink-0 justify-end w-full sm:w-auto">
+                      {match.status === "scheduled" && canManage && (
+                        <Button
+                          size="sm"
+                          className="h-7 text-[10px] sm:text-xs px-2.5 sm:px-3 bg-primary hover:bg-primary/90 shadow-sm font-bold"
+                          onClick={() => {
+                            updateMutation.mutate({
+                              id: match.id,
+                              competition_id: competition.id,
+                              status: 'ongoing'
+                            });
+                          }}
+                          disabled={updateMutation.isPending}
+                        >
+                          <Play className="w-3 h-3 mr-1" />
+                          <span>Mulai</span>
+                        </Button>
+                      )}
+
+                      {match.status === "ongoing" && canManage && (
+                        <Button
+                          size="sm"
+                          className="h-7 text-[10px] sm:text-xs px-2.5 sm:px-3 bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 font-bold"
+                          onClick={() => setLiveScoringMatch(match)}
+                        >
+                          <Play className="w-3 h-3 mr-1" />
+                          <span>Live Score</span>
+                        </Button>
+                      )}
+
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="h-7 text-[10px] sm:text-xs px-2.5 sm:px-3 gap-1"
+                        onClick={() => setViewingMatch(match)}
+                      >
+                        <Eye className="w-3 h-3" />
+                        <span>Detail</span>
+                      </Button>
+                      
+                      {canManage && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-muted shrink-0">
+                              <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => setEditingMatch(match)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit Pertandingan
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setSpinningMatch(match)}
+                              disabled={match.status === "completed" || allTeams.length === 0}
+                            >
+                              <Sparkles className="w-4 h-4 mr-2" />
+                              Spin Wheel Peserta
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => setMatchToReset(match.id)}
+                              className="text-amber-600 focus:text-amber-600 focus:bg-amber-50"
+                            >
+                              <RefreshCw className={`w-4 h-4 mr-2 ${resetMatch.isPending ? 'animate-spin' : ''}`} />
+                              Reset Skor
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => setMatchToDelete(match.id)}
+                              className="text-destructive focus:text-destructive focus:bg-destructive/5"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Hapus Pertandingan
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -770,55 +773,89 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
         }
 
         if (viewMode === "chart") {
+          const firstRoundKey = sortedRoundEntries.length > 0 ? sortedRoundEntries[0][0] : null;
+          const activeRound = selectedChartRound && selectedChartRound !== "all" && sortedRoundEntries.some(([r]) => r === selectedChartRound) ? selectedChartRound : firstRoundKey;
+
           return (
-            <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-thin select-none">
-              {sortedRoundEntries.map(([round, roundMatches]) => (
-                <div key={round} className="flex flex-col gap-4 min-w-[300px] max-w-[340px] shrink-0">
-                  <div className="bg-muted/80 backdrop-blur p-3 rounded-xl border text-center font-bold text-sm tracking-wide shadow-sm flex items-center justify-between px-4">
-                    <span>{getRoundName(Number(round), totalRounds, roundMatches)}</span>
-                    <div className="flex items-center gap-1.5">
-                      <Badge variant="outline" className="font-normal text-xs">{roundMatches.length}</Badge>
-                      {canManage && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6 text-muted-foreground hover:text-primary"
-                          onClick={() => {
-                            const firstMatch = roundMatches[0];
-                            const newLabel = window.prompt("Ubah Nama Babak/Fase:", firstMatch.phase_label || "");
-                            if (newLabel !== null) {
-                              roundMatches.forEach(m => {
-                                updateMutation.mutate({
-                                  id: m.id,
-                                  competition_id: competition.id,
-                                  phase_label: newLabel || null
-                                });
-                              });
-                            }
-                          }}
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
+            <div className="space-y-4">
+              {/* Mobile Bagan Round Selector */}
+              <div className="sm:hidden flex flex-col gap-1.5 bg-muted/20 p-3 rounded-xl border">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Pilih Babak Bagan</label>
+                <Select
+                  value={activeRound || ""}
+                  onValueChange={setSelectedChartRound}
+                >
+                  <SelectTrigger className="w-full bg-background font-bold text-xs h-9">
+                    <SelectValue placeholder="Pilih Babak" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortedRoundEntries.map(([round, roundMatches]) => (
+                      <SelectItem key={round} value={round} className="text-xs font-semibold">
+                        {getRoundName(Number(round), totalRounds, roundMatches)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Columns container */}
+              <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-thin select-none">
+                {sortedRoundEntries.map(([round, roundMatches]) => {
+                  const isVisibleOnMobile = activeRound === round;
+                  return (
+                    <div 
+                      key={round} 
+                      className={`flex-col gap-4 min-w-[300px] max-w-[340px] shrink-0 sm:flex ${
+                        isVisibleOnMobile ? "flex w-full max-w-none" : "hidden"
+                      }`}
+                    >
+                      <div className="bg-muted/80 backdrop-blur p-3 rounded-xl border text-center font-bold text-sm tracking-wide shadow-sm flex items-center justify-between px-4">
+                        <span>{getRoundName(Number(round), totalRounds, roundMatches)}</span>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline" className="font-normal text-xs">{roundMatches.length}</Badge>
+                          {canManage && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 text-muted-foreground hover:text-primary"
+                              onClick={() => {
+                                const firstMatch = roundMatches[0];
+                                const newLabel = window.prompt("Ubah Nama Babak/Fase:", firstMatch.phase_label || "");
+                                if (newLabel !== null) {
+                                  roundMatches.forEach(m => {
+                                    updateMutation.mutate({
+                                      id: m.id,
+                                      competition_id: competition.id,
+                                      phase_label: newLabel || null
+                                    });
+                                  });
+                                }
+                              }}
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-4 h-full py-2">
+                        {roundMatches.map((match, index) => renderMatchCard(match, index))}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex flex-col gap-4 h-full py-2">
-                    {roundMatches.map((match, index) => renderMatchCard(match, index))}
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
           );
         }
 
         return sortedRoundEntries.map(([round, roundMatches], roundIdx) => (
           <div key={round} className="space-y-3">
-            <h4 className="font-semibold text-lg flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                {getRoundName(Number(round), totalRounds, roundMatches)}
-                <Badge variant="outline" className="font-normal text-xs">{roundMatches.length} pertandingan</Badge>
+            <h4 className="font-semibold text-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2 sm:border-none sm:pb-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-base sm:text-lg">{getRoundName(Number(round), totalRounds, roundMatches)}</span>
+                <Badge variant="outline" className="font-normal text-xs whitespace-nowrap">{roundMatches.length} pertandingan</Badge>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5 justify-end w-full sm:w-auto">
                 {/* Phase actions menu — rendered only on first round header */}
                 {roundIdx === 0 && headerActions && (
                   <div className="relative z-10">{headerActions}</div>
@@ -827,10 +864,10 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="h-7 text-[10px] gap-1 text-muted-foreground hover:text-primary"
+                    className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-primary px-2"
                     onClick={() => {
                       const firstMatch = roundMatches[0];
-                      const newLabel = window.prompt("Ubah Nama Babak/Fase:", firstMatch.phase_label || "");
+                      const newLabel = window.prompt("Ubah Label Pertandingan/Babak (kosongkan untuk kembali ke default):", firstMatch.phase_label || "");
                       if (newLabel !== null) {
                         // Bulk update all matches in this round
                         roundMatches.forEach(m => {
@@ -844,7 +881,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                     }}
                   >
                     <Edit className="w-3 h-3" />
-                    Ubah Nama
+                    <span>Ubah Nama</span>
                   </Button>
                 )}
               </div>
@@ -871,6 +908,11 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
         onOpenChange={(open) => !open && setLiveScoringMatch(null)}
         match={liveScoringMatch}
         competition={competition}
+        canManage={canManage}
+        onEditMatch={(m) => {
+          setEditingMatch(m);
+          setLiveScoringMatch(null);
+        }}
       />
 
       <LiveScoreDialog 
@@ -879,6 +921,11 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
         match={viewingMatch}
         competition={competition}
         readOnly={true}
+        canManage={canManage}
+        onEditMatch={(m) => {
+          setEditingMatch(m);
+          setViewingMatch(null);
+        }}
       />
 
       {/* Spin Wheel per-match */}

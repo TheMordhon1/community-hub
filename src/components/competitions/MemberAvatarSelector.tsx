@@ -191,10 +191,14 @@ export function MemberAvatarSelector({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                  className={`h-7 text-xs ${
+                    isRegisteredUser 
+                      ? "text-primary hover:text-primary hover:bg-primary/10" 
+                      : "text-destructive hover:text-destructive hover:bg-destructive/10"
+                  }`}
                   onClick={() => onChange("")}
                 >
-                  Reset
+                  {isRegisteredUser ? "Kembalikan Foto Profil Warga" : "Reset"}
                 </Button>
               )}
             </div>

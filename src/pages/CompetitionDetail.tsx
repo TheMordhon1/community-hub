@@ -87,7 +87,7 @@ import { Switch } from "@/components/ui/switch";
 export default function CompetitionDetail() {
   const { id: eventId, competitionId } = useParams();
   const navigate = useNavigate();
-  const { user, canManageContent, isAdmin } = useAuth();
+  const { user, canManageContent, isAdmin, pengurusTitle } = useAuth();
 
   const [autoRefresh, setAutoRefresh] = useState(false);
   const { data: competition, isLoading, refetch, isFetching } = useCompetitionDetails(competitionId, {
@@ -122,7 +122,8 @@ export default function CompetitionDetail() {
   const isReferee = competition?.referees?.some(
     (ref: CompetitionReferee) => ref.user_id === user?.id
   );
-  const canManage = canManageContent() || isAdmin();
+  const isMenteriSistemDigital = pengurusTitle === "menteri_sisdigi";
+  const canManage = isAdmin() || isMenteriSistemDigital;
   const canModifyMatches = canManage || isReferee;
 
   const handleGenerateBracket = () => {
@@ -541,24 +542,30 @@ export default function CompetitionDetail() {
         >
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="w-full grid grid-cols-3 mb-4">
-              <TabsTrigger value="matches" className="flex items-center gap-2">
-                <Swords className="w-4 h-4" />
-                <span className="hidden sm:inline">Pertandingan</span>
-                <Badge variant="secondary" className="ml-1 text-xs">
+              <TabsTrigger value="matches" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                <Swords className="w-3.5 h-3.5 shrink-0" />
+                <span className="font-semibold">
+                  <span className="hidden sm:inline">Pertandingan</span>
+                  <span className="sm:hidden">Laga</span>
+                </span>
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0 h-4 min-w-4 flex items-center justify-center rounded-full bg-muted-foreground/10 text-muted-foreground border-none">
                   {competition.matches?.length || 0}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="teams" className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                <span className="hidden sm:inline">Peserta</span>
-                <Badge variant="secondary" className="ml-1 text-xs">
+              <TabsTrigger value="teams" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                <Users className="w-3.5 h-3.5 shrink-0" />
+                <span className="font-semibold">
+                  <span className="hidden sm:inline">Peserta</span>
+                  <span className="sm:hidden">Tim</span>
+                </span>
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0 h-4 min-w-4 flex items-center justify-center rounded-full bg-muted-foreground/10 text-muted-foreground border-none">
                   {competition.teams?.length || 0}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="referees" className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4" />
-                <span className="hidden sm:inline">Wasit</span>
-                <Badge variant="secondary" className="ml-1 text-xs">
+              <TabsTrigger value="referees" className="flex items-center gap-1.5 text-xs sm:text-sm px-2">
+                <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                <span className="font-semibold">Wasit</span>
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0 h-4 min-w-4 flex items-center justify-center rounded-full bg-muted-foreground/10 text-muted-foreground border-none">
                   {competition.referees?.length || 0}
                 </Badge>
               </TabsTrigger>

@@ -11,6 +11,7 @@ import { id } from "date-fns/locale";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
+import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { GroupStandings } from "@/components/competitions/GroupStandings";
@@ -19,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
+import { cn, parseMemberName, capitalizeName } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -49,6 +50,7 @@ interface CompetitionDetail {
   custom_match_label: string | null;
   format: string;
   sets_per_match: number | null;
+  referees?: { user_id: string }[] | null;
 }
 
 interface MatchSetData {
@@ -80,18 +82,20 @@ interface MatchData {
   participants: MatchParticipant[];
 }
 
-const capitalizeName = (name: string | null | undefined): string => {
-  if (!name) return "";
-  return name
-    .toLowerCase()
-    .split(" ")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-};
+
 
 export default function LiveMatches() {
   const queryClient = useQueryClient();
-  const { canManageContent } = useAuth();
+  const { user, isAdmin, pengurusTitle } = useAuth();
+
+  const isMenteriSistemDigital = pengurusTitle === "menteri_sisdigi";
+  const canManageMatch = (match: MatchData) => {
+    if (!user) return false;
+    const isRefereeOfMatch = match?.competition?.referees?.some(
+      (ref) => ref.user_id === user.id
+    );
+    return isAdmin() || isMenteriSistemDigital || !!isRefereeOfMatch;
+  };
   const [searchParams, setSearchParams] = useSearchParams();
 
   const VALID_TABS = ["live", "upcoming", "completed", "standings", "chart"] as const;
@@ -106,6 +110,7 @@ export default function LiveMatches() {
   };
 
   const [selectedMatch, setSelectedMatch] = useState<MatchData | null>(null);
+  const [editingMatch, setEditingMatch] = useState<MatchData | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [openMemberPopover, setOpenMemberPopover] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -152,7 +157,8 @@ export default function LiveMatches() {
             sport_name,
             custom_match_label,
             format,
-            sets_per_match
+            sets_per_match,
+            referees:competition_referees(user_id)
           ),
           team1:competition_teams!team1_id (
             id,
@@ -368,16 +374,16 @@ export default function LiveMatches() {
       
       const matchesMember = 
         match.team1?.members?.some(m => 
-          clean(m.name).includes(q) || 
+          clean(parseMemberName(m.name).name).includes(q) || 
           clean(m.profile?.full_name).includes(q)
         ) ||
         match.team2?.members?.some(m => 
-          clean(m.name).includes(q) || 
+          clean(parseMemberName(m.name).name).includes(q) || 
           clean(m.profile?.full_name).includes(q)
         ) ||
         match.participants?.some(p => 
           p.team?.members?.some(m => 
-            clean(m.name).includes(q) || 
+            clean(parseMemberName(m.name).name).includes(q) || 
             clean(m.profile?.full_name).includes(q)
           )
         );
@@ -471,7 +477,8 @@ export default function LiveMatches() {
             <div className="text-xs font-bold text-foreground mb-1.5">Anggota Tim:</div>
             <ul className="text-xs space-y-1.5">
               {team.members.map(m => {
-                const name = capitalizeName((m.name?.trim() || m.profile?.full_name?.trim()) || "Pemain");
+                const parsed = parseMemberName(m.name);
+                const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
                 const house = (m.profile as unknown as { house?: { block: string; number: string } })?.house;
                 return (
                   <li key={m.id} className="flex items-center gap-2 text-muted-foreground truncate">
@@ -560,7 +567,8 @@ export default function LiveMatches() {
                 {match.team1?.members && match.team1.members.length > 0 && (
                   <ul className="mt-0.5 space-y-0.5 max-h-[40px] overflow-y-auto scrollbar-none">
                     {match.team1.members.map((m) => {
-                      const name = capitalizeName(m.name?.trim() || m.profile?.full_name?.trim() || "Pemain");
+                      const parsed = parseMemberName(m.name);
+                      const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
                       const house = (m.profile as unknown as { house: { block: string; number: string } })?.house;
                       return (
                         <li key={m.id} className="text-[9px] text-muted-foreground truncate">
@@ -587,7 +595,8 @@ export default function LiveMatches() {
                 {match.team2?.members && match.team2.members.length > 0 && (
                   <ul className="mt-0.5 space-y-0.5 max-h-[40px] overflow-y-auto scrollbar-none">
                     {match.team2.members.map((m) => {
-                      const name = capitalizeName(m.name?.trim() || m.profile?.full_name?.trim() || "Pemain");
+                      const parsed = parseMemberName(m.name);
+                      const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
                       const house = (m.profile as unknown as { house?: { block: string; number: string } })?.house;
                       return (
                         <li key={m.id} className="text-[9px] text-muted-foreground truncate">
@@ -645,19 +654,19 @@ export default function LiveMatches() {
                 <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">Skor Live & Jadwal</h1>
               </motion.div>
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center shrink-0">
               <Button
                 variant={autoRefresh ? "default" : "outline"}
                 size="sm"
                 onClick={() => {
                   refetch();
-                  setAutoRefresh(true);
+                  setAutoRefresh(!autoRefresh);
                 }}
-                className="gap-2"
+                className="gap-1.5 text-xs font-bold"
               >
-                <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">
-                  {autoRefresh ? "Auto Refresh: ON" : "Refresh"}
+                <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+                <span>
+                  {autoRefresh ? "Auto: Aktif" : "Refresh"}
                 </span>
               </Button>
             </div>
@@ -1054,7 +1063,8 @@ export default function LiveMatches() {
                               {match.team1?.members && match.team1.members.length > 0 && (
                                 <ul className="w-full space-y-0.5">
                                   {match.team1.members.map((m) => {
-                                    const name = capitalizeName(m.name?.trim() || m.profile?.full_name?.trim() || "Pemain");
+                                    const parsed = parseMemberName(m.name);
+                                    const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
                                     const house = (m.profile as (typeof m.profile & { house?: { block: string; number: string } }) | undefined)?.house;
                                     return (
                                       <li key={m.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -1073,7 +1083,8 @@ export default function LiveMatches() {
                               {match.team2?.members && match.team2.members.length > 0 && (
                                 <ul className="w-full space-y-0.5">
                                   {match.team2.members.map((m) => {
-                                    const name = capitalizeName(m.name?.trim() || m.profile?.full_name?.trim() || "Pemain");
+                                    const parsed = parseMemberName(m.name);
+                                    const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
                                     const house = (m.profile as (typeof m.profile & { house?: { block: string; number: string } }) | undefined)?.house;
                                     return (
                                       <li key={m.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -1109,7 +1120,7 @@ export default function LiveMatches() {
                                 {formatMatchTime(match.match_datetime)}
                               </span>
                             </span>
-                            {canManageContent() && (
+                            {canManageMatch(match) && (
                               <Button
                                 size="sm"
                                 className="h-7 text-[10px] gap-1 px-2.5 font-bold uppercase tracking-wider bg-primary hover:bg-primary/90"
@@ -1193,7 +1204,8 @@ export default function LiveMatches() {
                               {match.team1?.members && match.team1.members.length > 0 && (
                                 <ul className="mt-1 space-y-0.5">
                                   {match.team1.members.map((m) => {
-                                    const name = capitalizeName(m.name?.trim() || m.profile?.full_name?.trim() || "Pemain");
+                                    const parsed = parseMemberName(m.name);
+                                    const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
                                     const house = (m.profile as (typeof m.profile & { house?: { block: string; number: string } }) | undefined)?.house;
                                     return (
                                       <li key={m.id} className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
@@ -1244,7 +1256,8 @@ export default function LiveMatches() {
                               {match.team2?.members && match.team2.members.length > 0 && (
                                 <ul className="mt-1 space-y-0.5">
                                   {match.team2.members.map((m) => {
-                                    const name = capitalizeName(m.name?.trim() || m.profile?.full_name?.trim() || "Pemain");
+                                    const parsed = parseMemberName(m.name);
+                                    const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
                                     const house = (m.profile as (typeof m.profile & { house?: { block: string; number: string } }) | undefined)?.house;
                                     return (
                                       <li key={m.id} className="flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
@@ -1492,7 +1505,21 @@ export default function LiveMatches() {
           }}
           match={selectedMatch as unknown as CompetitionMatchWithTeams}
           competition={selectedMatch.competition as unknown as EventCompetitionWithDetails}
-          readOnly={!canManageContent()} // Administrators/referees can manage/edit directly, other users can view only!
+          readOnly={!canManageMatch(selectedMatch)}
+          canManage={canManageMatch(selectedMatch)}
+          onEditMatch={() => {
+            setEditingMatch(selectedMatch);
+            setDialogOpen(false);
+          }}
+        />
+      )}
+
+      {editingMatch && (
+        <UpdateMatchDialog
+          open={!!editingMatch}
+          onOpenChange={(open) => !open && setEditingMatch(null)}
+          match={editingMatch as unknown as CompetitionMatchWithTeams}
+          competition={editingMatch.competition as unknown as EventCompetitionWithDetails}
         />
       )}
       </div>

@@ -10,6 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Users } from "lucide-react";
+import { parseMemberName, capitalizeName } from "@/lib/utils";
 
 interface Props {
   competition: EventCompetitionWithDetails;
@@ -24,14 +25,7 @@ type MemberWithHouse = {
   };
 };
 
-const capitalizeName = (name: string | null | undefined): string => {
-  if (!name) return "";
-  return name
-    .toLowerCase()
-    .split(" ")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-};
+
 
 // Unified click+hover popover for team member list
 function TeamNameWithMembers({
@@ -68,7 +62,8 @@ function TeamNameWithMembers({
         <div className="text-xs font-semibold mb-2 text-foreground">Anggota Tim:</div>
         <ul className="space-y-1.5">
           {team.members?.map((m) => {
-            const name = capitalizeName(m.name?.trim() || m.profile?.full_name?.trim() || "Peserta");
+            const parsed = parseMemberName(m.name);
+            const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Peserta");
             const house = m.profile?.house;
             return (
               <li key={m.id} className="flex items-center gap-2 text-xs">
