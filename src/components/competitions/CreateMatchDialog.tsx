@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, Users, Sparkles, Shuffle, MousePointerClick, Swords, Calendar, Info } from "lucide-react";
+import { Loader2, Users, Sparkles, Shuffle, MousePointerClick, Swords, Calendar } from "lucide-react";
 import { useCreateMatch } from "@/hooks/useCompetitions";
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
@@ -613,7 +613,7 @@ export function CreateMatchDialog({
 
             {sameDayConflicts.length > 0 && (
               <div className="rounded-md border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300 flex items-start gap-3">
-                <Info className="w-4 h-4 mt-0.5 shrink-0" />
+                <Calendar className="w-4 h-4 mt-0.5 shrink-0" />
                 <div className="space-y-1">
                   <p className="font-medium">Pertandingan lain di hari yang sama</p>
                   {sameDayConflicts.map(({ teamName, match }) => (
