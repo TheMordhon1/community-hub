@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,12 +19,13 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, Users, Sparkles, Shuffle, MousePointerClick, Swords } from "lucide-react";
+import { Loader2, Users, Sparkles, Shuffle, MousePointerClick, Swords, Calendar } from "lucide-react";
 import { useCreateMatch } from "@/hooks/useCompetitions";
 import { useToast } from "@/hooks/use-toast";
+import { format, parseISO } from "date-fns";
 import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
 import { useAssignMatchTeams } from "@/hooks/useCompetitions";
-import type { EventCompetitionWithDetails } from "@/types/competition";
+import type { EventCompetitionWithDetails, CompetitionMatchWithTeams } from "@/types/competition";
 
 interface CreateMatchDialogProps {
   open: boolean;
@@ -83,6 +84,40 @@ export function CreateMatchDialog({
   }
   const hasMet = (a: string, b: string) =>
     !!a && !!b && a !== b && metPairs.has([a, b].sort().join("|"));
+
+  // Same-day conflict detection: warn when selected teams already have a match on this date
+  const selectedDateStr = matchDatetime ? format(parseISO(matchDatetime), "yyyy-MM-dd") : null;
+
+  const sameDayConflicts = useMemo(() => {
+    if (!selectedDateStr) return [];
+    const selectedTeamIdsSet = new Set<string>();
+    if (team1Id && team1Id !== "none") selectedTeamIdsSet.add(team1Id);
+    if (team2Id && team2Id !== "none") selectedTeamIdsSet.add(team2Id);
+    selectedTeamIds.forEach((id) => selectedTeamIdsSet.add(id));
+
+    const matches = competition.matches || [];
+    const conflictMap = new Map<string, { teamName: string; match: CompetitionMatchWithTeams }>();
+
+    for (const match of matches) {
+      if (!match.match_datetime) continue;
+      const matchDate = format(parseISO(match.match_datetime), "yyyy-MM-dd");
+      if (matchDate !== selectedDateStr) continue;
+
+      const involvedIds = [
+        match.team1_id,
+        match.team2_id,
+        ...(match.participants?.map((p) => p.team_id) || []),
+      ].filter((id): id is string => !!id);
+
+      for (const id of involvedIds) {
+        if (selectedTeamIdsSet.has(id)) {
+          const teamName = allTeams.find((t) => t.id === id)?.name || "Tim";
+          conflictMap.set(id, { teamName, match });
+        }
+      }
+    }
+    return Array.from(conflictMap.values());
+  }, [selectedDateStr, team1Id, team2Id, selectedTeamIds, competition.matches, allTeams]);
 
   useEffect(() => {
     if (open) {
@@ -575,6 +610,26 @@ export function CreateMatchDialog({
                 placeholder="Contoh: Lapangan A"
               />
             </div>
+
+            {sameDayConflicts.length > 0 && (
+              <div className="rounded-md border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300 flex items-start gap-3">
+                <Calendar className="w-4 h-4 mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                  <p className="font-medium">Pertandingan lain di hari yang sama</p>
+                  {sameDayConflicts.map(({ teamName, match }) => (
+                    <p key={`${teamName}-${match.id}`} className="text-xs">
+                      • {teamName} sudah bertanding pada{" "}
+                      <span className="font-semibold">
+                        {match.phase_label || `Babak ${match.round_number}`}
+                      </span>
+                      {match.team1 && match.team2 ? (
+                        <> ({match.team1.name} vs {match.team2.name})</>
+                      ) : null}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
