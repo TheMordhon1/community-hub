@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import confetti from "canvas-confetti";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,11 @@ import { toast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { motion } from "framer-motion";
+import { WinnerAnnounceDialog } from "./WinnerAnnounceDialog";
+
+import { parseMemberName, capitalizeName } from "@/lib/utils";
 
 interface LiveScoreDialogProps {
   open: boolean;
@@ -51,6 +57,7 @@ export default function LiveScoreDialog({
   const [participantScores, setParticipantScores] = useState<ParticipantScore[]>([]);
   const [sets, setSets] = useState<{ team1_score: number; team2_score: number }[]>([]);
   const [activeSetIndex, setActiveSetIndex] = useState(0);
+  const [isWinnerAnnounceOpen, setIsWinnerAnnounceOpen] = useState(false);
   // Track whether the user has unsaved local edits — if true, remote updates won't overwrite
   const isDirty = useRef(false);
   // Track the last match id we initialized from to detect dialog open/switch
@@ -58,6 +65,20 @@ export default function LiveScoreDialog({
 
   const updateMutation = useUpdateMatch();
   const is17an = competition.format === "17an";
+
+  const winners17an = is17an
+    ? (match?.participants?.filter(p => p.is_winner || p.winner_rank === 1) || [])
+    : [];
+
+  const setsWon1 = match && Array.isArray(match.sets_data)
+    ? match.sets_data.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length
+    : 0;
+  const setsWon2 = match && Array.isArray(match.sets_data)
+    ? match.sets_data.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length
+    : 0;
+  const isTeam1Winner = match && (match.winner_id === match.team1_id || (match.winner_id === null && setsWon1 > setsWon2));
+  const isTeam2Winner = match && (match.winner_id === match.team2_id || (match.winner_id === null && setsWon2 > setsWon1));
+  const winnerTeam = (isTeam1Winner ? match?.team1 : (isTeam2Winner ? match?.team2 : null)) as CompetitionTeamWithMembers | null;
 
   const initFromMatch = (match: CompetitionMatchWithTeams) => {
     const cached = localStorage.getItem(`live_score_${match.id}`);
@@ -199,6 +220,8 @@ export default function LiveScoreDialog({
       localStorage.setItem(`live_score_${match.id}`, JSON.stringify(data));
     }
   }, [score1, score2, winnerRank1, winnerRank2, participantScores, sets, activeSetIndex, match, open, is17an]);
+
+
 
 
 
@@ -344,6 +367,70 @@ export default function LiveScoreDialog({
     updateMutation.mutate(mutationData, {
       onSuccess: () => {
         localStorage.removeItem(`live_score_${match.id}`);
+        
+        // Play victory sounds (Sports Whistle + User's Clapping Asset)
+        const whistle = new Audio("https://assets.mixkit.co/active_storage/sfx/2014/2014-preview.mp3");
+        const clapping = new Audio("/sound/clapping.wav");
+        
+        whistle.volume = 0.6;
+        clapping.volume = 0.7;
+
+        whistle.play().catch(err => console.log("Whistle play failed:", err));
+        
+        setTimeout(() => {
+          clapping.play().catch(err => console.log("Clapping play failed:", err));
+        }, 200);
+
+        // Celebrate completion immediately
+        if (is17an) {
+          const hasWinner = participantScores.some(p => p.isWinner || p.winner_rank === 1);
+          if (hasWinner) {
+            confetti({
+              particleCount: 100,
+              spread: 70,
+              origin: { y: 0.6 }
+            });
+          }
+        } else {
+          if (winnerId === match.team1_id) {
+            // Team 1 wins: burst from left and then a main center burst
+            confetti({
+              particleCount: 80,
+              angle: 60,
+              spread: 80,
+              origin: { x: 0, y: 0.8 }
+            });
+            setTimeout(() => {
+              confetti({
+                particleCount: 50,
+                spread: 90,
+                origin: { y: 0.6 }
+              });
+            }, 200);
+          } else if (winnerId === match.team2_id) {
+            // Team 2 wins: burst from right and then a main center burst
+            confetti({
+              particleCount: 80,
+              angle: 120,
+              spread: 80,
+              origin: { x: 1, y: 0.8 }
+            });
+            setTimeout(() => {
+              confetti({
+                particleCount: 50,
+                spread: 90,
+                origin: { y: 0.6 }
+              });
+            }, 200);
+          } else {
+            confetti({
+              particleCount: 100,
+              spread: 70,
+              origin: { y: 0.6 }
+            });
+          }
+        }
+
         onOpenChange(false);
         toast({
           title: is17an ? "Sesi Selesai" : "Pertandingan Selesai",
@@ -416,6 +503,8 @@ export default function LiveScoreDialog({
             )}
           </p>
         </DialogHeader>
+
+
 
         <div className="flex-1 overflow-auto px-6 py-2">
           {is17an ? (
@@ -721,6 +810,23 @@ export default function LiveScoreDialog({
           )}
         </div>
 
+        {/* Floating Tampilkan Pemenang Button */}
+        {match.status === "completed" && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute bottom-24 right-6 z-50 pointer-events-auto"
+          >
+            <Button
+              onClick={() => setIsWinnerAnnounceOpen(true)}
+              className="bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-black shadow-xl shadow-yellow-500/30 rounded-full border border-yellow-400/50 flex items-center gap-2 py-3 px-6 h-auto text-sm animate-bounce"
+            >
+              <Trophy className="w-5 h-5 fill-white" />
+              Tampilkan Pemenang
+            </Button>
+          </motion.div>
+        )}
+
         <DialogFooter className="flex-col sm:flex-row gap-3 p-6 pt-2 shrink-0 bg-muted/5 border-t">
           {!readOnly ? (
             <>
@@ -754,6 +860,12 @@ export default function LiveScoreDialog({
           )}
         </DialogFooter>
       </DialogContent>
+      <WinnerAnnounceDialog
+        open={isWinnerAnnounceOpen}
+        onOpenChange={setIsWinnerAnnounceOpen}
+        competition={competition}
+        match={match}
+      />
     </Dialog>
   );
 }

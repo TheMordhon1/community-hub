@@ -51,3 +51,21 @@ export const getStoragePath = (url: string, bucket: string): string | null => {
     return null;
   }
 };
+
+export const parseMemberName = (rawName: string | null | undefined) => {
+  if (!rawName) return { name: "", avatarUrl: "" };
+  const parts = rawName.split("||");
+  return {
+    name: parts[0] || "",
+    avatarUrl: parts[1] || ""
+  };
+};
+
+export const capitalizeName = (name: string | null | undefined): string => {
+  if (!name) return "";
+  return name
+    .toLowerCase()
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};

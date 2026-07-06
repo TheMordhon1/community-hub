@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import confetti from "canvas-confetti";
+import { parseMemberName, capitalizeName } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -7,16 +8,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Trophy, Medal, Star, Share2 } from "lucide-react";
+import { Trophy, Medal, Star, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
-import type { EventCompetitionWithDetails, CompetitionMatchParticipant } from "@/types/competition";
+import type { EventCompetitionWithDetails, CompetitionMatchParticipant, CompetitionMatchWithTeams, CompetitionTeamWithMembers } from "@/types/competition";
 
 interface WinnerAnnounceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   competition: EventCompetitionWithDetails;
   maxRankToShow?: number;
+  match?: CompetitionMatchWithTeams | null;
 }
 
 export function WinnerAnnounceDialog({
@@ -24,48 +26,82 @@ export function WinnerAnnounceDialog({
   onOpenChange,
   competition,
   maxRankToShow = 3,
+  match,
 }: WinnerAnnounceDialogProps) {
-  // Extract winners from all matches
-  const allParticipants = competition.matches?.flatMap(m => m.participants || []) || [];
-  
-  // Get unique winners by rank
-  const winnersByRank = (rank: number) => {
-    const winners = allParticipants.filter(p => p.winner_rank === rank);
-    // Return unique teams
-    const uniqueTeams = new Map();
-    winners.forEach(w => {
-      if (w.team_id && !uniqueTeams.has(w.team_id)) {
-        // Find full team with members from competition.teams
-        const fullTeam = competition.teams?.find(t => t.id === w.team_id);
-        uniqueTeams.set(w.team_id, {
-          ...w,
-          team: fullTeam || w.team
-        });
-      }
-    });
-    return Array.from(uniqueTeams.values());
-  };
+  const is17an = competition.format === "17an";
 
-  const juara1 = winnersByRank(1);
-  const juara2 = winnersByRank(2);
-  const juara3 = winnersByRank(3);
+  let juara1: CompetitionMatchParticipant[] = [];
+  let juara2: CompetitionMatchParticipant[] = [];
+  let juara3: CompetitionMatchParticipant[] = [];
 
-  // Fallback: If no Juara 1 but there's a final match with a winner_id
-  if (juara1.length === 0) {
-    const finalMatch = competition.matches?.find(m => m.is_final && m.status === 'completed' && m.winner_id);
-    if (finalMatch) {
-      const winnerTeam = competition.teams?.find(t => t.id === finalMatch.winner_id);
+  if (match) {
+    if (is17an) {
+      const winners = match.participants?.filter(p => p.is_winner || p.winner_rank === 1) || [];
+      juara1 = winners.map(w => {
+        const fullTeam = competition.teams?.find(t => t.id === w.team_id) || w.team;
+        return {
+          id: w.id,
+          team: fullTeam,
+          winner_rank: 1
+        } as CompetitionMatchParticipant;
+      });
+    } else {
+      const setsWon1 = Array.isArray(match.sets_data)
+        ? match.sets_data.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length
+        : 0;
+      const setsWon2 = Array.isArray(match.sets_data)
+        ? match.sets_data.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length
+        : 0;
+      const isTeam1Winner = match.winner_id === match.team1_id || (match.winner_id === null && setsWon1 > setsWon2);
+      const isTeam2Winner = match.winner_id === match.team2_id || (match.winner_id === null && setsWon2 > setsWon1);
+      const winnerTeam = isTeam1Winner ? match.team1 : (isTeam2Winner ? match.team2 : null);
+
       if (winnerTeam) {
-        juara1.push({
-          id: `fallback-${winnerTeam.id}`,
-          match_id: finalMatch.id,
-          team_id: winnerTeam.id,
-          team: winnerTeam,
-          winner_rank: 1,
-          is_winner: true,
-          score: finalMatch.score1,
-          created_at: finalMatch.created_at
-        } as CompetitionMatchParticipant);
+        const fullTeam = competition.teams?.find(t => t.id === winnerTeam.id) || winnerTeam;
+        juara1 = [{
+          id: `match-winner-${fullTeam.id}`,
+          team: fullTeam,
+          winner_rank: 1
+        } as CompetitionMatchParticipant];
+      }
+    }
+  } else {
+    const allParticipants = competition.matches?.flatMap(m => m.participants || []) || [];
+    const winnersByRank = (rank: number) => {
+      const winners = allParticipants.filter(p => p.winner_rank === rank);
+      const uniqueTeams = new Map();
+      winners.forEach(w => {
+        if (w.team_id && !uniqueTeams.has(w.team_id)) {
+          const fullTeam = competition.teams?.find(t => t.id === w.team_id);
+          uniqueTeams.set(w.team_id, {
+            ...w,
+            team: fullTeam || w.team
+          });
+        }
+      });
+      return Array.from(uniqueTeams.values());
+    };
+
+    juara1 = winnersByRank(1);
+    juara2 = winnersByRank(2);
+    juara3 = winnersByRank(3);
+
+    if (juara1.length === 0) {
+      const finalMatch = competition.matches?.find(m => m.is_final && m.status === 'completed' && m.winner_id);
+      if (finalMatch) {
+        const winnerTeam = competition.teams?.find(t => t.id === finalMatch.winner_id);
+        if (winnerTeam) {
+          juara1.push({
+            id: `fallback-${winnerTeam.id}`,
+            match_id: finalMatch.id,
+            team_id: winnerTeam.id,
+            team: winnerTeam,
+            winner_rank: 1,
+            is_winner: true,
+            score: finalMatch.score1,
+            created_at: finalMatch.created_at
+          } as CompetitionMatchParticipant);
+        }
       }
     }
   }
@@ -133,17 +169,26 @@ export function WinnerAnnounceDialog({
     }
   }, [open]);
 
-  const hasWinners = (juara1.length > 0 && maxRankToShow >= 1) || 
-                     (juara2.length > 0 && maxRankToShow >= 2) || 
-                     (juara3.length > 0 && maxRankToShow >= 3);
+  const isMatchAnnounce = !!match;
+  const hasWinners = isMatchAnnounce
+    ? (juara1.length > 0)
+    : ((juara1.length > 0 && maxRankToShow >= 1) || 
+       (juara2.length > 0 && maxRankToShow >= 2) || 
+       (juara3.length > 0 && maxRankToShow >= 3));
 
   if (!hasWinners && open) {
      return (
         <Dialog open={open} onOpenChange={onOpenChange}>
           <DialogContent className="max-w-md text-center py-12">
             <Trophy className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-20" />
-            <h3 className="text-xl font-bold">Belum Ada Pemenang</h3>
-            <p className="text-muted-foreground mt-2">Pemenang akan muncul di sini setelah babak final selesai.</p>
+            <h3 className="text-xl font-bold">
+              {isMatchAnnounce ? "Hasil Seri / Seri" : "Belum Ada Pemenang"}
+            </h3>
+            <p className="text-muted-foreground mt-2">
+              {isMatchAnnounce 
+                ? "Pertandingan ini berakhir seri tanpa pemenang tunggal." 
+                : "Pemenang akan muncul di sini setelah babak final selesai."}
+            </p>
             <Button onClick={() => onOpenChange(false)} className="mt-6">Tutup</Button>
           </DialogContent>
         </Dialog>
@@ -151,11 +196,11 @@ export function WinnerAnnounceDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={() =>onOpenChange(false)}>
-      <DialogContent className="max-w-2xl bg-gradient-to-b from-primary/5 via-background to-background border-none shadow-2xl p-0 overflow-hidden">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl bg-gradient-to-b from-primary/5 via-background to-background border-none shadow-2xl p-0 overflow-hidden [&>button]:z-50">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-50 pointer-events-none" />
         
-        <DialogHeader className="p-8 pb-2 text-center relative z-10">
+        <DialogHeader className="p-5 sm:p-8 sm:pb-2 text-center relative z-10">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -165,14 +210,16 @@ export function WinnerAnnounceDialog({
             <Trophy className="w-10 h-10 text-primary" />
           </motion.div>
           <DialogTitle className="text-3xl md:text-4xl font-black tracking-tight text-center">
-            PENGUMUMAN PEMENANG
+            {isMatchAnnounce ? "PEMENANG PERTANDINGAN" : "PENGUMUMAN PEMENANG"}
           </DialogTitle>
           <p className="text-muted-foreground text-center font-medium uppercase tracking-[0.2em] text-xs mt-2">
-            {competition.sport_name}
+            {isMatchAnnounce && match?.team1 && match?.team2
+              ? `${competition.sport_name} • ${match.team1.name} VS ${match.team2.name}`
+              : competition.sport_name}
           </p>
         </DialogHeader>
 
-        <div className="p-6 md:p-8 relative z-10">
+        <div className="px-5 sm:px-8 pb-5 sm:pb-8 relative z-10">
           <div className="flex flex-col gap-6">
             {/* Juara 1 - Highlight */}
             {juara1.map((p, idx) => (
@@ -184,44 +231,53 @@ export function WinnerAnnounceDialog({
                 className="relative group"
               >
                 <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200 animate-pulse" />
-                <div className="relative bg-white dark:bg-slate-900 border-2 border-yellow-500/50 rounded-2xl p-6 shadow-xl flex items-center justify-between overflow-hidden">
-                  <div className="absolute right-0 top-0 -mr-8 -mt-8 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl" />
-                  <div className="flex items-center gap-6">
-                    <div className="relative">
-                       <div className="w-16 h-16 bg-yellow-500 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-3 group-hover:rotate-0 transition-transform duration-500">
-                        <Trophy className="w-10 h-10 text-white fill-white" />
-                      </div>
-                      <div className="absolute -top-2 -right-2 bg-black text-white text-[10px] font-black px-2 py-0.5 rounded-full border border-yellow-500">
-                         juara 1
-                      </div>
+                <div className="relative bg-white dark:bg-slate-900 border-2 border-yellow-500/50 rounded-3xl p-5 sm:p-8 shadow-2xl flex flex-col items-center justify-center overflow-hidden text-center">
+                  <div className="absolute inset-0 bg-gradient-to-b from-yellow-500/5 to-transparent pointer-events-none" />
+                  <div className="absolute right-0 top-0 -mr-8 -mt-8 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none" />
+                  <div className="absolute left-0 bottom-0 -ml-8 -mb-8 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none" />
+                  
+                  <div className="relative mb-5 z-10">
+                    <div className="w-20 h-20 bg-yellow-500 rounded-2xl flex items-center justify-center shadow-xl transform -rotate-3 group-hover:rotate-0 transition-transform duration-500">
+                      <Trophy className="w-10 h-10 text-white fill-white" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-2xl font-black tracking-tight leading-tight mb-1 truncate">
-                        {p.team?.name}
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-2 mt-2">
-                        {p.team?.members && p.team.members.length > 0 ? (
-                          p.team.members.map((m) => (
-                            <div key={m.id} className="flex items-center gap-1 bg-yellow-500/10 border border-yellow-500/20 rounded-full pl-1 pr-2 py-0.5">
-                              <Avatar className="w-5 h-5 border border-yellow-500/30">
-                                <AvatarImage src={m.profile?.avatar_url || ""} />
-                                <AvatarFallback className="text-[8px] bg-yellow-500 text-white">
-                                  {m.profile?.full_name?.charAt(0) || "?"}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-[10px] font-bold text-yellow-700 truncate max-w-[80px]">
-                                {m.profile?.full_name || "Anonim"}
-                              </span>
+                    <div className="absolute -top-3 -right-3 bg-black text-white text-[10px] font-black px-3 py-1 rounded-full border border-yellow-500 uppercase tracking-wider shadow-md">
+                       {isMatchAnnounce ? "pemenang" : "juara 1"}
+                    </div>
+                  </div>
+                  
+                  <h3 className="text-3xl md:text-4xl font-black tracking-tight leading-tight mb-6 relative z-10">
+                    {p.team?.name}
+                  </h3>
+                  
+                  <div className="flex flex-wrap justify-center gap-4 w-full relative z-10">
+                    {(p.team as CompetitionTeamWithMembers)?.members && (p.team as CompetitionTeamWithMembers).members!.length > 0 ? (
+                      (p.team as CompetitionTeamWithMembers).members!.map((m) => {
+                        const parsed = parseMemberName(m.name);
+                        const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
+                        const avatarUrl = parsed.avatarUrl || m.profile?.avatar_url || "";
+                        return (
+                          <div key={m.id} className="flex flex-col bg-white/60 dark:bg-slate-900/40 border border-yellow-500/20 rounded-2xl p-1.5 shadow-sm hover:shadow-md transition-shadow flex-1 min-w-[110px] max-w-[180px]">
+                            <div className="w-full aspect-square rounded-[10px] bg-slate-200 dark:bg-slate-800 overflow-hidden mb-2 border border-yellow-500/10">
+                              {avatarUrl ? (
+                                <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <User className="w-1/3 h-1/3 text-slate-400" />
+                                </div>
+                              )}
                             </div>
-                          ))
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                            <span className="text-xs font-bold text-yellow-600 uppercase tracking-widest">Pemenang Utama</span>
+                            <span className="text-sm font-bold text-slate-800 dark:text-slate-100 text-center px-1 pb-1 line-clamp-2 leading-tight">
+                              {name}
+                            </span>
                           </div>
-                        )}
+                        );
+                      })
+                    ) : (
+                      <div className="flex items-center justify-center gap-2">
+                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                        <span className="text-sm font-bold text-yellow-600 uppercase tracking-widest">Pemenang Utama</span>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -235,27 +291,37 @@ export function WinnerAnnounceDialog({
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4 }}
-                  className="bg-slate-100 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 rounded-xl p-5 flex items-center gap-4"
                 >
-                  <div className="w-12 h-12 bg-slate-400 rounded-xl flex items-center justify-center shadow-md shrink-0">
-                    <Medal className="w-7 h-7 text-white" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Juara 2</p>
-                    <h4 className="text-lg font-bold truncate tracking-tight leading-tight mb-1">{p.team?.name}</h4>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                      {p.team?.members && p.team.members.length > 0 ? (
-                        p.team.members.map((m) => (
-                          <div key={m.id} className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-full pl-0.5 pr-1.5 py-0.5">
-                            <Avatar className="w-4 h-4">
-                              <AvatarImage src={m.profile?.avatar_url || ""} />
-                              <AvatarFallback className="text-[6px]">{m.profile?.full_name?.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <span className="text-[9px] font-medium text-slate-600 dark:text-slate-300 truncate max-w-[60px]">
-                              {m.profile?.full_name?.split(' ')[0] || "Anonim"}
-                            </span>
-                          </div>
-                        ))
+                  <div className="h-full bg-slate-100 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 rounded-3xl p-4 sm:p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group">
+                    <div className="w-14 h-14 bg-slate-400 rounded-2xl flex items-center justify-center shadow-md mb-4 transform -rotate-3 group-hover:rotate-0 transition-transform duration-500 z-10 relative">
+                      <Medal className="w-8 h-8 text-white" />
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 relative z-10">Juara 2</p>
+                    <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10">{p.team?.name}</h4>
+                    <div className="flex flex-wrap justify-center gap-3 w-full relative z-10">
+                      {(p.team as CompetitionTeamWithMembers)?.members && (p.team as CompetitionTeamWithMembers).members!.length > 0 ? (
+                        (p.team as CompetitionTeamWithMembers).members!.map((m) => {
+                          const parsed = parseMemberName(m.name);
+                          const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
+                          const avatarUrl = parsed.avatarUrl || m.profile?.avatar_url || "";
+                          const shortName = name.split(' ')[0] || "Anonim";
+                          return (
+                            <div key={m.id} className="flex flex-col bg-white/50 dark:bg-slate-900/30 border border-slate-300 dark:border-slate-600 rounded-xl p-1.5 shadow-sm flex-1 min-w-[90px] max-w-[140px]">
+                              <div className="w-full aspect-square rounded-lg bg-slate-200 dark:bg-slate-800 overflow-hidden mb-1.5 border border-slate-300/50 dark:border-slate-600/50">
+                                {avatarUrl ? (
+                                  <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <User className="w-1/3 h-1/3 text-slate-400" />
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 text-center line-clamp-2 leading-tight px-0.5">
+                                {shortName}
+                              </span>
+                            </div>
+                          );
+                        })
                       ) : (
                         <span className="text-[10px] text-slate-400 italic">Pemenang Tim</span>
                       )}
@@ -270,27 +336,37 @@ export function WinnerAnnounceDialog({
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.5 }}
-                  className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl p-5 flex items-center gap-4"
                 >
-                  <div className="w-12 h-12 bg-amber-600 rounded-xl flex items-center justify-center shadow-md shrink-0">
-                    <Medal className="w-7 h-7 text-white" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Juara 3</p>
-                    <h4 className="text-lg font-bold truncate tracking-tight leading-tight mb-1">{p.team?.name}</h4>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                      {p.team?.members && p.team.members.length > 0 ? (
-                        p.team.members.map((m) => (
-                          <div key={m.id} className="flex items-center gap-1 bg-amber-200/50 dark:bg-amber-900/30 border border-amber-300/50 dark:border-amber-700/50 rounded-full pl-0.5 pr-1.5 py-0.5">
-                            <Avatar className="w-4 h-4">
-                              <AvatarImage src={m.profile?.avatar_url || ""} />
-                              <AvatarFallback className="text-[6px]">{m.profile?.full_name?.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <span className="text-[9px] font-medium text-amber-700 dark:text-amber-300 truncate max-w-[60px]">
-                              {m.profile?.full_name?.split(' ')[0] || "Anonim"}
-                            </span>
-                          </div>
-                        ))
+                  <div className="h-full bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-3xl p-4 sm:p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group">
+                    <div className="w-14 h-14 bg-amber-600 rounded-2xl flex items-center justify-center shadow-md mb-4 transform -rotate-3 group-hover:rotate-0 transition-transform duration-500 z-10 relative">
+                      <Medal className="w-8 h-8 text-white" />
+                    </div>
+                    <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1 relative z-10">Juara 3</p>
+                    <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10">{p.team?.name}</h4>
+                    <div className="flex flex-wrap justify-center gap-3 w-full relative z-10">
+                      {(p.team as CompetitionTeamWithMembers)?.members && (p.team as CompetitionTeamWithMembers).members!.length > 0 ? (
+                        (p.team as CompetitionTeamWithMembers).members!.map((m) => {
+                          const parsed = parseMemberName(m.name);
+                          const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
+                          const avatarUrl = parsed.avatarUrl || m.profile?.avatar_url || "";
+                          const shortName = name.split(' ')[0] || "Anonim";
+                          return (
+                            <div key={m.id} className="flex flex-col bg-white/50 dark:bg-slate-900/30 border border-amber-300/50 dark:border-amber-700/50 rounded-xl p-1.5 shadow-sm flex-1 min-w-[90px] max-w-[140px]">
+                              <div className="w-full aspect-square rounded-lg bg-slate-200 dark:bg-slate-800 overflow-hidden mb-1.5 border border-amber-300/30 dark:border-amber-700/30">
+                                {avatarUrl ? (
+                                  <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <User className="w-1/3 h-1/3 text-slate-400" />
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-xs font-bold text-amber-800 dark:text-amber-200 text-center line-clamp-2 leading-tight px-0.5">
+                                {shortName}
+                              </span>
+                            </div>
+                          );
+                        })
                       ) : (
                         <span className="text-[10px] text-amber-400 italic">Pemenang Tim</span>
                       )}
@@ -302,15 +378,12 @@ export function WinnerAnnounceDialog({
           </div>
         </div>
 
-        <div className="p-8 pt-2 flex items-center gap-3 relative z-10">
+        <div className="px-5 sm:px-8 pb-5 sm:pb-8 flex items-center gap-3 relative z-10">
           <Button 
             className="flex-1 h-12 text-base font-bold shadow-lg"
             onClick={() => onOpenChange(false)}
           >
             Tutup
-          </Button>
-          <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl">
-             <Share2 className="w-5 h-5" />
           </Button>
         </div>
       </DialogContent>

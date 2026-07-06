@@ -8,7 +8,7 @@ import { id as idLocale } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
+import { cn, parseMemberName, capitalizeName } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -41,15 +41,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-const capitalizeName = (name: string | null | undefined): string => {
-  if (!name) return "";
-  return name
-    .toLowerCase()
-    .split(" ")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-};
 
 interface MatchListProps {
   competition: EventCompetitionWithDetails;
@@ -544,8 +535,9 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                               </div>
                               {/* Members under team name in participants path */}
                               {(p.team as (typeof p.team & { members?: { id: string; name: string | null; user_id: string | null; profile?: { full_name: string | null; house?: { block: string; number: string } } }[] }) | undefined)?.members?.map((m) => {
-                                const name = capitalizeName(m.name?.trim() || m.profile?.full_name?.trim() || "Pemain");
-                                const house = m.profile?.house;
+                                const parsed = parseMemberName(m.name);
+                                const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Pemain");
+                                const house = (m.profile as { house?: { block: string; number: string } } | null | undefined)?.house;
                                 return (
                                   <div key={m.id} className="flex items-center gap-1 text-[10px] text-muted-foreground pl-6">
                                     <span className="w-1 h-1 rounded-full bg-muted-foreground/40 shrink-0 inline-block" />
@@ -611,8 +603,9 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                             </div>
                             {/* Members under team1 name */}
                             {(match.team1 as (typeof match.team1 & { members?: { id: string; name: string | null; user_id: string | null; profile?: { full_name: string | null; house?: { block: string; number: string } } }[] }) | undefined)?.members?.map((m) => {
-                              const name = capitalizeName(m.name?.trim() || m.profile?.full_name?.trim() || "Pemain");
-                              const house = m.profile?.house;
+                              const parsed = parseMemberName(m.name);
+                              const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Pemain");
+                              const house = (m.profile as { house?: { block: string; number: string } } | null | undefined)?.house;
                               return (
                                 <div key={m.id} className="flex items-center gap-1 text-[10px] text-muted-foreground pl-6">
                                   <span className="w-1 h-1 rounded-full bg-muted-foreground/40 shrink-0 inline-block" />
@@ -670,8 +663,9 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                             </div>
                             {/* Members under team2 name */}
                             {(match.team2 as (typeof match.team2 & { members?: { id: string; name: string | null; user_id: string | null; profile?: { full_name: string | null; house?: { block: string; number: string } } }[] }) | undefined)?.members?.map((m) => {
-                              const name = capitalizeName(m.name?.trim() || m.profile?.full_name?.trim() || "Pemain");
-                              const house = m.profile?.house;
+                              const parsed = parseMemberName(m.name);
+                              const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Pemain");
+                              const house = (m.profile as { house?: { block: string; number: string } } | null | undefined)?.house;
                               return (
                                 <div key={m.id} className="flex items-center gap-1 text-[10px] text-muted-foreground pl-6">
                                   <span className="w-1 h-1 rounded-full bg-muted-foreground/40 shrink-0 inline-block" />
