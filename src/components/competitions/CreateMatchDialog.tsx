@@ -442,11 +442,19 @@ export function CreateMatchDialog({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Pilih Tim 1</SelectItem>
-                          {allTeams.map((team) => (
-                            <SelectItem key={team.id} value={team.id} disabled={team.id === team2Id}>
-                              {team.name}
-                            </SelectItem>
-                          ))}
+                          {eligibleTeams.map((team) => {
+                            const met = hasMet(team.id, team2Id);
+                            return (
+                              <SelectItem
+                                key={team.id}
+                                value={team.id}
+                                disabled={team.id === team2Id || met}
+                              >
+                                {team.name}
+                                {met ? " (sudah bertemu)" : ""}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>
@@ -460,15 +468,28 @@ export function CreateMatchDialog({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Pilih Tim 2</SelectItem>
-                          {allTeams.map((team) => (
-                            <SelectItem key={team.id} value={team.id} disabled={team.id === team1Id}>
-                              {team.name}
-                            </SelectItem>
-                          ))}
+                          {eligibleTeams.map((team) => {
+                            const met = hasMet(team.id, team1Id);
+                            return (
+                              <SelectItem
+                                key={team.id}
+                                value={team.id}
+                                disabled={team.id === team1Id || met}
+                              >
+                                {team.name}
+                                {met ? " (sudah bertemu)" : ""}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
+                  {isLigaGrup && stage === "group" && eligibleTeams.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Belum ada tim di Grup {groupName || "?"}. Isi Nama Grup atau assign tim ke grup ini terlebih dahulu.
+                    </p>
+                  )}
                 </div>
               )
             )}
