@@ -1097,8 +1097,19 @@ export function useAssignReferee() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { competition_id: string; user_id: string }) => {
-      const { error } = await supabase.from("competition_referees").insert(data);
+    mutationFn: async (data: {
+      competition_id: string;
+      user_id?: string | null;
+      manual_name?: string | null;
+    }) => {
+      const payload = {
+        competition_id: data.competition_id,
+        user_id: data.user_id || null,
+        manual_name: data.manual_name?.trim() || null,
+      };
+      const { error } = await supabase
+        .from("competition_referees")
+        .insert(payload as never);
       if (error) throw error;
       return { competition_id: data.competition_id };
     },
