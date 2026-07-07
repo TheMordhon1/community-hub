@@ -378,7 +378,7 @@ export function GroupStandings({ competition, canManage = false }: Props) {
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 border-t">
                   <p className="text-[10px] text-muted-foreground">
-                    Menang match = 2 poin, Top {groupAdvanceCount} tim lolos ke babak gugur.
+                    Menang set = 1 poin, Top {groupAdvanceCount} tim lolos ke babak gugur.
                   </p>
                   {canManage && (
                     <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground shrink-0">

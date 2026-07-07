@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Trophy, Clock, MapPin, Radio, Calendar, Users, Eye, CheckCircle2, ArrowLeft, X, GitBranch, Play, Swords, RefreshCw } from "lucide-react";
+import { Loader2, Trophy, Clock, MapPin, Radio, Calendar, Users, Eye, CheckCircle2, ArrowLeft, X, GitBranch, Play, RefreshCw, MessageSquare, Copy, Send } from "lucide-react";
 import { format, parseISO, isToday, isTomorrow } from "date-fns";
 import { id } from "date-fns/locale";
 import { Link, useSearchParams } from "react-router-dom";
@@ -14,13 +14,12 @@ import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
 import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
 import { AssignRefereeDialog } from "@/components/competitions/AssignRefereeDialog";
 import { useAuth } from "@/hooks/useAuth";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { GroupStandings } from "@/components/competitions/GroupStandings";
 import { getTeamFlag, extractFlagAndName } from "@/lib/countries";
 import type { CompetitionMatchWithTeams, EventCompetitionWithDetails } from "@/types/competition";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn, parseMemberName, capitalizeName } from "@/lib/utils";
 import {
@@ -30,6 +29,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 
 interface MatchTeam {
   id: string;
@@ -122,6 +124,91 @@ export default function LiveMatches() {
   const [selectedPhase, setSelectedPhase] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [autoRefresh, setAutoRefresh] = useState(false);
+
+  const { toast } = useToast();
+  const [isBroadcastOpen, setIsBroadcastOpen] = useState(false);
+  const [selectedBroadcastMatchIds, setSelectedBroadcastMatchIds] = useState<string[]>([]);
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+
+  const getSportEmojiString = (sportName: string | undefined): string => {
+    if (!sportName) return "🏆";
+    const type = sportName.toLowerCase();
+    if (type.includes("badminton") || type.includes("bulutangkis")) return "🏸";
+    if (type.includes("bola") || type.includes("futsal") || type.includes("sepak")) return "⚽";
+    if (type.includes("voli")) return "🏐";
+    if (type.includes("tenis") || type.includes("pingpong")) return "🏓";
+    if (type.includes("catur")) return "♟️";
+    if (type.includes("mobile") || type.includes("game") || type.includes("esport")) return "🎮";
+    return "🏆";
+  };
+
+  const generateWhatsAppMessageForMatches = (matchIds: string[]) => {
+    if (matchIds.length === 0) {
+      return "📢 *JADWAL PERTANDINGAN MENDATANG* 📢\n\n(Belum ada pertandingan yang dipilih)";
+    }
+    
+    const selectedMatches = upcomingMatches.filter(m => matchIds.includes(m.id));
+    
+    let message = `📢 *JADWAL PERTANDINGAN MENDATANG* 📢\n\nBerikut adalah jadwal pertandingan mendatang yang akan segera berlangsung. Jangan lewatkan dan berikan dukunganmu! 🔥🎉\n\n`;
+    
+    selectedMatches.forEach((match, index) => {
+      const is17an = match.competition?.format === "17an";
+      const title = match.competition?.custom_match_label || match.competition?.sport_name || "Pertandingan";
+      const phase = match.phase_label || "Group Stage";
+      const group = match.group_name ? ` (Grup ${match.group_name})` : "";
+      const timeFormatted = formatMatchTime(match.match_datetime);
+      const location = match.location ? `\n📍 *Lokasi:* ${match.location}` : "";
+      const sportEmoji = getSportEmojiString(match.competition?.sport_name);
+      
+      let detailsText = "";
+      if (is17an) {
+        detailsText = `🏁 *Detail:* Pertandingan Individual (17an)`;
+      } else {
+        const team1Name = match.team1 ? extractFlagAndName(match.team1.name).name : "Tim 1";
+        const team2Name = match.team2 ? extractFlagAndName(match.team2.name).name : "Tim 2";
+        detailsText = `⚔️ *Pertandingan:* *${team1Name}* VS *${team2Name}*`;
+        
+        const team1Members = match.team1?.members?.map(m => {
+          const parsed = parseMemberName(m.name);
+          const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
+          const house = (m.profile as unknown as { house?: { block: string; number: string } })?.house;
+          return house ? `${name} (${house.block}.${house.number})` : name;
+        }).join(", ");
+        
+        const team2Members = match.team2?.members?.map(m => {
+          const parsed = parseMemberName(m.name);
+          const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
+          const house = (m.profile as unknown as { house?: { block: string; number: string } })?.house;
+          return house ? `${name} (${house.block}.${house.number})` : name;
+        }).join(", ");
+        
+        if (team1Members || team2Members) {
+          detailsText += `\n👥 *Anggota Tim:*`;
+          if (team1Members) detailsText += `\n• *${team1Name}:* ${team1Members}`;
+          if (team2Members) detailsText += `\n• *${team2Name}:* ${team2Members}`;
+        }
+      }
+      
+      message += `${sportEmoji} *${title}* (${phase}${group})\n${detailsText}\n📅 *Jadwal:* ${timeFormatted}${location}\n`;
+      
+      if (index < selectedMatches.length - 1) {
+        message += `\n------------------\n\n`;
+      }
+    });
+    
+    const liveLink = `${window.location.origin}/live-matches?tab=live`;
+    message += `\n\n🔗 *Pantau skor langsung semua pertandingan di:* ${liveLink}`;
+    
+    return message;
+  };
+
+  useEffect(() => {
+    if (isBroadcastOpen) {
+      setBroadcastMessage(generateWhatsAppMessageForMatches(selectedBroadcastMatchIds));
+    } else {
+      setBroadcastMessage("");
+    }
+  }, [selectedBroadcastMatchIds, isBroadcastOpen]);
 
   const startMatchMutation = useMutation({
     mutationFn: async (matchId: string) => {
@@ -1062,7 +1149,25 @@ export default function LiveMatches() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-muted/30 border rounded-xl p-3">
+                  <div className="text-xs text-muted-foreground">
+                    Menampilkan <span className="font-semibold text-foreground">{upcomingMatches.length}</span> pertandingan mendatang
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold uppercase tracking-wider text-[10px]"
+                    onClick={() => {
+                      setSelectedBroadcastMatchIds(upcomingMatches.map(m => m.id));
+                      setIsBroadcastOpen(true);
+                    }}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    Broadcast Semua
+                  </Button>
+                </div>
+
+                <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
                 {upcomingMatches.map((match) => {
                   const is17an = match.competition?.format === "17an";
 
@@ -1166,32 +1271,48 @@ export default function LiveMatches() {
                               <span className="font-semibold text-foreground/80">
                                 {formatMatchTime(match.match_datetime)}
                               </span>
-                            </span>
-                            {canManageMatch(match) && (
+                                    </span>
+                            <div className="flex items-center gap-1.5">
                               <Button
+                                variant="outline"
                                 size="sm"
-                                className="h-7 text-[10px] gap-1 px-2.5 font-bold uppercase tracking-wider bg-primary hover:bg-primary/90"
+                                className="h-7 text-[10px] gap-1 px-2.5 font-semibold text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:border-emerald-900/30 dark:hover:bg-emerald-950/20"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const hasReferee = (match.competition?.referees?.length || 0) > 0;
-                                  if (!hasReferee) {
-                                    setPendingStartMatchId(match.id);
-                                    return;
-                                  }
-                                  startMatchMutation.mutate(match.id);
+                                  setSelectedBroadcastMatchIds([match.id]);
+                                  setIsBroadcastOpen(true);
                                 }}
-                                disabled={startMatchMutation.isPending}
                               >
-                                <Play className="w-3 h-3" />
-                                Mulai
+                                <MessageSquare className="w-3 h-3" />
+                                Broadcast
                               </Button>
-                            )}
+                              {canManageMatch(match) && (
+                                <Button
+                                  size="sm"
+                                  className="h-7 text-[10px] gap-1 px-2.5 font-bold uppercase tracking-wider bg-primary hover:bg-primary/90"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const hasReferee = (match.competition?.referees?.length || 0) > 0;
+                                    if (!hasReferee) {
+                                      setPendingStartMatchId(match.id);
+                                      return;
+                                    }
+                                    startMatchMutation.mutate(match.id);
+                                  }}
+                                  disabled={startMatchMutation.isPending}
+                                >
+                                  <Play className="w-3 h-3" />
+                                  Mulai
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
                   );
                 })}
+                </div>
               </div>
             )}
           </TabsContent>
@@ -1591,7 +1712,7 @@ export default function LiveMatches() {
           <AssignRefereeDialog
             open={!!pendingStartMatchId}
             onOpenChange={(open) => {
-              if (!open) setPendingStartMatchId(null);
+               if (!open) setPendingStartMatchId(null);
             }}
             competition={pendingMatch.competition as unknown as EventCompetitionWithDetails}
             title="Tentukan Wasit Dulu"
@@ -1606,6 +1727,124 @@ export default function LiveMatches() {
           />
         ) : null;
       })()}
+
+      {isBroadcastOpen && (
+        <Dialog open={isBroadcastOpen} onOpenChange={setIsBroadcastOpen}>
+          <DialogContent className="max-w-3xl w-[95vw] md:w-full max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-emerald-500" />
+                Broadcast WhatsApp Pertandingan Mendatang
+              </DialogTitle>
+              <DialogDescription>
+                Pilih pertandingan mendatang untuk digabungkan menjadi satu pesan siaran WhatsApp.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+              {/* Left Column: Match Selection */}
+              <div className="border rounded-xl p-3 bg-muted/10 space-y-3">
+                <div className="flex items-center justify-between text-xs border-b pb-2">
+                  <span className="font-bold text-muted-foreground">Pilih Pertandingan</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="text-primary hover:underline font-semibold"
+                      onClick={() => setSelectedBroadcastMatchIds(upcomingMatches.map(m => m.id))}
+                    >
+                      Pilih Semua
+                    </button>
+                    <span className="text-muted-foreground">|</span>
+                    <button
+                      type="button"
+                      className="text-destructive hover:underline font-semibold"
+                      onClick={() => setSelectedBroadcastMatchIds([])}
+                    >
+                      Hapus Semua
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-[250px] overflow-y-auto space-y-2 pr-1">
+                  {upcomingMatches.map((m) => {
+                    const isChecked = selectedBroadcastMatchIds.includes(m.id);
+                    const is17an = m.competition?.format === "17an";
+                    const title = m.competition?.custom_match_label || m.competition?.sport_name || "Pertandingan";
+                    const team1Name = m.team1 ? extractFlagAndName(m.team1.name).name : "Tim 1";
+                    const team2Name = m.team2 ? extractFlagAndName(m.team2.name).name : "Tim 2";
+                    const matchLabel = is17an ? "Pertandingan 17an" : `${team1Name} vs ${team2Name}`;
+                    return (
+                      <label
+                        key={m.id}
+                        className={cn(
+                          "flex items-start gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-colors hover:bg-muted/30",
+                          isChecked ? "border-emerald-500 bg-emerald-50/10 dark:bg-emerald-950/5" : "border-border"
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedBroadcastMatchIds([...selectedBroadcastMatchIds, m.id]);
+                            } else {
+                              setSelectedBroadcastMatchIds(selectedBroadcastMatchIds.filter(id => id !== m.id));
+                            }
+                          }}
+                          className="mt-0.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-foreground truncate flex items-center gap-1">
+                            <span>{getSportEmojiString(m.competition?.sport_name)}</span>
+                            <span>{title}</span>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground truncate mt-0.5 font-medium">
+                            {matchLabel}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Right Column: Message Preview */}
+              <div className="space-y-1.5 flex flex-col h-full">
+                <label className="text-xs font-semibold text-muted-foreground font-sans">Pratinjau Pesan</label>
+                <Textarea
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  className="flex-1 min-h-[250px] font-mono text-xs leading-relaxed resize-none focus-visible:ring-emerald-500"
+                />
+              </div>
+            </div>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto gap-1.5 font-bold uppercase tracking-wider text-[11px]"
+                onClick={() => {
+                  navigator.clipboard.writeText(broadcastMessage);
+                  toast({
+                    title: "Pesan Disalin",
+                    description: "Format pesan WhatsApp telah disalin ke clipboard.",
+                  });
+                }}
+              >
+                <Copy className="w-3.5 h-3.5" />
+                Salin Pesan
+              </Button>
+              <Button
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 font-bold uppercase tracking-wider text-[11px]"
+                onClick={() => {
+                  const encoded = encodeURIComponent(broadcastMessage);
+                  window.open(`https://wa.me/?text=${encoded}`, "_blank");
+                }}
+              >
+                <Send className="w-3.5 h-3.5" />
+                Kirim ke WhatsApp
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
       </div>
     </section>
     </TooltipProvider>

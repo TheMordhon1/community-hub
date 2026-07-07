@@ -64,26 +64,25 @@ export function computeStandings(
     if (s1 > s2) {
       r1.wins += 1;
       r2.losses += 1;
-      r1.points += 2;
     } else if (s2 > s1) {
       r2.wins += 1;
       r1.losses += 1;
-      r2.points += 2;
     } else {
       r1.draws += 1;
       r2.draws += 1;
-      r1.points += 1;
-      r2.points += 1;
     }
+    r1.points += s1;
+    r2.points += s2;
     r1.diff = r1.setsFor - r1.setsAgainst;
     r2.diff = r2.setsFor - r2.setsAgainst;
   }
 
-
   return Array.from(rows.values()).sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    if (b.diff !== a.diff) return b.diff - a.diff;
 
-    // Head-to-Head tiebreaker
+    // Head-to-Head tiebreaker fallback
     const h2hMatch = matches.find(m => 
       m.stage === "group" && m.group_name === groupName && m.status === "completed" &&
       ((m.team1_id === a.team.id && m.team2_id === b.team.id) || (m.team1_id === b.team.id && m.team2_id === a.team.id))
@@ -92,20 +91,8 @@ export function computeStandings(
     if (h2hMatch) {
       if (h2hMatch.winner_id === a.team.id) return -1;
       if (h2hMatch.winner_id === b.team.id) return 1;
-      
-      const s1 = parseInt(h2hMatch.score1 ?? "0", 10) || 0;
-      const s2 = parseInt(h2hMatch.score2 ?? "0", 10) || 0;
-      if (h2hMatch.team1_id === a.team.id) {
-        if (s1 > s2) return -1;
-        if (s2 > s1) return 1;
-      } else {
-        if (s2 > s1) return -1;
-        if (s1 > s2) return 1;
-      }
     }
 
-    if (b.diff !== a.diff) return b.diff - a.diff;
-    if (b.wins !== a.wins) return b.wins - a.wins;
     return a.team.name.localeCompare(b.team.name);
   });
 }
