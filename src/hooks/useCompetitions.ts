@@ -226,21 +226,22 @@ export function useCompetitionDetails(competitionId: string | undefined, options
 
       if (refError) throw refError;
 
-      // Fetch referee profiles
-      const refUserIds = referees?.map((r) => r.user_id) || [];
+      // Fetch referee profiles (only for referees with user_id)
+      const refUserIds = (referees?.map((r) => r.user_id).filter(Boolean) as string[]) || [];
       let refereesWithProfiles: CompetitionReferee[] = [];
-      if (refUserIds.length > 0) {
-        const { data: refProfiles } = await supabase
-          .from("profiles")
-          .select("*")
-          .in("id", refUserIds);
-
-        const refProfileMap = new Map(refProfiles?.map((p) => [p.id, p]) || []);
-        refereesWithProfiles =
-          referees?.map((r) => ({
-            ...r,
-            profile: refProfileMap.get(r.user_id),
-          })) || [];
+      if (referees && referees.length > 0) {
+        let refProfileMap = new Map<string, Profile>();
+        if (refUserIds.length > 0) {
+          const { data: refProfiles } = await supabase
+            .from("profiles")
+            .select("*")
+            .in("id", refUserIds);
+          refProfileMap = new Map(refProfiles?.map((p) => [p.id, p]) || []);
+        }
+        refereesWithProfiles = referees.map((r) => ({
+          ...(r as unknown as CompetitionReferee),
+          profile: r.user_id ? refProfileMap.get(r.user_id) : undefined,
+        }));
       }
 
       // Map members & houses to teams
