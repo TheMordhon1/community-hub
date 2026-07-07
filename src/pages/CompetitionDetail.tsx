@@ -602,7 +602,7 @@ export default function CompetitionDetail() {
               <MatchList
                 competition={competition}
                 canManage={canModifyMatches}
-                headerActions={canManage ? (
+                headerActions={canModifyMatches ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-muted">
@@ -610,21 +610,21 @@ export default function CompetitionDetail() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
-                      {competition.format === "17an" && competition.teams && competition.teams.length >= 1 && (
+                      {competition.format === "17an" && competition.teams && competition.teams.length >= 1 && canManage && (
                         <DropdownMenuItem onClick={() => setIsGenerate17anOpen(true)} disabled={generate17an.isPending}>
                           <RefreshCw className={`w-4 h-4 mr-2 ${generate17an.isPending ? 'animate-spin' : ''}`} />
                           Bagi Grup/Lawan
                         </DropdownMenuItem>
                       )}
 
-                      {competition.format === "17an" && competition.matches && competition.matches.length > 0 && (
+                      {competition.format === "17an" && competition.matches && competition.matches.length > 0 && canManage && (
                         <DropdownMenuItem onClick={() => setIsAdvanceRoundDialogOpen(true)} disabled={advanceRound.isPending}>
                           <Trophy className="w-4 h-4 mr-2" />
                           Lanjutkan Babak
                         </DropdownMenuItem>
                       )}
 
-                      {competition.format === "knockout" && competition.teams && competition.teams.length >= 2 && (
+                      {competition.format === "knockout" && competition.teams && competition.teams.length >= 2 && canManage && (
                         <DropdownMenuItem onClick={handleGenerateBracket} disabled={generateBracket.isPending}>
                           <RefreshCw className={`w-4 h-4 mr-2 ${generateBracket.isPending ? 'animate-spin' : ''}`} />
                           Generate Bracket
@@ -651,7 +651,7 @@ export default function CompetitionDetail() {
                         </DropdownMenuItem>
                       )}
 
-                      {competition.matches && competition.matches.length > 0 && (
+                      {competition.matches && competition.matches.length > 0 && canManage && (
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem

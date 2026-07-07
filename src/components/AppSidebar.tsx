@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { User, LogOut, Database, Trophy } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,8 +34,19 @@ import { useAnnouncementCount } from "@/hooks/useAnnouncementCount";
 import { getInitials } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Crown } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export function AppSidebar() {
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const location = useLocation();
   const { profile, role, pengurusTitle, signOut, isAdmin, canManageContent } =
     useAuth();
@@ -262,12 +274,32 @@ export function AppSidebar() {
             variant="ghost"
             size="icon"
             className="text-sidebar-foreground hover:bg-sidebar-accent"
-            onClick={signOut}
+            onClick={() => setIsLogoutConfirmOpen(true)}
           >
             <LogOut className="w-4 h-4" />
           </Button>
         </div>
       </SidebarFooter>
+
+      <AlertDialog open={isLogoutConfirmOpen} onOpenChange={setIsLogoutConfirmOpen}>
+        <AlertDialogContent className="rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-bold text-destructive">Konfirmasi Keluar</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
+              Apakah Anda yakin ingin keluar dari akun Anda? Anda harus masuk kembali untuk mengakses fitur-fitur khusus.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={signOut}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+            >
+              Keluar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sidebar>
   );
 }

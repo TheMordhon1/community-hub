@@ -629,7 +629,7 @@ export default function LiveMatches() {
             <span className="font-semibold text-muted-foreground truncate max-w-[150px]">
               {match.competition?.custom_match_label || match.competition?.sport_name}
             </span>
-            {(isAdmin() || isMenteriSistemDigital) && match.competition_id && (
+            {canManageMatch(match) && match.competition_id && (
               <Link
                 to={`/competitions/${match.competition_id}`}
                 onClick={(e) => e.stopPropagation()}
@@ -1563,7 +1563,7 @@ export default function LiveMatches() {
                         <Trophy className="w-5 h-5 text-primary" />
                         Klasemen {data.comp.custom_match_label || data.comp.sport_name}
                       </h3>
-                      {(isAdmin() || isMenteriSistemDigital) && (
+                      {(isAdmin() || isMenteriSistemDigital || data.comp.referees?.some(ref => ref.user_id === user?.id)) && (
                         <Button variant="outline" size="sm" asChild className="h-8 gap-1.5 text-xs font-semibold hover:text-primary transition-colors">
                           <Link to={`/competitions/${data.comp.id}`}>
                             <ExternalLink className="w-3.5 h-3.5" />

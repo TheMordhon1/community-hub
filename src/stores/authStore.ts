@@ -142,7 +142,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  isAdmin: () => get().role === 'admin',
+  isAdmin: () => {
+    const role = get().role;
+    const title = get().pengurusTitle;
+    return role === 'admin' || title === 'menteri_sisdigi';
+  },
   isPengurus: () => get().role === 'pengurus',
   isWarga: () => get().role === 'warga',
   canManageContent: () => {
