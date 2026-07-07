@@ -36,6 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 interface MatchTeam {
   id: string;
   name: string;
+  logo_url?: string | null;
   members?: { id: string, name: string | null, user_id?: string | null, profile?: { full_name?: string | null, avatar_url?: string | null, house?: { block: string; number: string } } }[];
 }
 
@@ -312,11 +313,13 @@ export default function LiveMatches() {
           team1:competition_teams!team1_id (
             id,
             name,
+            logo_url,
             members:competition_team_members(id, name, user_id, house_block, house_number)
           ),
           team2:competition_teams!team2_id (
             id,
             name,
+            logo_url,
             members:competition_team_members(id, name, user_id, house_block, house_number)
           ),
           participants:competition_match_participants (
@@ -328,6 +331,7 @@ export default function LiveMatches() {
             team:competition_teams (
               id,
               name,
+              logo_url,
               members:competition_team_members(id, name, user_id, house_block, house_number)
             )
           )
@@ -430,7 +434,7 @@ export default function LiveMatches() {
       const { data, error } = await supabase
         .from("competition_teams")
         .select(`
-          id, name, group_name, competition_id,
+          id, name, group_name, competition_id, logo_url,
           members:competition_team_members(id, name, user_id, house_block, house_number)
         `)
         .in("competition_id", compIds)
@@ -439,7 +443,7 @@ export default function LiveMatches() {
       if (error) throw error;
 
       type RawTeamMember = { id: string; name: string | null; user_id: string | null; house_block: string | null; house_number: string | null };
-      type RawTeam = { id: string; name: string; group_name: string | null; competition_id: string; members: RawTeamMember[] | null };
+      type RawTeam = { id: string; name: string; group_name: string | null; competition_id: string; logo_url?: string | null; members: RawTeamMember[] | null };
       const teams = (data as unknown as RawTeam[]) || [];
 
       const userIds = new Set<string>();

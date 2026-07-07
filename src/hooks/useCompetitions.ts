@@ -469,6 +469,12 @@ export function useCreateTeam() {
       queryClient.invalidateQueries({
         queryKey: ["competition-details", team.competition_id],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["live-teams"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["live-matches"],
+      });
       toast({ title: "Berhasil", description: "Tim berhasil ditambahkan" });
     },
     onError: () => {
@@ -522,6 +528,12 @@ export function useDeleteTeam() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({
         queryKey: ["competition-details", result.competition_id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["live-teams"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["live-matches"],
       });
       toast({ title: "Berhasil", description: "Tim berhasil dihapus" });
     },
