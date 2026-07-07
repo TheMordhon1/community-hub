@@ -105,7 +105,8 @@ export interface CompetitionMatch {
 export interface CompetitionReferee {
   id: string;
   competition_id: string;
-  user_id: string;
+  user_id: string | null;
+  manual_name: string | null;
   created_at: string;
   profile?: Profile;
 }
