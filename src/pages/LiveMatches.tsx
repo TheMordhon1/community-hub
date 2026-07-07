@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Trophy, Clock, MapPin, Radio, Calendar, Users, Eye, CheckCircle2, ArrowLeft, X, GitBranch, Play, RefreshCw, MessageSquare, Copy, Send } from "lucide-react";
+import { Loader2, Trophy, Clock, MapPin, Radio, Calendar, Users, Eye, CheckCircle2, ArrowLeft, X, GitBranch, Play, RefreshCw, MessageSquare, Copy, Send, ExternalLink } from "lucide-react";
 import { format, parseISO, isToday, isTomorrow } from "date-fns";
 import { id } from "date-fns/locale";
 import { Link, useSearchParams } from "react-router-dom";
@@ -624,11 +624,21 @@ export default function LiveMatches() {
         }}
       >
         <div className="bg-muted/40 px-3 py-1.5 border-b border-border/60 flex items-center justify-between text-[11px]">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-sm">{getSportEmoji(match.competition?.sport_name)}</span>
             <span className="font-semibold text-muted-foreground truncate max-w-[150px]">
               {match.competition?.custom_match_label || match.competition?.sport_name}
             </span>
+            {(isAdmin() || isMenteriSistemDigital) && match.competition_id && (
+              <Link
+                to={`/competitions/${match.competition_id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="ml-1 p-0.5 rounded text-primary hover:bg-muted-foreground/10 transition-colors flex items-center justify-center shrink-0"
+                title="Kelola Kompetisi"
+              >
+                <ExternalLink className="w-3 h-3" />
+              </Link>
+            )}
           </div>
           {match.status === "ongoing" ? (
             <Badge variant="destructive" className="bg-red-500 animate-pulse text-[9px] font-extrabold uppercase px-1.5 py-0">
@@ -1548,10 +1558,20 @@ export default function LiveMatches() {
                 };
                 return (
                   <div key={data.comp.id} className="space-y-3">
-                    <h3 className="font-bold text-lg flex items-center gap-2">
-                      <Trophy className="w-5 h-5 text-primary" />
-                      Klasemen {data.comp.custom_match_label || data.comp.sport_name}
-                    </h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-lg flex items-center gap-2">
+                        <Trophy className="w-5 h-5 text-primary" />
+                        Klasemen {data.comp.custom_match_label || data.comp.sport_name}
+                      </h3>
+                      {(isAdmin() || isMenteriSistemDigital) && (
+                        <Button variant="outline" size="sm" asChild className="h-8 gap-1.5 text-xs font-semibold hover:text-primary transition-colors">
+                          <Link to={`/competitions/${data.comp.id}`}>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            Kelola Kompetisi
+                          </Link>
+                        </Button>
+                      )}
+                    </div>
                     <GroupStandings competition={mockCompetition as unknown as EventCompetitionWithDetails} />
                   </div>
                 );

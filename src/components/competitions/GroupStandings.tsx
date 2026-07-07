@@ -228,6 +228,13 @@ export function GroupStandings({ competition, canManage = false }: Props) {
     );
   }
 
+  const gridColsClass = 
+    groups.length === 1 
+      ? "grid-cols-1" 
+      : groups.length === 2 
+        ? "grid-cols-1 md:grid-cols-2" 
+        : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
+
   return (
     <>
       <div className="flex justify-end mb-4">
@@ -241,7 +248,7 @@ export function GroupStandings({ competition, canManage = false }: Props) {
           Tampilkan Bendera Tim
         </label>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 w-full min-w-0">
+      <div className={`grid gap-4 w-full min-w-0 ${gridColsClass}`}>
         {groups.map((g) => {
           const rows = computeStandings(teams, matches, g);
           const groupTeamsCount = teams.filter((t) => t.group_name === g).length;
