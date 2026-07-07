@@ -21,6 +21,7 @@ import { MATCH_STATUS_LABELS } from "@/types/competition";
 import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
 import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
 import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
+import { AssignRefereeDialog } from "@/components/competitions/AssignRefereeDialog";
 import { Play } from "lucide-react";
 import { useResetMatch, useDeleteMatch, useUpdateMatch, useAssignMatchTeams } from "@/hooks/useCompetitions";
 import {
@@ -55,6 +56,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
   const [spinningMatch, setSpinningMatch] = useState<CompetitionMatchWithTeams | null>(null);
   const [matchToReset, setMatchToReset] = useState<string | null>(null);
   const [matchToDelete, setMatchToDelete] = useState<string | null>(null);
+  const [pendingStartMatchId, setPendingStartMatchId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedRound, setSelectedRound] = useState<string>("all");
@@ -682,6 +684,11 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                           size="sm"
                           className="h-7 text-[10px] sm:text-xs px-2.5 sm:px-3 bg-primary hover:bg-primary/90 shadow-sm font-bold"
                           onClick={() => {
+                            const hasReferee = (competition.referees?.length || 0) > 0;
+                            if (!hasReferee) {
+                              setPendingStartMatchId(match.id);
+                              return;
+                            }
                             updateMutation.mutate({
                               id: match.id,
                               competition_id: competition.id,
@@ -1014,6 +1021,27 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AssignRefereeDialog
+        open={!!pendingStartMatchId}
+        onOpenChange={(open) => {
+          if (!open) setPendingStartMatchId(null);
+        }}
+        competition={competition}
+        title="Tentukan Wasit Dulu"
+        description="Belum ada wasit di kompetisi ini. Tambahkan wasit terlebih dahulu sebelum memulai pertandingan."
+        onAssigned={() => {
+          const id = pendingStartMatchId;
+          setPendingStartMatchId(null);
+          if (id) {
+            updateMutation.mutate({
+              id,
+              competition_id: competition.id,
+              status: "ongoing",
+            });
+          }
+        }}
+      />
     </div>
   );
 }

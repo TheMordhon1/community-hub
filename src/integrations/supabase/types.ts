@@ -341,19 +341,22 @@ export type Database = {
           competition_id: string
           created_at: string
           id: string
-          user_id: string
+          manual_name: string | null
+          user_id: string | null
         }
         Insert: {
           competition_id: string
           created_at?: string
           id?: string
-          user_id: string
+          manual_name?: string | null
+          user_id?: string | null
         }
         Update: {
           competition_id?: string
           created_at?: string
           id?: string
-          user_id?: string
+          manual_name?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
