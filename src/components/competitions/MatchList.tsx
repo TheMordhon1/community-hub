@@ -56,6 +56,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
   const [spinningMatch, setSpinningMatch] = useState<CompetitionMatchWithTeams | null>(null);
   const [matchToReset, setMatchToReset] = useState<string | null>(null);
   const [matchToDelete, setMatchToDelete] = useState<string | null>(null);
+  const [pendingStartMatchId, setPendingStartMatchId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedRound, setSelectedRound] = useState<string>("all");
