@@ -1731,35 +1731,33 @@ export default function LiveMatches() {
       {isBroadcastOpen && (
         <Dialog open={isBroadcastOpen} onOpenChange={setIsBroadcastOpen}>
           <DialogContent className="max-w-3xl w-[95vw] md:w-full max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-emerald-500" />
-                Broadcast WhatsApp Pertandingan Mendatang
+            <DialogHeader className="pr-6">
+              <DialogTitle className="block text-center gap-2 text-base font-bold">
+                
+                Broadcast WhatsApp
               </DialogTitle>
-              <DialogDescription>
-                Pilih pertandingan mendatang untuk digabungkan menjadi satu pesan siaran WhatsApp.
-              </DialogDescription>
+              
             </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 border-y border-border/60 my-2">
               {/* Left Column: Match Selection */}
-              <div className="border rounded-xl p-3 bg-muted/10 space-y-3">
-                <div className="flex items-center justify-between text-xs border-b pb-2">
-                  <span className="font-bold text-muted-foreground">Pilih Pertandingan</span>
-                  <div className="flex gap-2">
+              <div className="border border-border/80 rounded-xl p-3.5 bg-muted/5 space-y-3.5">
+                <div className="flex items-center justify-between text-xs border-b border-border/60 pb-2.5">
+                  <span className="font-bold text-foreground">Jadwal Tersedia</span>
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className="text-primary hover:underline font-semibold"
+                      className="text-emerald-600 hover:text-emerald-500 font-semibold transition-colors"
                       onClick={() => setSelectedBroadcastMatchIds(upcomingMatches.map(m => m.id))}
                     >
                       Pilih Semua
                     </button>
-                    <span className="text-muted-foreground">|</span>
+                    <span className="text-muted-foreground/30">|</span>
                     <button
                       type="button"
-                      className="text-destructive hover:underline font-semibold"
+                      className="text-muted-foreground hover:text-foreground font-semibold transition-colors"
                       onClick={() => setSelectedBroadcastMatchIds([])}
                     >
-                      Hapus Semua
+                      Kosongkan
                     </button>
                   </div>
                 </div>
@@ -1771,12 +1769,33 @@ export default function LiveMatches() {
                     const team1Name = m.team1 ? extractFlagAndName(m.team1.name).name : "Tim 1";
                     const team2Name = m.team2 ? extractFlagAndName(m.team2.name).name : "Tim 2";
                     const matchLabel = is17an ? "Pertandingan 17an" : `${team1Name} vs ${team2Name}`;
+
+                    const team1Members = m.team1?.members?.map(mem => {
+                      const parsed = parseMemberName(mem.name);
+                      const name = capitalizeName(mem.profile?.full_name?.trim() || parsed.name || "Pemain");
+                      const house = (mem.profile as unknown as { house?: { block: string; number: string } })?.house;
+                      return house ? `${name} (${house.block}.${house.number})` : name;
+                    }).join(" & ") || "";
+
+                    const team2Members = m.team2?.members?.map(mem => {
+                      const parsed = parseMemberName(mem.name);
+                      const name = capitalizeName(mem.profile?.full_name?.trim() || parsed.name || "Pemain");
+                      const house = (mem.profile as unknown as { house?: { block: string; number: string } })?.house;
+                      return house ? `${name} (${house.block}.${house.number})` : name;
+                    }).join(" & ") || "";
+
+                    const membersLabel = !is17an && (team1Members || team2Members)
+                      ? `${team1Members || "?"} vs ${team2Members || "?"}`
+                      : "";
+
                     return (
                       <label
                         key={m.id}
                         className={cn(
-                          "flex items-start gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-colors hover:bg-muted/30",
-                          isChecked ? "border-emerald-500 bg-emerald-50/10 dark:bg-emerald-950/5" : "border-border"
+                          "flex items-start gap-3 p-3 rounded-xl border text-xs cursor-pointer transition-all duration-200 select-none",
+                          isChecked 
+                            ? "border-emerald-500/40 bg-emerald-50/5 dark:bg-emerald-950/10 shadow-sm" 
+                            : "border-border bg-card hover:bg-muted/40 hover:border-border"
                         )}
                       >
                         <input
@@ -1799,6 +1818,11 @@ export default function LiveMatches() {
                           <div className="text-[10px] text-muted-foreground truncate mt-0.5 font-medium">
                             {matchLabel}
                           </div>
+                          {membersLabel && (
+                            <div className="text-[9px] text-muted-foreground/80 truncate mt-1 italic font-normal">
+                              {membersLabel}
+                            </div>
+                          )}
                         </div>
                       </label>
                     );
@@ -1812,11 +1836,11 @@ export default function LiveMatches() {
                 <Textarea
                   value={broadcastMessage}
                   onChange={(e) => setBroadcastMessage(e.target.value)}
-                  className="flex-1 min-h-[250px] font-mono text-xs leading-relaxed resize-none focus-visible:ring-emerald-500"
+                  className="flex-1 min-h-[250px] font-mono text-xs leading-relaxed resize-none focus-visible:ring-emerald-500 border rounded-xl p-3 bg-muted/5"
                 />
               </div>
             </div>
-            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-2">
               <Button
                 variant="outline"
                 className="w-full sm:w-auto gap-1.5 font-bold uppercase tracking-wider text-[11px]"
