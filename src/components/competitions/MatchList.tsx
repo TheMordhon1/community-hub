@@ -684,6 +684,11 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                           size="sm"
                           className="h-7 text-[10px] sm:text-xs px-2.5 sm:px-3 bg-primary hover:bg-primary/90 shadow-sm font-bold"
                           onClick={() => {
+                            const hasReferee = (competition.referees?.length || 0) > 0;
+                            if (!hasReferee) {
+                              setPendingStartMatchId(match.id);
+                              return;
+                            }
                             updateMutation.mutate({
                               id: match.id,
                               competition_id: competition.id,
