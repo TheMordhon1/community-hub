@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Swords, Trophy, Calendar, MapPin, Edit, RefreshCw, Trash2, MoreVertical, Medal, Eye, CheckCircle2, Sparkles, X, List, GitBranch } from "lucide-react";
+import { Swords, Trophy, Calendar, MapPin, Edit, RefreshCw, Trash2, MoreVertical, Medal, Eye, CheckCircle2, Sparkles, X, List, GitBranch, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,8 @@ import { AssignRefereeDialog } from "@/components/competitions/AssignRefereeDial
 import { Play } from "lucide-react";
 import { useResetMatch, useDeleteMatch, useUpdateMatch, useAssignMatchTeams } from "@/hooks/useCompetitions";
 import { getTeamFlag, extractFlagAndName } from "@/lib/countries";
+import { TeamFlag } from "./TeamFlag";
+import { TournamentBracket } from "./TournamentBracket";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,7 +66,6 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
   const [viewMode, setViewMode] = useState<"list" | "chart">("list");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedChartRound, setSelectedChartRound] = useState<string>("all");
-
   const resetMatch = useResetMatch();
   const deleteMatch = useDeleteMatch();
   const updateMutation = useUpdateMatch();
@@ -72,6 +73,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
   const matches = competition.matches || [];
   const allTeams = competition.teams || [];
   const is17an = competition.format === "17an";
+
 
   const handleResetMatch = () => {
     if (matchToReset) {
@@ -252,6 +254,8 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
     return Number(ra) - Number(rb);
   });
 
+
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -401,7 +405,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
       {(() => {
         const renderMatchCard = (match: CompetitionMatchWithTeams, index: number) => {
           return (
-            <Card key={match.id} className="overflow-hidden bg-card/60 backdrop-blur border shadow-sm hover:border-primary/40 transition-colors">
+            <Card id={`match-card-${match.id}`} key={match.id} className="overflow-hidden bg-card/60 backdrop-blur border shadow-sm hover:border-primary/40 transition-colors">
               <CardContent className="p-0">
                 {/* Match Header */}
                 <div className="flex items-center justify-between px-4 py-2 bg-muted/50 border-b">
@@ -536,11 +540,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                   )}
                                 </>
                               )}
-                              {match.team1 && getTeamFlag(match.team1) && (
-                                <span className="text-base select-none shrink-0" title="Bendera Tim">
-                                  {getTeamFlag(match.team1)}
-                                </span>
-                              )}
+                              <TeamFlag team={match.team1} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
                               <span className={`text-sm ${!match.team1 ? 'text-muted-foreground italic' : ''}`}>
                                 {match.team1 ? extractFlagAndName(match.team1.name).name : "TBD"}
                               </span>
@@ -601,11 +601,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                   )}
                                 </>
                               )}
-                              {match.team2 && getTeamFlag(match.team2) && (
-                                <span className="text-base select-none shrink-0" title="Bendera Tim">
-                                  {getTeamFlag(match.team2)}
-                                </span>
-                              )}
+                              <TeamFlag team={match.team2} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
                               <span className={`text-sm ${!match.team2 ? 'text-muted-foreground italic' : ''}`}>
                                 {match.team2 ? extractFlagAndName(match.team2.name).name : "TBD"}
                               </span>
@@ -791,78 +787,22 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
         }
 
         if (viewMode === "chart") {
-          const firstRoundKey = sortedRoundEntries.length > 0 ? sortedRoundEntries[0][0] : null;
-          const activeRound = selectedChartRound && selectedChartRound !== "all" && sortedRoundEntries.some(([r]) => r === selectedChartRound) ? selectedChartRound : firstRoundKey;
-
           return (
-            <div className="space-y-4">
-              {/* Mobile Bagan Round Selector */}
-              <div className="sm:hidden flex flex-col gap-1.5 bg-muted/20 p-3 rounded-xl border">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Pilih Babak Bagan</label>
-                <Select
-                  value={activeRound || ""}
-                  onValueChange={setSelectedChartRound}
-                >
-                  <SelectTrigger className="w-full bg-background font-bold text-xs h-9">
-                    <SelectValue placeholder="Pilih Babak" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortedRoundEntries.map(([round, roundMatches]) => (
-                      <SelectItem key={round} value={round} className="text-xs font-semibold">
-                        {getRoundName(Number(round), totalRounds, roundMatches)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Columns container */}
-              <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-thin select-none">
-                {sortedRoundEntries.map(([round, roundMatches]) => {
-                  const isVisibleOnMobile = activeRound === round;
-                  return (
-                    <div 
-                      key={round} 
-                      className={`flex-col gap-4 min-w-[300px] max-w-[340px] shrink-0 sm:flex ${
-                        isVisibleOnMobile ? "flex w-full max-w-none" : "hidden"
-                      }`}
-                    >
-                      <div className="bg-muted/80 backdrop-blur p-3 rounded-xl border text-center font-bold text-sm tracking-wide shadow-sm flex items-center justify-between px-4">
-                        <span>{getRoundName(Number(round), totalRounds, roundMatches)}</span>
-                        <div className="flex items-center gap-1.5">
-                          <Badge variant="outline" className="font-normal text-xs">{roundMatches.length}</Badge>
-                          {canManage && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6 text-muted-foreground hover:text-primary"
-                              onClick={() => {
-                                const firstMatch = roundMatches[0];
-                                const newLabel = window.prompt("Ubah Nama Babak/Fase:", firstMatch.phase_label || "");
-                                if (newLabel !== null) {
-                                  roundMatches.forEach(m => {
-                                    updateMutation.mutate({
-                                      id: m.id,
-                                      competition_id: competition.id,
-                                      phase_label: newLabel || null
-                                    });
-                                  });
-                                }
-                              }}
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-4 h-full py-2">
-                        {roundMatches.map((match, index) => renderMatchCard(match, index))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <TournamentBracket
+              competitionId={competition.id}
+              matches={matches}
+              canManage={canManage}
+              renderMatchCard={(match) => renderMatchCard(match, matches.indexOf(match))}
+              onUpdatePhaseLabel={(roundMatches, newLabel) => {
+                roundMatches.forEach(m => {
+                  updateMutation.mutate({
+                    id: m.id,
+                    competition_id: competition.id,
+                    phase_label: newLabel || null
+                  });
+                });
+              }}
+            />
           );
         }
 

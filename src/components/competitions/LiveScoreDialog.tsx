@@ -200,11 +200,12 @@ export default function LiveScoreDialog({
 
   useEffect(() => {
     if (open) {
-      setAutoRefresh(true);
+      const isLive = match?.status === "ongoing";
+      setAutoRefresh(isLive);
     } else {
       setAutoRefresh(false);
     }
-  }, [open]);
+  }, [open, match?.status]);
   const [score1, setScore1] = useState(0);
   const [score2, setScore2] = useState(0);
   const [winnerRank1, setWinnerRank1] = useState<number | null>(null);

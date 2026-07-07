@@ -12,6 +12,7 @@ import {
 import { Users } from "lucide-react";
 import { parseMemberName, capitalizeName } from "@/lib/utils";
 import { extractFlagAndName, getTeamFlag } from "@/lib/countries";
+import { TeamFlag } from "./TeamFlag";
 import { EditTeamDialog } from "./EditTeamDialog";
 import { useUpdateCompetition } from "@/hooks/useCompetitions";
 
@@ -337,9 +338,7 @@ export function GroupStandings({ competition, canManage = false }: Props) {
                                   {idx + 1}
                                 </span>
                                 {showFlags && (
-                                  <span className="text-xl leading-none select-none shrink-0 animate-fade-in" title="Bendera Tim">
-                                    {teamFlagEmoji}
-                                  </span>
+                                  <TeamFlag team={r.team} />
                                 )}
                                 <div className="flex flex-col min-w-0">
                                   <div className="flex items-center gap-1.5">

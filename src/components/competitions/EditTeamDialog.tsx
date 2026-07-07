@@ -42,7 +42,7 @@ import {
   type Gender,
 } from "@/lib/age-groups";
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
-import { COUNTRIES } from "@/lib/countries";
+import { COUNTRIES, getFlagImgUrl } from "@/lib/countries";
 import type { Profile, House } from "@/types/database";
 
 import { MemberAvatarSelector } from "./MemberAvatarSelector";
@@ -704,7 +704,11 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
             >
               {teamFlag ? (
                 <span className="flex items-center gap-2">
-                  <span className="text-base">{teamFlag}</span>
+                  {getFlagImgUrl(teamFlag) ? (
+                    <img src={getFlagImgUrl(teamFlag)!} alt="" className="w-5 h-3.5 object-cover rounded shadow-sm border shrink-0" />
+                  ) : (
+                    <span className="text-base">{teamFlag}</span>
+                  )}
                   <span>{COUNTRIES.find(c => c.flag === teamFlag)?.name}</span>
                 </span>
               ) : (
@@ -756,7 +760,11 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
                           teamFlag === c.flag && "bg-accent/50 font-semibold text-primary"
                         )}
                       >
-                        <span className="text-base select-none shrink-0">{c.flag}</span>
+                        {getFlagImgUrl(c.flag) ? (
+                          <img src={getFlagImgUrl(c.flag)!} alt="" className="w-5 h-3.5 object-cover rounded shadow-sm border shrink-0 select-none" />
+                        ) : (
+                          <span className="text-base select-none shrink-0">{c.flag}</span>
+                        )}
                         <span className="truncate">{c.name}</span>
                       </button>
                     ))}

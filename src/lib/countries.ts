@@ -220,3 +220,28 @@ export const getTeamFlag = (team?: { name: string; logo_url?: string | null } | 
   if (flag) return flag;
   return null;
 };
+
+export function getFlagImgUrl(emoji: string | null | undefined): string | null {
+  if (!emoji) return null;
+  if (emoji === "🏴󠁧󠁢󠁳󠁣󠁴󠁿") {
+    return "https://flagcdn.com/w40/gb-sct.png";
+  }
+  const chars = [...emoji];
+  if (chars.length < 2) return null;
+  
+  const codePoints = chars.map(c => c.codePointAt(0));
+  const countryCode = codePoints
+    .map(cp => {
+      if (cp && cp >= 0x1F1E6 && cp <= 0x1F1FF) {
+        return String.fromCharCode(cp - 0x1F1E6 + 65);
+      }
+      return "";
+    })
+    .join("")
+    .toLowerCase();
+    
+  if (countryCode.length === 2) {
+    return `https://flagcdn.com/w40/${countryCode}.png`;
+  }
+  return null;
+}

@@ -17,6 +17,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { GroupStandings } from "@/components/competitions/GroupStandings";
 import { getTeamFlag, extractFlagAndName } from "@/lib/countries";
+import { TeamFlag } from "@/components/competitions/TeamFlag";
+import { TournamentBracket } from "@/components/competitions/TournamentBracket";
 import type { CompetitionMatchWithTeams, EventCompetitionWithDetails } from "@/types/competition";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -604,51 +606,61 @@ export default function LiveMatches() {
   const renderTeamName = (team: MatchTeam | null, defaultName: string, matchId?: string) => {
     if (!team) return <span className="truncate max-w-full inline-block align-bottom">{defaultName}</span>;
     
+    const { name: cleanName } = extractFlagAndName(team.name);
+    
     if (team.members && team.members.length > 0) {
       const popoverId = matchId ? `${matchId}_${team.id}` : team.id;
       const isPopoverOpen = openMemberPopover === popoverId;
       return (
-        <Popover open={isPopoverOpen} onOpenChange={(open) => setOpenMemberPopover(open ? popoverId : null)}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="cursor-pointer inline-flex items-center gap-1 hover:text-primary transition-colors max-w-full font-bold text-xs truncate focus:outline-none"
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
+        <span className="inline-flex items-center gap-1.5 max-w-full truncate align-bottom">
+          <TeamFlag team={team} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
+          <Popover open={isPopoverOpen} onOpenChange={(open) => setOpenMemberPopover(open ? popoverId : null)}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="cursor-pointer inline-flex items-center gap-1 hover:text-primary transition-colors max-w-full font-bold text-xs truncate focus:outline-none"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <span className="truncate">{cleanName}</span>
+                <Users className="w-3.5 h-3.5 shrink-0 opacity-60" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent 
+              className="w-56 p-3 bg-popover text-popover-foreground border border-border shadow-xl rounded-xl z-50"
+              side="top"
+              align="center"
+              onClick={(e) => e.stopPropagation()}
             >
-              <span className="truncate">{team.name}</span>
-              <Users className="w-3.5 h-3.5 shrink-0 opacity-60" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent 
-            className="w-56 p-3 bg-popover text-popover-foreground border border-border shadow-xl rounded-xl z-50"
-            side="top"
-            align="center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-xs font-bold text-foreground mb-1.5">Anggota Tim:</div>
-            <ul className="text-xs space-y-1.5">
-              {team.members.map(m => {
-                const parsed = parseMemberName(m.name);
-                const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
-                const house = (m.profile as unknown as { house?: { block: string; number: string } })?.house;
-                return (
-                  <li key={m.id} className="flex items-center gap-2 text-muted-foreground truncate">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                    <span className="truncate">
-                      {name}{house ? ` (${house.block}.${house.number})` : ""}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </PopoverContent>
-        </Popover>
+              <div className="text-xs font-bold text-foreground mb-1.5">Anggota Tim:</div>
+              <ul className="text-xs space-y-1.5">
+                {team.members.map(m => {
+                  const parsed = parseMemberName(m.name);
+                  const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
+                  const house = (m.profile as unknown as { house?: { block: string; number: string } })?.house;
+                  return (
+                    <li key={m.id} className="flex items-center gap-2 text-muted-foreground truncate">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                      <span className="truncate">
+                        {name}{house ? ` (${house.block}.${house.number})` : ""}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </PopoverContent>
+          </Popover>
+        </span>
       );
     }
     
-    return <span className="truncate max-w-full inline-block align-bottom">{team.name}</span>;
+    return (
+      <span className="inline-flex items-center gap-1.5 max-w-full truncate align-bottom">
+        <TeamFlag team={team} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
+        <span className="truncate">{cleanName}</span>
+      </span>
+    );
   };
 
   const getSportEmoji = (sportName: string | undefined) => {
@@ -1286,11 +1298,7 @@ export default function LiveMatches() {
                             {/* Team 1 */}
                             <div className="flex-1 min-w-0 bg-muted/20 rounded-xl border border-dashed px-3 py-2.5 flex flex-col items-center gap-1.5">
                               <span className="font-bold text-sm text-center truncate w-full flex items-center justify-center gap-1.5">
-                                {match.team1 && getTeamFlag(match.team1) && (
-                                  <span className="text-base select-none shrink-0" title="Bendera Tim">
-                                    {getTeamFlag(match.team1)}
-                                  </span>
-                                )}
+                                <TeamFlag team={match.team1} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
                                 <span>{match.team1 ? extractFlagAndName(match.team1.name).name : "Tim 1"}</span>
                               </span>
                               {match.team1?.members && match.team1.members.length > 0 && (
@@ -1313,11 +1321,7 @@ export default function LiveMatches() {
                             {/* Team 2 */}
                             <div className="flex-1 min-w-0 bg-muted/20 rounded-xl border border-dashed px-3 py-2.5 flex flex-col items-center gap-1.5">
                               <span className="font-bold text-sm text-center truncate w-full flex items-center justify-center gap-1.5">
-                                {match.team2 && getTeamFlag(match.team2) && (
-                                  <span className="text-base select-none shrink-0" title="Bendera Tim">
-                                    {getTeamFlag(match.team2)}
-                                  </span>
-                                )}
+                                <TeamFlag team={match.team2} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
                                 <span>{match.team2 ? extractFlagAndName(match.team2.name).name : "Tim 2"}</span>
                               </span>
                               {match.team2?.members && match.team2.members.length > 0 && (
@@ -1460,11 +1464,7 @@ export default function LiveMatches() {
                             {/* Team 1 */}
                             <div className="flex-1 text-center min-w-0">
                               <div className="font-bold text-sm sm:text-base flex items-center justify-center gap-1.5">
-                                {match.team1 && getTeamFlag(match.team1) && (
-                                  <span className="text-base select-none shrink-0" title="Bendera Tim">
-                                    {getTeamFlag(match.team1)}
-                                  </span>
-                                )}
+                                <TeamFlag team={match.team1} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
                                 <span>{match.team1 ? extractFlagAndName(match.team1.name).name : "TBD"}</span>
                               </div>
                               {match.team1?.members && match.team1.members.length > 0 && (
@@ -1517,11 +1517,7 @@ export default function LiveMatches() {
                             {/* Team 2 */}
                             <div className="flex-1 text-center min-w-0">
                               <div className="font-bold text-sm sm:text-base truncate flex items-center justify-center gap-1.5">
-                                {match.team2 && getTeamFlag(match.team2) && (
-                                  <span className="text-base select-none shrink-0" title="Bendera Tim">
-                                    {getTeamFlag(match.team2)}
-                                  </span>
-                                )}
+                                <TeamFlag team={match.team2} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
                                 <span>{match.team2 ? extractFlagAndName(match.team2.name).name : "TBD"}</span>
                               </div>
                               {match.team2?.members && match.team2.members.length > 0 && (
@@ -1725,64 +1721,30 @@ export default function LiveMatches() {
 
               return (
                 <div className="space-y-8">
-                  {compsWithMatches.map(({ comp, compMatches }) => {
-                    const matchesByRound = compMatches.reduce((acc, m) => {
-                      const round = m.round_number || 1;
-                      if (!acc[round]) acc[round] = [];
-                      acc[round].push(m);
-                      return acc;
-                    }, {} as Record<number, MatchData[]>);
-
-                    Object.keys(matchesByRound).forEach((r) => {
-                      matchesByRound[Number(r)].sort((a, b) => {
-                        if (!a.match_datetime && b.match_datetime) return 1;
-                        if (a.match_datetime && !b.match_datetime) return -1;
-                        if (!a.match_datetime && !b.match_datetime) return 0;
-                        return new Date(b.match_datetime).getTime() - new Date(a.match_datetime).getTime();
-                      });
-                    });
-
-                    const sortedRounds = Object.entries(matchesByRound).sort((a, b) => Number(a[0]) - Number(b[0]));
-                    const totalRounds = Object.keys(matchesByRound).length;
-
-                    const getRoundLabel = (roundNum: number, total: number, roundMatches: MatchData[]) => {
-                      if (roundMatches[0]?.phase_label) return roundMatches[0].phase_label;
-                      if (roundNum === total && total > 1) return "Final";
-                      if (roundNum === total - 1 && total > 2) return "Semifinal";
-                      if (roundNum === total - 2 && total > 3) return "Perempat Final";
-                      return `Babak ${roundNum}`;
-                    };
-
-                    return (
-                      <div key={comp.id} className="space-y-3 bg-muted/10 p-4 rounded-2xl border border-muted/80 backdrop-blur-sm">
-                        <div className="flex items-center gap-2.5 pb-2 border-b border-muted">
-                          <span className="text-xl">{getSportEmoji(comp.sport_name)}</span>
-                          <div>
-                            <h3 className="font-bold text-base text-foreground tracking-tight">
-                              Bagan {comp.custom_match_label || comp.sport_name}
-                            </h3>
-                            <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
-                              Format: {comp.format || "Knockout"} • {compMatches.length} Pertandingan
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-thin select-none pt-2">
-                          {sortedRounds.map(([round, roundMatches]) => (
-                            <div key={round} className="flex flex-col gap-4 min-w-[300px] max-w-[340px] shrink-0">
-                              <div className="bg-muted/80 backdrop-blur p-3 rounded-xl border text-center font-bold text-sm tracking-wide shadow-sm flex items-center justify-between px-4">
-                                <span>{getRoundLabel(Number(round), totalRounds, roundMatches)}</span>
-                                <Badge variant="outline" className="font-normal text-xs">{roundMatches.length}</Badge>
-                              </div>
-                              <div className="flex flex-col gap-4 h-full py-2">
-                                {roundMatches.map((match) => renderMatchCard(match))}
-                              </div>
-                            </div>
-                          ))}
+                  {compsWithMatches.map(({ comp, compMatches }) => (
+                    <div key={comp.id} className="space-y-3 bg-muted/10 p-4 rounded-2xl border border-muted/80 backdrop-blur-sm">
+                      <div className="flex items-center gap-2.5 pb-2 border-b border-muted">
+                        <span className="text-xl">{getSportEmoji(comp.sport_name)}</span>
+                        <div>
+                          <h3 className="font-bold text-base text-foreground tracking-tight">
+                            Bagan {comp.custom_match_label || comp.sport_name}
+                          </h3>
+                          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
+                            Format: {comp.format || "Knockout"} • {compMatches.length} Pertandingan
+                          </p>
                         </div>
                       </div>
-                    );
-                  })}
+
+                      <div className="pt-2">
+                        <TournamentBracket
+                          competitionId={comp.id}
+                          matches={compMatches}
+                          canManage={false}
+                          renderMatchCard={(match) => renderMatchCard(match)}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               );
             })()}
