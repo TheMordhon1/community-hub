@@ -21,6 +21,7 @@ import { MATCH_STATUS_LABELS } from "@/types/competition";
 import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
 import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
 import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
+import { AssignRefereeDialog } from "@/components/competitions/AssignRefereeDialog";
 import { Play } from "lucide-react";
 import { useResetMatch, useDeleteMatch, useUpdateMatch, useAssignMatchTeams } from "@/hooks/useCompetitions";
 import {
