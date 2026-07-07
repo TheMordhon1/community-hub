@@ -268,7 +268,7 @@ export function GroupStandings({ competition, canManage = false }: Props) {
                   <Table className="min-w-[480px]">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[140px] font-bold text-foreground">Grup {g}</TableHead>
+                        <TableHead className="min-w-[140px] font-bold text-foreground">Tim</TableHead>
                         <TableHead className="text-center w-8 px-1" title="Main">
                           G
                         </TableHead>
@@ -288,11 +288,15 @@ export function GroupStandings({ competition, canManage = false }: Props) {
                         const { flag, name: cleanName } = extractFlagAndName(r.team.name);
                         const teamFlagEmoji = getTeamFlag(r.team);
 
-                        const memberNames = r.team.members?.map((m) => {
+                        const membersWithHouse = r.team.members?.map((m) => {
                           const parsed = parseMemberName(m.name);
-                          return capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Pemain");
+                          const profile = m.profile as { full_name?: string | null; house?: { block: string; number: string } } | undefined;
+                          const name = capitalizeName(profile?.full_name?.trim() || parsed.name || "Pemain");
+                          const house = profile?.house || 
+                            (m.house_block && m.house_number ? { block: m.house_block, number: m.house_number } : null);
+                          return { name, house };
                         }) || [];
-                        const hasMembers = memberNames.length > 0;
+                        const hasMembers = membersWithHouse.length > 0;
 
                         // All matches for this team in this group stage, completed or scheduled
                         const teamGroupMatches = matches.filter((m) => {
@@ -358,13 +362,18 @@ export function GroupStandings({ competition, canManage = false }: Props) {
                                   </div>
                                   {hasMembers && (
                                     <div className="flex flex-col gap-0.5 mt-0.5">
-                                      {memberNames.map((name, mIdx) => (
+                                      {membersWithHouse.map((m, mIdx) => (
                                         <span 
                                           key={mIdx}
-                                          className="text-[10px] text-muted-foreground font-normal truncate max-w-[140px] sm:max-w-[180px]"
-                                          title={name}
+                                          className="text-[10px] text-muted-foreground font-normal truncate max-w-[140px] sm:max-w-[180px] flex items-center"
+                                          title={m.house ? `${m.name} (${m.house.block}.${m.house.number})` : m.name}
                                         >
-                                          {name}
+                                          <span className="truncate">{m.name}</span>
+                                          {m.house && (
+                                            <span className="text-[9px] text-muted-foreground/80 font-mono ml-1 bg-muted px-0.5 py-0.25 rounded shrink-0 select-none">
+                                              {m.house.block}.{m.house.number}
+                                            </span>
+                                          )}
                                         </span>
                                       ))}
                                     </div>
