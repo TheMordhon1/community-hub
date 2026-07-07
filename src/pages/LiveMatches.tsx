@@ -144,12 +144,32 @@ export default function LiveMatches() {
 
   const generateWhatsAppMessageForMatches = (matchIds: string[]) => {
     if (matchIds.length === 0) {
-      return "📢 *JADWAL PERTANDINGAN MENDATANG* 📢\n\n(Belum ada pertandingan yang dipilih)";
+      return "📢 *INFORMASI PERTANDINGAN* 📢\n\n(Belum ada pertandingan yang dipilih)";
     }
     
-    const selectedMatches = upcomingMatches.filter(m => matchIds.includes(m.id));
+    const selectedMatches = filteredMatches.filter(m => matchIds.includes(m.id));
     
-    let message = `📢 *JADWAL PERTANDINGAN MENDATANG* 📢\n\nBerikut adalah jadwal pertandingan mendatang yang akan segera berlangsung. Jangan lewatkan dan berikan dukunganmu! 🔥🎉\n\n`;
+    // Determine header based on statuses
+    const statuses = selectedMatches.map(m => m.status);
+    const hasLive = statuses.includes("ongoing");
+    const hasCompleted = statuses.includes("completed");
+    const hasScheduled = statuses.includes("scheduled");
+    
+    let header = "📢 *INFORMASI PERTANDINGAN* 📢";
+    let intro = "Berikut adalah informasi terkini mengenai pertandingan Warga PKT:";
+    
+    if (hasLive && !hasCompleted && !hasScheduled) {
+      header = "🔥 *PERTANDINGAN SEDANG BERLANGSUNG (LIVE)* 🔥";
+      intro = "Ayo dukung dan saksikan tim favoritmu bertanding sekarang! Jangan sampai ketinggalan keseruannya! 🔴🎥";
+    } else if (hasCompleted && !hasLive && !hasScheduled) {
+      header = "🏆 *HASIL PERTANDINGAN TERBARU* 🏆";
+      intro = "Selamat kepada para pemenang! Berikut adalah hasil pertandingan terbaru:";
+    } else if (hasScheduled && !hasLive && !hasCompleted) {
+      header = "📢 *JADWAL PERTANDINGAN MENDATANG* 📢";
+      intro = "Berikut adalah jadwal pertandingan mendatang yang akan segera berlangsung. Jangan lewatkan dan berikan dukunganmu! 🔥🎉";
+    }
+    
+    let message = `${header}\n\n${intro}\n\n`;
     
     selectedMatches.forEach((match, index) => {
       const is17an = match.competition?.format === "17an";
@@ -161,12 +181,49 @@ export default function LiveMatches() {
       const sportEmoji = getSportEmojiString(match.competition?.sport_name);
       
       let detailsText = "";
+      let scoreText = "";
+      
+      // Calculate sets/scores for formatting
+      const setsWon1 = Array.isArray(match.sets_data) 
+        ? match.sets_data.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length 
+        : 0;
+      const setsWon2 = Array.isArray(match.sets_data) 
+        ? match.sets_data.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length 
+        : 0;
+        
       if (is17an) {
         detailsText = `🏁 *Detail:* Pertandingan Individual (17an)`;
+        if (match.status === "completed") {
+          detailsText += `\n🏆 Status: Selesai`;
+        } else if (match.status === "ongoing") {
+          detailsText += `\n🔴 Status: Sedang Berlangsung`;
+        }
       } else {
         const team1Name = match.team1 ? extractFlagAndName(match.team1.name).name : "Tim 1";
         const team2Name = match.team2 ? extractFlagAndName(match.team2.name).name : "Tim 2";
-        detailsText = `⚔️ *Pertandingan:* *${team1Name}* VS *${team2Name}*`;
+        
+        if (match.status === "completed") {
+          const winnerText = setsWon1 > setsWon2 
+            ? `🏆 Pemenang: *${team1Name}*` 
+            : setsWon2 > setsWon1 
+              ? `🏆 Pemenang: *${team2Name}*` 
+              : `🤝 Hasil: Seri`;
+          detailsText = `⚔️ *Pertandingan:* *${team1Name}* VS *${team2Name}*\n${winnerText}`;
+          scoreText = `\n📊 *Skor Akhir:* *${setsWon1}* - *${setsWon2}*`;
+          if (match.sets_data && match.sets_data.length > 0) {
+            const setsScores = match.sets_data.map(s => `${s.team1_score}-${s.team2_score}`).join(", ");
+            scoreText += ` (${setsScores})`;
+          }
+        } else if (match.status === "ongoing") {
+          detailsText = `⚔️ *Pertandingan:* *${team1Name}* VS *${team2Name}*\n🔴 *Status:* Sedang Berlangsung (LIVE)`;
+          scoreText = `\n📊 *Skor Sementara:* *${setsWon1}* - *${setsWon2}*`;
+          if (match.sets_data && match.sets_data.length > 0) {
+            const setsScores = match.sets_data.map(s => `${s.team1_score}-${s.team2_score}`).join(", ");
+            scoreText += ` (${setsScores})`;
+          }
+        } else {
+          detailsText = `⚔️ *Pertandingan:* *${team1Name}* VS *${team2Name}*`;
+        }
         
         const team1Members = match.team1?.members?.map(m => {
           const parsed = parseMemberName(m.name);
@@ -189,14 +246,14 @@ export default function LiveMatches() {
         }
       }
       
-      message += `${sportEmoji} *${title}* (${phase}${group})\n${detailsText}\n📅 *Jadwal:* ${timeFormatted}${location}\n`;
+      message += `${sportEmoji} *${title}* (${phase}${group})\n${detailsText}${scoreText}\n📅 *Jadwal:* ${timeFormatted}${location}\n`;
       
       if (index < selectedMatches.length - 1) {
         message += `\n------------------\n\n`;
       }
     });
     
-    const liveLink = `${window.location.origin}/live-matches?tab=live`;
+    const liveLink = `${window.location.origin}/live-matches`;
     message += `\n\n🔗 *Pantau skor langsung semua pertandingan di:* ${liveLink}`;
     
     return message;
@@ -1133,10 +1190,25 @@ export default function LiveMatches() {
                               <Clock className="w-3.5 h-3.5 text-muted-foreground/60" />
                               {formatMatchTime(match.match_datetime)}
                             </span>
-                            <Button size="sm" variant="ghost" className="h-7 text-[10px] gap-1 px-2.5 font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-primary">
-                              <Eye className="w-3 h-3" />
-                              Lihat Detail
-                            </Button>
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[10px] gap-1 px-2.5 font-semibold text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:border-emerald-900/30 dark:hover:bg-emerald-950/20"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedBroadcastMatchIds([match.id]);
+                                  setIsBroadcastOpen(true);
+                                }}
+                              >
+                                <MessageSquare className="w-3 h-3" />
+                                Broadcast
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 text-[10px] gap-1 px-2.5 font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-primary">
+                                <Eye className="w-3 h-3" />
+                                Lihat Detail
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </CardContent>
@@ -1504,10 +1576,25 @@ export default function LiveMatches() {
                               <Clock className="w-3.5 h-3.5 text-muted-foreground/60" />
                               {formatMatchTime(match.match_datetime)}
                             </span>
-                            <Button size="sm" variant="ghost" className="h-7 text-[10px] gap-1 px-2.5 font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-primary">
-                              <Eye className="w-3 h-3" />
-                              Lihat Detail
-                            </Button>
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[10px] gap-1 px-2.5 font-semibold text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:border-emerald-900/30 dark:hover:bg-emerald-950/20"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedBroadcastMatchIds([match.id]);
+                                  setIsBroadcastOpen(true);
+                                }}
+                              >
+                                <MessageSquare className="w-3 h-3" />
+                                Broadcast
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 text-[10px] gap-1 px-2.5 font-bold uppercase tracking-wider hover:bg-primary/10 hover:text-primary">
+                                <Eye className="w-3 h-3" />
+                                Lihat Detail
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </CardContent>
@@ -1768,7 +1855,7 @@ export default function LiveMatches() {
                     <button
                       type="button"
                       className="text-emerald-600 hover:text-emerald-500 font-semibold transition-colors"
-                      onClick={() => setSelectedBroadcastMatchIds(upcomingMatches.map(m => m.id))}
+                      onClick={() => setSelectedBroadcastMatchIds(filteredMatches.map(m => m.id))}
                     >
                       Pilih Semua
                     </button>
@@ -1783,7 +1870,7 @@ export default function LiveMatches() {
                   </div>
                 </div>
                 <div className="max-h-[250px] overflow-y-auto space-y-2 pr-1">
-                  {upcomingMatches.map((m) => {
+                  {filteredMatches.map((m) => {
                     const isChecked = selectedBroadcastMatchIds.includes(m.id);
                     const is17an = m.competition?.format === "17an";
                     const title = m.competition?.custom_match_label || m.competition?.sport_name || "Pertandingan";

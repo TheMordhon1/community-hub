@@ -89,16 +89,33 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     set({ isLoading: true });
-    await supabase.auth.signOut();
-    set({
-      user: null,
-      session: null,
-      profile: null,
-      role: null,
-      pengurusTitle: null,
-      hasFinanceAccess: false,
-      isLoading: false,
-    });
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Supabase signOut error:", err);
+    } finally {
+      // Force clear any supabase auth local storage values
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith("sb-") || key.includes("supabase"))) {
+            localStorage.removeItem(key);
+          }
+        }
+      } catch (storageErr) {
+        console.error("Failed to clear local storage:", storageErr);
+      }
+      set({
+        user: null,
+        session: null,
+        profile: null,
+        role: null,
+        pengurusTitle: null,
+        hasFinanceAccess: false,
+        isLoading: false,
+      });
+      window.location.href = "/login";
+    }
   },
 
   fetchProfile: async (userId) => {
