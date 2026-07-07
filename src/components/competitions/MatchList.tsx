@@ -1021,6 +1021,27 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AssignRefereeDialog
+        open={!!pendingStartMatchId}
+        onOpenChange={(open) => {
+          if (!open) setPendingStartMatchId(null);
+        }}
+        competition={competition}
+        title="Tentukan Wasit Dulu"
+        description="Belum ada wasit di kompetisi ini. Tambahkan wasit terlebih dahulu sebelum memulai pertandingan."
+        onAssigned={() => {
+          const id = pendingStartMatchId;
+          setPendingStartMatchId(null);
+          if (id) {
+            updateMutation.mutate({
+              id,
+              competition_id: competition.id,
+              status: "ongoing",
+            });
+          }
+        }}
+      />
     </div>
   );
 }
