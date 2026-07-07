@@ -28,6 +28,7 @@ import { SpinWheelDialog } from "./SpinWheelDialog";
 import { EditTeamDialog } from "./EditTeamDialog";
 import { SpinWheelGroupTeamsDialog } from "./SpinWheelGroupTeamsDialog";
 import { AssignIndividualsDialog } from "./AssignIndividualsDialog";
+import { getTeamFlag, extractFlagAndName } from "@/lib/countries";
 
 const parseMemberName = (rawName: string | null | undefined) => {
   if (!rawName) return { name: "", avatarUrl: "" };
@@ -273,7 +274,14 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                           {team.seed_number || index + 1}
                         </div>
                         <div>
-                          <h4 className="font-semibold">{team.name}</h4>
+                          <h4 className="font-semibold flex items-center gap-1.5">
+                            {getTeamFlag(team) && (
+                              <span className="text-base select-none shrink-0" title="Bendera Tim">
+                                {getTeamFlag(team)}
+                              </span>
+                            )}
+                            <span>{extractFlagAndName(team.name).name}</span>
+                          </h4>
                           <div className="flex flex-wrap items-center gap-1 mt-0.5">
                             {team.house && (
                               <Badge variant="outline" className="text-xs">

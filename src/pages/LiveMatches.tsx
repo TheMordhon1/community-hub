@@ -12,9 +12,11 @@ import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
 import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
+import { AssignRefereeDialog } from "@/components/competitions/AssignRefereeDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { GroupStandings } from "@/components/competitions/GroupStandings";
+import { getTeamFlag, extractFlagAndName } from "@/lib/countries";
 import type { CompetitionMatchWithTeams, EventCompetitionWithDetails } from "@/types/competition";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -112,6 +114,7 @@ export default function LiveMatches() {
   const [selectedMatch, setSelectedMatch] = useState<MatchData | null>(null);
   const [editingMatch, setEditingMatch] = useState<MatchData | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [pendingStartMatchId, setPendingStartMatchId] = useState<string | null>(null);
   const [openMemberPopover, setOpenMemberPopover] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -919,10 +922,25 @@ export default function LiveMatches() {
                         {!is17an ? (
                           <div className="flex items-center justify-between gap-2 py-2">
                             {/* Team 1 */}
-                            <div className="flex-1 text-center min-w-0">
+                            <div className="flex-1 text-center min-w-0 flex flex-col items-center gap-1">
                               <div className="font-bold text-sm">
                                 {renderTeamName(match.team1, "TBD", match.id)}
                               </div>
+                              {match.team1?.members && match.team1.members.length > 0 && (
+                                <ul className="space-y-0.5 max-h-[50px] overflow-y-auto scrollbar-none w-full flex flex-col items-center">
+                                  {match.team1.members.map((m) => {
+                                    const parsed = parseMemberName(m.name);
+                                    const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
+                                    const house = (m.profile as unknown as { house?: { block: string; number: string } })?.house;
+                                    return (
+                                      <li key={m.id} className="text-[10px] text-muted-foreground truncate max-w-[90%] flex items-center justify-center gap-1">
+                                        <div className="w-1 h-1 rounded-full bg-primary/40 shrink-0" />
+                                        <span>{name}{house ? ` (${house.block}.${house.number})` : ""}</span>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              )}
                               {match.sets_data && (
                                 <div className="text-[10px] text-muted-foreground mt-1">
                                   Set Won: <span className="font-bold text-primary">{setsWon1}</span>
@@ -956,10 +974,25 @@ export default function LiveMatches() {
                             </div>
 
                             {/* Team 2 */}
-                            <div className="flex-1 text-center min-w-0">
+                            <div className="flex-1 text-center min-w-0 flex flex-col items-center gap-1">
                               <div className="font-bold text-sm sm:text-base truncate">
                                 {renderTeamName(match.team2, "TBD", match.id)}
                               </div>
+                              {match.team2?.members && match.team2.members.length > 0 && (
+                                <ul className="space-y-0.5 max-h-[50px] overflow-y-auto scrollbar-none w-full flex flex-col items-center">
+                                  {match.team2.members.map((m) => {
+                                    const parsed = parseMemberName(m.name);
+                                    const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
+                                    const house = (m.profile as unknown as { house?: { block: string; number: string } })?.house;
+                                    return (
+                                      <li key={m.id} className="text-[10px] text-muted-foreground truncate max-w-[90%] flex items-center justify-center gap-1">
+                                        <div className="w-1 h-1 rounded-full bg-primary/40 shrink-0" />
+                                        <span>{name}{house ? ` (${house.block}.${house.number})` : ""}</span>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              )}
                               {match.sets_data && (
                                 <div className="text-[10px] text-muted-foreground mt-1">
                                   Set Won: <span className="font-bold text-primary">{setsWon2}</span>
@@ -1059,7 +1092,14 @@ export default function LiveMatches() {
                           <div className="flex items-start justify-between gap-3 py-2">
                             {/* Team 1 */}
                             <div className="flex-1 min-w-0 bg-muted/20 rounded-xl border border-dashed px-3 py-2.5 flex flex-col items-center gap-1.5">
-                              <span className="font-bold text-sm text-center truncate w-full">{match.team1?.name ?? "Tim 1"}</span>
+                              <span className="font-bold text-sm text-center truncate w-full flex items-center justify-center gap-1.5">
+                                {match.team1 && getTeamFlag(match.team1) && (
+                                  <span className="text-base select-none shrink-0" title="Bendera Tim">
+                                    {getTeamFlag(match.team1)}
+                                  </span>
+                                )}
+                                <span>{match.team1 ? extractFlagAndName(match.team1.name).name : "Tim 1"}</span>
+                              </span>
                               {match.team1?.members && match.team1.members.length > 0 && (
                                 <ul className="w-full space-y-0.5">
                                   {match.team1.members.map((m) => {
@@ -1079,7 +1119,14 @@ export default function LiveMatches() {
                             <span className="text-[10px] font-black text-muted-foreground/30 italic px-1 shrink-0 mt-3">VS</span>
                             {/* Team 2 */}
                             <div className="flex-1 min-w-0 bg-muted/20 rounded-xl border border-dashed px-3 py-2.5 flex flex-col items-center gap-1.5">
-                              <span className="font-bold text-sm text-center truncate w-full">{match.team2?.name ?? "Tim 2"}</span>
+                              <span className="font-bold text-sm text-center truncate w-full flex items-center justify-center gap-1.5">
+                                {match.team2 && getTeamFlag(match.team2) && (
+                                  <span className="text-base select-none shrink-0" title="Bendera Tim">
+                                    {getTeamFlag(match.team2)}
+                                  </span>
+                                )}
+                                <span>{match.team2 ? extractFlagAndName(match.team2.name).name : "Tim 2"}</span>
+                              </span>
                               {match.team2?.members && match.team2.members.length > 0 && (
                                 <ul className="w-full space-y-0.5">
                                   {match.team2.members.map((m) => {
@@ -1126,6 +1173,11 @@ export default function LiveMatches() {
                                 className="h-7 text-[10px] gap-1 px-2.5 font-bold uppercase tracking-wider bg-primary hover:bg-primary/90"
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  const hasReferee = (match.competition?.referees?.length || 0) > 0;
+                                  if (!hasReferee) {
+                                    setPendingStartMatchId(match.id);
+                                    return;
+                                  }
                                   startMatchMutation.mutate(match.id);
                                 }}
                                 disabled={startMatchMutation.isPending}
@@ -1198,8 +1250,13 @@ export default function LiveMatches() {
                           <div className="flex items-center justify-between gap-2 py-2 opacity-80">
                             {/* Team 1 */}
                             <div className="flex-1 text-center min-w-0">
-                              <div className="font-bold text-sm sm:text-base">
-                                {match.team1?.name ?? "TBD"}
+                              <div className="font-bold text-sm sm:text-base flex items-center justify-center gap-1.5">
+                                {match.team1 && getTeamFlag(match.team1) && (
+                                  <span className="text-base select-none shrink-0" title="Bendera Tim">
+                                    {getTeamFlag(match.team1)}
+                                  </span>
+                                )}
+                                <span>{match.team1 ? extractFlagAndName(match.team1.name).name : "TBD"}</span>
                               </div>
                               {match.team1?.members && match.team1.members.length > 0 && (
                                 <ul className="mt-1 space-y-0.5">
@@ -1250,8 +1307,13 @@ export default function LiveMatches() {
 
                             {/* Team 2 */}
                             <div className="flex-1 text-center min-w-0">
-                              <div className="font-bold text-sm sm:text-base truncate">
-                                {match.team2?.name ?? "TBD"}
+                              <div className="font-bold text-sm sm:text-base truncate flex items-center justify-center gap-1.5">
+                                {match.team2 && getTeamFlag(match.team2) && (
+                                  <span className="text-base select-none shrink-0" title="Bendera Tim">
+                                    {getTeamFlag(match.team2)}
+                                  </span>
+                                )}
+                                <span>{match.team2 ? extractFlagAndName(match.team2.name).name : "TBD"}</span>
                               </div>
                               {match.team2?.members && match.team2.members.length > 0 && (
                                 <ul className="mt-1 space-y-0.5">
@@ -1522,6 +1584,28 @@ export default function LiveMatches() {
           competition={editingMatch.competition as unknown as EventCompetitionWithDetails}
         />
       )}
+
+      {(() => {
+        const pendingMatch = matches.find((m) => m.id === pendingStartMatchId);
+        return pendingStartMatchId && pendingMatch?.competition ? (
+          <AssignRefereeDialog
+            open={!!pendingStartMatchId}
+            onOpenChange={(open) => {
+              if (!open) setPendingStartMatchId(null);
+            }}
+            competition={pendingMatch.competition as unknown as EventCompetitionWithDetails}
+            title="Tentukan Wasit Dulu"
+            description="Belum ada wasit di kompetisi ini. Tambahkan wasit terlebih dahulu sebelum memulai pertandingan."
+            onAssigned={() => {
+              const id = pendingStartMatchId;
+              setPendingStartMatchId(null);
+              if (id) {
+                startMatchMutation.mutate(id);
+              }
+            }}
+          />
+        ) : null;
+      })()}
       </div>
     </section>
     </TooltipProvider>

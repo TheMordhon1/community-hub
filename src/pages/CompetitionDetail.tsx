@@ -209,7 +209,7 @@ export default function CompetitionDetail() {
 
   const handleGenerateKnockout = () => {
     if (!competition) return;
-    const advance = competition.advance_per_group ?? 2;
+    const advance = (competition.kids_brackets as unknown as Record<string, number> | null) || competition.advance_per_group || 2;
     const standingsByGroup: Record<string, StandingRow[]> = {};
     groupNamesSet.forEach((g) => {
       standingsByGroup[g] = computeStandings(competition.teams || [], competition.matches || [], g);
@@ -596,7 +596,7 @@ export default function CompetitionDetail() {
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                     <Trophy className="w-4 h-4" /> Klasemen Fase Grup
                   </h3>
-                  <GroupStandings competition={competition} />
+                  <GroupStandings competition={competition} canManage={canManage} />
                 </div>
               )}
               <MatchList

@@ -40,6 +40,7 @@ import {
   type Gender,
 } from "@/lib/age-groups";
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
+import { COUNTRIES } from "@/lib/countries";
 import type { Profile, House } from "@/types/database";
 
 import { MemberAvatarSelector } from "./MemberAvatarSelector";
@@ -107,6 +108,14 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
   const [ageInput, setAgeInput] = useState("");
   const [gender, setGender] = useState<Gender | "">("");
 
+  const [teamFlag, setTeamFlag] = useState("");
+  const [flagSearch, setFlagSearch] = useState("");
+  const filteredCountries = useMemo(() => {
+    return COUNTRIES.filter(c =>
+      c.name.toLowerCase().includes(flagSearch.toLowerCase())
+    );
+  }, [flagSearch]);
+
   // Roster members (for full team mode)
   const [members, setMembers] = useState<{ source: "user" | "manual"; profileId: string; name: string; avatarUrl: string; houseBlock: string; houseNumber: string }[]>([]);
   const [singleAvatarUrl, setSingleAvatarUrl] = useState("");
@@ -146,6 +155,10 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
       setAgeInput(team.age != null ? String(team.age) : "");
       setGender((team.gender as Gender) || "");
 
+      const isFlag = team.logo_url && !team.logo_url.includes("/");
+      setTeamFlag(isFlag ? team.logo_url : "");
+      setFlagSearch("");
+
       const isActualIndividual = !isTeam || !!team.is_individual;
 
       if (isActualIndividual) {
@@ -153,7 +166,7 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
         setSelectedProfileId(team.user_id || "");
         const parsed = parseMemberName(team.participant_name || team.name);
         setManualName(parsed.name);
-        setSingleAvatarUrl(team.logo_url || parsed.avatarUrl || "");
+        setSingleAvatarUrl((team.logo_url && !isFlag) ? team.logo_url : (parsed.avatarUrl || ""));
       } else {
         // Map existing members
         const existingMembers = (team.members || []).map(m => {
@@ -174,6 +187,8 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
         }
         setMembers(existingMembers);
       }
+    } else {
+      setFlagSearch("");
     }
   }, [open, team, teamSize, isTeam]);
 
@@ -248,6 +263,18 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
         });
         return;
       }
+
+      const hasEmptyManualHouseDetails = members.some(m =>
+        m.source === "manual" && (!m.houseBlock?.trim() || !m.houseNumber?.trim())
+      );
+      if (hasEmptyManualHouseDetails) {
+        toast({
+          variant: "destructive",
+          title: "Blok & Nomor Rumah anggota wajib diisi",
+          description: "Harap lengkapi blok dan nomor rumah untuk semua anggota manual.",
+        });
+        return;
+      }
     }
 
     if (ageValue != null && (isNaN(ageValue) || ageValue < 0)) {
@@ -289,7 +316,7 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
             age: ageValue,
             age_group: ageGroup,
             gender: gender || null,
-            logo_url: singleAvatarUrl || null,
+            logo_url: singleAvatarUrl || (teamFlag && teamFlag !== "none" ? teamFlag : null),
           })
           .eq("id", team.id);
 
@@ -319,7 +346,7 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
             age: ageValue,
             age_group: ageGroup,
             gender: gender || null,
-            logo_url: null,
+            logo_url: teamFlag && teamFlag !== "none" ? teamFlag : null,
           })
           .eq("id", team.id);
 
@@ -484,7 +511,7 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
                       />
                       <div className="flex gap-2">
                         <div className="flex-1">
-                          <Label className="text-xs text-muted-foreground">Blok</Label>
+                          <Label className="text-xs text-muted-foreground">Blok <span className="text-destructive">*</span></Label>
                           <Input
                             value={member.houseBlock}
                             onChange={(e) => {
@@ -497,7 +524,7 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
                           />
                         </div>
                         <div className="flex-1">
-                          <Label className="text-xs text-muted-foreground">No. Rumah</Label>
+                          <Label className="text-xs text-muted-foreground">No. Rumah <span className="text-destructive">*</span></Label>
                           <Input
                             value={member.houseNumber}
                             onChange={(e) => {
@@ -656,6 +683,33 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
               </div>
             </>
           )}
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-team-flag">Bendera / Ikon Tim (Opsional)</Label>
+            <Select value={teamFlag || "none"} onValueChange={(val) => setTeamFlag(val === "none" ? "" : val)}>
+              <SelectTrigger id="edit-team-flag">
+                <SelectValue placeholder="Pilih bendera tim" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px] overflow-y-auto">
+                <div className="p-2 sticky top-0 bg-popover z-50">
+                  <Input
+                    placeholder="Cari bendera..."
+                    value={flagSearch}
+                    onChange={(e) => setFlagSearch(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-8"
+                  />
+                </div>
+                <SelectItem value="none">Tanpa Bendera</SelectItem>
+                {filteredCountries.map((c) => (
+                  <SelectItem key={c.name} value={c.flag}>
+                    {c.flag} {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <DialogFooter className="shrink-0 pt-2 border-t">

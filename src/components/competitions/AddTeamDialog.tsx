@@ -43,6 +43,7 @@ import {
   type Gender,
 } from "@/lib/age-groups";
 import type { EventCompetitionWithDetails } from "@/types/competition";
+import { COUNTRIES } from "@/lib/countries";
 import type { Profile, House, Event } from "@/types/database";
 
 import { MemberAvatarSelector } from "./MemberAvatarSelector";
@@ -101,6 +102,13 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
   );
   const [singleAvatarUrl, setSingleAvatarUrl] = useState("");
   const [teamName, setTeamName] = useState("");
+  const [teamFlag, setTeamFlag] = useState("");
+  const [flagSearch, setFlagSearch] = useState("");
+  const filteredCountries = useMemo(() => {
+    return COUNTRIES.filter(c =>
+      c.name.toLowerCase().includes(flagSearch.toLowerCase())
+    );
+  }, [flagSearch]);
   const [submitting, setSubmitting] = useState(false);
 
   const ageCategory = (competition.age_category as AgeCategory) || "mixed";
@@ -175,6 +183,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       setMembers(Array.from({ length: teamSize }, () => ({ source: "user" as const, profileId: "", name: "", avatarUrl: "", houseBlock: "", houseNumber: "" })));
       setSingleAvatarUrl("");
       setTeamName("");
+      setTeamFlag("");
+      setFlagSearch("");
       setSubmitting(false);
     } else {
       setSource("user");
@@ -184,6 +194,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       setSelectedHouse("");
       setAgeInput("");
       setGender("");
+      setTeamFlag("");
+      setFlagSearch("");
     }
   }, [open, teamSize, isTeam]);
 
@@ -248,6 +260,18 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         });
         return;
       }
+
+      const hasEmptyManualHouseDetails = members.some(m =>
+        m.source === "manual" && (!m.houseBlock?.trim() || !m.houseNumber?.trim())
+      );
+      if (hasEmptyManualHouseDetails) {
+        toast({
+          variant: "destructive",
+          title: "Blok & Nomor Rumah anggota wajib diisi",
+          description: "Harap lengkapi blok dan nomor rumah untuk semua anggota manual.",
+        });
+        return;
+      }
     } else {
       if (!finalName) {
         toast({
@@ -309,6 +333,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           age_group: ageGroup,
           gender: gender || null,
           is_individual: false,
+          logo_url: teamFlag && teamFlag !== "none" ? teamFlag : undefined,
         });
 
         if (team) {
@@ -365,7 +390,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           age_group: ageGroup,
           gender: gender || null,
           is_individual: true,
-          logo_url: singleAvatarUrl || null,
+          logo_url: singleAvatarUrl || (teamFlag && teamFlag !== "none" ? teamFlag : undefined),
         });
 
         if (team) {
@@ -414,7 +439,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           age_group: ageGroup,
           gender: gender || null,
           is_individual: false,
-          logo_url: singleAvatarUrl || null,
+          logo_url: singleAvatarUrl || (teamFlag && teamFlag !== "none" ? teamFlag : undefined),
         },
         {
           onSuccess: () => onOpenChange(false),
@@ -585,7 +610,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                       />
                       <div className="flex gap-2">
                         <div className="flex-1">
-                          <Label className="text-xs text-muted-foreground">Blok</Label>
+                          <Label className="text-xs text-muted-foreground">Blok <span className="text-destructive">*</span></Label>
                           <Input
                             value={member.houseBlock}
                             onChange={(e) => {
@@ -598,7 +623,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                           />
                         </div>
                         <div className="flex-1">
-                          <Label className="text-xs text-muted-foreground">No. Rumah</Label>
+                          <Label className="text-xs text-muted-foreground">No. Rumah <span className="text-destructive">*</span></Label>
                           <Input
                             value={member.houseNumber}
                             onChange={(e) => {
@@ -780,6 +805,32 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                 )}
               </div>
           )}
+          <div className="space-y-2">
+            <Label htmlFor="team-flag">Bendera / Ikon Tim (Opsional)</Label>
+            <Select value={teamFlag || "none"} onValueChange={(val) => setTeamFlag(val === "none" ? "" : val)}>
+              <SelectTrigger id="team-flag">
+                <SelectValue placeholder="Pilih bendera tim" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px] overflow-y-auto">
+                <div className="p-2 sticky top-0 bg-popover z-50">
+                  <Input
+                    placeholder="Cari bendera..."
+                    value={flagSearch}
+                    onChange={(e) => setFlagSearch(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                    className="h-8"
+                  />
+                </div>
+                <SelectItem value="none">Tanpa Bendera</SelectItem>
+                {filteredCountries.map((c) => (
+                  <SelectItem key={c.name} value={c.flag}>
+                    {c.flag} {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <DialogFooter className="shrink-0 pt-2 border-t">

@@ -147,13 +147,14 @@ export function distributeTeamsToGroups(
  */
 export function seedKnockoutFromStandings(
   standingsByGroup: Record<string, StandingRow[]>,
-  advancePerGroup: number
+  advancePerGroup: number | Record<string, number>
 ): { team1_id: string; team2_id: string; label: string }[] {
   const groupNames = Object.keys(standingsByGroup).sort();
   const qualifiers: { teamId: string; group: string; rank: number }[] = [];
   for (const g of groupNames) {
     const s = standingsByGroup[g];
-    for (let r = 0; r < Math.min(advancePerGroup, s.length); r++) {
+    const adv = typeof advancePerGroup === "number" ? advancePerGroup : (advancePerGroup[g] ?? 2);
+    for (let r = 0; r < Math.min(adv, s.length); r++) {
       qualifiers.push({ teamId: s[r].team.id, group: g, rank: r + 1 });
     }
   }

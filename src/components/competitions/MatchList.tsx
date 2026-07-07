@@ -24,6 +24,7 @@ import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
 import { AssignRefereeDialog } from "@/components/competitions/AssignRefereeDialog";
 import { Play } from "lucide-react";
 import { useResetMatch, useDeleteMatch, useUpdateMatch, useAssignMatchTeams } from "@/hooks/useCompetitions";
+import { getTeamFlag, extractFlagAndName } from "@/lib/countries";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -535,8 +536,13 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                   )}
                                 </>
                               )}
+                              {match.team1 && getTeamFlag(match.team1) && (
+                                <span className="text-base select-none shrink-0" title="Bendera Tim">
+                                  {getTeamFlag(match.team1)}
+                                </span>
+                              )}
                               <span className={`text-sm ${!match.team1 ? 'text-muted-foreground italic' : ''}`}>
-                                {match.team1?.name || "TBD"}
+                                {match.team1 ? extractFlagAndName(match.team1.name).name : "TBD"}
                               </span>
                             </div>
                             {/* Members under team1 name */}
@@ -595,8 +601,13 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                   )}
                                 </>
                               )}
+                              {match.team2 && getTeamFlag(match.team2) && (
+                                <span className="text-base select-none shrink-0" title="Bendera Tim">
+                                  {getTeamFlag(match.team2)}
+                                </span>
+                              )}
                               <span className={`text-sm ${!match.team2 ? 'text-muted-foreground italic' : ''}`}>
-                                {match.team2?.name || "TBD"}
+                                {match.team2 ? extractFlagAndName(match.team2.name).name : "TBD"}
                               </span>
                             </div>
                             {/* Members under team2 name */}
