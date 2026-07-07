@@ -69,6 +69,39 @@ export function UpdateMatchDialog({
   const isTeamMatchFormat = competition.match_type && competition.match_type !== "1v1";
   const allTeams = competition.teams || [];
 
+  const filteredTeams = allTeams.filter((team) => {
+    if (stage === "group" && groupName.trim()) {
+      return team.group_name?.toUpperCase() === groupName.trim().toUpperCase();
+    }
+    return true;
+  });
+
+  const getConflictWarning = (teamId: string, roleName: string) => {
+    if (!teamId || teamId === "none" || !matchDatetime) return null;
+    const targetDateString = matchDatetime.split("T")[0];
+    if (!targetDateString) return null;
+
+    const conflictingMatch = competition.matches?.find((m) => {
+      if (m.id === match?.id) return false;
+      if (!m.match_datetime) return false;
+      const matchDateString = m.match_datetime.split("T")[0];
+      return matchDateString === targetDateString && (m.team1_id === teamId || m.team2_id === teamId);
+    });
+
+    if (conflictingMatch) {
+      const otherTeamId = conflictingMatch.team1_id === teamId ? conflictingMatch.team2_id : conflictingMatch.team1_id;
+      const otherTeamName = allTeams.find((t) => t.id === otherTeamId)?.name || "TBD";
+      const matchTime = conflictingMatch.match_datetime
+        ? new Date(conflictingMatch.match_datetime).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+        : "";
+      return `${roleName} sudah memiliki jadwal tanding pada tanggal ini (${matchTime} vs ${otherTeamName}).`;
+    }
+    return null;
+  };
+
+  const team1Warning = getConflictWarning(team1Id, "Tim 1");
+  const team2Warning = getConflictWarning(team2Id, "Tim 2");
+
 
   const { toast } = useToast();
   const updateMutation = useUpdateMatch();
@@ -307,13 +340,18 @@ export function UpdateMatchDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Pilih Tim 1</SelectItem>
-                      {allTeams.map((team) => (
+                      {filteredTeams.map((team) => (
                         <SelectItem key={team.id} value={team.id} disabled={team.id === team2Id}>
                           {team.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {team1Warning && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 leading-tight font-medium">
+                      ⚠️ {team1Warning}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
@@ -325,13 +363,18 @@ export function UpdateMatchDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Pilih Tim 2</SelectItem>
-                      {allTeams.map((team) => (
+                      {filteredTeams.map((team) => (
                         <SelectItem key={team.id} value={team.id} disabled={team.id === team1Id}>
                           {team.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {team2Warning && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 leading-tight font-medium">
+                      ⚠️ {team2Warning}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

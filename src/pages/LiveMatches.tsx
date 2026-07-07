@@ -248,6 +248,8 @@ export default function LiveMatches() {
             custom_match_label,
             format,
             sets_per_match,
+            kids_brackets,
+            advance_per_group,
             referees:competition_referees(user_id)
           ),
           team1:competition_teams!team1_id (
@@ -1541,7 +1543,6 @@ export default function LiveMatches() {
               return Array.from(compMap.values()).map(data => {
                 const mockCompetition = {
                   ...data.comp,
-                  advance_per_group: 2,
                   teams: data.teams,
                   matches: data.matches
                 };

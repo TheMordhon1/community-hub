@@ -241,7 +241,7 @@ export function GroupStandings({ competition, canManage = false }: Props) {
           Tampilkan Bendera Tim
         </label>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 w-full min-w-0">
         {groups.map((g) => {
           const rows = computeStandings(teams, matches, g);
           const groupTeamsCount = teams.filter((t) => t.group_name === g).length;
@@ -249,7 +249,7 @@ export function GroupStandings({ competition, canManage = false }: Props) {
           const groupAdvanceCount = (competition.kids_brackets as unknown as Record<string, number> | null)?.[g] ?? competition.advance_per_group ?? 2;
 
           return (
-            <Card key={g}>
+            <Card key={g} className="w-full min-w-0 overflow-hidden">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-primary" />
@@ -257,8 +257,8 @@ export function GroupStandings({ competition, canManage = false }: Props) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
+                <div className="overflow-x-auto w-full">
+                  <Table className="min-w-[480px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="min-w-[140px] font-bold text-foreground">Grup {g}</TableHead>
@@ -285,7 +285,7 @@ export function GroupStandings({ competition, canManage = false }: Props) {
                           const parsed = parseMemberName(m.name);
                           return capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Pemain");
                         }) || [];
-                        const membersText = memberNames.length > 0 ? ` (${memberNames.join(" & ")})` : "";
+                        const hasMembers = memberNames.length > 0;
 
                         // All matches for this team in this group stage, completed or scheduled
                         const teamGroupMatches = matches.filter((m) => {
@@ -320,35 +320,49 @@ export function GroupStandings({ competition, canManage = false }: Props) {
 
                         return (
                           <TableRow key={r.team.id} className={advancing ? "bg-primary/5" : ""}>
-                            <TableCell className="font-medium whitespace-nowrap py-3">
+                            <TableCell className="font-medium py-3">
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-muted-foreground w-4 flex items-center justify-center shrink-0">
                                   {idx + 1}
                                 </span>
                                 {showFlags && (
-                                  <span className="text-xl leading-none select-none shrink-0" title="Bendera Tim">
+                                  <span className="text-xl leading-none select-none shrink-0 animate-fade-in" title="Bendera Tim">
                                     {teamFlagEmoji}
                                   </span>
                                 )}
-                                <span className="truncate flex items-center gap-1">
-                                  {canManage ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => setEditingTeam(r.team)}
-                                      className="hover:underline hover:text-primary font-bold cursor-pointer text-left transition-colors"
-                                    >
-                                      {cleanName}
-                                    </button>
-                                  ) : (
-                                    <span>{cleanName}</span>
+                                <div className="flex flex-col min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    {canManage ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingTeam(r.team)}
+                                        className="hover:underline hover:text-primary font-bold cursor-pointer text-left transition-colors truncate max-w-[140px] sm:max-w-[180px]"
+                                      >
+                                        {cleanName}
+                                      </button>
+                                    ) : (
+                                      <span className="truncate max-w-[140px] sm:max-w-[180px]" title={cleanName}>
+                                        {cleanName}
+                                      </span>
+                                    )}
+                                    {advancing && (
+                                      <Medal className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
+                                    )}
+                                  </div>
+                                  {hasMembers && (
+                                    <div className="flex flex-col gap-0.5 mt-0.5">
+                                      {memberNames.map((name, mIdx) => (
+                                        <span 
+                                          key={mIdx}
+                                          className="text-[10px] text-muted-foreground font-normal truncate max-w-[140px] sm:max-w-[180px]"
+                                          title={name}
+                                        >
+                                          {name}
+                                        </span>
+                                      ))}
+                                    </div>
                                   )}
-                                  <span className="text-xs text-muted-foreground font-normal ml-1">
-                                    {membersText}
-                                  </span>
-                                </span>
-                                {advancing && (
-                                  <Medal className="w-3.5 h-3.5 text-yellow-500 shrink-0 ml-1" />
-                                )}
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell className="text-center px-1 py-3">{r.played}</TableCell>
