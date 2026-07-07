@@ -23,6 +23,8 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
   getAgeGroup,
@@ -110,6 +112,7 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
 
   const [teamFlag, setTeamFlag] = useState("");
   const [flagSearch, setFlagSearch] = useState("");
+  const [isFlagPopoverOpen, setIsFlagPopoverOpen] = useState(false);
   const filteredCountries = useMemo(() => {
     return COUNTRIES.filter(c =>
       c.name.toLowerCase().includes(flagSearch.toLowerCase())
@@ -686,29 +689,69 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
 
           <div className="space-y-2">
             <Label htmlFor="edit-team-flag">Bendera / Ikon Tim (Opsional)</Label>
-            <Select value={teamFlag || "none"} onValueChange={(val) => setTeamFlag(val === "none" ? "" : val)}>
-              <SelectTrigger id="edit-team-flag">
-                <SelectValue placeholder="Pilih bendera tim" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px] overflow-y-auto">
-                <div className="p-2 sticky top-0 bg-popover z-50">
+            <Popover open={isFlagPopoverOpen} onOpenChange={setIsFlagPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  id="edit-team-flag"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={isFlagPopoverOpen}
+                  className="w-full justify-between font-normal bg-background"
+                >
+                  {teamFlag ? (
+                    <span className="flex items-center gap-2">
+                      <span className="text-base">{teamFlag}</span>
+                      <span>{COUNTRIES.find(c => c.flag === teamFlag)?.name}</span>
+                    </span>
+                  ) : (
+                    "Tanpa Bendera"
+                  )}
+                  <span className="text-muted-foreground ml-2 text-xs">▼</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0 bg-popover border border-border shadow-md rounded-xl z-[100]" align="start">
+                <div className="p-2 sticky top-0 bg-popover border-b border-border z-50">
                   <Input
                     placeholder="Cari bendera..."
                     value={flagSearch}
                     onChange={(e) => setFlagSearch(e.target.value)}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    onClick={(e) => e.stopPropagation()}
-                    className="h-8"
+                    className="h-8 focus-visible:ring-emerald-500"
                   />
                 </div>
-                <SelectItem value="none">Tanpa Bendera</SelectItem>
-                {filteredCountries.map((c) => (
-                  <SelectItem key={c.name} value={c.flag}>
-                    {c.flag} {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <div className="max-h-[200px] overflow-y-auto p-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTeamFlag("");
+                      setIsFlagPopoverOpen(false);
+                    }}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors",
+                      !teamFlag && "bg-accent/50 font-semibold text-primary"
+                    )}
+                  >
+                    Tanpa Bendera
+                  </button>
+                  {filteredCountries.map((c) => (
+                    <button
+                      key={c.name}
+                      type="button"
+                      onClick={() => {
+                        setTeamFlag(c.flag);
+                        setIsFlagPopoverOpen(false);
+                      }}
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2.5",
+                        teamFlag === c.flag && "bg-accent/50 font-semibold text-primary"
+                      )}
+                    >
+                      <span className="text-base select-none shrink-0">{c.flag}</span>
+                      <span className="truncate">{c.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
