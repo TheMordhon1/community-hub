@@ -1292,11 +1292,6 @@ export default function LiveMatches() {
                                   })}
                                 </ul>
                               )}
-                              {match.sets_data && (
-                                <div className="text-[10px] text-muted-foreground mt-1">
-                                  Set Won: <span className="font-bold text-primary">{setsWon1}</span>
-                                </div>
-                              )}
                             </div>
 
                             {/* Score Display */}
@@ -1343,11 +1338,6 @@ export default function LiveMatches() {
                                     );
                                   })}
                                 </ul>
-                              )}
-                              {match.sets_data && (
-                                <div className="text-[10px] text-muted-foreground mt-1">
-                                  Set Won: <span className="font-bold text-primary">{setsWon2}</span>
-                                </div>
                               )}
                             </div>
                           </div>
@@ -1661,11 +1651,6 @@ export default function LiveMatches() {
                                   })}
                                 </ul>
                               )}
-                              {match.sets_data && (
-                                <div className="text-[10px] text-muted-foreground mt-1">
-                                  Set Won: <span className="font-bold text-primary">{setsWon1}</span>
-                                </div>
-                              )}
                             </div>
 
                             {/* Score Display */}
@@ -1713,11 +1698,6 @@ export default function LiveMatches() {
                                     );
                                   })}
                                 </ul>
-                              )}
-                              {match.sets_data && (
-                                <div className="text-[10px] text-muted-foreground mt-1">
-                                  Set Won: <span className="font-bold text-primary">{setsWon2}</span>
-                                </div>
                               )}
                             </div>
                           </div>

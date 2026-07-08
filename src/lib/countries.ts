@@ -213,7 +213,7 @@ export const extractFlagAndName = (fullName: string) => {
 
 export const getTeamFlag = (team?: { name: string; logo_url?: string | null } | null) => {
   if (!team) return null;
-  if (team.logo_url && !team.logo_url.includes("/")) {
+  if (team.logo_url) {
     return team.logo_url;
   }
   const { flag } = extractFlagAndName(team.name);

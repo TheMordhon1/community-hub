@@ -16,12 +16,14 @@ import { toast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import { WinnerAnnounceDialog } from "./WinnerAnnounceDialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { parseMemberName, capitalizeName, cn } from "@/lib/utils";
+import { TeamFlag } from "./TeamFlag";
+import { extractFlagAndName } from "@/lib/countries";
+
 
 interface LiveScoreDialogProps {
   open: boolean;
@@ -69,11 +71,13 @@ export default function LiveScoreDialog({
           team1:competition_teams!team1_id (
             id,
             name,
+            logo_url,
             members:competition_team_members(id, name, user_id, house_block, house_number)
           ),
           team2:competition_teams!team2_id (
             id,
             name,
+            logo_url,
             members:competition_team_members(id, name, user_id, house_block, house_number)
           ),
           participants:competition_match_participants (
@@ -85,6 +89,7 @@ export default function LiveScoreDialog({
             team:competition_teams (
               id,
               name,
+              logo_url,
               members:competition_team_members(id, name, user_id, house_block, house_number)
             )
           )
@@ -949,8 +954,9 @@ export default function LiveScoreDialog({
               <div className="flex flex-row items-center justify-between w-full gap-2 sm:gap-8">
                 {/* Team 1: Score on the left */}
                 <div className="flex flex-col items-center flex-1 min-w-0">
-                  <h3 className="font-bold text-xs sm:text-xl text-center line-clamp-1 mb-1">
-                    {match.team1?.name || "TBD"}
+                  <h3 className="font-bold text-xs sm:text-xl text-center line-clamp-1 mb-1 flex items-center gap-1.5 justify-center">
+                    {match.team1 && <TeamFlag team={match.team1} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />}
+                    <span>{match.team1 ? extractFlagAndName(match.team1.name).name : "TBD"}</span>
                   </h3>
 
                   {/* Players List Team 1 */}
@@ -1072,8 +1078,9 @@ export default function LiveScoreDialog({
 
                 {/* Team 2: Score on the right */}
                 <div className="flex flex-col items-center flex-1 min-w-0">
-                  <h3 className="font-bold text-xs sm:text-xl text-center line-clamp-1 mb-1">
-                    {match.team2?.name || "TBD"}
+                  <h3 className="font-bold text-xs sm:text-xl text-center line-clamp-1 mb-1 flex items-center gap-1.5 justify-center">
+                    {match.team2 && <TeamFlag team={match.team2} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />}
+                    <span>{match.team2 ? extractFlagAndName(match.team2.name).name : "TBD"}</span>
                   </h3>
                   {/* Players List Team 2 */}
                   {(match.team2 as CompetitionTeamWithMembers)?.members && (match.team2 as CompetitionTeamWithMembers).members!.length > 0 && (
@@ -1130,9 +1137,8 @@ export default function LiveScoreDialog({
               </div>
 
               {/* Set Win Summary Footer */}
-              <div className="flex items-center justify-between w-full border-t border-dashed pt-4 text-xs font-semibold">
-                <span className="text-muted-foreground uppercase tracking-wider">Set Dimenangkan:</span>
-                <span className="font-mono text-sm bg-primary/10 border border-primary/20 rounded-md px-2.5 py-1 text-primary">
+              <div className="flex items-center justify-center w-full border-t border-dashed pt-4 text-xs font-semibold">
+                <span className="font-mono text-lg bg-primary/10 border border-primary/20 rounded-md px-2.5 py-1 text-primary">
                   {sets.filter(s => s.team1_score > s.team2_score).length} - {sets.filter(s => s.team2_score > s.team1_score).length}
                 </span>
               </div>

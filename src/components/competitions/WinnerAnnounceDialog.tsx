@@ -12,6 +12,8 @@ import { Trophy, Medal, Star, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import type { EventCompetitionWithDetails, CompetitionMatchParticipant, CompetitionMatchWithTeams, CompetitionTeamWithMembers } from "@/types/competition";
+import { TeamFlag } from "./TeamFlag";
+import { extractFlagAndName } from "@/lib/countries";
 
 interface WinnerAnnounceDialogProps {
   open: boolean;
@@ -245,8 +247,9 @@ export function WinnerAnnounceDialog({
                     </div>
                   </div>
                   
-                  <h3 className="text-3xl md:text-4xl font-black tracking-tight leading-tight mb-6 relative z-10">
-                    {p.team?.name}
+                  <h3 className="text-3xl md:text-4xl font-black tracking-tight leading-tight mb-6 relative z-10 flex items-center justify-center gap-3">
+                    {p.team && <TeamFlag team={p.team} className="w-10 h-7 object-cover rounded shadow-md inline-block select-none border border-yellow-500/30 shrink-0 text-3xl" fallbackSize="text-4xl" />}
+                    <span>{p.team ? extractFlagAndName(p.team.name).name : ""}</span>
                   </h3>
                   
                   <div className="flex flex-wrap justify-center gap-4 w-full relative z-10">
@@ -297,7 +300,10 @@ export function WinnerAnnounceDialog({
                       <Medal className="w-8 h-8 text-white" />
                     </div>
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 relative z-10">Juara 2</p>
-                    <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10">{p.team?.name}</h4>
+                    <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10 flex items-center justify-center gap-2">
+                      {p.team && <TeamFlag team={p.team} className="w-6 h-4 object-cover rounded shadow-sm inline-block select-none border border-slate-300 dark:border-slate-700 shrink-0 text-xl" fallbackSize="text-2xl" />}
+                      <span>{p.team ? extractFlagAndName(p.team.name).name : ""}</span>
+                    </h4>
                     <div className="flex flex-wrap justify-center gap-3 w-full relative z-10">
                       {(p.team as CompetitionTeamWithMembers)?.members && (p.team as CompetitionTeamWithMembers).members!.length > 0 ? (
                         (p.team as CompetitionTeamWithMembers).members!.map((m) => {
@@ -342,7 +348,10 @@ export function WinnerAnnounceDialog({
                       <Medal className="w-8 h-8 text-white" />
                     </div>
                     <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1 relative z-10">Juara 3</p>
-                    <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10">{p.team?.name}</h4>
+                    <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10 flex items-center justify-center gap-2">
+                      {p.team && <TeamFlag team={p.team} className="w-6 h-4 object-cover rounded shadow-sm inline-block select-none border border-amber-200 dark:border-amber-800 shrink-0 text-xl" fallbackSize="text-2xl" />}
+                      <span>{p.team ? extractFlagAndName(p.team.name).name : ""}</span>
+                    </h4>
                     <div className="flex flex-wrap justify-center gap-3 w-full relative z-10">
                       {(p.team as CompetitionTeamWithMembers)?.members && (p.team as CompetitionTeamWithMembers).members!.length > 0 ? (
                         (p.team as CompetitionTeamWithMembers).members!.map((m) => {

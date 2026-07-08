@@ -502,10 +502,14 @@ export function UpdateMatchDialog({
                 </div>
               ))}
               {useSets && (
-                <div className="flex items-center justify-between pt-2 border-t border-dashed text-xs">
-                  <span className="text-muted-foreground">Set dimenangkan</span>
+                <div className="flex items-center center pt-2 border-t border-dashed text-xs">
+
                   <span className="font-mono font-bold">
-                    {setsWon1} - {setsWon2}
+                    {setsWon1}
+                  </span>
+                  -
+                  <span className="font-mono font-bold">
+                    {setsWon2}
                   </span>
                 </div>
               )}
