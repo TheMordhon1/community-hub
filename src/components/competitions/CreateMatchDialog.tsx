@@ -26,6 +26,7 @@ import { format, parseISO } from "date-fns";
 import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
 import { useAssignMatchTeams } from "@/hooks/useCompetitions";
 import type { EventCompetitionWithDetails, CompetitionMatchWithTeams } from "@/types/competition";
+import { computeStandings } from "@/lib/liga-group";
 
 interface CreateMatchDialogProps {
   open: boolean;
