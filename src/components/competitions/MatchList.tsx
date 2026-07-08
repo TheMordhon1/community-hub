@@ -415,6 +415,14 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
 
       {(() => {
         const renderMatchCard = (match: CompetitionMatchWithTeams, index: number) => {
+          // Compute effective scores from sets_data if sets exist (badminton/multi-set),
+          // otherwise fall back to stored score1/score2.
+          const setsArr = Array.isArray(match.sets_data) ? match.sets_data : [];
+          const setsWon1 = setsArr.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length;
+          const setsWon2 = setsArr.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length;
+          const displayScore1 = setsArr.length > 0 ? String(setsWon1) : (match.score1 || "");
+          const displayScore2 = setsArr.length > 0 ? String(setsWon2) : (match.score2 || "");
+          const hasScoreValues = setsArr.length > 0 || match.score1 !== null || match.score2 !== null;
           return (
             <Card id={`match-card-${match.id}`} key={match.id} className="overflow-hidden bg-card/60 backdrop-blur border shadow-sm hover:border-primary/40 transition-colors">
               <CardContent className="p-0">
@@ -646,8 +654,8 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                             })}
                           </div>
                           <span className="text-base font-mono">
-                            {match.is_point !== false ? (
-                              match.score1 || "-"
+                            {hasScoreValues ? (
+                              displayScore1 || "0"
                             ) : (
                               ((match.winner_id === match.team1_id || match.participants?.find(p => p.team_id === match.team1_id)?.is_winner || match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 1)) && (
                                 match.is_final ? <Trophy className="w-5 h-5 text-yellow-500 fill-yellow-500" /> : <CheckCircle2 className="w-5 h-5 text-primary" />
@@ -761,8 +769,8 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                             })}
                           </div>
                           <span className="text-base font-mono">
-                            {match.is_point !== false ? (
-                              match.score2 || "-"
+                            {hasScoreValues ? (
+                              displayScore2 || "0"
                             ) : (
                               ((match.winner_id === match.team2_id || match.participants?.find(p => p.team_id === match.team2_id)?.is_winner || match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 1)) && (
                                 match.is_final ? <Trophy className="w-5 h-5 text-yellow-500 fill-yellow-500" /> : <CheckCircle2 className="w-5 h-5 text-primary" />

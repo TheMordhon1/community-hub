@@ -161,6 +161,13 @@ export function TournamentBracket<T extends BracketMatch>({
   };
 
   if (totalRounds === 0) {
+    if (canManage && createPhaseNode) {
+      return (
+        <div className="border-2 border-dashed border-muted-foreground/30 rounded-2xl p-6 bg-muted/5 flex justify-center">
+          <div className="w-full max-w-sm">{createPhaseNode}</div>
+        </div>
+      );
+    }
     return (
       <div className="text-center py-8 text-muted-foreground text-sm">
         Belum ada bagan pertandingan terbentuk.
