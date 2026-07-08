@@ -65,11 +65,37 @@ export function CreateMatchDialog({
   const allTeams = competition.teams || [];
   const isLigaGrup = competition.format === "liga_grup";
 
-  // Teams eligible for selection (in liga_grup group stage, restrict to selected group)
-  const eligibleTeams =
-    isLigaGrup && stage === "group" && groupName
-      ? allTeams.filter((t) => t.group_name === groupName)
-      : allTeams;
+  // Teams eligible for selection.
+  // - liga_grup + group stage: restrict to selected group
+  // - liga_grup + knockout stage: restrict to teams that qualified (lolos) from group standings
+  const eligibleTeams = useMemo(() => {
+    if (isLigaGrup && stage === "group" && groupName) {
+      return allTeams.filter((t) => t.group_name === groupName);
+    }
+    if (isLigaGrup && stage === "knockout") {
+      const groupNames = Array.from(
+        new Set(allTeams.filter((t) => !!t.group_name).map((t) => t.group_name!))
+      ).sort();
+      if (groupNames.length === 0) return allTeams;
+      const advance = competition.advance_per_group || 2;
+      const qualifiedIds = new Set<string>();
+      for (const g of groupNames) {
+        const standings = computeStandings(
+          allTeams,
+          competition.matches || [],
+          g
+        );
+        for (let i = 0; i < Math.min(advance, standings.length); i++) {
+          qualifiedIds.add(standings[i].team.id);
+        }
+      }
+      // Fallback: if nothing qualified yet (no completed group matches), allow all
+      if (qualifiedIds.size === 0) return allTeams;
+      return allTeams.filter((t) => qualifiedIds.has(t.id));
+    }
+    return allTeams;
+  }, [isLigaGrup, stage, groupName, allTeams, competition.matches, competition.advance_per_group]);
+
 
   // Pre-compute pairs that already met in group stage of the same group
   const metPairs = new Set<string>();
