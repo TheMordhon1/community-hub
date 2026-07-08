@@ -23,7 +23,14 @@ import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
 import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
 import { AssignRefereeDialog } from "@/components/competitions/AssignRefereeDialog";
 import { Play } from "lucide-react";
-import { useResetMatch, useDeleteMatch, useUpdateMatch, useAssignMatchTeams } from "@/hooks/useCompetitions";
+import { useResetMatch, useDeleteMatch, useUpdateMatch, useAssignMatchTeams, useGenerateBracket, useGenerateKnockoutFromGroups, useAdvance17anRound } from "@/hooks/useCompetitions";
+import {
+  areAllGroupMatchesCompleted,
+  computeStandings,
+  hasGroupMatches,
+  hasKnockoutMatches,
+  seedKnockoutFromStandings,
+} from "@/lib/liga-group";
 import { getTeamFlag, extractFlagAndName } from "@/lib/countries";
 import { TeamFlag } from "./TeamFlag";
 import { TournamentBracket } from "./TournamentBracket";
@@ -45,6 +52,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 
 interface MatchListProps {
   competition: EventCompetitionWithDetails;
@@ -70,6 +78,9 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
   const deleteMatch = useDeleteMatch();
   const updateMutation = useUpdateMatch();
   const assignTeams = useAssignMatchTeams();
+  const generateBracket = useGenerateBracket();
+  const generateKnockout = useGenerateKnockoutFromGroups();
+  const advanceRound = useAdvance17anRound();
   const matches = competition.matches || [];
   const allTeams = competition.teams || [];
   const is17an = competition.format === "17an";
@@ -414,22 +425,43 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                       {match.notes ? match.notes : `Match ${index + 1}`} {match.group_name && `· Grup ${match.group_name}`}
                     </span>
                     {canManage && (
-                      <button
-                        onClick={() => {
-                          const newLabel = window.prompt("Ubah Label Pertandingan (kosongkan untuk kembali ke default):", match.notes || `Match ${index + 1}`);
-                          if (newLabel !== null) {
-                            updateMutation.mutate({
-                              id: match.id,
-                              competition_id: competition.id,
-                              notes: newLabel || null
-                            });
-                          }
-                        }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary shrink-0"
-                        title="Ubah Label"
-                      >
-                        <Edit className="w-3 h-3" />
-                      </button>
+                      <>
+                        <button
+                          onClick={() => {
+                            const newLabel = window.prompt("Ubah Label Pertandingan (kosongkan untuk kembali ke default):", match.notes || `Match ${index + 1}`);
+                            if (newLabel !== null) {
+                              updateMutation.mutate({
+                                id: match.id,
+                                competition_id: competition.id,
+                                notes: newLabel || null
+                              });
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary shrink-0"
+                          title="Ubah Label"
+                        >
+                          <Edit className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            const newRound = window.prompt("Ubah Nomor Babak (Round):", String(match.round_number || 1));
+                            if (newRound !== null) {
+                              const parsedRound = parseInt(newRound, 10);
+                              if (!isNaN(parsedRound)) {
+                                updateMutation.mutate({
+                                  id: match.id,
+                                  competition_id: competition.id,
+                                  round_number: parsedRound
+                                });
+                              }
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary shrink-0 ml-1"
+                          title="Ubah Babak (Round Number)"
+                        >
+                          <GitBranch className="w-3 h-3" />
+                        </button>
+                      </>
                     )}
                     {match.is_final && (
                       <Trophy className="w-3 h-3 text-yellow-500 fill-yellow-500 animate-pulse shrink-0" />
@@ -472,8 +504,9 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                     )}
                                   </>
                                 )}
+                                <TeamFlag team={p.team} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
                                 <span className="text-sm">
-                                  {p.team?.name || "TBD"}
+                                  {p.team ? extractFlagAndName(p.team.name).name : "TBD"}
                                 </span>
                               </div>
                               {/* Members under team name in participants path */}
@@ -540,10 +573,64 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                   )}
                                 </>
                               )}
-                              <TeamFlag team={match.team1} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
-                              <span className={`text-sm ${!match.team1 ? 'text-muted-foreground italic' : ''}`}>
-                                {match.team1 ? extractFlagAndName(match.team1.name).name : "TBD"}
-                              </span>
+                              {canManage ? (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <div 
+                                      role="button"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="flex items-center gap-2 hover:bg-muted/50 rounded px-1 transition-colors group/team cursor-pointer"
+                                    >
+                                      <TeamFlag team={match.team1} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
+                                      <span className={`text-sm ${!match.team1 ? 'text-muted-foreground italic' : ''}`}>
+                                        {match.team1 ? extractFlagAndName(match.team1.name).name : "TBD"}
+                                      </span>
+                                      <Edit className="w-3 h-3 opacity-0 group-hover/team:opacity-100 transition-opacity ml-1 text-muted-foreground" />
+                                    </div>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-56 p-2" align="start">
+                                    <Label className="text-xs font-bold mb-1.5 block">Ubah Tim 1</Label>
+                                    <Select 
+                                      value={match.team1_id || "none"} 
+                                      onValueChange={(val) => {
+                                        const newTeamId = val === "none" ? null : val;
+                                        updateMutation.mutate({
+                                          id: match.id,
+                                          competition_id: competition.id,
+                                          team1_id: newTeamId,
+                                          team_ids: [newTeamId, match.team2_id].filter(Boolean) as string[]
+                                        });
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Pilih Tim" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="none">Pilih Tim (TBD)</SelectItem>
+                                        {allTeams.map((t) => {
+                                          const flag = getTeamFlag(t);
+                                          const isEmoji = flag && !flag.includes("/");
+                                          return (
+                                            <SelectItem key={t.id} value={t.id} disabled={t.id === match.team2_id}>
+                                              <span className="flex items-center gap-1.5">
+                                                {isEmoji && <span className="text-base select-none shrink-0">{flag}</span>}
+                                                <span>{extractFlagAndName(t.name).name}</span>
+                                              </span>
+                                            </SelectItem>
+                                          );
+                                        })}
+                                      </SelectContent>
+                                    </Select>
+                                  </PopoverContent>
+                                </Popover>
+                              ) : (
+                                <>
+                                  <TeamFlag team={match.team1} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
+                                  <span className={`text-sm ${!match.team1 ? 'text-muted-foreground italic' : ''}`}>
+                                    {match.team1 ? extractFlagAndName(match.team1.name).name : "TBD"}
+                                  </span>
+                                </>
+                              )}
                             </div>
                             {/* Members under team1 name */}
                             {(match.team1 as (typeof match.team1 & { members?: { id: string; name: string | null; user_id: string | null; profile?: { full_name: string | null; house?: { block: string; number: string } } }[] }) | undefined)?.members?.map((m) => {
@@ -601,10 +688,64 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                   )}
                                 </>
                               )}
-                              <TeamFlag team={match.team2} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
-                              <span className={`text-sm ${!match.team2 ? 'text-muted-foreground italic' : ''}`}>
-                                {match.team2 ? extractFlagAndName(match.team2.name).name : "TBD"}
-                              </span>
+                              {canManage ? (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <div 
+                                      role="button"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="flex items-center gap-2 hover:bg-muted/50 rounded px-1 transition-colors group/team cursor-pointer"
+                                    >
+                                      <TeamFlag team={match.team2} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
+                                      <span className={`text-sm ${!match.team2 ? 'text-muted-foreground italic' : ''}`}>
+                                        {match.team2 ? extractFlagAndName(match.team2.name).name : "TBD"}
+                                      </span>
+                                      <Edit className="w-3 h-3 opacity-0 group-hover/team:opacity-100 transition-opacity ml-1 text-muted-foreground" />
+                                    </div>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-56 p-2" align="start">
+                                    <Label className="text-xs font-bold mb-1.5 block">Ubah Tim 2</Label>
+                                    <Select 
+                                      value={match.team2_id || "none"} 
+                                      onValueChange={(val) => {
+                                        const newTeamId = val === "none" ? null : val;
+                                        updateMutation.mutate({
+                                          id: match.id,
+                                          competition_id: competition.id,
+                                          team2_id: newTeamId,
+                                          team_ids: [match.team1_id, newTeamId].filter(Boolean) as string[]
+                                        });
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Pilih Tim" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="none">Pilih Tim (TBD)</SelectItem>
+                                        {allTeams.map((t) => {
+                                          const flag = getTeamFlag(t);
+                                          const isEmoji = flag && !flag.includes("/");
+                                          return (
+                                            <SelectItem key={t.id} value={t.id} disabled={t.id === match.team1_id}>
+                                              <span className="flex items-center gap-1.5">
+                                                {isEmoji && <span className="text-base select-none shrink-0">{flag}</span>}
+                                                <span>{extractFlagAndName(t.name).name}</span>
+                                              </span>
+                                            </SelectItem>
+                                          );
+                                        })}
+                                      </SelectContent>
+                                    </Select>
+                                  </PopoverContent>
+                                </Popover>
+                              ) : (
+                                <>
+                                  <TeamFlag team={match.team2} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
+                                  <span className={`text-sm ${!match.team2 ? 'text-muted-foreground italic' : ''}`}>
+                                    {match.team2 ? extractFlagAndName(match.team2.name).name : "TBD"}
+                                  </span>
+                                </>
+                              )}
                             </div>
                             {/* Members under team2 name */}
                             {(match.team2 as (typeof match.team2 & { members?: { id: string; name: string | null; user_id: string | null; profile?: { full_name: string | null; house?: { block: string; number: string } } }[] }) | undefined)?.members?.map((m) => {
@@ -654,9 +795,9 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                   )}
 
                   {/* Match Details & Actions */}
-                  <div className="mt-3 pt-3 border-t flex flex-wrap justify-between gap-3 w-full">
+                  <div className="mt-3 pt-3 border-t flex flex-col gap-3 w-full">
                     {/* Left: Date, Place and Age labels */}
-                    <div className="flex flex-1 flex-col gap-1.5 min-w-0 text-xs text-muted-foreground w-full sm:w-auto">
+                    <div className="flex flex-col gap-1.5 min-w-0 text-xs text-muted-foreground w-full">
                       {(match.age_bracket_label || match.age_bracket_min != null || match.age_bracket_max != null) && (
                         <div className="flex">
                           <Badge variant="secondary" className="text-[10px] whitespace-nowrap">
@@ -667,11 +808,50 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                           </Badge>
                         </div>
                       )}
-                      {match.match_datetime && (
-                        <div className="flex items-center gap-1.5 whitespace-nowrap">
-                          <Calendar className="w-3.5 h-3.5 shrink-0 text-muted-foreground/70" />
-                          <span>{format(parseISO(match.match_datetime), "dd MMM yyyy, HH:mm", { locale: idLocale })}</span>
-                        </div>
+                      {canManage ? (
+                        <Popover>
+                                  <PopoverTrigger asChild>
+                                    <div 
+                                      role="button"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors group/date py-0.5 rounded hover:bg-muted/50 px-1 w-fit cursor-pointer"
+                                    >
+                                      <Calendar className="w-3.5 h-3.5 shrink-0 text-muted-foreground/70" />
+                                      <span className="truncate">
+                                        {match.match_datetime 
+                                          ? format(parseISO(match.match_datetime), "dd MMM yyyy, HH:mm", { locale: idLocale })
+                                          : "Set Jadwal Tanding"}
+                                      </span>
+                                      <Edit className="w-3 h-3 opacity-0 group-hover/date:opacity-100 transition-opacity ml-1" />
+                                    </div>
+                                  </PopoverTrigger>
+                          <PopoverContent className="w-64 p-3" align="start">
+                            <Label className="text-xs font-bold mb-1.5 block">Waktu Pertandingan</Label>
+                            <div className="space-y-3">
+                              <Input
+                                type="datetime-local"
+                                defaultValue={match.match_datetime ? match.match_datetime.substring(0, 16) : ""}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val) {
+                                    updateMutation.mutate({
+                                      id: match.id,
+                                      competition_id: competition.id,
+                                      match_datetime: new Date(val).toISOString()
+                                    });
+                                  }
+                                }}
+                              />
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        match.match_datetime && (
+                          <div className="flex items-center gap-1.5 whitespace-nowrap">
+                            <Calendar className="w-3.5 h-3.5 shrink-0 text-muted-foreground/70" />
+                            <span>{format(parseISO(match.match_datetime), "dd MMM yyyy, HH:mm", { locale: idLocale })}</span>
+                          </div>
+                        )
                       )}
                       {match.location && (
                         <div className="flex items-center gap-1.5 min-w-0">
@@ -685,7 +865,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                     </div>
 
                     {/* Right: Actions */}
-                    <div className="flex flex-wrap items-center gap-1.5 shrink-0 justify-end w-full sm:w-auto">
+                    <div className="flex flex-wrap items-center gap-1.5 justify-end w-full">
                       {match.status === "scheduled" && canManage && (
                         <Button
                           size="sm"
@@ -775,7 +955,199 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
           );
         };
 
-        if (filteredMatches.length === 0) {
+        const renderCreatePhaseNode = (
+          comp: EventCompetitionWithDetails,
+          teamsList: CompetitionTeamWithMembers[],
+          matchesList: CompetitionMatchWithTeams[]
+        ) => {
+          if (comp.format === "liga_grup") {
+            const knockoutMatches = matchesList.filter(m => m.stage === "knockout");
+            
+            if (knockoutMatches.length === 0) {
+              const hasGroups = teamsList.some(t => !!t.group_name);
+              if (!hasGroups) {
+                return (
+                  <div className="text-center space-y-2 p-4">
+                    <p className="text-xs text-muted-foreground font-semibold">Tentukan grup peserta terlebih dahulu di tab Peserta.</p>
+                  </div>
+                );
+              }
+              
+              const groupNamesSet = Array.from(new Set(teamsList.filter(t => !!t.group_name).map(t => t.group_name!))).sort();
+              const groupsDone = areAllGroupMatchesCompleted(matchesList);
+              
+              return (
+                <div className="text-center space-y-3 p-4">
+                  <Trophy className="w-8 h-8 text-primary mx-auto opacity-75" />
+                  <div>
+                    <p className="text-xs font-bold">Buat Babak Gugur</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {groupsDone 
+                        ? "Semua laga grup selesai. Klik untuk seeding juara grup ke babak gugur." 
+                        : "Laga grup belum selesai. Tetap bisa seeding sekarang jika diinginkan."}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const advance = comp.advance_per_group || 2;
+                      const standingsByGroup: Record<string, any[]> = {};
+                      groupNamesSet.forEach((g) => {
+                        standingsByGroup[g] = computeStandings(teamsList, matchesList, g);
+                      });
+                      const pairs = seedKnockoutFromStandings(standingsByGroup, advance);
+                      generateKnockout.mutate({
+                        competition_id: comp.id,
+                        pairs,
+                        match_datetime: comp.events?.event_date
+                          ? `${comp.events.event_date.split("T")[0]}T${comp.events.event_time || "08:00"}`
+                          : null,
+                        location: comp.events?.location || null,
+                      });
+                    }}
+                    disabled={generateKnockout.isPending}
+                    className="w-full text-xs font-bold"
+                  >
+                    {generateKnockout.isPending ? "Memproses..." : "Generate Babak Gugur"}
+                  </Button>
+                </div>
+              );
+            } else {
+              return (
+                <div className="text-center space-y-3 p-4">
+                  <Trophy className="w-8 h-8 text-muted-foreground mx-auto opacity-60" />
+                  <div>
+                    <p className="text-xs font-bold text-muted-foreground">Babak Gugur Aktif</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Bagan gugur telah terbentuk dari juara grup.</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm("Apakah Anda yakin ingin men-generate ulang babak gugur? Semua skor babak gugur saat ini akan dihapus!")) {
+                        const advance = comp.advance_per_group || 2;
+                        const groupNamesSet = Array.from(new Set(teamsList.filter(t => !!t.group_name).map(t => t.group_name!))).sort();
+                        const standingsByGroup: Record<string, any[]> = {};
+                        groupNamesSet.forEach((g) => {
+                          standingsByGroup[g] = computeStandings(teamsList, matchesList, g);
+                        });
+                        const pairs = seedKnockoutFromStandings(standingsByGroup, advance);
+                        generateKnockout.mutate({
+                          competition_id: comp.id,
+                          pairs,
+                          match_datetime: comp.events?.event_date
+                            ? `${comp.events.event_date.split("T")[0]}T${comp.events.event_time || "08:00"}`
+                            : null,
+                          location: comp.events?.location || null,
+                        });
+                      }
+                    }}
+                    disabled={generateKnockout.isPending}
+                    className="w-full text-xs font-bold hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
+                  >
+                    Regenerate Babak Gugur
+                  </Button>
+                </div>
+              );
+            }
+          }
+          
+          if (comp.format === "17an") {
+            return (
+              <div className="text-center space-y-3 p-4">
+                <Trophy className="w-8 h-8 text-primary mx-auto opacity-75 animate-bounce" />
+                <div>
+                  <p className="text-xs font-bold">Lanjutkan Babak</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Buat babak baru dari seluruh pemenang saat ini.</p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newLabel = window.prompt("Nama Babak / Fase baru (Opsional):", `Babak Baru`);
+                    if (newLabel !== null) {
+                      const isFinal = window.confirm("Apakah babak baru ini ditandai sebagai Babak Final?");
+                      advanceRound.mutate({
+                        competition_id: comp.id,
+                        phase_label: newLabel || undefined,
+                        is_final: isFinal
+                      });
+                    }
+                  }}
+                  disabled={advanceRound.isPending}
+                  className="w-full text-xs font-bold"
+                >
+                  {advanceRound.isPending ? "Memproses..." : "Lanjutkan Babak"}
+                </Button>
+              </div>
+            );
+          }
+          
+          if (comp.format === "knockout") {
+            if (matchesList.length === 0) {
+              return (
+                <div className="text-center space-y-3 p-4">
+                  <Trophy className="w-8 h-8 text-primary mx-auto opacity-75" />
+                  <div>
+                    <p className="text-xs font-bold">Generate Bracket</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Dapatkan bagan otomatis dari semua peserta yang terdaftar.</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (teamsList.length < 2) {
+                        alert("Minimal 2 peserta diperlukan untuk membuat bracket.");
+                        return;
+                      }
+                      generateBracket.mutate({
+                        competition_id: comp.id,
+                        teams: teamsList,
+                      });
+                    }}
+                    disabled={generateBracket.isPending}
+                    className="w-full text-xs font-bold"
+                  >
+                    {generateBracket.isPending ? "Memproses..." : "Generate Bracket"}
+                  </Button>
+                </div>
+              );
+            } else {
+              return (
+                <div className="text-center space-y-3 p-4">
+                  <Trophy className="w-8 h-8 text-muted-foreground mx-auto opacity-60" />
+                  <div>
+                    <p className="text-xs font-bold text-muted-foreground">Bagan Aktif</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Seluruh pertandingan bagan sistem gugur telah aktif.</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm("Apakah Anda yakin ingin men-generate ulang bracket? Semua skor pertandingan saat ini akan dihapus!")) {
+                        generateBracket.mutate({
+                          competition_id: comp.id,
+                          teams: teamsList,
+                        });
+                      }
+                    }}
+                    disabled={generateBracket.isPending}
+                    className="w-full text-xs font-bold hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
+                  >
+                    Regenerate Bracket
+                  </Button>
+                </div>
+              );
+            }
+          }
+          
+          return null;
+        };
+
+        if (filteredMatches.length === 0 && viewMode !== "chart") {
           return (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-8 text-center">
@@ -787,12 +1159,14 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
         }
 
         if (viewMode === "chart") {
+          const chartMatches = filteredMatches.filter(m => competition.format !== "liga_grup" || m.stage === "knockout");
           return (
             <TournamentBracket
               competitionId={competition.id}
-              matches={matches}
+              matches={chartMatches}
               canManage={canManage}
-              renderMatchCard={(match) => renderMatchCard(match, matches.indexOf(match))}
+              renderMatchCard={(match) => renderMatchCard(match, filteredMatches.indexOf(match))}
+              createPhaseNode={renderCreatePhaseNode(competition, allTeams, matches)}
               onUpdatePhaseLabel={(roundMatches, newLabel) => {
                 roundMatches.forEach(m => {
                   updateMutation.mutate({

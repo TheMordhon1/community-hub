@@ -14,7 +14,12 @@ import { parseMemberName, capitalizeName } from "@/lib/utils";
 import { extractFlagAndName, getTeamFlag } from "@/lib/countries";
 import { TeamFlag } from "./TeamFlag";
 import { EditTeamDialog } from "./EditTeamDialog";
-import { useUpdateCompetition } from "@/hooks/useCompetitions";
+import { useUpdateCompetition, useResetMatch } from "@/hooks/useCompetitions";
+import { Button } from "@/components/ui/button";
+import { Play, Edit, RotateCcw } from "lucide-react";
+import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
+import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
+
 
 interface Props {
   competition: EventCompetitionWithDetails;
@@ -113,10 +118,24 @@ interface MatchOutcomeCircleProps {
   match: CompetitionMatchWithTeams | null;
   currentTeamId: string;
   allTeams: CompetitionTeamWithMembers[];
+  canManage?: boolean;
+  competitionId?: string;
+  onSelectScore?: (match: CompetitionMatchWithTeams) => void;
+  onSelectUpdate?: (match: CompetitionMatchWithTeams) => void;
 }
 
-function MatchOutcomeCircle({ outcome, match, currentTeamId, allTeams }: MatchOutcomeCircleProps) {
+function MatchOutcomeCircle({
+  outcome,
+  match,
+  currentTeamId,
+  allTeams,
+  canManage = false,
+  competitionId,
+  onSelectScore,
+  onSelectUpdate,
+}: MatchOutcomeCircleProps) {
   const [open, setOpen] = useState(false);
+  const resetMutation = useResetMatch();
   
   if (outcome === "E" && !match) {
     return (
@@ -188,6 +207,59 @@ function MatchOutcomeCircle({ outcome, match, currentTeamId, allTeams }: MatchOu
           <div className="text-[10px] text-muted-foreground pt-1 border-t">
             {dateTimeFormatted}
           </div>
+
+          {canManage && (
+            <div className="flex flex-col gap-1.5 pt-2 mt-2 border-t border-border/40">
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-[10px] h-7 font-bold gap-1 justify-start cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onSelectScore) onSelectScore(match);
+                  setOpen(false);
+                }}
+              >
+                <Play className="w-3 h-3 text-emerald-500 fill-emerald-500" />
+                Atur Skor / Main
+              </Button>
+              
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-[10px] h-7 font-bold gap-1 justify-start cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onSelectUpdate) onSelectUpdate(match);
+                  setOpen(false);
+                }}
+              >
+                <Edit className="w-3 h-3 text-blue-500" />
+                Ubah Detail
+              </Button>
+
+              {match.status === "completed" && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="w-full text-[10px] h-7 font-bold gap-1 justify-start bg-red-500/10 text-red-600 hover:bg-red-500/20 border border-red-500/20 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (window.confirm("Apakah Anda yakin ingin membatalkan/reset pertandingan ini? Skor akan dihapus dan kembali ke terjadwal.")) {
+                      resetMutation.mutate({
+                        id: match.id,
+                        competition_id: competitionId || ""
+                      });
+                      setOpen(false);
+                    }
+                  }}
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Batalkan Pertandingan
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>
@@ -200,6 +272,11 @@ export function GroupStandings({ competition, canManage = false }: Props) {
   const advance = competition.advance_per_group ?? 2;
   const [showFlags, setShowFlags] = useState(true);
   const [editingTeam, setEditingTeam] = useState<CompetitionTeamWithMembers | null>(null);
+
+  const [selectedMatchForScore, setSelectedMatchForScore] = useState<CompetitionMatchWithTeams | null>(null);
+  const [selectedMatchForUpdate, setSelectedMatchForUpdate] = useState<CompetitionMatchWithTeams | null>(null);
+  const [scoreDialogOpen, setScoreDialogOpen] = useState(false);
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
 
   const updateCompetition = useUpdateCompetition();
 
@@ -395,6 +472,16 @@ export function GroupStandings({ competition, canManage = false }: Props) {
                                     match={slot.match}
                                     currentTeamId={r.team.id}
                                     allTeams={teams}
+                                    canManage={canManage}
+                                    competitionId={competition.id}
+                                    onSelectScore={(match) => {
+                                      setSelectedMatchForScore(match);
+                                      setScoreDialogOpen(true);
+                                    }}
+                                    onSelectUpdate={(match) => {
+                                      setSelectedMatchForUpdate(match);
+                                      setUpdateDialogOpen(true);
+                                    }}
                                   />
                                 ))}
                               </div>
@@ -438,6 +525,26 @@ export function GroupStandings({ competition, canManage = false }: Props) {
           competition={competition}
         />
       )}
+
+      <UpdateMatchDialog
+        open={updateDialogOpen}
+        onOpenChange={setUpdateDialogOpen}
+        match={selectedMatchForUpdate}
+        competition={competition}
+      />
+
+      <LiveScoreDialog
+        open={scoreDialogOpen}
+        onOpenChange={setScoreDialogOpen}
+        match={selectedMatchForScore}
+        competition={competition}
+        canManage={canManage}
+        onEditMatch={(m) => {
+          setSelectedMatchForUpdate(m);
+          setUpdateDialogOpen(true);
+          setScoreDialogOpen(false);
+        }}
+      />
     </>
   );
 }

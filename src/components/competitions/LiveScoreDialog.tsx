@@ -21,7 +21,7 @@ import { motion } from "framer-motion";
 import { WinnerAnnounceDialog } from "./WinnerAnnounceDialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { parseMemberName, capitalizeName } from "@/lib/utils";
+import { parseMemberName, capitalizeName, cn } from "@/lib/utils";
 
 interface LiveScoreDialogProps {
   open: boolean;
@@ -221,6 +221,50 @@ export default function LiveScoreDialog({
 
   const updateMutation = useUpdateMatch();
   const resetMatchMutation = useResetMatch();
+
+  const handleCircleClick = (idx: number, teamNum: 1 | 2) => {
+    if (readOnly) return;
+    
+    // Create any missing sets up to this index
+    let newSets = [...sets];
+    while (newSets.length <= idx) {
+      newSets.push({ team1_score: 0, team2_score: 0 });
+    }
+    
+    const set = newSets[idx];
+    const isPlayed = set.team1_score > 0 || set.team2_score > 0;
+    
+    if (!isPlayed) {
+      // Create/set a match/game score directly
+      const defaultWinScore = 21;
+      const defaultLoseScore = 19;
+      if (teamNum === 1) {
+        newSets[idx] = { team1_score: defaultWinScore, team2_score: defaultLoseScore };
+      } else {
+        newSets[idx] = { team1_score: defaultLoseScore, team2_score: defaultWinScore };
+      }
+      setSets(newSets);
+      setActiveSetIndex(idx);
+      isDirty.current = true;
+    } else {
+      // Already played - show a choice to edit or cancel/delete
+      const action = window.confirm(
+        `Set ${idx + 1} saat ini bernilai ${set.team1_score} - ${set.team2_score}.\n\n` +
+        `Klik OK untuk menghapus/membatalkan game ini (reset ke 0-0).\n` +
+        `Klik BATAL untuk tetap mempertahankan skor.`
+      );
+      if (action) {
+        // Hapus/cancel set
+        newSets = newSets.map((s, sIdx) => sIdx === idx ? { team1_score: 0, team2_score: 0 } : s);
+        setSets(newSets);
+        setActiveSetIndex(idx);
+        isDirty.current = true;
+      } else {
+        // Just make it the active set so they can edit
+        setActiveSetIndex(idx);
+      }
+    }
+  };
 
   const handleCancelGame = () => {
     if (!match) return;
@@ -963,7 +1007,68 @@ export default function LiveScoreDialog({
                   </div>
                 </div>
 
-                <div className="text-xl sm:text-3xl font-black text-muted-foreground/20 italic">VS</div>
+                <div className="flex flex-col items-center gap-4 px-2 sm:px-4 shrink-0">
+                  <div className="text-xl sm:text-3xl font-black text-muted-foreground/20 italic">VS</div>
+                  
+                  {/* Sets / Games interactive indicator list */}
+                  <div className="flex flex-col items-center gap-2 border border-border/60 bg-muted/20 rounded-2xl p-3 shrink-0 select-none">
+                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">
+                      {Math.max(sets.length, 3)} Game
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {Array.from({ length: Math.max(sets.length, 3) }).map((_, idx) => {
+                        const set = sets[idx];
+                        const isPlayed = !!set && (set.team1_score > 0 || set.team2_score > 0);
+                        const team1Won = isPlayed && set.team1_score > set.team2_score;
+                        const team2Won = isPlayed && set.team2_score > set.team1_score;
+                        
+                        return (
+                          <div key={idx} className="flex items-center gap-3">
+                            {/* Team 1 Circle */}
+                            <button
+                              type="button"
+                              disabled={readOnly}
+                              onClick={() => handleCircleClick(idx, 1)}
+                              className={cn(
+                                "w-8 h-8 rounded-full flex items-center justify-center border transition-all duration-300 shadow-sm",
+                                team1Won
+                                  ? "bg-emerald-500 border-emerald-600 text-white font-bold"
+                                  : isPlayed && team2Won
+                                  ? "bg-rose-500 border-rose-600 text-white font-bold"
+                                  : "bg-muted border-border hover:border-primary/50 text-muted-foreground"
+                              )}
+                              title={team1Won ? "Tim 1 Menang" : team2Won ? "Tim 1 Kalah" : "Klik untuk atur set"}
+                            >
+                              {team1Won ? "✓" : team2Won ? "✗" : ""}
+                            </button>
+                            
+                            <span className="text-[10px] font-bold text-muted-foreground/80 min-w-[32px] text-center">
+                              G{idx + 1}
+                            </span>
+                            
+                            {/* Team 2 Circle */}
+                            <button
+                              type="button"
+                              disabled={readOnly}
+                              onClick={() => handleCircleClick(idx, 2)}
+                              className={cn(
+                                "w-8 h-8 rounded-full flex items-center justify-center border transition-all duration-300 shadow-sm",
+                                team2Won
+                                  ? "bg-emerald-500 border-emerald-600 text-white font-bold"
+                                  : isPlayed && team1Won
+                                  ? "bg-rose-500 border-rose-600 text-white font-bold"
+                                  : "bg-muted border-border hover:border-primary/50 text-muted-foreground"
+                              )}
+                              title={team2Won ? "Tim 2 Menang" : team1Won ? "Tim 2 Kalah" : "Klik untuk atur set"}
+                            >
+                              {team2Won ? "✓" : team1Won ? "✗" : ""}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
 
                 {/* Team 2: Score on the right */}
                 <div className="flex flex-col items-center flex-1 min-w-0">
@@ -1054,7 +1159,7 @@ export default function LiveScoreDialog({
 
         <DialogFooter className="flex flex-col gap-4 p-6 pt-3 shrink-0 bg-muted/5 border-t w-full">
           {/* Auto Refresh Row */}
-          {match.status !== "completed" && (
+          {match.status === "ongoing" && (
             <div className="flex items-center justify-between gap-4 w-full bg-muted/30 border border-border/60 rounded-xl p-3">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="p-1.5 rounded-lg bg-primary/10 text-primary">

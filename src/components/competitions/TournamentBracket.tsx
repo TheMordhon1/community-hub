@@ -21,6 +21,7 @@ interface TournamentBracketProps<T extends BracketMatch> {
   canManage?: boolean;
   renderMatchCard: (match: T) => React.ReactNode;
   onUpdatePhaseLabel?: (roundMatches: T[], newLabel: string) => void;
+  createPhaseNode?: React.ReactNode;
 }
 
 export function TournamentBracket<T extends BracketMatch>({
@@ -29,6 +30,7 @@ export function TournamentBracket<T extends BracketMatch>({
   canManage = false,
   renderMatchCard,
   onUpdatePhaseLabel,
+  createPhaseNode,
 }: TournamentBracketProps<T>) {
   const [currentRoundIdx, setCurrentRoundIdx] = useState(0);
   const [connections, setConnections] = useState<{ id: string; path: string; isWinner: boolean }[]>([]);
@@ -290,6 +292,11 @@ export function TournamentBracket<T extends BracketMatch>({
               </div>
             );
           })}
+          {canManage && createPhaseNode && (
+            <div className="flex flex-col w-[280px] sm:w-[320px] shrink-0 justify-center items-center h-[180px] border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors rounded-2xl p-6 self-center select-none bg-muted/5">
+              {createPhaseNode}
+            </div>
+          )}
         </div>
       </div>
     </div>

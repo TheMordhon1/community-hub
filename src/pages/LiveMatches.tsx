@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Trophy, Clock, MapPin, Radio, Calendar, Users, Eye, CheckCircle2, ArrowLeft, X, GitBranch, Play, RefreshCw, MessageSquare, Copy, Send, ExternalLink } from "lucide-react";
+import { Loader2, Trophy, Clock, MapPin, Radio, Calendar, Users, Eye, CheckCircle2, ArrowLeft, X, GitBranch, Play, RefreshCw, MessageSquare, Copy, Send, ExternalLink, Edit } from "lucide-react";
 import { format, parseISO, isToday, isTomorrow } from "date-fns";
 import { id } from "date-fns/locale";
 import { Link, useSearchParams } from "react-router-dom";
@@ -14,13 +14,22 @@ import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
 import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
 import { AssignRefereeDialog } from "@/components/competitions/AssignRefereeDialog";
 import { useAuth } from "@/hooks/useAuth";
+import { useUpdateMatch, useGenerateBracket, useGenerateKnockoutFromGroups, useAdvance17anRound } from "@/hooks/useCompetitions";
+import {
+  areAllGroupMatchesCompleted,
+  computeStandings,
+  hasGroupMatches,
+  hasKnockoutMatches,
+  seedKnockoutFromStandings,
+} from "@/lib/liga-group";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { GroupStandings } from "@/components/competitions/GroupStandings";
 import { getTeamFlag, extractFlagAndName } from "@/lib/countries";
 import { TeamFlag } from "@/components/competitions/TeamFlag";
 import { TournamentBracket } from "@/components/competitions/TournamentBracket";
-import type { CompetitionMatchWithTeams, EventCompetitionWithDetails } from "@/types/competition";
+import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn, parseMemberName, capitalizeName } from "@/lib/utils";
@@ -94,6 +103,10 @@ interface MatchData {
 export default function LiveMatches() {
   const queryClient = useQueryClient();
   const { user, isAdmin, pengurusTitle } = useAuth();
+  const updateMutation = useUpdateMatch();
+  const generateBracket = useGenerateBracket();
+  const generateKnockout = useGenerateKnockoutFromGroups();
+  const advanceRound = useAdvance17anRound();
 
   const isMenteriSistemDigital = pengurusTitle === "menteri_sisdigi";
   const canManageMatch = (match: MatchData) => {
@@ -310,6 +323,8 @@ export default function LiveMatches() {
             sets_per_match,
             kids_brackets,
             advance_per_group,
+            event_id,
+            events:events(event_date, event_time, location),
             referees:competition_referees(user_id)
           ),
           team1:competition_teams!team1_id (
@@ -729,15 +744,92 @@ export default function LiveMatches() {
         </div>
 
         <CardContent className="p-3 flex-1 flex flex-col justify-between gap-2.5">
-          <div className="text-center text-[9px] uppercase font-bold tracking-wider text-muted-foreground">
-            {match.phase_label || (match.stage === "group" ? "Group Stage" : "Penyisihan")} {match.group_name ? `• ${match.group_name}` : ""}
+          <div className="text-center text-[9px] uppercase font-bold tracking-wider text-muted-foreground flex items-center justify-center gap-1 group/header">
+            <span>
+              {match.phase_label || (match.stage === "group" ? "Group Stage" : "Penyisihan")} {match.group_name ? `• ${match.group_name}` : ""}
+            </span>
+            {canManageMatch(match) && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newRound = window.prompt("Ubah Nomor Babak (Round):", String(match.round_number || 1));
+                  if (newRound !== null) {
+                    const parsedRound = parseInt(newRound, 10);
+                    if (!isNaN(parsedRound)) {
+                      updateMutation.mutate({
+                        id: match.id,
+                        competition_id: match.competition_id,
+                        round_number: parsedRound
+                      });
+                    }
+                  }
+                }}
+                className="opacity-0 group-hover/header:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary shrink-0"
+                title="Ubah Nomor Babak"
+              >
+                <GitBranch className="w-2.5 h-2.5" />
+              </button>
+            )}
           </div>
 
           {!is17an ? (
             <div className="flex items-center justify-between gap-1 py-1">
               <div className="flex-1 text-center min-w-0">
                 <div className={cn("font-bold text-xs truncate", match.status === "completed" && setsWon1 > setsWon2 && "text-primary")}>
-                  {renderTeamName(match.team1, "TBD", match.id)}
+                  {canManageMatch(match) ? (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <div
+                          role="button"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1.5 hover:bg-muted/50 rounded px-1 transition-colors group/team cursor-pointer max-w-full truncate"
+                        >
+                          <TeamFlag team={match.team1} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
+                          <span className="truncate font-bold text-xs">
+                            {match.team1 ? extractFlagAndName(match.team1.name).name : "TBD"}
+                          </span>
+                          <Edit className="w-3 h-3 opacity-0 group-hover/team:opacity-100 transition-opacity ml-1 text-muted-foreground" />
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-56 p-2" align="center" onClick={(e) => e.stopPropagation()}>
+                        <Label className="text-xs font-bold mb-1.5 block">Ubah Tim 1</Label>
+                        <Select 
+                          value={match.team1_id || "none"} 
+                          onValueChange={(val) => {
+                            const newTeamId = val === "none" ? null : val;
+                            updateMutation.mutate({
+                              id: match.id,
+                              competition_id: match.competition_id,
+                              team1_id: newTeamId,
+                              team_ids: [newTeamId, match.team2_id].filter(Boolean) as string[]
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Pilih Tim" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Pilih Tim (TBD)</SelectItem>
+                            {allTeams.filter(t => t.competition_id === match.competition_id).map((t) => {
+                              const flag = getTeamFlag(t);
+                              const isEmoji = flag && !flag.includes("/");
+                              return (
+                                <SelectItem key={t.id} value={t.id} disabled={t.id === match.team2_id}>
+                                  <span className="flex items-center gap-1.5">
+                                    {isEmoji && <span className="text-base select-none shrink-0">{flag}</span>}
+                                    <span>{extractFlagAndName(t.name).name}</span>
+                                  </span>
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    renderTeamName(match.team1, "TBD", match.id)
+                  )}
                 </div>
                 {match.team1?.members && match.team1.members.length > 0 && (
                   <ul className="mt-0.5 space-y-0.5 max-h-[40px] overflow-y-auto scrollbar-none">
@@ -765,7 +857,59 @@ export default function LiveMatches() {
 
               <div className="flex-1 text-center min-w-0">
                 <div className={cn("font-bold text-xs truncate", match.status === "completed" && setsWon2 > setsWon1 && "text-primary")}>
-                  {renderTeamName(match.team2, "TBD", match.id)}
+                  {canManageMatch(match) ? (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <div
+                          role="button"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1.5 hover:bg-muted/50 rounded px-1 transition-colors group/team cursor-pointer max-w-full truncate"
+                        >
+                          <TeamFlag team={match.team2} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
+                          <span className="truncate font-bold text-xs">
+                            {match.team2 ? extractFlagAndName(match.team2.name).name : "TBD"}
+                          </span>
+                          <Edit className="w-3 h-3 opacity-0 group-hover/team:opacity-100 transition-opacity ml-1 text-muted-foreground" />
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-56 p-2" align="center" onClick={(e) => e.stopPropagation()}>
+                        <Label className="text-xs font-bold mb-1.5 block">Ubah Tim 2</Label>
+                        <Select 
+                          value={match.team2_id || "none"} 
+                          onValueChange={(val) => {
+                            const newTeamId = val === "none" ? null : val;
+                            updateMutation.mutate({
+                              id: match.id,
+                              competition_id: match.competition_id,
+                              team2_id: newTeamId,
+                              team_ids: [match.team1_id, newTeamId].filter(Boolean) as string[]
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Pilih Tim" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Pilih Tim (TBD)</SelectItem>
+                            {allTeams.filter(t => t.competition_id === match.competition_id).map((t) => {
+                              const flag = getTeamFlag(t);
+                              const isEmoji = flag && !flag.includes("/");
+                              return (
+                                <SelectItem key={t.id} value={t.id} disabled={t.id === match.team1_id}>
+                                  <span className="flex items-center gap-1.5">
+                                    {isEmoji && <span className="text-base select-none shrink-0">{flag}</span>}
+                                    <span>{extractFlagAndName(t.name).name}</span>
+                                  </span>
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    renderTeamName(match.team2, "TBD", match.id)
+                  )}
                 </div>
                 {match.team2?.members && match.team2.members.length > 0 && (
                   <ul className="mt-0.5 space-y-0.5 max-h-[40px] overflow-y-auto scrollbar-none">
@@ -796,11 +940,46 @@ export default function LiveMatches() {
             </div>
           )}
 
-          <div className="flex items-center justify-between w-full pt-2 border-t border-dashed text-[9px] text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3 text-muted-foreground/60" />
-              {formatMatchTime(match.match_datetime)}
-            </span>
+          <div className="flex flex-wrap items-center justify-between w-full pt-2 border-t border-dashed text-[9px] text-muted-foreground gap-1.5">
+            {canManageMatch(match) ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div
+                    role="button"
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-1 hover:bg-muted/50 rounded px-1 transition-colors group/date py-0.5 cursor-pointer"
+                  >
+                    <Clock className="w-3 h-3 text-muted-foreground/60" />
+                    <span>{formatMatchTime(match.match_datetime)}</span>
+                    <Edit className="w-2.5 h-2.5 opacity-0 group-hover/date:opacity-100 transition-opacity ml-0.5" />
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3" align="start" onClick={(e) => e.stopPropagation()}>
+                  <Label className="text-xs font-bold mb-1.5 block">Waktu Pertandingan</Label>
+                  <div className="space-y-3">
+                    <Input
+                      type="datetime-local"
+                      defaultValue={match.match_datetime ? match.match_datetime.substring(0, 16) : ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val) {
+                          updateMutation.mutate({
+                            id: match.id,
+                            competition_id: match.competition_id,
+                            match_datetime: new Date(val).toISOString()
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-muted-foreground/60" />
+                {formatMatchTime(match.match_datetime)}
+              </span>
+            )}
             {match.location && (
               <span className="truncate max-w-[100px] flex items-center gap-0.5">
                 <MapPin className="w-3 h-3 text-muted-foreground/60" />
@@ -1688,7 +1867,7 @@ export default function LiveMatches() {
                 );
               }
 
-              let filteredChartMatches = matches;
+              let filteredChartMatches = filteredMatches;
               if (selectedStatus !== "all") {
                 filteredChartMatches = filteredChartMatches.filter(m => {
                   if (selectedStatus === "upcoming") return m.status === "scheduled";
@@ -1739,8 +1918,17 @@ export default function LiveMatches() {
                         <TournamentBracket
                           competitionId={comp.id}
                           matches={compMatches}
-                          canManage={false}
+                          canManage={isAdmin() || isMenteriSistemDigital || comp.referees?.some(ref => ref.user_id === user?.id)}
                           renderMatchCard={(match) => renderMatchCard(match)}
+                          onUpdatePhaseLabel={(roundMatches, newLabel) => {
+                            roundMatches.forEach(m => {
+                              updateMutation.mutate({
+                                id: m.id,
+                                competition_id: comp.id,
+                                phase_label: newLabel || null
+                              });
+                            });
+                          }}
                         />
                       </div>
                     </div>
