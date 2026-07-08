@@ -415,6 +415,14 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
 
       {(() => {
         const renderMatchCard = (match: CompetitionMatchWithTeams, index: number) => {
+          // Compute effective scores from sets_data if sets exist (badminton/multi-set),
+          // otherwise fall back to stored score1/score2.
+          const setsArr = Array.isArray(match.sets_data) ? match.sets_data : [];
+          const setsWon1 = setsArr.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length;
+          const setsWon2 = setsArr.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length;
+          const displayScore1 = setsArr.length > 0 ? String(setsWon1) : (match.score1 || "");
+          const displayScore2 = setsArr.length > 0 ? String(setsWon2) : (match.score2 || "");
+          const hasScoreValues = setsArr.length > 0 || match.score1 !== null || match.score2 !== null;
           return (
             <Card id={`match-card-${match.id}`} key={match.id} className="overflow-hidden bg-card/60 backdrop-blur border shadow-sm hover:border-primary/40 transition-colors">
               <CardContent className="p-0">
