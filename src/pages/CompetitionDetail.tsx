@@ -12,6 +12,7 @@ import {
   useResetAllMatches,
   useGenerateGroupSchedule,
   useGenerateKnockoutFromGroups,
+  useResetKnockoutPhase,
 } from "@/hooks/useCompetitions";
 import {
   areAllGroupMatchesCompleted,
@@ -101,6 +102,7 @@ export default function CompetitionDetail() {
   const generateGroup = useGenerateGroupSchedule();
   const generateKnockout = useGenerateKnockoutFromGroups();
   const resetAllMatches = useResetAllMatches();
+  const resetKnockoutPhase = useResetKnockoutPhase();
 
   const [isAddTeamOpen, setIsAddTeamOpen] = useState(false);
   const [isCreateMatchOpen, setIsCreateMatchOpen] = useState(false);
@@ -637,10 +639,24 @@ export default function CompetitionDetail() {
                           Generate Jadwal Grup
                         </DropdownMenuItem>
                       )}
-                      {isLigaGrup && groupsDone && !knockoutExists && canManage && (
+                       {isLigaGrup && groupsDone && !knockoutExists && canManage && (
                         <DropdownMenuItem onClick={handleGenerateKnockout} disabled={generateKnockout.isPending}>
                           <Trophy className="w-4 h-4 mr-2" />
                           Generate Babak Gugur
+                        </DropdownMenuItem>
+                      )}
+                      {isLigaGrup && knockoutExists && canManage && (
+                        <DropdownMenuItem
+                          onClick={() => {
+                            if (window.confirm("Apakah Anda yakin ingin menghapus semua pertandingan Babak Gugur?")) {
+                              resetKnockoutPhase.mutate({ competition_id: competition.id });
+                            }
+                          }}
+                          disabled={resetKnockoutPhase.isPending}
+                          className="text-amber-600 focus:text-amber-600"
+                        >
+                          <RotateCcw className={`w-4 h-4 mr-2 ${resetKnockoutPhase.isPending ? 'animate-spin' : ''}`} />
+                          Reset Babak Gugur
                         </DropdownMenuItem>
                       )}
 

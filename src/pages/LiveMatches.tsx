@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Trophy, Clock, MapPin, Radio, Calendar, Users, Eye, CheckCircle2, ArrowLeft, X, GitBranch, Play, RefreshCw, MessageSquare, Copy, Send, ExternalLink, Edit } from "lucide-react";
+import { Loader2, Trophy, Clock, MapPin, Radio, Calendar, Users, Eye, CheckCircle2, ArrowLeft, X, GitBranch, Play, RefreshCw, MessageSquare, Copy, Send, ExternalLink, Edit, GitMerge } from "lucide-react";
 import { format, parseISO, isToday, isTomorrow } from "date-fns";
 import { id } from "date-fns/locale";
 import { Link, useSearchParams } from "react-router-dom";
@@ -14,19 +14,21 @@ import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
 import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
 import { AssignRefereeDialog } from "@/components/competitions/AssignRefereeDialog";
 import { useAuth } from "@/hooks/useAuth";
-import { useUpdateMatch, useGenerateBracket, useGenerateKnockoutFromGroups, useAdvance17anRound } from "@/hooks/useCompetitions";
+import { useUpdateMatch, useGenerateBracket, useGenerateKnockoutFromGroups, useAdvance17anRound, useResetKnockoutPhase, useCreateMatch } from "@/hooks/useCompetitions";
 import {
   areAllGroupMatchesCompleted,
   computeStandings,
   hasGroupMatches,
   hasKnockoutMatches,
   seedKnockoutFromStandings,
+  type StandingRow,
 } from "@/lib/liga-group";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { GroupStandings } from "@/components/competitions/GroupStandings";
 import { getTeamFlag, extractFlagAndName } from "@/lib/countries";
 import { TeamFlag } from "@/components/competitions/TeamFlag";
 import { TournamentBracket } from "@/components/competitions/TournamentBracket";
+import { MatchPhaseEditor } from "@/components/competitions/MatchPhaseEditor";
 import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +50,7 @@ interface MatchTeam {
   id: string;
   name: string;
   logo_url?: string | null;
+  group_name?: string | null;
   members?: { id: string, name: string | null, user_id?: string | null, profile?: { full_name?: string | null, avatar_url?: string | null, house?: { block: string; number: string } } }[];
 }
 
@@ -66,6 +69,14 @@ interface CompetitionDetail {
   custom_match_label: string | null;
   format: string;
   sets_per_match: number | null;
+  kids_brackets: boolean | null;
+  advance_per_group: number | null;
+  event_id: string | null;
+  events: {
+    event_date: string | null;
+    event_time: string | null;
+    location: string | null;
+  } | null;
   referees?: { user_id: string }[] | null;
 }
 
@@ -87,9 +98,11 @@ interface MatchData {
   status: string;
   match_datetime: string | null;
   location: string | null;
+  notes?: string | null;
   sets_data?: MatchSetData[] | null;
   group_name: string | null;
   phase_label: string | null;
+  next_match_id?: string | null;
   is_final: boolean | null;
   stage: string | null;
   competition: CompetitionDetail | null;
@@ -107,6 +120,8 @@ export default function LiveMatches() {
   const generateBracket = useGenerateBracket();
   const generateKnockout = useGenerateKnockoutFromGroups();
   const advanceRound = useAdvance17anRound();
+  const resetKnockout = useResetKnockoutPhase();
+  const createMatch = useCreateMatch();
 
   const isMenteriSistemDigital = pengurusTitle === "menteri_sisdigi";
   const canManageMatch = (match: MatchData) => {
@@ -139,6 +154,7 @@ export default function LiveMatches() {
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>("all");
   const [selectedPhase, setSelectedPhase] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [selectedChartStage, setSelectedChartStage] = useState<"group" | "knockout">("knockout");
   const [autoRefresh, setAutoRefresh] = useState(false);
 
   const { toast } = useToast();
@@ -440,6 +456,13 @@ export default function LiveMatches() {
       if (freshMatch) {
         setSelectedMatch(freshMatch);
       }
+    }
+  }, [matches]);
+
+  useEffect(() => {
+    const hasAnyKnockoutInFiltered = matches.some(m => m.stage === "knockout");
+    if (!hasAnyKnockoutInFiltered) {
+      setSelectedChartStage("group");
     }
   }, [matches]);
 
@@ -749,27 +772,70 @@ export default function LiveMatches() {
               {match.phase_label || (match.stage === "group" ? "Group Stage" : "Penyisihan")} {match.group_name ? `• ${match.group_name}` : ""}
             </span>
             {canManageMatch(match) && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const newRound = window.prompt("Ubah Nomor Babak (Round):", String(match.round_number || 1));
-                  if (newRound !== null) {
-                    const parsedRound = parseInt(newRound, 10);
-                    if (!isNaN(parsedRound)) {
-                      updateMutation.mutate({
-                        id: match.id,
-                        competition_id: match.competition_id,
-                        round_number: parsedRound
-                      });
-                    }
-                  }
-                }}
-                className="opacity-0 group-hover/header:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary shrink-0"
-                title="Ubah Nomor Babak"
-              >
-                <GitBranch className="w-2.5 h-2.5" />
-              </button>
+              <>
+                <MatchPhaseEditor
+                  match={match}
+                  allMatches={matches}
+                  onUpdate={(newRound, newPhase) => {
+                    updateMutation.mutate({
+                      id: match.id,
+                      competition_id: match.competition_id,
+                      round_number: newRound,
+                      phase_label: newPhase
+                    });
+                  }}
+                  iconClassName="w-2.5 h-2.5"
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(e) => e.stopPropagation()}
+                      className="opacity-0 group-hover/header:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary shrink-0 ml-1"
+                      title="Hubungkan ke Pertandingan Selanjutnya"
+                    >
+                      <GitMerge className="w-2.5 h-2.5" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-2" align="center" onClick={(e) => e.stopPropagation()}>
+                    <Label className="text-xs font-bold mb-1.5 block">Hubungkan ke Pertandingan Selanjutnya</Label>
+                    <Select
+                      value={match.next_match_id || "none"}
+                      onValueChange={(val) => {
+                        const newNextMatchId = val === "none" ? null : val;
+                        updateMutation.mutate({
+                          id: match.id,
+                          competition_id: match.competition_id,
+                          next_match_id: newNextMatchId
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Pilih Pertandingan" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-56">
+                        <SelectItem value="none">Tidak ada (Babak Final / Berdiri Sendiri)</SelectItem>
+                        {matches
+                          .filter((m) => m.competition_id === match.competition_id && m.id !== match.id)
+                          .map((m, idx) => {
+                            const team1Name = m.team1 ? extractFlagAndName(m.team1.name).name : "TBD";
+                            const team2Name = m.team2 ? extractFlagAndName(m.team2.name).name : "TBD";
+                            const label = m.notes || `Pertandingan ${idx + 1}`;
+                            const roundName = m.phase_label || `Babak ${m.round_number || 1}`;
+                            return (
+                              <SelectItem key={m.id} value={m.id}>
+                                <div className="flex flex-col text-[10px] py-0.5 text-left">
+                                  <span className="font-semibold text-foreground truncate">{label} ({roundName})</span>
+                                  <span className="text-muted-foreground truncate">{team1Name} vs {team2Name}</span>
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
+                      </SelectContent>
+                    </Select>
+                  </PopoverContent>
+                </Popover>
+              </>
             )}
           </div>
 
@@ -1787,7 +1853,7 @@ export default function LiveMatches() {
               allGroupMatches.forEach(m => {
                 if (!compMap.has(m.competition_id)) {
                   compMap.set(m.competition_id, {
-                    comp: m.competition as EventCompetitionWithDetails,
+                    comp: m.competition as unknown as EventCompetitionWithDetails,
                     matches: [],
                     teams: allTeams.filter(t => t.competition_id === m.competition_id)
                   });
@@ -1858,7 +1924,13 @@ export default function LiveMatches() {
               }
 
               const compsWithMatches = competitionsToShow.map(comp => {
-                const compMatches = filteredChartMatches.filter(m => m.competition_id === comp.id);
+                const compMatches = filteredChartMatches.filter(m => {
+                  if (m.competition_id !== comp.id) return false;
+                  if (comp.format === "liga_grup") {
+                    return m.stage === selectedChartStage;
+                  }
+                  return true;
+                });
                 return { comp, compMatches };
               }).filter(item => item.compMatches.length > 0);
 
@@ -1894,6 +1966,30 @@ export default function LiveMatches() {
                         </div>
                       </div>
 
+                      {comp.format === "liga_grup" && (
+                        <div className="flex justify-center my-2">
+                          <div className="flex bg-muted/50 p-1 rounded-lg border shadow-sm">
+                            <Button
+                              variant={selectedChartStage === "group" ? "secondary" : "ghost"}
+                              size="sm"
+                              className="h-7 px-3 text-[10px] font-semibold"
+                              onClick={() => setSelectedChartStage("group")}
+                            >
+                              Babak Grup
+                            </Button>
+                            <Button
+                              variant={selectedChartStage === "knockout" ? "secondary" : "ghost"}
+                              size="sm"
+                              className="h-7 px-3 text-[10px] font-semibold"
+                              disabled={!matches.some(m => m.competition_id === comp.id && m.stage === "knockout")}
+                              onClick={() => setSelectedChartStage("knockout")}
+                            >
+                              Babak Gugur
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="pt-2">
                         <TournamentBracket
                           competitionId={comp.id}
@@ -1907,6 +2003,50 @@ export default function LiveMatches() {
                                 competition_id: comp.id,
                                 phase_label: newLabel || null
                               });
+                            });
+                          }}
+                          onResetKnockout={() => {
+                            resetKnockout.mutate({ competition_id: comp.id });
+                          }}
+                          onRegenerateKnockout={() => {
+                            const advance = comp.advance_per_group || 2;
+                            const compTeams = allTeams.filter(t => t.competition_id === comp.id);
+                            const groupNamesSet = Array.from(new Set(compTeams.filter(t => !!t.group_name).map(t => t.group_name!))).sort();
+                            const standingsByGroup: Record<string, StandingRow[]> = {};
+                            groupNamesSet.forEach((g) => {
+                              standingsByGroup[g] = computeStandings(
+                                compTeams as unknown as CompetitionTeamWithMembers[],
+                                matches.filter(m => m.competition_id === comp.id) as unknown as CompetitionMatchWithTeams[],
+                                g
+                              );
+                            });
+                            const pairs = seedKnockoutFromStandings(standingsByGroup, advance);
+                            generateKnockout.mutate({
+                              competition_id: comp.id,
+                              pairs,
+                              match_datetime: comp.events?.event_date
+                                ? `${comp.events.event_date.split("T")[0]}T${comp.events.event_time || "08:00"}`
+                                : null,
+                              location: comp.events?.location || null,
+                            });
+                          }}
+                          onReorderPhases={(updates) => {
+                            updates.forEach((u) => {
+                              updateMutation.mutate({
+                                id: u.id,
+                                competition_id: comp.id,
+                                round_number: u.round_number
+                              });
+                            });
+                          }}
+                          onAddPhase={(phaseLabel) => {
+                            const compMatches = matches.filter(m => m.competition_id === comp.id);
+                            const maxRound = compMatches.reduce((max, m) => Math.max(max, m.round_number || 1), 0);
+                            createMatch.mutate({
+                              competition_id: comp.id,
+                              round_number: maxRound + 1,
+                              phase_label: phaseLabel,
+                              match_number: 0
                             });
                           }}
                         />

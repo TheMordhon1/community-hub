@@ -432,7 +432,7 @@ export function GroupStandings({ competition, canManage = false }: Props) {
                                         {cleanName}
                                       </span>
                                     )}
-                                    {advancing && (
+                                    {advancing && r.played > 0 && (
                                       <Medal className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
                                     )}
                                   </div>

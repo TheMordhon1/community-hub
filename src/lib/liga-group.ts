@@ -139,7 +139,7 @@ export function seedKnockoutFromStandings(
   const groupNames = Object.keys(standingsByGroup).sort();
   const qualifiers: { teamId: string; group: string; rank: number }[] = [];
   for (const g of groupNames) {
-    const s = standingsByGroup[g];
+    const s = standingsByGroup[g].filter((row) => row.played > 0);
     const adv = typeof advancePerGroup === "number" ? advancePerGroup : (advancePerGroup[g] ?? 2);
     for (let r = 0; r < Math.min(adv, s.length); r++) {
       qualifiers.push({ teamId: s[r].team.id, group: g, rank: r + 1 });

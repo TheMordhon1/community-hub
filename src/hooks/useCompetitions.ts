@@ -727,6 +727,7 @@ export function useUpdateMatch() {
       team1_id?: string | null;
       team2_id?: string | null;
       team_ids?: string[];
+      next_match_id?: string | null;
     }) => {
       const { id, competition_id, participant_scores, team_ids, ...updateData } = data;
 
@@ -1376,6 +1377,41 @@ export function useResetAllMatches() {
   });
 }
 
+// Reset knockout phase (deletes all matches with stage = 'knockout')
+export function useResetKnockoutPhase() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { competition_id: string }) => {
+      const { error } = await supabase
+        .from("competition_matches")
+        .delete()
+        .eq("competition_id", data.competition_id)
+        .eq("stage", "knockout");
+
+      if (error) throw error;
+      return { competition_id: data.competition_id };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["live-matches"],
+      });
+      toast({ title: "Berhasil", description: "Babak gugur berhasil di-reset" });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal me-reset babak gugur",
+      });
+    },
+  });
+}
+
 // Assign teams to a match (used by Spin Wheel per-match)
 export function useAssignMatchTeams() {
   const queryClient = useQueryClient();
@@ -1716,4 +1752,3 @@ export function useGenerateKnockoutFromGroups() {
     },
   });
 }
-

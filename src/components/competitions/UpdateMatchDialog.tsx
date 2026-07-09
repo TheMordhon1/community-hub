@@ -26,7 +26,7 @@ import { useUpdateMatch } from "@/hooks/useCompetitions";
 import { useToast } from "@/hooks/use-toast";
 import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, MatchStatus } from "@/types/competition";
 import { MATCH_STATUS_LABELS } from "@/types/competition";
-
+import { getTeamFlag, extractFlagAndName } from "@/lib/countries";
 interface UpdateMatchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -45,6 +45,7 @@ export function UpdateMatchDialog({
   const [participantScores, setParticipantScores] = useState<Record<string, string>>({});
   const [participantWinners, setParticipantWinners] = useState<Record<string, boolean>>({});
   const [participantRanks, setParticipantRanks] = useState<Record<string, number | null>>({});
+  const [participantTeams, setParticipantTeams] = useState<Record<string, string>>({});
   const [winnerRank1, setWinnerRank1] = useState<number | null>(null);
   const [winnerRank2, setWinnerRank2] = useState<number | null>(null);
   const [winnerId, setWinnerId] = useState<string>("");
@@ -145,14 +146,17 @@ export function UpdateMatchDialog({
         const scores: Record<string, string> = {};
         const winners: Record<string, boolean> = {};
         const ranks: Record<string, number | null> = {};
+        const teams: Record<string, string> = {};
         match.participants.forEach(p => {
           scores[p.id] = p.score || "";
           winners[p.id] = p.is_winner || false;
           ranks[p.id] = p.winner_rank || null;
+          teams[p.id] = p.team_id || "none";
         });
         setParticipantScores(scores);
         setParticipantWinners(winners);
         setParticipantRanks(ranks);
+        setParticipantTeams(teams);
       }
 
       if (match.match_datetime) {
@@ -230,13 +234,17 @@ export function UpdateMatchDialog({
           };
         })
       : (match.participants && match.participants.length > 0)
-        ? match.participants.map(p => ({
-            id: p.id,
-            team_id: p.team_id,
-            score: participantScores[p.id] || null,
-            is_winner: participantWinners[p.id] || (participantRanks[p.id] === 1),
-            winner_rank: participantRanks[p.id] || null,
-          }))
+        ? match.participants.map(p => {
+            const teamIdVal = participantTeams[p.id];
+            const finalTeamId = teamIdVal === "none" ? null : (teamIdVal || p.team_id || null);
+            return {
+              id: p.id,
+              team_id: finalTeamId,
+              score: participantScores[p.id] || null,
+              is_winner: participantWinners[p.id] || (participantRanks[p.id] === 1),
+              winner_rank: participantRanks[p.id] || null,
+            };
+          })
         : undefined;
 
     updateMutation.mutate(
@@ -340,11 +348,18 @@ export function UpdateMatchDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Pilih Tim 1</SelectItem>
-                      {filteredTeams.map((team) => (
-                        <SelectItem key={team.id} value={team.id} disabled={team.id === team2Id}>
-                          {team.name}
-                        </SelectItem>
-                      ))}
+                      {filteredTeams.map((team) => {
+                        const flag = getTeamFlag(team);
+                        const isEmoji = flag && !flag.includes("/");
+                        return (
+                          <SelectItem key={team.id} value={team.id} disabled={team.id === team2Id}>
+                            <span className="flex items-center gap-1.5">
+                              {isEmoji && <span className="text-base select-none shrink-0">{flag}</span>}
+                              <span>{extractFlagAndName(team.name).name}</span>
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   {team1Warning && (
@@ -363,11 +378,18 @@ export function UpdateMatchDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Pilih Tim 2</SelectItem>
-                      {filteredTeams.map((team) => (
-                        <SelectItem key={team.id} value={team.id} disabled={team.id === team1Id}>
-                          {team.name}
-                        </SelectItem>
-                      ))}
+                      {filteredTeams.map((team) => {
+                        const flag = getTeamFlag(team);
+                        const isEmoji = flag && !flag.includes("/");
+                        return (
+                          <SelectItem key={team.id} value={team.id} disabled={team.id === team1Id}>
+                            <span className="flex items-center gap-1.5">
+                              {isEmoji && <span className="text-base select-none shrink-0">{flag}</span>}
+                              <span>{extractFlagAndName(team.name).name}</span>
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   {team2Warning && (
@@ -529,7 +551,34 @@ export function UpdateMatchDialog({
                 {match.participants.map((p) => (
                   <div key={p.id} className="p-3 rounded-lg border bg-muted/30 space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex-1 font-medium">{p.team?.name || "Peserta"}</div>
+                      <div className="flex-1">
+                        <Select
+                          value={participantTeams[p.id] || "none"}
+                          onValueChange={(val) => setParticipantTeams(prev => ({ ...prev, [p.id]: val }))}
+                        >
+                          <SelectTrigger className="w-full h-9 bg-background">
+                            <SelectValue placeholder="Pilih Peserta" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Pilih Peserta (TBD)</SelectItem>
+                            {allTeams.map((t) => {
+                              const flag = getTeamFlag(t);
+                              const isEmoji = flag && !flag.includes("/");
+                              const isAlreadySelected = Object.entries(participantTeams).some(
+                                ([pId, tId]) => pId !== p.id && tId === t.id
+                              );
+                              return (
+                                <SelectItem key={t.id} value={t.id} disabled={isAlreadySelected}>
+                                  <span className="flex items-center gap-1.5">
+                                    {isEmoji && <span className="text-base select-none shrink-0">{flag}</span>}
+                                    <span>{extractFlagAndName(t.name).name}</span>
+                                  </span>
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div className="w-24">
                         <Input
                           value={participantScores[p.id] || ""}

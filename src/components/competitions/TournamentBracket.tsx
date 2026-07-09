@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Edit } from "lucide-react";
+import { ChevronLeft, ChevronRight, Edit, GripVertical, ArrowUp, ArrowDown, ListOrdered, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 export interface BracketMatch {
   id: string;
@@ -22,6 +24,10 @@ interface TournamentBracketProps<T extends BracketMatch> {
   renderMatchCard: (match: T) => React.ReactNode;
   onUpdatePhaseLabel?: (roundMatches: T[], newLabel: string) => void;
   createPhaseNode?: React.ReactNode;
+  onResetKnockout?: () => void;
+  onRegenerateKnockout?: () => void;
+  onReorderPhases?: (updates: { id: string; round_number: number }[]) => void;
+  onAddPhase?: (phaseLabel: string) => void;
 }
 
 export function TournamentBracket<T extends BracketMatch>({
@@ -31,10 +37,170 @@ export function TournamentBracket<T extends BracketMatch>({
   renderMatchCard,
   onUpdatePhaseLabel,
   createPhaseNode,
+  onResetKnockout,
+  onRegenerateKnockout,
+  onReorderPhases,
+  onAddPhase,
 }: TournamentBracketProps<T>) {
   const [currentRoundIdx, setCurrentRoundIdx] = useState(0);
   const [connections, setConnections] = useState<{ id: string; path: string; isWinner: boolean }[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  const [offsets, setOffsets] = useState<Record<string, { x: number; y: number }>>(() => {
+    try {
+      const saved = localStorage.getItem(`bracket-offsets-${competitionId}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [isDragging, setIsDragging] = useState<string | null>(null);
+
+  const [connectionSides, setConnectionSides] = useState<Record<string, { sourceSide: 'left' | 'right'; targetSide: 'left' | 'right' }>>(() => {
+    try {
+      const saved = localStorage.getItem(`bracket-connections-${competitionId}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(`bracket-connections-${competitionId}`, JSON.stringify(connectionSides));
+  }, [connectionSides, competitionId]);
+
+  const toggleSourceSide = (matchId: string) => {
+    setConnectionSides((prev) => {
+      const current = prev[matchId] || { sourceSide: 'right', targetSide: 'left' };
+      return {
+        ...prev,
+        [matchId]: {
+          ...current,
+          sourceSide: current.sourceSide === 'left' ? 'right' : 'left',
+        },
+      };
+    });
+  };
+
+  const toggleTargetSide = (matchId: string) => {
+    setConnectionSides((prev) => {
+      const current = prev[matchId] || { sourceSide: 'right', targetSide: 'left' };
+      return {
+        ...prev,
+        [matchId]: {
+          ...current,
+          targetSide: current.targetSide === 'left' ? 'right' : 'left',
+        },
+      };
+    });
+  };
+
+  const [isReorderOpen, setIsReorderOpen] = useState(false);
+  const [localPhases, setLocalPhases] = useState<{ label: string; matchIds: string[]; active: boolean }[]>([]);
+  const [newPhaseLabel, setNewPhaseLabel] = useState("");
+
+  // Hidden phases persisted to localStorage
+  const [hiddenPhaseLabels, setHiddenPhaseLabels] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(`bracket-hidden-phases-${competitionId}`);
+      return stored ? new Set<string>(JSON.parse(stored) as string[]) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  });
+
+  const openReorderDialog = () => {
+    const phasesMap = new Map<string, { label: string; currentRound: number; matchIds: string[] }>();
+    matches.forEach((m) => {
+      const label = m.phase_label || `Babak ${m.round_number || 1}`;
+      if (!phasesMap.has(label)) {
+        phasesMap.set(label, { label, currentRound: m.round_number || 1, matchIds: [] });
+      }
+      phasesMap.get(label)!.matchIds.push(m.id);
+    });
+    
+    const sorted = Array.from(phasesMap.values())
+      .sort((a, b) => a.currentRound - b.currentRound)
+      .map(p => ({ label: p.label, matchIds: p.matchIds, active: !hiddenPhaseLabels.has(p.label) }));
+      
+    setLocalPhases(sorted);
+    setIsReorderOpen(true);
+  };
+
+  const movePhase = (index: number, direction: 'up' | 'down') => {
+    const nextIndex = direction === 'up' ? index - 1 : index + 1;
+    if (nextIndex < 0 || nextIndex >= localPhases.length) return;
+    
+    const updated = [...localPhases];
+    const temp = updated[index];
+    updated[index] = updated[nextIndex];
+    updated[nextIndex] = temp;
+    
+    setLocalPhases(updated);
+  };
+
+  const togglePhaseActive = (index: number) => {
+    setLocalPhases(prev => prev.map((p, i) => i === index ? { ...p, active: !p.active } : p));
+  };
+
+  const handleSaveReorder = () => {
+    if (!onReorderPhases) return;
+    
+    const updates: { id: string; round_number: number }[] = [];
+    localPhases.forEach((phase, index) => {
+      const newRound = index + 1;
+      phase.matchIds.forEach((id) => {
+        updates.push({ id, round_number: newRound });
+      });
+    });
+    
+    // Persist hidden/shown state to localStorage
+    const hidden = new Set(localPhases.filter(p => !p.active).map(p => p.label));
+    setHiddenPhaseLabels(hidden);
+    localStorage.setItem(`bracket-hidden-phases-${competitionId}`, JSON.stringify(Array.from(hidden)));
+    
+    onReorderPhases(updates);
+    setIsReorderOpen(false);
+  };
+
+  useEffect(() => {
+    localStorage.setItem(`bracket-offsets-${competitionId}`, JSON.stringify(offsets));
+  }, [offsets, competitionId]);
+
+  const handleMouseDown = (e: React.MouseEvent, matchId: string) => {
+    e.preventDefault();
+    setIsDragging(matchId);
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const initialX = offsets[matchId]?.x || 0;
+    const initialY = offsets[matchId]?.y || 0;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+
+      setOffsets((prev) => ({
+        ...prev,
+        [matchId]: {
+          x: initialX + deltaX,
+          y: initialY + deltaY,
+        },
+      }));
+      
+      requestAnimationFrame(updateConnections);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(null);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
 
   // Group matches by round
   const matchesByRound = useMemo(() => {
@@ -64,6 +230,30 @@ export function TournamentBracket<T extends BracketMatch>({
 
   const totalRounds = sortedRoundEntries.length;
 
+  // Only show phases not hidden by manager
+  const visibleRoundEntries = sortedRoundEntries.filter(([, roundMatches]) => {
+    const label = roundMatches[0]?.phase_label || `Babak ${roundMatches[0]?.round_number || 1}`;
+    return !hiddenPhaseLabels.has(label);
+  });
+  const visibleTotalRounds = visibleRoundEntries.length;
+
+  const uniquePhases = useMemo(() => {
+    const phasesMap = new Map<string, { label: string; currentRound: number; matchIds: string[] }>();
+    matches.forEach((m) => {
+      const label = m.phase_label || `Babak ${m.round_number || 1}`;
+      if (!phasesMap.has(label)) {
+        phasesMap.set(label, {
+          label,
+          currentRound: m.round_number || 1,
+          matchIds: [],
+        });
+      }
+      phasesMap.get(label)!.matchIds.push(m.id);
+    });
+    
+    return Array.from(phasesMap.values()).sort((a, b) => a.currentRound - b.currentRound);
+  }, [matches]);
+
   const getRoundName = (roundNum: number, total: number, roundMatches: T[]) => {
     if (roundMatches[0]?.phase_label) return roundMatches[0].phase_label;
     if (roundNum === total && total > 1) return "Final";
@@ -73,27 +263,40 @@ export function TournamentBracket<T extends BracketMatch>({
   };
 
   const updateConnections = () => {
-    const container = containerRef.current;
-    if (!container) return;
+    const innerContainer = innerRef.current;
+    if (!innerContainer) return;
 
-    const containerRect = container.getBoundingClientRect();
+    const innerRect = innerContainer.getBoundingClientRect();
     const newConnections: { id: string; path: string; isWinner: boolean }[] = [];
 
     matches.forEach((match) => {
       if (!match.next_match_id) return;
 
-      const sourceEl = container.querySelector(`#match-card-${match.id}`) as HTMLElement;
-      const targetEl = container.querySelector(`#match-card-${match.next_match_id}`) as HTMLElement;
+      const sourceEl = innerContainer.querySelector(`#match-card-${match.id}`) as HTMLElement;
+      const targetEl = innerContainer.querySelector(`#match-card-${match.next_match_id}`) as HTMLElement;
 
       if (sourceEl && targetEl) {
         const sourceRect = sourceEl.getBoundingClientRect();
         const targetRect = targetEl.getBoundingClientRect();
 
-        const x1 = sourceRect.right - containerRect.left;
-        const y1 = sourceRect.top - containerRect.top + sourceRect.height / 2;
+        const sSides = connectionSides[match.id] || { sourceSide: 'right', targetSide: 'left' };
+        const tSides = connectionSides[match.next_match_id] || { sourceSide: 'right', targetSide: 'left' };
 
-        const x2 = targetRect.left - containerRect.left;
-        const y2 = targetRect.top - containerRect.top + targetRect.height / 2;
+        let x1 = 0;
+        if (sSides.sourceSide === 'left') {
+          x1 = sourceRect.left - innerRect.left;
+        } else {
+          x1 = sourceRect.right - innerRect.left;
+        }
+        const y1 = sourceRect.top - innerRect.top + sourceRect.height / 2;
+
+        let x2 = 0;
+        if (tSides.targetSide === 'right') {
+          x2 = targetRect.right - innerRect.left;
+        } else {
+          x2 = targetRect.left - innerRect.left;
+        }
+        const y2 = targetRect.top - innerRect.top + targetRect.height / 2;
 
         const x_mid = x1 + (x2 - x1) / 2;
         const path = `M ${x1} ${y1} H ${x_mid} V ${y2} H ${x2}`;
@@ -123,7 +326,7 @@ export function TournamentBracket<T extends BracketMatch>({
       clearTimeout(timer);
       window.removeEventListener("resize", updateConnections);
     };
-  }, [matches, totalRounds]);
+  }, [matches, totalRounds, connectionSides]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const container = e.currentTarget;
@@ -178,43 +381,103 @@ export function TournamentBracket<T extends BracketMatch>({
   return (
     <div className="space-y-4">
       {/* Navigation Header for Rounds */}
-      <div className="flex items-center justify-between gap-4 bg-muted/30 border backdrop-blur p-2 rounded-xl">
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          onClick={handlePrevRound}
-          disabled={currentRoundIdx === 0}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-2 select-none">
-          {sortedRoundEntries.map(([round, roundMatches], idx) => (
-            <button
-              key={round}
-              onClick={() => handleGoToRound(idx)}
-              className={cn(
-                "px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200",
-                currentRoundIdx === idx
-                  ? "bg-primary text-primary-foreground shadow"
-                  : "text-muted-foreground hover:bg-muted"
-              )}
-            >
-              {getRoundName(Number(round), totalRounds, roundMatches)}
-            </button>
-          ))}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-muted/30 border backdrop-blur p-2 rounded-xl">
+        <div className="flex items-center justify-between gap-2 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={handlePrevRound}
+            disabled={currentRoundIdx === 0}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-2 select-none justify-center flex-1">
+            {visibleRoundEntries.map(([round, roundMatches], idx) => (
+              <button
+                key={round}
+                onClick={() => handleGoToRound(idx)}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200",
+                  currentRoundIdx === idx
+                    ? "bg-primary text-primary-foreground shadow"
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                {getRoundName(Number(round), visibleTotalRounds, roundMatches)}
+              </button>
+            ))}
+          </div>
+
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={handleNextRound}
+            disabled={currentRoundIdx === visibleTotalRounds - 1}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
 
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          onClick={handleNextRound}
-          disabled={currentRoundIdx === totalRounds - 1}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+        {(Object.keys(offsets).length > 0 || (canManage && (onResetKnockout || onRegenerateKnockout))) && (
+          <div className="flex items-center justify-end gap-2 w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-muted/50">
+            {Object.keys(offsets).length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2.5 text-[10px] font-bold text-muted-foreground hover:text-destructive transition-colors"
+                onClick={() => {
+                  setOffsets({});
+                  setTimeout(updateConnections, 100);
+                }}
+              >
+                Reset Tata Letak
+              </Button>
+            )}
+            {canManage && onResetKnockout && (
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 px-3 text-[10px] font-bold transition-all"
+                onClick={() => {
+                  if (window.confirm("Apakah Anda yakin ingin menghapus/reset semua pertandingan Babak Gugur? Data babak grup akan tetap dipertahankan.")) {
+                    onResetKnockout();
+                  }
+                }}
+              >
+                Reset Babak Gugur
+              </Button>
+            )}
+            {canManage && onRegenerateKnockout && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-[10px] font-bold transition-all hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
+                onClick={() => {
+                  if (window.confirm("Apakah Anda yakin ingin men-generate ulang babak gugur? Semua skor babak gugur saat ini akan dihapus!")) {
+                    onRegenerateKnockout();
+                  }
+                }}
+              >
+                Regenerate Babak Gugur
+              </Button>
+            )}
+            {canManage && onReorderPhases && uniquePhases.length > 1 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-[10px] font-bold transition-all flex items-center gap-1 hover:bg-primary hover:text-primary-foreground"
+                onClick={openReorderDialog}
+              >
+                <ListOrdered className="w-3.5 h-3.5" />
+                Urutkan Fase
+              </Button>
+            )}
+
+          </div>
+        )}
       </div>
 
       {/* Viewport container */}
@@ -223,7 +486,7 @@ export function TournamentBracket<T extends BracketMatch>({
         className="overflow-x-auto pb-6 scrollbar-thin scroll-smooth snap-x snap-mandatory relative w-full border rounded-2xl bg-muted/5 p-4 sm:p-6"
         onScroll={handleScroll}
       >
-        <div className="relative flex gap-12 min-w-max pr-12">
+        <div ref={innerRef} className="relative flex gap-12 min-w-max pr-12">
           {/* SVG Connectors Canvas */}
           <svg className="absolute inset-0 pointer-events-none w-full h-full z-0">
             <g fill="none" strokeWidth={2}>
@@ -243,7 +506,7 @@ export function TournamentBracket<T extends BracketMatch>({
           </svg>
 
           {/* Columns */}
-          {sortedRoundEntries.map(([round, roundMatches]) => {
+          {visibleRoundEntries.map(([round, roundMatches]) => {
             const r = Number(round) - 1;
             const cardHeight = 150;
             const baseGap = 24;
@@ -254,16 +517,11 @@ export function TournamentBracket<T extends BracketMatch>({
               <div
                 id={`round-column-${competitionId}-${round}`}
                 key={round}
-                className="flex flex-col w-[280px] sm:w-[320px] shrink-0 snap-center first:pl-2 last:pr-2 relative z-10"
-                style={{
-                  paddingTop: `${paddingTop}px`,
-                  paddingBottom: `${paddingTop}px`,
-                  gap: `${gap}px`,
-                }}
+                className="flex flex-col w-[280px] sm:w-[320px] shrink-0 snap-center first:pl-2 last:pr-2 relative z-10 gap-4"
               >
                 {/* Round Title Header (Inside column) */}
                 <div className="bg-muted/80 backdrop-blur p-2.5 rounded-xl border text-center font-bold text-xs tracking-wide shadow-sm flex items-center justify-between px-3 h-10 shrink-0 select-none">
-                  <span className="truncate">{getRoundName(Number(round), totalRounds, roundMatches)}</span>
+                  <span className="truncate">{getRoundName(Number(round), visibleTotalRounds, roundMatches)}</span>
                   <div className="flex items-center gap-1.5">
                     <Badge variant="outline" className="font-normal text-[10px] px-1.5 py-0">{roundMatches.length}</Badge>
                     {canManage && onUpdatePhaseLabel && (
@@ -285,13 +543,62 @@ export function TournamentBracket<T extends BracketMatch>({
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-6 relative">
+                <div 
+                  className="flex flex-col relative"
+                  style={{
+                    paddingTop: `${paddingTop}px`,
+                    paddingBottom: `${paddingTop}px`,
+                    gap: `${gap}px`,
+                  }}
+                >
                   {roundMatches.map((match) => (
                     <div 
                       key={match.id} 
                       id={`match-card-${match.id}`}
-                      className="relative shrink-0"
+                      className="relative shrink-0 group/card"
+                      style={{
+                        transform: `translate(${offsets[match.id]?.x || 0}px, ${offsets[match.id]?.y || 0}px)`,
+                        cursor: isDragging === match.id ? 'grabbing' : 'default',
+                        transition: isDragging === match.id ? 'none' : 'transform 0.15s ease-out',
+                      }}
                     >
+                      {/* Drag Handle */}
+                      <div
+                        className="absolute -left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover/card:opacity-100 transition-opacity cursor-grab active:cursor-grabbing p-1 bg-background border rounded-md shadow-sm z-20"
+                        onMouseDown={(e) => handleMouseDown(e, match.id)}
+                      >
+                        <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
+                      </div>
+                      {canManage && (
+                        <div className="absolute -top-7 left-0 right-0 flex items-center justify-between opacity-0 group-hover/card:opacity-100 transition-opacity duration-200 z-30 select-none px-1">
+                          <button
+                            type="button"
+                            onClick={() => toggleTargetSide(match.id)}
+                            className={cn(
+                              "px-1.5 py-0.5 rounded border text-[9px] font-bold shadow-sm transition-all flex items-center gap-1",
+                              ((connectionSides[match.id]?.targetSide || 'left') === 'left') 
+                                ? "bg-primary text-primary-foreground border-primary" 
+                                : "bg-card text-muted-foreground border-border hover:bg-muted"
+                            )}
+                            title="Titik Masuk Garis (Garis Kiri/Kanan)"
+                          >
+                            Masuk: {(connectionSides[match.id]?.targetSide || 'left') === 'left' ? '← Kiri' : '→ Kanan'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleSourceSide(match.id)}
+                            className={cn(
+                              "px-1.5 py-0.5 rounded border text-[9px] font-bold shadow-sm transition-all flex items-center gap-1",
+                              ((connectionSides[match.id]?.sourceSide || 'right') === 'left') 
+                                ? "bg-primary text-primary-foreground border-primary" 
+                                : "bg-card text-muted-foreground border-border hover:bg-muted"
+                            )}
+                            title="Titik Keluar Garis (Garis Kiri/Kanan)"
+                          >
+                            Keluar: {(connectionSides[match.id]?.sourceSide || 'right') === 'left' ? '← Kiri' : '→ Kanan'}
+                          </button>
+                        </div>
+                      )}
                       {renderMatchCard(match)}
                     </div>
                   ))}
@@ -306,6 +613,121 @@ export function TournamentBracket<T extends BracketMatch>({
           )}
         </div>
       </div>
+
+      {/* Dialog for Reordering Phases */}
+      <Dialog open={isReorderOpen} onOpenChange={(open) => { setIsReorderOpen(open); if (!open) setNewPhaseLabel(""); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ListOrdered className="w-5 h-5 text-primary" />
+              Kelola Urutan Fase
+            </DialogTitle>
+            <DialogDescription>
+              Ubah urutan, atau tambah fase baru langsung di sini.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Phase list */}
+          <div className="mt-4 space-y-2 max-h-[260px] overflow-y-auto pr-1">
+            {localPhases.length === 0 && (
+              <p className="text-center text-xs text-muted-foreground py-4">Belum ada fase. Tambahkan fase pertama di bawah.</p>
+            )}
+            {localPhases.map((phase, idx) => (
+              <div
+                key={phase.label}
+                className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors shadow-sm"
+              >
+                <div className="flex flex-col gap-0.5 flex-1 min-w-0 mr-2">
+                  <span className={cn("text-sm font-semibold truncate", !phase.active && "text-muted-foreground line-through")}>{phase.label}</span>
+                  <span className="text-[10px] text-muted-foreground font-medium">
+                    {phase.matchIds.length} Pertandingan
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Active / Inactive toggle */}
+                  <button
+                    type="button"
+                    onClick={() => togglePhaseActive(idx)}
+                    className={cn(
+                      "text-[10px] font-bold px-2 py-1 rounded-full border transition-all",
+                      phase.active
+                        ? "bg-green-50 text-green-700 border-green-300 hover:bg-green-100 dark:bg-green-950 dark:text-green-400 dark:border-green-800"
+                        : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
+                    )}
+                  >
+                    {phase.active ? "Aktif" : "Nonaktif"}
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-primary"
+                    disabled={idx === 0}
+                    onClick={() => movePhase(idx, "up")}
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-primary"
+                    disabled={idx === localPhases.length - 1}
+                    onClick={() => movePhase(idx, "down")}
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Add new phase inline */}
+          {onAddPhase && (
+            <div className="mt-3 pt-3 border-t flex items-center gap-2">
+              <Input
+                placeholder="Nama fase baru (misal: Perebutan Juara 3)"
+                value={newPhaseLabel}
+                onChange={(e) => setNewPhaseLabel(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newPhaseLabel.trim()) {
+                    const label = newPhaseLabel.trim();
+                    onAddPhase(label);
+                    setLocalPhases(prev => [...prev, { label, matchIds: [], active: true }]);
+                    setNewPhaseLabel("");
+                  }
+                }}
+                className="h-9 text-sm flex-1"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 px-3 shrink-0 flex items-center gap-1"
+                disabled={!newPhaseLabel.trim()}
+                onClick={() => {
+                  if (newPhaseLabel.trim()) {
+                    const label = newPhaseLabel.trim();
+                    onAddPhase(label);
+                    // Optimistically add to list immediately
+                    setLocalPhases(prev => [...prev, { label, matchIds: [], active: true }]);
+                    setNewPhaseLabel("");
+                  }
+                }}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Tambah
+              </Button>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 mt-4">
+            <Button variant="outline" size="sm" onClick={() => { setIsReorderOpen(false); setNewPhaseLabel(""); }}>
+              Batal
+            </Button>
+            <Button size="sm" onClick={handleSaveReorder} disabled={localPhases.length === 0}>
+              Simpan Urutan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

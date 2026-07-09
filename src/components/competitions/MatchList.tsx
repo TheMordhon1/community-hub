@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Swords, Trophy, Calendar, MapPin, Edit, RefreshCw, Trash2, MoreVertical, Medal, Eye, CheckCircle2, Sparkles, X, List, GitBranch, ChevronLeft, ChevronRight } from "lucide-react";
+import { Swords, Trophy, Calendar, MapPin, Edit, RefreshCw, Trash2, MoreVertical, Medal, Eye, CheckCircle2, Sparkles, X, List, GitBranch, ChevronLeft, ChevronRight, GitMerge } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,7 @@ import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
 import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
 import { AssignRefereeDialog } from "@/components/competitions/AssignRefereeDialog";
 import { Play } from "lucide-react";
-import { useResetMatch, useDeleteMatch, useUpdateMatch, useAssignMatchTeams, useGenerateBracket, useGenerateKnockoutFromGroups, useAdvance17anRound } from "@/hooks/useCompetitions";
+import { useResetMatch, useDeleteMatch, useUpdateMatch, useAssignMatchTeams, useGenerateBracket, useGenerateKnockoutFromGroups, useAdvance17anRound, useResetKnockoutPhase, useCreateMatch } from "@/hooks/useCompetitions";
 import {
   areAllGroupMatchesCompleted,
   computeStandings,
@@ -34,6 +34,7 @@ import {
 import { getTeamFlag, extractFlagAndName } from "@/lib/countries";
 import { TeamFlag } from "./TeamFlag";
 import { TournamentBracket } from "./TournamentBracket";
+import { MatchPhaseEditor } from "./MatchPhaseEditor";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,6 +54,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface MatchListProps {
   competition: EventCompetitionWithDetails;
@@ -74,6 +78,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
   const [viewMode, setViewMode] = useState<"list" | "chart">("list");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedChartRound, setSelectedChartRound] = useState<string>("all");
+  const [selectedChartStage, setSelectedChartStage] = useState<"group" | "knockout">("group");
   const resetMatch = useResetMatch();
   const deleteMatch = useDeleteMatch();
   const updateMutation = useUpdateMatch();
@@ -81,9 +86,22 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
   const generateBracket = useGenerateBracket();
   const generateKnockout = useGenerateKnockoutFromGroups();
   const advanceRound = useAdvance17anRound();
+  const resetKnockout = useResetKnockoutPhase();
+  const createMatch = useCreateMatch();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const matches = competition.matches || [];
   const allTeams = competition.teams || [];
   const is17an = competition.format === "17an";
+
+  const hasKnockout = matches.some(m => m.stage === "knockout");
+  useEffect(() => {
+    if (hasKnockout) {
+      setSelectedChartStage("knockout");
+    } else {
+      setSelectedChartStage("group");
+    }
+  }, [hasKnockout]);
 
 
   const handleResetMatch = () => {
@@ -384,7 +402,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
       </div>
 
       {/* View Mode Toggle */}
-      {filteredMatches.length > 0 && (
+      {matches.length > 0 && (
         <div className="flex items-center justify-between bg-muted/20 p-2.5 rounded-xl border">
           <div className="flex items-center gap-2">
             <Swords className="w-4 h-4 text-primary" />
@@ -450,25 +468,66 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                         >
                           <Edit className="w-3 h-3" />
                         </button>
-                        <button
-                          onClick={() => {
-                            const newRound = window.prompt("Ubah Nomor Babak (Round):", String(match.round_number || 1));
-                            if (newRound !== null) {
-                              const parsedRound = parseInt(newRound, 10);
-                              if (!isNaN(parsedRound)) {
+                        <MatchPhaseEditor
+                          match={match}
+                          allMatches={matches}
+                          onUpdate={(newRound, newPhase) => {
+                            updateMutation.mutate({
+                              id: match.id,
+                              competition_id: competition.id,
+                              round_number: newRound,
+                              phase_label: newPhase
+                            });
+                          }}
+                        />
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary shrink-0 ml-1"
+                              title="Hubungkan ke Pertandingan Selanjutnya"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <GitMerge className="w-3 h-3" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-2" align="start" onClick={(e) => e.stopPropagation()}>
+                            <Label className="text-xs font-bold mb-1.5 block">Hubungkan ke Pertandingan Selanjutnya</Label>
+                            <Select
+                              value={match.next_match_id || "none"}
+                              onValueChange={(val) => {
+                                const newNextMatchId = val === "none" ? null : val;
                                 updateMutation.mutate({
                                   id: match.id,
                                   competition_id: competition.id,
-                                  round_number: parsedRound
+                                  next_match_id: newNextMatchId
                                 });
-                              }
-                            }
-                          }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-primary shrink-0 ml-1"
-                          title="Ubah Babak (Round Number)"
-                        >
-                          <GitBranch className="w-3 h-3" />
-                        </button>
+                              }}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Pilih Pertandingan" />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-56">
+                                <SelectItem value="none">Tidak ada (Babak Final / Berdiri Sendiri)</SelectItem>
+                                {matches
+                                  .filter((m) => m.id !== match.id)
+                                  .map((m, idx) => {
+                                    const team1Name = m.team1 ? extractFlagAndName(m.team1.name).name : "TBD";
+                                    const team2Name = m.team2 ? extractFlagAndName(m.team2.name).name : "TBD";
+                                    const label = m.notes || `Pertandingan ${idx + 1}`;
+                                    const roundName = m.phase_label || `Babak ${m.round_number || 1}`;
+                                    return (
+                                      <SelectItem key={m.id} value={m.id}>
+                                        <div className="flex flex-col text-[10px] py-0.5 text-left">
+                                          <span className="font-semibold text-foreground truncate">{label} ({roundName})</span>
+                                          <span className="text-muted-foreground truncate">{team1Name} vs {team2Name}</span>
+                                        </div>
+                                      </SelectItem>
+                                    );
+                                  })}
+                              </SelectContent>
+                            </Select>
+                          </PopoverContent>
+                        </Popover>
                       </>
                     )}
                     {match.is_final && (
@@ -512,10 +571,84 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                     )}
                                   </>
                                 )}
-                                <TeamFlag team={p.team} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
-                                <span className="text-sm">
-                                  {p.team ? extractFlagAndName(p.team.name).name : "TBD"}
-                                </span>
+                                {canManage ? (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <div 
+                                        role="button"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="flex items-center gap-2 hover:bg-muted/50 rounded px-1 transition-colors group/team cursor-pointer"
+                                      >
+                                        <TeamFlag team={p.team} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
+                                        <span className={`text-sm ${!p.team ? 'text-muted-foreground italic' : ''}`}>
+                                          {p.team ? extractFlagAndName(p.team.name).name : "TBD"}
+                                        </span>
+                                        <Edit className="w-3 h-3 opacity-0 group-hover/team:opacity-100 transition-opacity ml-1 text-muted-foreground" />
+                                      </div>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-56 p-2" align="start">
+                                      <Label className="text-xs font-bold mb-1.5 block">Ubah Peserta {idx + 1}</Label>
+                                      <Select 
+                                        value={p.team_id || "none"} 
+                                        onValueChange={async (val) => {
+                                          const newTeamId = val === "none" ? null : val;
+                                          if (newTeamId) {
+                                            const { error } = await supabase
+                                              .from("competition_match_participants")
+                                              .update({ team_id: newTeamId })
+                                              .eq("id", p.id);
+                                            if (error) {
+                                              toast({ variant: "destructive", title: "Gagal", description: "Gagal mengubah tim: " + error.message });
+                                            } else {
+                                              queryClient.invalidateQueries({ queryKey: ["competition-details", competition.id] });
+                                              queryClient.invalidateQueries({ queryKey: ["live-matches"] });
+                                              toast({ title: "Berhasil", description: "Tim berhasil diubah" });
+                                            }
+                                          } else {
+                                            const { error } = await supabase
+                                              .from("competition_match_participants")
+                                              .update({ team_id: null })
+                                              .eq("id", p.id);
+                                            if (error) {
+                                              toast({ variant: "destructive", title: "Gagal", description: "Gagal mengosongkan tim" });
+                                            } else {
+                                              queryClient.invalidateQueries({ queryKey: ["competition-details", competition.id] });
+                                              queryClient.invalidateQueries({ queryKey: ["live-matches"] });
+                                              toast({ title: "Berhasil", description: "Tim berhasil dikosongkan" });
+                                            }
+                                          }
+                                        }}
+                                      >
+                                        <SelectTrigger className="w-full">
+                                          <SelectValue placeholder="Pilih Tim" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="none">Pilih Tim (TBD)</SelectItem>
+                                          {allTeams.map((t) => {
+                                            const flag = getTeamFlag(t);
+                                            const isEmoji = flag && !flag.includes("/");
+                                            const isAlreadySelected = match.participants?.some(otherP => otherP.id !== p.id && otherP.team_id === t.id);
+                                            return (
+                                              <SelectItem key={t.id} value={t.id} disabled={isAlreadySelected}>
+                                                <span className="flex items-center gap-1.5">
+                                                  {isEmoji && <span className="text-base select-none shrink-0">{flag}</span>}
+                                                  <span>{extractFlagAndName(t.name).name}</span>
+                                                </span>
+                                              </SelectItem>
+                                            );
+                                          })}
+                                        </SelectContent>
+                                      </Select>
+                                    </PopoverContent>
+                                  </Popover>
+                                ) : (
+                                  <>
+                                    <TeamFlag team={p.team} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
+                                    <span className="text-sm">
+                                      {p.team ? extractFlagAndName(p.team.name).name : "TBD"}
+                                    </span>
+                                  </>
+                                )}
                               </div>
                               {/* Members under team name in participants path */}
                               {(p.team as (typeof p.team & { members?: { id: string; name: string | null; user_id: string | null; profile?: { full_name: string | null; house?: { block: string; number: string } } }[] }) | undefined)?.members?.map((m) => {
@@ -1022,43 +1155,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                 </div>
               );
             } else {
-              return (
-                <div className="text-center space-y-3 p-4">
-                  <Trophy className="w-8 h-8 text-muted-foreground mx-auto opacity-60" />
-                  <div>
-                    <p className="text-xs font-bold text-muted-foreground">Babak Gugur Aktif</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Bagan gugur telah terbentuk dari juara grup.</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (window.confirm("Apakah Anda yakin ingin men-generate ulang babak gugur? Semua skor babak gugur saat ini akan dihapus!")) {
-                        const advance = comp.advance_per_group || 2;
-                        const groupNamesSet = Array.from(new Set(teamsList.filter(t => !!t.group_name).map(t => t.group_name!))).sort();
-                        const standingsByGroup: Record<string, any[]> = {};
-                        groupNamesSet.forEach((g) => {
-                          standingsByGroup[g] = computeStandings(teamsList, matchesList, g);
-                        });
-                        const pairs = seedKnockoutFromStandings(standingsByGroup, advance);
-                        generateKnockout.mutate({
-                          competition_id: comp.id,
-                          pairs,
-                          match_datetime: comp.events?.event_date
-                            ? `${comp.events.event_date.split("T")[0]}T${comp.events.event_time || "08:00"}`
-                            : null,
-                          location: comp.events?.location || null,
-                        });
-                      }
-                    }}
-                    disabled={generateKnockout.isPending}
-                    className="w-full text-xs font-bold hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
-                  >
-                    Regenerate Babak Gugur
-                  </Button>
-                </div>
-              );
+              return null;
             }
           }
           
@@ -1167,24 +1264,91 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
         }
 
         if (viewMode === "chart") {
-          const chartMatches = filteredMatches.filter(m => competition.format !== "liga_grup" || m.stage === "knockout");
+          const chartMatches = filteredMatches.filter(m => {
+            if (competition.format !== "liga_grup") return true;
+            return m.stage === selectedChartStage;
+          });
+
           return (
-            <TournamentBracket
-              competitionId={competition.id}
-              matches={chartMatches}
-              canManage={canManage}
-              renderMatchCard={(match) => renderMatchCard(match, filteredMatches.indexOf(match))}
-              createPhaseNode={renderCreatePhaseNode(competition, allTeams, matches)}
-              onUpdatePhaseLabel={(roundMatches, newLabel) => {
-                roundMatches.forEach(m => {
-                  updateMutation.mutate({
-                    id: m.id,
-                    competition_id: competition.id,
-                    phase_label: newLabel || null
+            <div className="space-y-4">
+              {competition.format === "liga_grup" && (
+                <div className="flex justify-center">
+                  <div className="flex bg-muted p-1 rounded-lg border shadow-sm">
+                    <Button
+                      variant={selectedChartStage === "group" ? "secondary" : "ghost"}
+                      size="sm"
+                      className="h-8 px-4 text-xs font-semibold"
+                      onClick={() => setSelectedChartStage("group")}
+                    >
+                      Babak Grup
+                    </Button>
+                    <Button
+                      variant={selectedChartStage === "knockout" ? "secondary" : "ghost"}
+                      size="sm"
+                      className="h-8 px-4 text-xs font-semibold"
+                      disabled={!hasKnockout}
+                      onClick={() => setSelectedChartStage("knockout")}
+                    >
+                      Babak Gugur
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <TournamentBracket
+                competitionId={competition.id}
+                matches={chartMatches}
+                canManage={canManage}
+                renderMatchCard={(match) => renderMatchCard(match, filteredMatches.indexOf(match))}
+                createPhaseNode={renderCreatePhaseNode(competition, allTeams, matches)}
+                onUpdatePhaseLabel={(roundMatches, newLabel) => {
+                  roundMatches.forEach(m => {
+                    updateMutation.mutate({
+                      id: m.id,
+                      competition_id: competition.id,
+                      phase_label: newLabel || null
+                    });
                   });
-                });
-              }}
-            />
+                }}
+                onResetKnockout={() => {
+                  resetKnockout.mutate({ competition_id: competition.id });
+                }}
+                onRegenerateKnockout={() => {
+                  const advance = competition.advance_per_group || 2;
+                  const groupNamesSet = Array.from(new Set(allTeams.filter(t => !!t.group_name).map(t => t.group_name!))).sort();
+                  const standingsByGroup: Record<string, any[]> = {};
+                  groupNamesSet.forEach((g) => {
+                    standingsByGroup[g] = computeStandings(allTeams, matches, g);
+                  });
+                  const pairs = seedKnockoutFromStandings(standingsByGroup, advance);
+                  generateKnockout.mutate({
+                    competition_id: competition.id,
+                    pairs,
+                    match_datetime: competition.events?.event_date
+                      ? `${competition.events.event_date.split("T")[0]}T${competition.events.event_time || "08:00"}`
+                      : null,
+                    location: competition.events?.location || null,
+                  });
+                }}
+                onReorderPhases={(updates) => {
+                  updates.forEach((u) => {
+                    updateMutation.mutate({
+                      id: u.id,
+                      competition_id: competition.id,
+                      round_number: u.round_number
+                    });
+                  });
+                }}
+                onAddPhase={(phaseLabel) => {
+                  const maxRound = chartMatches.reduce((max, m) => Math.max(max, m.round_number || 1), 0);
+                  createMatch.mutate({
+                    competition_id: competition.id,
+                    round_number: maxRound + 1,
+                    phase_label: phaseLabel,
+                    match_number: 0
+                  });
+                }}
+              />
+            </div>
           );
         }
 
