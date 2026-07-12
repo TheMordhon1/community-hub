@@ -243,6 +243,12 @@ export function useCompetitionDetails(competitionId: string | undefined, options
           profile: r.user_id ? refProfileMap.get(r.user_id) : undefined,
         }));
       }
+      // Fetch stages
+      const { data: stages } = await supabase
+        .from("competition_stages")
+        .select("*")
+        .eq("competition_id", competitionId)
+        .order("order_number", { ascending: true });
 
       // Map members & houses to teams
       const teamsWithMembers =
@@ -296,6 +302,7 @@ export function useCompetitionDetails(competitionId: string | undefined, options
         teams: teamsWithMembers,
         matches: matchesWithTeams,
         referees: refereesWithProfiles,
+        stages: stages || [],
       } as EventCompetitionWithDetails;
     },
     enabled: !!competitionId,
@@ -1511,6 +1518,47 @@ export function useUpdateTeamGroup() {
   });
 }
 
+// Update team next phase
+export function useUpdateTeamPhase() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: {
+      id: string;
+      competition_id: string;
+      next_stage_type: string | null;
+      next_stage_label: string | null;
+    }) => {
+      const { error } = await supabase
+        .from("competition_teams")
+        .update({ 
+          next_stage_type: data.next_stage_type,
+          next_stage_label: data.next_stage_label 
+        } as never)
+        .eq("id", data.id);
+      if (error) throw error;
+      return { competition_id: data.competition_id };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
+      toast({
+        title: "Berhasil",
+        description: "Fase tim berhasil diperbarui",
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal memperbarui fase peserta",
+      });
+    },
+  });
+}
+
 // Generate round-robin group-stage schedule.
 // Deletes any prior group-stage matches, then creates one match per pair
 // inside each group. score1/score2 = number of sets won.
@@ -1748,6 +1796,56 @@ export function useGenerateKnockoutFromGroups() {
         variant: "destructive",
         title: "Gagal",
         description: err.message || "Gagal membuat babak gugur",
+      });
+    },
+  });
+}
+
+// Save all competition stages (bulk replace)
+export function useSaveCompetitionStages() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: {
+      competition_id: string;
+      stages: { name: string; order_number: number }[];
+    }) => {
+      // 1. Delete existing stages
+      const { error: delErr } = await supabase
+        .from("competition_stages")
+        .delete()
+        .eq("competition_id", data.competition_id);
+      if (delErr) throw delErr;
+
+      // 2. Insert new stages if any
+      if (data.stages.length > 0) {
+        const rows = data.stages.map(s => ({
+          competition_id: data.competition_id,
+          name: s.name,
+          order_number: s.order_number,
+        }));
+        const { error: insErr } = await supabase
+          .from("competition_stages")
+          .insert(rows as never);
+        if (insErr) throw insErr;
+      }
+      return { competition_id: data.competition_id };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: ["competition-details", result.competition_id],
+      });
+      toast({
+        title: "Berhasil",
+        description: "Konfigurasi stage berhasil disimpan",
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal menyimpan konfigurasi stage",
       });
     },
   });

@@ -51,6 +51,8 @@ interface MatchTeam {
   name: string;
   logo_url?: string | null;
   group_name?: string | null;
+  next_stage_type?: string | null;
+  next_stage_label?: string | null;
   members?: { id: string, name: string | null, user_id?: string | null, profile?: { full_name?: string | null, avatar_url?: string | null, house?: { block: string; number: string } } }[];
 }
 
@@ -78,6 +80,7 @@ interface CompetitionDetail {
     location: string | null;
   } | null;
   referees?: { user_id: string }[] | null;
+  stages?: { id: string; name: string; order_number: number }[] | null;
 }
 
 interface MatchSetData {
@@ -206,7 +209,7 @@ export default function LiveMatches() {
     selectedMatches.forEach((match, index) => {
       const is17an = match.competition?.format === "17an";
       const title = match.competition?.custom_match_label || match.competition?.sport_name || "Pertandingan";
-      const phase = match.phase_label || "Group Stage";
+      const phase = getMatchPhaseName(match);
       const group = match.group_name ? ` (Grup ${match.group_name})` : "";
       const timeFormatted = formatMatchTime(match.match_datetime);
       const location = match.location ? `\n📍 *Lokasi:* ${match.location}` : "";
@@ -341,7 +344,8 @@ export default function LiveMatches() {
             advance_per_group,
             event_id,
             events:events(event_date, event_time, location),
-            referees:competition_referees(user_id)
+            referees:competition_referees(user_id),
+            stages:competition_stages(id, name, order_number)
           ),
           team1:competition_teams!team1_id (
             id,
@@ -474,7 +478,7 @@ export default function LiveMatches() {
       const { data, error } = await supabase
         .from("competition_teams")
         .select(`
-          id, name, group_name, competition_id, logo_url,
+          id, name, group_name, competition_id, logo_url, next_stage_type, next_stage_label,
           members:competition_team_members(id, name, user_id, house_block, house_number)
         `)
         .in("competition_id", compIds)
@@ -547,10 +551,29 @@ export default function LiveMatches() {
     ).values()
   );
 
+  const getMatchPhaseName = (m: MatchData) => {
+    if (m.phase_label) return m.phase_label;
+    
+    if (m.competition?.stages && m.competition.stages.length > 0) {
+      if (m.stage === "group") {
+        const maxOrder = Math.max(...m.competition.stages.map(s => s.order_number));
+        const groupStageName = m.competition.stages.find(s => s.order_number === maxOrder);
+        if (groupStageName) return groupStageName.name;
+      } else {
+        const knockoutMatches = matches.filter(match => match.competition_id === m.competition_id && match.stage === "knockout");
+        const maxKnockoutRound = knockoutMatches.length > 0 ? Math.max(...knockoutMatches.map(match => match.round_number)) : 0;
+        const fromEnd = maxKnockoutRound - m.round_number + 1;
+        const stageMatch = m.competition.stages.find(s => s.order_number === fromEnd);
+        if (stageMatch) return stageMatch.name;
+      }
+    }
+
+    if (m.stage === "group") return "Group Stage";
+    return "Penyisihan";
+  };
+
   const uniquePhases = Array.from(
-    new Set(
-      matches.map((m) => m.phase_label || (m.stage === "group" ? "Group Stage" : "Penyisihan"))
-    )
+    new Set(matches.map((m) => getMatchPhaseName(m)))
   ).filter(Boolean) as string[];
 
   const filteredMatches = matches.filter((match) => {
@@ -606,7 +629,7 @@ export default function LiveMatches() {
 
     // 4. Filter by phase
     if (selectedPhase !== "all") {
-      const matchPhase = match.phase_label || (match.stage === "group" ? "Group Stage" : "Penyisihan");
+      const matchPhase = getMatchPhaseName(match);
       if (matchPhase !== selectedPhase) {
         return false;
       }
@@ -1884,7 +1907,10 @@ export default function LiveMatches() {
                         </Button>
                       )}
                     </div>
-                    <GroupStandings competition={mockCompetition as unknown as EventCompetitionWithDetails} />
+                    <GroupStandings 
+                      competition={mockCompetition as unknown as EventCompetitionWithDetails} 
+                      canManage={isAdmin() || isMenteriSistemDigital || data.comp.referees?.some(ref => ref.user_id === user?.id)} 
+                    />
                   </div>
                 );
               });
@@ -1981,7 +2007,6 @@ export default function LiveMatches() {
                               variant={selectedChartStage === "knockout" ? "secondary" : "ghost"}
                               size="sm"
                               className="h-7 px-3 text-[10px] font-semibold"
-                              disabled={!matches.some(m => m.competition_id === comp.id && m.stage === "knockout")}
                               onClick={() => setSelectedChartStage("knockout")}
                             >
                               Babak Gugur
@@ -1994,6 +2019,7 @@ export default function LiveMatches() {
                         <TournamentBracket
                           competitionId={comp.id}
                           matches={compMatches}
+                          competitionStages={comp.stages}
                           canManage={isAdmin() || isMenteriSistemDigital || comp.referees?.some(ref => ref.user_id === user?.id)}
                           renderMatchCard={(match) => renderMatchCard(match)}
                           onUpdatePhaseLabel={(roundMatches, newLabel) => {

@@ -144,6 +144,21 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
     const roundMatches = matches.filter(m => m.round_number === r);
     const customLabel = roundMatches.find(m => m.phase_label)?.phase_label?.trim();
     if (customLabel) return { round: r, name: customLabel };
+    
+    if (competition.stages && competition.stages.length > 0) {
+      if (roundMatches[0]?.stage === "group") {
+        const maxOrder = Math.max(...competition.stages.map(s => s.order_number));
+        const groupStageName = competition.stages.find(s => s.order_number === maxOrder);
+        if (groupStageName) return { round: r, name: groupStageName.name };
+      } else {
+        const knockoutMatches = matches.filter(m => m.stage === "knockout");
+        const maxKnockoutRound = knockoutMatches.length > 0 ? Math.max(...knockoutMatches.map(m => m.round_number)) : 0;
+        const fromEnd = maxKnockoutRound - r + 1;
+        const stageMatch = competition.stages.find(s => s.order_number === fromEnd);
+        if (stageMatch) return { round: r, name: stageMatch.name };
+      }
+    }
+
     const fromEnd = totalRounds - r + 1;
     let name = `Babak ${r}`;
     if (fromEnd === 1) name = "Final";
@@ -250,6 +265,20 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
     // Check if there's a custom phase label in any match of this round
     const customLabel = matches.find(m => m.phase_label)?.phase_label;
     if (customLabel) return customLabel;
+
+    if (competition.stages && competition.stages.length > 0) {
+      if (matches[0]?.stage === "group") {
+        const maxOrder = Math.max(...competition.stages.map(s => s.order_number));
+        const groupStageName = competition.stages.find(s => s.order_number === maxOrder);
+        if (groupStageName) return groupStageName.name;
+      } else {
+        const knockoutMatches = competition.matches?.filter(m => m.stage === "knockout") || [];
+        const maxKnockoutRound = knockoutMatches.length > 0 ? Math.max(...knockoutMatches.map(m => m.round_number)) : 0;
+        const fromEnd = maxKnockoutRound - round + 1;
+        const stageMatch = competition.stages.find(s => s.order_number === fromEnd);
+        if (stageMatch) return stageMatch.name;
+      }
+    }
 
     const fromEnd = totalRounds - round + 1;
     if (fromEnd === 1) return "Final";
@@ -1286,7 +1315,6 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                       variant={selectedChartStage === "knockout" ? "secondary" : "ghost"}
                       size="sm"
                       className="h-8 px-4 text-xs font-semibold"
-                      disabled={!hasKnockout}
                       onClick={() => setSelectedChartStage("knockout")}
                     >
                       Babak Gugur
@@ -1298,6 +1326,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                 competitionId={competition.id}
                 matches={chartMatches}
                 canManage={canManage}
+                competitionStages={competition.stages}
                 renderMatchCard={(match) => renderMatchCard(match, filteredMatches.indexOf(match))}
                 createPhaseNode={renderCreatePhaseNode(competition, allTeams, matches)}
                 onUpdatePhaseLabel={(roundMatches, newLabel) => {

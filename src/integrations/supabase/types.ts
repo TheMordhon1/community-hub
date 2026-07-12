@@ -409,6 +409,38 @@ export type Database = {
           },
         ]
       }
+      competition_stages: {
+        Row: {
+          id: string
+          competition_id: string
+          name: string
+          order_number: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          competition_id: string
+          name: string
+          order_number: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          competition_id?: string
+          name?: string
+          order_number?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_stages_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "event_competitions"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       competition_teams: {
         Row: {
           age: number | null
@@ -423,6 +455,8 @@ export type Database = {
           is_individual: boolean | null
           logo_url: string | null
           name: string
+          next_stage_label: string | null
+          next_stage_type: string | null
           participant_name: string | null
           seed_number: number | null
           user_id: string | null
@@ -440,6 +474,8 @@ export type Database = {
           is_individual?: boolean | null
           logo_url?: string | null
           name: string
+          next_stage_label?: string | null
+          next_stage_type?: string | null
           participant_name?: string | null
           seed_number?: number | null
           user_id?: string | null
@@ -457,6 +493,8 @@ export type Database = {
           is_individual?: boolean | null
           logo_url?: string | null
           name?: string
+          next_stage_label?: string | null
+          next_stage_type?: string | null
           participant_name?: string | null
           seed_number?: number | null
           user_id?: string | null

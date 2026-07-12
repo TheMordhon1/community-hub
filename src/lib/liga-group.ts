@@ -26,9 +26,14 @@ export interface StandingRow {
 export function computeStandings(
   teams: CompetitionTeamWithMembers[],
   matches: CompetitionMatchWithTeams[],
-  groupName: string
+  groupName: string,
+  isPlayoff: boolean = false
 ): StandingRow[] {
-  const groupTeams = teams.filter((t) => t.group_name === groupName);
+  const groupTeams = teams.filter((t) => 
+    isPlayoff 
+      ? t.next_stage_type === "playoff" && t.next_stage_label === groupName
+      : t.group_name === groupName
+  );
   const rows = new Map<string, StandingRow>();
   for (const t of groupTeams) {
     rows.set(t.id, {

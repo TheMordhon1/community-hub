@@ -45,6 +45,8 @@ export interface CompetitionTeam {
   age_group: string | null;
   gender: Gender | string | null;
   group_name: string | null;
+  next_stage_type: string | null;
+  next_stage_label: string | null;
   is_individual: boolean | null;
   created_at: string;
   house?: House;
@@ -60,6 +62,14 @@ export interface CompetitionTeamMember {
   profile?: Profile;
   house_block?: string | null;
   house_number?: string | null;
+}
+
+export interface CompetitionStage {
+  id: string;
+  competition_id: string;
+  name: string;
+  order_number: number;
+  created_at: string;
 }
 
 export interface CompetitionMatchParticipant {
@@ -128,6 +138,7 @@ export interface EventCompetitionWithDetails extends EventCompetition {
   matches?: CompetitionMatchWithTeams[];
   referees?: CompetitionReferee[];
   events?: Event;
+  stages?: CompetitionStage[];
 }
 
 // Labels for UI display

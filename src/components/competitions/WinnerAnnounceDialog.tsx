@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
 import { parseMemberName, capitalizeName } from "@/lib/utils";
 import {
@@ -8,9 +8,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Trophy, Medal, Star, User } from "lucide-react";
+import { Trophy, Medal, Star, User, ChevronDown, ChevronUp } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import type { EventCompetitionWithDetails, CompetitionMatchParticipant, CompetitionMatchWithTeams, CompetitionTeamWithMembers } from "@/types/competition";
 import { TeamFlag } from "./TeamFlag";
 import { extractFlagAndName } from "@/lib/countries";
@@ -35,6 +35,10 @@ export function WinnerAnnounceDialog({
   let juara1: CompetitionMatchParticipant[] = [];
   let juara2: CompetitionMatchParticipant[] = [];
   let juara3: CompetitionMatchParticipant[] = [];
+  
+  const [showOpponent, setShowOpponent] = useState(false);
+  const opponentRef = useRef<HTMLDivElement>(null);
+  let fullLoserTeam: CompetitionTeamWithMembers | any | null = null;
 
   if (match) {
     if (is17an) {
@@ -65,6 +69,11 @@ export function WinnerAnnounceDialog({
           team: fullTeam,
           winner_rank: 1
         } as CompetitionMatchParticipant];
+      }
+      
+      const loserTeam = isTeam1Winner ? match.team2 : (isTeam2Winner ? match.team1 : null);
+      if (loserTeam) {
+        fullLoserTeam = competition.teams?.find(t => t.id === loserTeam.id) || loserTeam;
       }
     }
   } else {
@@ -199,7 +208,7 @@ export function WinnerAnnounceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-gradient-to-b from-primary/5 via-background to-background border-none shadow-2xl p-0 overflow-hidden [&>button]:z-50">
+      <DialogContent className="max-w-2xl bg-gradient-to-b from-primary/5 via-background to-background border-none shadow-2xl p-0 overflow-y-auto max-h-[90vh] [&>button]:z-50">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-50 pointer-events-none" />
         
         <DialogHeader className="p-5 sm:p-8 sm:pb-2 text-center relative z-10">
@@ -285,6 +294,78 @@ export function WinnerAnnounceDialog({
                 </div>
               </motion.div>
             ))}
+
+            {isMatchAnnounce && fullLoserTeam && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="mt-2 flex flex-col items-center"
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowOpponent(!showOpponent)}
+                  className="text-xs font-bold text-muted-foreground hover:text-foreground mb-4 uppercase tracking-wider"
+                >
+                  {showOpponent ? "Sembunyikan Lawan" : "Tampilkan Lawan"}
+                  {showOpponent ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />}
+                </Button>
+
+                <AnimatePresence>
+                  {showOpponent && (
+                    <motion.div
+                      ref={opponentRef}
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="w-full overflow-hidden"
+                      onAnimationComplete={() => {
+                        if (showOpponent && opponentRef.current) {
+                          opponentRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                      }}
+                    >
+                      <div className="h-full bg-slate-100 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 rounded-3xl p-4 sm:p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group max-w-md mx-auto">
+                        <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10 flex items-center justify-center gap-2">
+                          <TeamFlag team={fullLoserTeam} className="w-6 h-4 object-cover rounded shadow-sm inline-block select-none border border-slate-300 dark:border-slate-700 shrink-0 text-xl" fallbackSize="text-2xl" />
+                          <span>{extractFlagAndName(fullLoserTeam.name).name}</span>
+                        </h4>
+                        
+                        <div className="flex flex-wrap justify-center gap-3 w-full relative z-10">
+                          {fullLoserTeam.members && fullLoserTeam.members.length > 0 ? (
+                            fullLoserTeam.members.map((m: any) => {
+                              const parsed = parseMemberName(m.name);
+                              const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
+                              const avatarUrl = parsed.avatarUrl || m.profile?.avatar_url || "";
+                              const shortName = name.split(' ')[0] || "Anonim";
+                              return (
+                                <div key={m.id} className="flex flex-col bg-white/50 dark:bg-slate-900/30 border border-slate-300 dark:border-slate-600 rounded-xl p-1.5 shadow-sm flex-1 min-w-[90px] max-w-[140px] opacity-80">
+                                  <div className="w-full aspect-square rounded-lg bg-slate-200 dark:bg-slate-800 overflow-hidden mb-1.5 border border-slate-300/50 dark:border-slate-600/50 transition-all">
+                                    {avatarUrl ? (
+                                      <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <User className="w-1/3 h-1/3 text-slate-400" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 text-center line-clamp-2 leading-tight px-0.5">
+                                    {shortName}
+                                  </span>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <span className="text-[10px] text-slate-400 italic">Peserta</span>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
 
             {/* Juara 2 & 3 - Side by side */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

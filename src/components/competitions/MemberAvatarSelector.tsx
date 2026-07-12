@@ -101,11 +101,11 @@ export function MemberAvatarSelector({
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
+    if (file.size > 5 * 1024 * 1024) {
       toast({
         variant: "destructive",
         title: "File terlalu besar",
-        description: "Ukuran maksimal foto adalah 2MB",
+        description: "Ukuran maksimal foto adalah 5MB",
       });
       return;
     }

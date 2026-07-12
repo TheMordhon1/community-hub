@@ -28,6 +28,7 @@ interface TournamentBracketProps<T extends BracketMatch> {
   onRegenerateKnockout?: () => void;
   onReorderPhases?: (updates: { id: string; round_number: number }[]) => void;
   onAddPhase?: (phaseLabel: string) => void;
+  competitionStages?: { name: string; order_number: number }[];
 }
 
 export function TournamentBracket<T extends BracketMatch>({
@@ -41,6 +42,7 @@ export function TournamentBracket<T extends BracketMatch>({
   onRegenerateKnockout,
   onReorderPhases,
   onAddPhase,
+  competitionStages,
 }: TournamentBracketProps<T>) {
   const [currentRoundIdx, setCurrentRoundIdx] = useState(0);
   const [connections, setConnections] = useState<{ id: string; path: string; isWinner: boolean }[]>([]);
@@ -256,6 +258,19 @@ export function TournamentBracket<T extends BracketMatch>({
 
   const getRoundName = (roundNum: number, total: number, roundMatches: T[]) => {
     if (roundMatches[0]?.phase_label) return roundMatches[0].phase_label;
+    
+    if (competitionStages && competitionStages.length > 0) {
+      if (roundMatches[0]?.stage === "group") {
+        const maxOrder = Math.max(...competitionStages.map(s => s.order_number));
+        const groupStageName = competitionStages.find(s => s.order_number === maxOrder);
+        if (groupStageName) return groupStageName.name;
+      } else {
+        const fromEnd = total - roundNum + 1;
+        const stageMatch = competitionStages.find(s => s.order_number === fromEnd);
+        if (stageMatch) return stageMatch.name;
+      }
+    }
+
     if (roundNum === total && total > 1) return "Final";
     if (roundNum === total - 1 && total > 2) return "Semifinal";
     if (roundNum === total - 2 && total > 3) return "Perempat Final";
