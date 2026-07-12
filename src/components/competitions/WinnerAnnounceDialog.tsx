@@ -338,7 +338,7 @@ export function WinnerAnnounceDialog({
                               const parsed = parseMemberName(m.name);
                               const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
                               const avatarUrl = parsed.avatarUrl || m.profile?.avatar_url || "";
-                              const shortName = name.split(' ')[0] || "Anonim";
+                            
                               return (
                                 <div key={m.id} className="flex flex-col bg-white/50 dark:bg-slate-900/30 border border-slate-300 dark:border-slate-600 rounded-xl p-1.5 shadow-sm flex-1 min-w-[90px] max-w-[140px] opacity-80">
                                   <div className="w-full aspect-square rounded-lg bg-slate-200 dark:bg-slate-800 overflow-hidden mb-1.5 border border-slate-300/50 dark:border-slate-600/50 transition-all">
@@ -351,7 +351,7 @@ export function WinnerAnnounceDialog({
                                     )}
                                   </div>
                                   <span className="text-xs font-bold text-slate-700 dark:text-slate-200 text-center line-clamp-2 leading-tight px-0.5">
-                                    {shortName}
+                                    {name}
                                   </span>
                                 </div>
                               );
