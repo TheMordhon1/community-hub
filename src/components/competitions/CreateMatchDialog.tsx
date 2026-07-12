@@ -10,13 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, Users, Sparkles, Shuffle, MousePointerClick, Swords, Calendar } from "lucide-react";
@@ -25,8 +18,11 @@ import { useToast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
 import { useAssignMatchTeams } from "@/hooks/useCompetitions";
-import type { EventCompetitionWithDetails, CompetitionMatchWithTeams } from "@/types/competition";
+import type { EventCompetitionWithDetails, CompetitionMatchWithTeams, CompetitionTeamWithMembers } from "@/types/competition";
 import { computeStandings } from "@/lib/liga-group";
+import { parseMemberName, capitalizeName, cn } from "@/lib/utils";
+import { TeamFlag } from "@/components/competitions/TeamFlag";
+import { extractFlagAndName } from "@/lib/countries";
 
 interface CreateMatchDialogProps {
   open: boolean;
@@ -461,7 +457,7 @@ export function CreateMatchDialog({
 
             {selectionMode === "manual" && (
               is17an ? (
-                <div className="space-y-2">
+              <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
                     Pilih Peserta ({selectedTeamIds.length}/{targetCount})
@@ -470,20 +466,53 @@ export function CreateMatchDialog({
                     {allTeams.map((team) => {
                       const checked = selectedTeamIds.includes(team.id);
                       const disabled = !checked && selectedTeamIds.length >= targetCount;
+                      const members = (team as CompetitionTeamWithMembers).members || [];
                       return (
-                        <div key={team.id} className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded transition-colors">
+                        <div
+                          key={team.id}
+                          className={cn(
+                            "flex items-start gap-3 p-2 rounded-lg border transition-colors cursor-pointer",
+                            checked
+                              ? "bg-primary/10 border-primary/30"
+                              : disabled
+                              ? "opacity-50 cursor-not-allowed border-transparent"
+                              : "hover:bg-muted/50 border-transparent hover:border-border"
+                          )}
+                          onClick={() => !disabled && toggleTeam(team.id)}
+                        >
                           <Checkbox
                             id={`team-${team.id}`}
                             checked={checked}
                             disabled={disabled}
                             onCheckedChange={() => toggleTeam(team.id)}
+                            className="mt-0.5 shrink-0"
                           />
-                          <Label
-                            htmlFor={`team-${team.id}`}
-                            className={`flex-1 cursor-pointer text-sm font-normal ${disabled ? "opacity-50" : ""}`}
-                          >
-                            {team.name}
-                          </Label>
+                          <div className="flex-1 min-w-0">
+                            <Label
+                              htmlFor={`team-${team.id}`}
+                              className={cn(
+                                "text-sm font-semibold cursor-pointer flex items-center gap-1.5",
+                                checked ? "text-primary" : "",
+                                disabled ? "cursor-not-allowed" : ""
+                              )}
+                            >
+                              <TeamFlag team={team} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
+                              <span>{extractFlagAndName(team.name).name}</span>
+                            </Label>
+                            {members.length > 0 && (
+                              <div className="flex flex-wrap gap-x-2 gap-y-0 mt-0.5">
+                                {members.map((m) => {
+                                  const parsed = parseMemberName(m.name);
+                                  const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
+                                  return (
+                                    <span key={m.id} className="text-[10px] text-muted-foreground">
+                                      {name}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -500,74 +529,131 @@ export function CreateMatchDialog({
                     <Swords className="w-3.5 h-3.5 shrink-0" />
                     <span>Pertandingan format ini wajib mempertemukan <strong>2 tim berbeda</strong>.</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-1">
-                        Tim 1 <span className="text-destructive font-bold">*</span>
-                      </Label>
-                      <Select value={team1Id} onValueChange={setTeam1Id}>
-                        <SelectTrigger className={!team1Id || team1Id === "none" ? "border-amber-500/50" : ""}>
-                          <SelectValue placeholder="Pilih Tim 1" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Pilih Tim 1</SelectItem>
-                          {eligibleTeams.map((team) => {
-                            const met = hasMet(team.id, team2Id);
-                            return (
-                              <SelectItem
-                                key={team.id}
-                                value={team.id}
-                                disabled={team.id === team2Id || met}
-                              >
-                                <span className="flex items-center gap-2">
-                                  <span>{team.name}</span>
-                                  {team.group_name && (
-                                    <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                                      Grup {team.group_name}
+
+                  {/* Team 1 picker */}
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1">
+                      Tim 1 <span className="text-destructive font-bold">*</span>
+                    </Label>
+                    <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto border rounded-md p-2 bg-muted/20">
+                      {eligibleTeams.length === 0 && (
+                        <p className="text-xs text-muted-foreground p-2 text-center">Belum ada tim tersedia.</p>
+                      )}
+                      {eligibleTeams.map((team) => {
+                        const met = hasMet(team.id, team2Id);
+                        const isSelected = team1Id === team.id;
+                        const isDisabled = team.id === team2Id || met;
+                        const members = (team as CompetitionTeamWithMembers).members || [];
+                        return (
+                          <button
+                            key={team.id}
+                            type="button"
+                            disabled={isDisabled}
+                            onClick={() => setTeam1Id(isSelected ? "" : team.id)}
+                            className={cn(
+                              "w-full text-left rounded-lg border px-3 py-2 transition-all duration-150",
+                              isSelected
+                                ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                                : isDisabled
+                                ? "opacity-40 cursor-not-allowed border-border bg-muted/20"
+                                : "border-border bg-background hover:border-primary/40 hover:bg-muted/40 cursor-pointer"
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={cn("text-sm font-semibold flex items-center gap-1.5", isSelected ? "text-primary" : "")}>
+                                <TeamFlag team={team} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
+                                <span>{extractFlagAndName(team.name).name}</span>
+                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {team.group_name && (
+                                  <span className="text-[10px] font-bold bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                                    Grup {team.group_name}
+                                  </span>
+                                )}
+                                {met && <span className="text-[10px] text-amber-600">(sudah bertemu)</span>}
+                              </div>
+                            </div>
+                            {members.length > 0 && (
+                              <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1">
+                                {members.map((m) => {
+                                  const parsed = parseMemberName(m.name);
+                                  const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
+                                  return (
+                                    <span key={m.id} className="text-[10px] text-muted-foreground">
+                                      {name}
                                     </span>
-                                  )}
-                                  {met && <span className="text-xs text-amber-600">(sudah bertemu)</span>}
-                                </span>
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-1">
-                        Tim 2 <span className="text-destructive font-bold">*</span>
-                      </Label>
-                      <Select value={team2Id} onValueChange={setTeam2Id}>
-                        <SelectTrigger className={!team2Id || team2Id === "none" ? "border-amber-500/50" : ""}>
-                          <SelectValue placeholder="Pilih Tim 2" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Pilih Tim 2</SelectItem>
-                          {eligibleTeams.map((team) => {
-                            const met = hasMet(team.id, team1Id);
-                            return (
-                              <SelectItem
-                                key={team.id}
-                                value={team.id}
-                                disabled={team.id === team1Id || met}
-                              >
-                                <span className="flex items-center gap-2">
-                                  <span>{team.name}</span>
-                                  {team.group_name && (
-                                    <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                                      Grup {team.group_name}
-                                    </span>
-                                  )}
-                                  {met && <span className="text-xs text-amber-600">(sudah bertemu)</span>}
-                                </span>
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
+
+                  {/* Team 2 picker */}
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1">
+                      Tim 2 <span className="text-destructive font-bold">*</span>
+                    </Label>
+                    <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto border rounded-md p-2 bg-muted/20">
+                      {eligibleTeams.length === 0 && (
+                        <p className="text-xs text-muted-foreground p-2 text-center">Belum ada tim tersedia.</p>
+                      )}
+                      {eligibleTeams.map((team) => {
+                        const met = hasMet(team.id, team1Id);
+                        const isSelected = team2Id === team.id;
+                        const isDisabled = team.id === team1Id || met;
+                        const members = (team as CompetitionTeamWithMembers).members || [];
+                        return (
+                          <button
+                            key={team.id}
+                            type="button"
+                            disabled={isDisabled}
+                            onClick={() => setTeam2Id(isSelected ? "" : team.id)}
+                            className={cn(
+                              "w-full text-left rounded-lg border px-3 py-2 transition-all duration-150",
+                              isSelected
+                                ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                                : isDisabled
+                                ? "opacity-40 cursor-not-allowed border-border bg-muted/20"
+                                : "border-border bg-background hover:border-primary/40 hover:bg-muted/40 cursor-pointer"
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={cn("text-sm font-semibold flex items-center gap-1.5", isSelected ? "text-primary" : "")}>
+                                <TeamFlag team={team} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
+                                <span>{extractFlagAndName(team.name).name}</span>
+                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {team.group_name && (
+                                  <span className="text-[10px] font-bold bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                                    Grup {team.group_name}
+                                  </span>
+                                )}
+                                {met && <span className="text-[10px] text-amber-600">(sudah bertemu)</span>}
+                              </div>
+                            </div>
+                            {members.length > 0 && (
+                              <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1">
+                                {members.map((m) => {
+                                  const parsed = parseMemberName(m.name);
+                                  const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
+                                  return (
+                                    <span key={m.id} className="text-[10px] text-muted-foreground">
+                                      {name}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {isLigaGrup && stage === "group" && eligibleTeams.length === 0 && (
                     <p className="text-xs text-muted-foreground">
                       Belum ada tim di Grup {groupName || "?"}. Isi Nama Grup atau assign tim ke grup ini terlebih dahulu.

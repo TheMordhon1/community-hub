@@ -8,9 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -18,15 +15,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, Trophy, Medal, Plus, X, Swords } from "lucide-react";
 
 import { useUpdateMatch } from "@/hooks/useCompetitions";
 import { useToast } from "@/hooks/use-toast";
-import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, MatchStatus } from "@/types/competition";
+import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, MatchStatus, CompetitionTeamWithMembers } from "@/types/competition";
 import { MATCH_STATUS_LABELS } from "@/types/competition";
-import { getTeamFlag, extractFlagAndName } from "@/lib/countries";
+import { extractFlagAndName } from "@/lib/countries";
+import { TeamFlag } from "@/components/competitions/TeamFlag";
+import { parseMemberName, capitalizeName, cn } from "@/lib/utils";
 interface UpdateMatchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -337,67 +339,103 @@ export function UpdateMatchDialog({
                 <Swords className="w-3.5 h-3.5 shrink-0" />
                 <span>Pertandingan format ini wajib mempertemukan <strong>2 tim berbeda</strong>.</span>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-1">
-                    Tim 1 <span className="text-destructive font-bold">*</span>
-                  </Label>
-                  <Select value={team1Id} onValueChange={setTeam1Id}>
-                    <SelectTrigger className={!team1Id || team1Id === "none" ? "border-amber-500/50" : ""}>
-                      <SelectValue placeholder="Pilih Tim 1" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Pilih Tim 1</SelectItem>
-                      {filteredTeams.map((team) => {
-                        const flag = getTeamFlag(team);
-                        const isEmoji = flag && !flag.includes("/");
-                        return (
-                          <SelectItem key={team.id} value={team.id} disabled={team.id === team2Id}>
-                            <span className="flex items-center gap-1.5">
-                              {isEmoji && <span className="text-base select-none shrink-0">{flag}</span>}
-                              <span>{extractFlagAndName(team.name).name}</span>
-                            </span>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  {team1Warning && (
-                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 leading-tight font-medium">
-                      ⚠️ {team1Warning}
-                    </p>
-                  )}
+
+              {/* Tim 1 Card Picker */}
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1">
+                  Tim 1 <span className="text-destructive font-bold">*</span>
+                </Label>
+                <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto border rounded-md p-2 bg-muted/20">
+                  {filteredTeams.map((team) => {
+                    const isSelected = team1Id === team.id;
+                    const isDisabled = team.id === team2Id;
+                    const members = (team as CompetitionTeamWithMembers).members || [];
+                    return (
+                      <button
+                        key={team.id}
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() => setTeam1Id(isSelected ? "" : team.id)}
+                        className={cn(
+                          "w-full text-left rounded-lg border px-3 py-2 transition-all duration-150",
+                          isSelected ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                            : isDisabled ? "opacity-40 cursor-not-allowed border-border bg-muted/20"
+                            : "border-border bg-background hover:border-primary/40 hover:bg-muted/40 cursor-pointer"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={cn("text-sm font-semibold flex items-center gap-1.5", isSelected ? "text-primary" : "")}>
+                            <TeamFlag team={team} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
+                            <span>{extractFlagAndName(team.name).name}</span>
+                          </span>
+                          {team.group_name && (
+                            <span className="text-[10px] font-bold bg-muted px-1.5 py-0.5 rounded text-muted-foreground">Grup {team.group_name}</span>
+                          )}
+                        </div>
+                        {members.length > 0 && (
+                          <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1">
+                            {members.map(m => {
+                              const parsed = parseMemberName(m.name);
+                              return <span key={m.id} className="text-[10px] text-muted-foreground">{capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain")}</span>;
+                            })}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-1">
-                    Tim 2 <span className="text-destructive font-bold">*</span>
-                  </Label>
-                  <Select value={team2Id} onValueChange={setTeam2Id}>
-                    <SelectTrigger className={!team2Id || team2Id === "none" ? "border-amber-500/50" : ""}>
-                      <SelectValue placeholder="Pilih Tim 2" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Pilih Tim 2</SelectItem>
-                      {filteredTeams.map((team) => {
-                        const flag = getTeamFlag(team);
-                        const isEmoji = flag && !flag.includes("/");
-                        return (
-                          <SelectItem key={team.id} value={team.id} disabled={team.id === team1Id}>
-                            <span className="flex items-center gap-1.5">
-                              {isEmoji && <span className="text-base select-none shrink-0">{flag}</span>}
-                              <span>{extractFlagAndName(team.name).name}</span>
-                            </span>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  {team2Warning && (
-                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 leading-tight font-medium">
-                      ⚠️ {team2Warning}
-                    </p>
-                  )}
+                {team1Warning && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 leading-tight font-medium">⚠️ {team1Warning}</p>
+                )}
+              </div>
+
+              {/* Tim 2 Card Picker */}
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1">
+                  Tim 2 <span className="text-destructive font-bold">*</span>
+                </Label>
+                <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto border rounded-md p-2 bg-muted/20">
+                  {filteredTeams.map((team) => {
+                    const isSelected = team2Id === team.id;
+                    const isDisabled = team.id === team1Id;
+                    const members = (team as CompetitionTeamWithMembers).members || [];
+                    return (
+                      <button
+                        key={team.id}
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() => setTeam2Id(isSelected ? "" : team.id)}
+                        className={cn(
+                          "w-full text-left rounded-lg border px-3 py-2 transition-all duration-150",
+                          isSelected ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                            : isDisabled ? "opacity-40 cursor-not-allowed border-border bg-muted/20"
+                            : "border-border bg-background hover:border-primary/40 hover:bg-muted/40 cursor-pointer"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={cn("text-sm font-semibold flex items-center gap-1.5", isSelected ? "text-primary" : "")}>
+                            <TeamFlag team={team} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
+                            <span>{extractFlagAndName(team.name).name}</span>
+                          </span>
+                          {team.group_name && (
+                            <span className="text-[10px] font-bold bg-muted px-1.5 py-0.5 rounded text-muted-foreground">Grup {team.group_name}</span>
+                          )}
+                        </div>
+                        {members.length > 0 && (
+                          <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1">
+                            {members.map(m => {
+                              const parsed = parseMemberName(m.name);
+                              return <span key={m.id} className="text-[10px] text-muted-foreground">{capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain")}</span>;
+                            })}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
+                {team2Warning && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 leading-tight font-medium">⚠️ {team2Warning}</p>
+                )}
               </div>
             </div>
           )}
@@ -543,84 +581,113 @@ export function UpdateMatchDialog({
 
 
 
-          {/* Participants Scores */}
+          {/* Participants Scores (17an) */}
           {is17an && match.participants && match.participants.length > 0 && (
             <div className="space-y-3">
               <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Skor Peserta</Label>
               <div className="grid gap-3">
-                {match.participants.map((p) => (
-                  <div key={p.id} className="p-3 rounded-lg border bg-muted/30 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <Select
-                          value={participantTeams[p.id] || "none"}
-                          onValueChange={(val) => setParticipantTeams(prev => ({ ...prev, [p.id]: val }))}
-                        >
-                          <SelectTrigger className="w-full h-9 bg-background">
-                            <SelectValue placeholder="Pilih Peserta" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Pilih Peserta (TBD)</SelectItem>
-                            {allTeams.map((t) => {
-                              const flag = getTeamFlag(t);
-                              const isEmoji = flag && !flag.includes("/");
-                              const isAlreadySelected = Object.entries(participantTeams).some(
-                                ([pId, tId]) => pId !== p.id && tId === t.id
-                              );
-                              return (
-                                <SelectItem key={t.id} value={t.id} disabled={isAlreadySelected}>
-                                  <span className="flex items-center gap-1.5">
-                                    {isEmoji && <span className="text-base select-none shrink-0">{flag}</span>}
-                                    <span>{extractFlagAndName(t.name).name}</span>
-                                  </span>
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="w-24">
-                        <Input
-                          value={participantScores[p.id] || ""}
-                          onChange={(e) => setParticipantScores(prev => ({ ...prev, [p.id]: e.target.value }))}
-                          placeholder="Skor"
-                          type="number"
-                          className="text-right font-mono"
-                        />
-                      </div>
-                      <Button
-                        variant={participantWinners[p.id] ? "default" : "outline"}
-                        size="sm"
-                        className={`h-9 px-3 gap-1.5 transition-all ${participantWinners[p.id] ? 'bg-primary' : ''}`}
-                        onClick={() => setParticipantWinners(prev => ({ ...prev, [p.id]: !prev[p.id] }))}
-                      >
-                        <Trophy className={`w-3.5 h-3.5 ${participantWinners[p.id] ? 'fill-current' : ''}`} />
-                        {participantWinners[p.id] ? "Lolos" : "Pilih"}
-                      </Button>
-                    </div>
-
-                    {isFinal && (
-                      <div className="flex gap-2 pt-2 border-t border-dashed">
-                        {[1, 2, 3].map((r) => (
-                          <Button
-                            key={r}
-                            variant={participantRanks[p.id] === r ? "default" : "outline"}
-                            size="sm"
-                            className={`h-8 flex-1 gap-1 text-[10px] uppercase font-bold tracking-tighter ${
-                              participantRanks[p.id] === r 
-                                ? (r === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : r === 2 ? 'bg-slate-400 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-700') 
-                                : ''
-                            }`}
-                            onClick={() => setParticipantRanks(prev => ({ ...prev, [p.id]: prev[p.id] === r ? null : r }))}
+                {match.participants.map((p) => {
+                  const currentTeamId = participantTeams[p.id] || "none";
+                  return (
+                    <div key={p.id} className="p-3 rounded-lg border bg-muted/30 space-y-3">
+                      {/* Team card picker for this participant slot */}
+                      <div className="space-y-1">
+                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Peserta</Label>
+                        <div className="grid grid-cols-1 gap-1 max-h-36 overflow-y-auto border rounded-md p-1.5 bg-background">
+                          {/* TBD option */}
+                          <button
+                            type="button"
+                            onClick={() => setParticipantTeams(prev => ({ ...prev, [p.id]: "none" }))}
+                            className={cn(
+                              "w-full text-left rounded-md border px-2.5 py-1.5 text-xs transition-all",
+                              currentTeamId === "none"
+                                ? "border-primary bg-primary/10 text-primary font-semibold"
+                                : "border-transparent hover:border-border hover:bg-muted/40"
+                            )}
                           >
-                            <Medal className="w-3 h-3" />
-                            Juara {r}
-                          </Button>
-                        ))}
+                            Pilih Peserta (TBD)
+                          </button>
+                          {allTeams.map((t) => {
+                            const isAlreadySelected = Object.entries(participantTeams).some(
+                              ([pId, tId]) => pId !== p.id && tId === t.id
+                            );
+                            const isSelected = currentTeamId === t.id;
+                            const members = (t as CompetitionTeamWithMembers).members || [];
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                disabled={isAlreadySelected}
+                                onClick={() => setParticipantTeams(prev => ({ ...prev, [p.id]: t.id }))}
+                                className={cn(
+                                  "w-full text-left rounded-md border px-2.5 py-1.5 transition-all",
+                                  isSelected ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                                    : isAlreadySelected ? "opacity-40 cursor-not-allowed border-transparent"
+                                    : "border-transparent hover:border-border hover:bg-muted/40 cursor-pointer"
+                                )}
+                              >
+                                <span className={cn("text-sm font-semibold flex items-center gap-1.5", isSelected ? "text-primary" : "")}>
+                                  <TeamFlag team={t} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
+                                  <span>{extractFlagAndName(t.name).name}</span>
+                                </span>
+                                {members.length > 0 && (
+                                  <div className="flex flex-wrap gap-x-2 mt-0.5">
+                                    {members.map(m => {
+                                      const parsed = parseMemberName(m.name);
+                                      return <span key={m.id} className="text-[10px] text-muted-foreground">{capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain")}</span>;
+                                    })}
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <Input
+                            value={participantScores[p.id] || ""}
+                            onChange={(e) => setParticipantScores(prev => ({ ...prev, [p.id]: e.target.value }))}
+                            placeholder="Skor"
+                            type="number"
+                            className="text-right font-mono"
+                          />
+                        </div>
+                        <Button
+                          variant={participantWinners[p.id] ? "default" : "outline"}
+                          size="sm"
+                          className={`h-9 px-3 gap-1.5 transition-all ${participantWinners[p.id] ? 'bg-primary' : ''}`}
+                          onClick={() => setParticipantWinners(prev => ({ ...prev, [p.id]: !prev[p.id] }))}
+                        >
+                          <Trophy className={`w-3.5 h-3.5 ${participantWinners[p.id] ? 'fill-current' : ''}`} />
+                          {participantWinners[p.id] ? "Lolos" : "Pilih"}
+                        </Button>
+                      </div>
+
+                      {isFinal && (
+                        <div className="flex gap-2 pt-2 border-t border-dashed">
+                          {[1, 2, 3].map((r) => (
+                            <Button
+                              key={r}
+                              variant={participantRanks[p.id] === r ? "default" : "outline"}
+                              size="sm"
+                              className={`h-8 flex-1 gap-1 text-[10px] uppercase font-bold tracking-tighter ${
+                                participantRanks[p.id] === r
+                                  ? (r === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : r === 2 ? 'bg-slate-400 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-700')
+                                  : ''
+                              }`}
+                              onClick={() => setParticipantRanks(prev => ({ ...prev, [p.id]: prev[p.id] === r ? null : r }))}
+                            >
+                              <Medal className="w-3 h-3" />
+                              Juara {r}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -631,8 +698,9 @@ export function UpdateMatchDialog({
               <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Skor & Hasil Akhir</Label>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="font-semibold text-xs text-foreground">
-                    {allTeams.find((t) => t.id === team1Id)?.name || "Tim 1"}
+                  <Label className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                    <TeamFlag team={allTeams.find((t) => t.id === team1Id)} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
+                    <span>{extractFlagAndName(allTeams.find((t) => t.id === team1Id)?.name || "Tim 1").name}</span>
                   </Label>
                   <Input
                     value={score1}
@@ -664,8 +732,9 @@ export function UpdateMatchDialog({
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label className="font-semibold text-xs text-foreground">
-                    {allTeams.find((t) => t.id === team2Id)?.name || "Tim 2"}
+                  <Label className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                    <TeamFlag team={allTeams.find((t) => t.id === team2Id)} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
+                    <span>{extractFlagAndName(allTeams.find((t) => t.id === team2Id)?.name || "Tim 2").name}</span>
                   </Label>
                   <Input
                     value={score2}

@@ -906,7 +906,6 @@ export default function LiveScoreDialog({
               {/* Set Navigation Tabs */}
               <div className="flex flex-col items-center gap-2 border rounded-2xl p-4 w-full bg-primary/5 border-primary/20">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold uppercase tracking-wider text-primary">Set Aktif:</span>
                   <div className="flex flex-wrap gap-1.5">
                     {sets.map((_, idx) => (
                       <Button
@@ -943,7 +942,7 @@ export default function LiveScoreDialog({
                             }
                           }}
                         >
-                          <RotateCcw className="w-3.5 h-3.5" /> Reset Set
+                        Reset
                         </Button>
                       </>
                     )}
@@ -951,56 +950,56 @@ export default function LiveScoreDialog({
                 </div>
               </div>
 
-              <div className="flex flex-row items-center justify-between w-full gap-2 sm:gap-8">
+              <div className="flex flex-row items-start justify-between w-full gap-1 sm:gap-6">
                 {/* Team 1: Score on the left */}
                 <div className="flex flex-col items-center flex-1 min-w-0">
-                  <h3 className="font-bold text-xs sm:text-xl text-center line-clamp-1 mb-1 flex items-center gap-1.5 justify-center">
+                  <h3 className="font-bold text-sm sm:text-xl text-center leading-tight mb-1 flex flex-wrap items-center gap-1 justify-center w-full px-1">
                     {match.team1 && <TeamFlag team={match.team1} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />}
-                    <span>{match.team1 ? extractFlagAndName(match.team1.name).name : "TBD"}</span>
+                    <span className="break-words">{match.team1 ? extractFlagAndName(match.team1.name).name : "TBD"}</span>
                   </h3>
 
                   {/* Players List Team 1 */}
                   {(match.team1 as CompetitionTeamWithMembers)?.members && (match.team1 as CompetitionTeamWithMembers).members!.length > 0 && (
-                    <div className="flex flex-wrap justify-center gap-1 mb-3 max-w-[200px]">
+                    <div className="flex flex-col items-center gap-0.5 mb-3 w-full px-1">
                       {(match.team1 as CompetitionTeamWithMembers).members!.map((m) => {
                         const parsed = parseMemberName(m.name);
                         const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
                         const house = (m.profile as (typeof m.profile & { house?: { block: string; number: string } }) | undefined)?.house;
                         return (
-                          <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
+                          <span key={m.id} className="text-[10px] sm:text-xs font-medium text-muted-foreground text-center leading-snug block w-full truncate">
                             {name}{house ? ` (${house.block}.${house.number})` : ""}
-                          </Badge>
+                          </span>
                         );
                       })}
                     </div>
                   )}
                   <div className="flex flex-col items-center gap-3">
-                    <div className="bg-muted w-24 h-24 sm:w-[180px] sm:h-24 rounded-xl sm:rounded-3xl flex items-center justify-center relative overflow-hidden border-2 border-transparent transition-all duration-500 shadow-inner">
+                    <div className="bg-muted w-20 h-20 sm:w-[160px] sm:h-24 rounded-xl sm:rounded-3xl flex items-center justify-center relative overflow-hidden border-2 border-transparent transition-all duration-500 shadow-inner">
                       <div className="absolute inset-0 bg-gradient-to-b from-black/5 to-transparent pointer-events-none" />
-                      <span className="text-5xl sm:text-6xl font-black tracking-tighter z-10">
+                      <span className="text-4xl sm:text-6xl font-black tracking-tighter z-10">
                         {sets[activeSetIndex]?.team1_score ?? 0}
                       </span>
                     </div>
                     {!readOnly && (
-                      <div className="flex items-center gap-3">
-                        <Button variant="outline" size="icon" className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0" onClick={() => updateTeam1Score(-1)}>
-                          <Minus className="w-5 h-5 sm:w-6 sm:h-6" />
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" className="h-9 w-9 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0" onClick={() => updateTeam1Score(-1)}>
+                          <Minus className="w-4 h-4 sm:w-6 sm:h-6" />
                         </Button>
-                        <Button variant="default" size="icon" className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0 shadow-md" onClick={() => updateTeam1Score(1)}>
-                          <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
+                        <Button variant="default" size="icon" className="h-9 w-9 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0 shadow-md" onClick={() => updateTeam1Score(1)}>
+                          <Plus className="w-4 h-4 sm:w-6 sm:h-6" />
                         </Button>
                       </div>
                     )}
                     
                     {/* Rank Selection Team 1 */}
                     {!readOnly && match.is_final && (
-                      <div className="flex gap-1 mt-2">
+                      <div className="flex flex-wrap gap-1 mt-2 justify-center">
                         {[1, 2, 3].map((r) => (
                           <Button
                             key={r}
                             variant={winnerRank1 === r ? "default" : "outline"}
                             size="sm"
-                            className={`h-7 px-2 text-[9px] uppercase font-bold tracking-tighter transition-all ${
+                            className={`h-7 px-1.5 text-[9px] uppercase font-bold tracking-tighter transition-all ${
                               winnerRank1 === r ? getRankColor(r) : 'text-muted-foreground'
                             }`}
                             onClick={() => setWinnerRank1(winnerRank1 === r ? null : r)}
@@ -1013,12 +1012,12 @@ export default function LiveScoreDialog({
                   </div>
                 </div>
 
-                <div className="flex flex-col items-center gap-4 px-2 sm:px-4 shrink-0">
-                  <div className="text-xl sm:text-3xl font-black text-muted-foreground/20 italic">VS</div>
+                <div className="flex flex-col items-center gap-3 px-0.5 sm:px-4 shrink-0">
+                  <div className="text-lg sm:text-3xl font-black text-muted-foreground/20 italic">VS</div>
                   
                   {/* Sets / Games interactive indicator list */}
-                  <div className="flex flex-col items-center gap-2 border border-border/60 bg-muted/20 rounded-2xl p-3 shrink-0 select-none">
-                    <div className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">
+                  <div className="flex flex-col items-center gap-2 border border-border/60 bg-muted/20 rounded-2xl p-2 sm:p-3 shrink-0 select-none min-w-[80px] sm:min-w-[100px]">
+                    <div className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">
                       {Math.max(sets.length, 3)} Game
                     </div>
                     <div className="flex flex-col gap-2">
@@ -1078,57 +1077,58 @@ export default function LiveScoreDialog({
 
                 {/* Team 2: Score on the right */}
                 <div className="flex flex-col items-center flex-1 min-w-0">
-                  <h3 className="font-bold text-xs sm:text-xl text-center line-clamp-1 mb-1 flex items-center gap-1.5 justify-center">
+                  <h3 className="font-bold text-sm sm:text-xl text-center leading-tight mb-1 flex flex-wrap items-center gap-1 justify-center w-full px-1">
                     {match.team2 && <TeamFlag team={match.team2} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />}
-                    <span>{match.team2 ? extractFlagAndName(match.team2.name).name : "TBD"}</span>
+                    <span className="break-words">{match.team2 ? extractFlagAndName(match.team2.name).name : "TBD"}</span>
                   </h3>
                   {/* Players List Team 2 */}
                   {(match.team2 as CompetitionTeamWithMembers)?.members && (match.team2 as CompetitionTeamWithMembers).members!.length > 0 && (
-                    <div className="flex flex-wrap justify-center gap-1 mb-3 max-w-[200px]">
+                    <div className="flex flex-col items-center gap-0.5 mb-3 w-full px-1">
                       {(match.team2 as CompetitionTeamWithMembers).members!.map((m) => {
                         const parsed = parseMemberName(m.name);
                         const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
                         const house = (m.profile as (typeof m.profile & { house?: { block: string; number: string } }) | undefined)?.house;
                         return (
-                          <Badge key={m.id} variant="secondary" className="text-[9px] h-4 px-1.5 font-normal bg-muted/50 text-muted-foreground border-none">
+                          <span key={m.id} className="text-[10px] sm:text-xs font-medium text-muted-foreground text-center leading-snug block w-full truncate">
                             {name}{house ? ` (${house.block}.${house.number})` : ""}
-                          </Badge>
+                          </span>
                         );
                       })}
                     </div>
                   )}
                   <div className="flex flex-col items-center gap-3">
-                    <div className="bg-muted w-24 h-24 sm:w-[180px] sm:h-24 rounded-xl sm:rounded-3xl flex items-center justify-center relative overflow-hidden border-2 border-transparent transition-all duration-500 shadow-inner">
+                    <div className="bg-muted w-20 h-20 sm:w-[160px] sm:h-24 rounded-xl sm:rounded-3xl flex items-center justify-center relative overflow-hidden border-2 border-transparent transition-all duration-500 shadow-inner">
                       <div className="absolute inset-0 bg-gradient-to-b from-black/5 to-transparent pointer-events-none" />
-                      <span className="text-5xl sm:text-6xl font-black tracking-tighter z-10">
+                      <span className="text-4xl sm:text-6xl font-black tracking-tighter z-10">
                         {sets[activeSetIndex]?.team2_score ?? 0}
                       </span>
                     </div>
                     {!readOnly && (
-                      <div className="flex items-center gap-3">
-                        <Button variant="outline" size="icon" className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0" onClick={() => updateTeam2Score(-1)}>
-                          <Minus className="w-5 h-5 sm:w-6 sm:h-6" />
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" className="h-9 w-9 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0" onClick={() => updateTeam2Score(-1)}>
+                          <Minus className="w-4 h-4 sm:w-6 sm:h-6" />
                         </Button>
-                        <Button variant="default" size="icon" className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0 shadow-md" onClick={() => updateTeam2Score(1)}>
-                          <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
+                        <Button variant="default" size="icon" className="h-9 w-9 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0 shadow-md" onClick={() => updateTeam2Score(1)}>
+                          <Plus className="w-4 h-4 sm:w-6 sm:h-6" />
                         </Button>
                       </div>
                     )}
                     {/* Rank Selection Team 2 */}
                     {!readOnly && match.is_final && (
-                      <div className="flex gap-1 mt-2">
+                      <div className="flex flex-wrap gap-1 mt-2 justify-center">
                         {[1, 2, 3].map((r) => (
                           <Button
                             key={r}
                             variant={winnerRank2 === r ? "default" : "outline"}
                             size="sm"
-                            className={`h-7 px-2 text-[9px] uppercase font-bold tracking-tighter transition-all ${
+                            className={`h-7 px-1.5 text-[9px] uppercase font-bold tracking-tighter transition-all ${
                               winnerRank2 === r ? getRankColor(r) : 'text-muted-foreground'
                             }`}
                             onClick={() => setWinnerRank2(winnerRank2 === r ? null : r)}
                           >
                             Juara {r}
                           </Button>
+
                         ))}
                       </div>
                     )}

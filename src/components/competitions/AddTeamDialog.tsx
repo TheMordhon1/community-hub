@@ -808,85 +808,78 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                 )}
               </div>
           )}
-          <div className="space-y-2 relative">
+          <div className="space-y-2">
             <Label htmlFor="team-flag">Bendera / Ikon Tim (Opsional)</Label>
-            <Button
-              id="team-flag"
-              type="button"
-              variant="outline"
-              className="w-full justify-between font-normal bg-background"
-              onClick={() => setIsFlagPopoverOpen(!isFlagPopoverOpen)}
-            >
-              {teamFlag ? (
-                <span className="flex items-center gap-2">
-                  {getFlagImgUrl(teamFlag) ? (
-                    <img src={getFlagImgUrl(teamFlag)!} alt="" className="w-5 h-3.5 object-cover rounded shadow-sm border shrink-0" />
+            <Popover open={isFlagPopoverOpen} onOpenChange={setIsFlagPopoverOpen} modal={true}>
+              <PopoverTrigger asChild>
+                <Button
+                  id="team-flag"
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-between font-normal bg-background"
+                >
+                  {teamFlag ? (
+                    <span className="flex items-center gap-2">
+                      {getFlagImgUrl(teamFlag) ? (
+                        <img src={getFlagImgUrl(teamFlag)!} alt="" className="w-5 h-3.5 object-cover rounded shadow-sm border shrink-0" />
+                      ) : (
+                        <span className="text-base">{teamFlag}</span>
+                      )}
+                      <span>{COUNTRIES.find(c => c.flag === teamFlag)?.name}</span>
+                    </span>
                   ) : (
-                    <span className="text-base">{teamFlag}</span>
+                    "Tanpa Bendera"
                   )}
-                  <span>{COUNTRIES.find(c => c.flag === teamFlag)?.name}</span>
-                </span>
-              ) : (
-                "Tanpa Bendera"
-              )}
-              <span className="text-muted-foreground ml-2 text-xs">▼</span>
-            </Button>
-            
-            {isFlagPopoverOpen && (
-              <>
-                <div 
-                  className="fixed inset-0 z-40" 
-                  onClick={() => setIsFlagPopoverOpen(false)}
-                />
-                
-                <div className="absolute left-0 right-0 mt-1 p-0 bg-popover border border-border shadow-lg rounded-xl z-50 max-w-full">
-                  <div className="p-2 sticky top-0 bg-popover border-b border-border z-10">
-                    <Input
-                      placeholder="Cari bendera..."
-                      value={flagSearch}
-                      onChange={(e) => setFlagSearch(e.target.value)}
-                      className="h-8 focus-visible:ring-emerald-500"
-                    />
-                  </div>
-                  <div className="max-h-[180px] overflow-y-auto p-1">
+                  <span className="text-muted-foreground ml-2 text-xs">▼</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)] h-[240px] max-h-[50vh] overflow-hidden flex flex-col" align="start">
+                <div className="p-2 shrink-0 bg-popover border-b border-border z-10">
+                  <Input
+                    placeholder="Cari bendera..."
+                    value={flagSearch}
+                    onChange={(e) => setFlagSearch(e.target.value)}
+                    className="h-8 focus-visible:ring-emerald-500"
+                  />
+                </div>
+                <div className="overflow-y-auto overscroll-contain touch-pan-y p-1 flex-1 min-h-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTeamFlag("");
+                      setIsFlagPopoverOpen(false);
+                    }}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors",
+                      !teamFlag && "bg-accent/50 font-semibold text-primary"
+                    )}
+                  >
+                    Tanpa Bendera
+                  </button>
+                  {filteredCountries.map((c) => (
                     <button
+                      key={c.name}
                       type="button"
                       onClick={() => {
-                        setTeamFlag("");
+                        setTeamFlag(c.flag);
                         setIsFlagPopoverOpen(false);
                       }}
                       className={cn(
-                        "w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors",
-                        !teamFlag && "bg-accent/50 font-semibold text-primary"
+                        "w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2.5",
+                        teamFlag === c.flag && "bg-accent/50 font-semibold text-primary"
                       )}
                     >
-                      Tanpa Bendera
+                      {getFlagImgUrl(c.flag) ? (
+                        <img src={getFlagImgUrl(c.flag)!} alt="" className="w-5 h-3.5 object-cover rounded shadow-sm border shrink-0 select-none" />
+                      ) : (
+                        <span className="text-base select-none shrink-0">{c.flag}</span>
+                      )}
+                      <span className="truncate">{c.name}</span>
                     </button>
-                    {filteredCountries.map((c) => (
-                      <button
-                        key={c.name}
-                        type="button"
-                        onClick={() => {
-                          setTeamFlag(c.flag);
-                          setIsFlagPopoverOpen(false);
-                        }}
-                        className={cn(
-                          "w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2.5",
-                          teamFlag === c.flag && "bg-accent/50 font-semibold text-primary"
-                        )}
-                      >
-                        {getFlagImgUrl(c.flag) ? (
-                          <img src={getFlagImgUrl(c.flag)!} alt="" className="w-5 h-3.5 object-cover rounded shadow-sm border shrink-0 select-none" />
-                        ) : (
-                          <span className="text-base select-none shrink-0">{c.flag}</span>
-                        )}
-                        <span className="truncate">{c.name}</span>
-                      </button>
-                    ))}
-                  </div>
+                  ))}
                 </div>
-              </>
-            )}
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 

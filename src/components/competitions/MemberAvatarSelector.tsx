@@ -17,6 +17,56 @@ const AVATAR_PRESETS = [
   "https://api.dicebear.com/7.x/adventurer/svg?seed=Zoe"
 ];
 
+const convertToWebP = (file: File): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        
+        let width = img.width;
+        let height = img.height;
+        const MAX_DIMENSION = 800;
+        
+        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+          if (width > height) {
+            height = Math.round((height / width) * MAX_DIMENSION);
+            width = MAX_DIMENSION;
+          } else {
+            width = Math.round((width / height) * MAX_DIMENSION);
+            height = MAX_DIMENSION;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+                type: "image/webp",
+              });
+              resolve(newFile);
+            } else {
+              reject(new Error("WebP conversion failed"));
+            }
+          },
+          "image/webp",
+          0.8
+        );
+      };
+      img.onerror = (error) => reject(error);
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 interface MemberAvatarSelectorProps {
   avatarUrl: string;
   onChange: (url: string) => void;
@@ -35,6 +85,7 @@ export function MemberAvatarSelector({
   const [isOpen, setIsOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,14 +112,23 @@ export function MemberAvatarSelector({
 
     setIsUploading(true);
     try {
-      const fileExt = file.name.split(".").pop();
+      let processedFile = file;
+      if (file.type !== "image/webp") {
+        try {
+          processedFile = await convertToWebP(file);
+        } catch (convertErr) {
+          console.warn("Failed to convert to WebP, uploading original", convertErr);
+        }
+      }
+
+      const fileExt = processedFile.type === "image/webp" ? "webp" : processedFile.name.split(".").pop() || "jpg";
       const randomId = Math.random().toString(36).substring(2, 15);
       const filePath = `${randomId}.${fileExt}`;
 
       // Upload to supabase storage bucket
       const { error: uploadError } = await supabase.storage
         .from("competition-avatars")
-        .upload(filePath, file);
+        .upload(filePath, processedFile);
 
       if (uploadError) throw uploadError;
 
@@ -171,20 +231,45 @@ export function MemberAvatarSelector({
                 className="hidden"
                 onChange={handleUpload}
               />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleUpload}
+              />
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
-                className="h-7 text-xs flex-1 sm:flex-none"
-                onClick={() => fileInputRef.current?.click()}
+                className="h-7 text-xs flex-1 sm:flex-none px-2"
+                onClick={() => cameraInputRef.current?.click()}
                 disabled={isUploading}
+                title="Ambil Foto"
               >
                 {isUploading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Camera className="w-3.5 h-3.5 mr-1" />
+                )}
+                <span className="hidden sm:inline">Kamera</span>
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-7 text-xs flex-1 sm:flex-none px-2"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                title="Pilih Galeri"
+              >
+                {isUploading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   <ImageIcon className="w-3.5 h-3.5 mr-1" />
                 )}
-                Upload
+                <span className="hidden sm:inline">Galeri</span>
               </Button>
               {avatarUrl && (
                 <Button
