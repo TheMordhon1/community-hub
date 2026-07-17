@@ -23,6 +23,13 @@ import { computeStandings } from "@/lib/liga-group";
 import { parseMemberName, capitalizeName, cn } from "@/lib/utils";
 import { TeamFlag } from "@/components/competitions/TeamFlag";
 import { extractFlagAndName } from "@/lib/countries";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface CreateMatchDialogProps {
   open: boolean;
@@ -43,7 +50,15 @@ export function CreateMatchDialog({
   const [team1Id, setTeam1Id] = useState<string>("");
   const [team2Id, setTeam2Id] = useState<string>("");
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
-  const [matchDatetime, setMatchDatetime] = useState("");
+  const [matchDatetime, setMatchDatetime] = useState(() => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  });
   const [location, setLocation] = useState("");
   const [maxParticipants, setMaxParticipants] = useState<string>("2");
   const [selectionMode, setSelectionMode] = useState<SelectionMode>("manual");
@@ -53,50 +68,125 @@ export function CreateMatchDialog({
   const [bracketLabel, setBracketLabel] = useState("");
 
   // Simplified Match Stage/Phase States
-  const [stage, setStage] = useState<string>("knockout");
+  const [stageType, setStageType] = useState<"group" | "playoff" | "knockout">("knockout");
   const [phaseLabel, setPhaseLabel] = useState("");
   const [groupName, setGroupName] = useState("");
+  const [isCustomPhase, setIsCustomPhase] = useState(false);
+  const [isCustomGroup, setIsCustomGroup] = useState(false);
 
   const is17an = competition.format === "17an";
   const isTeamMatchFormat = competition.match_type && competition.match_type !== "1v1";
   const allTeams = competition.teams || [];
   const isLigaGrup = competition.format === "liga_grup";
 
+  // Predefined lists for selection dropdowns
+  const groupNameOptions = useMemo(() => {
+    if (stageType === "group") {
+      const normal = Array.from(
+        new Set(
+          allTeams
+            .filter((t) => !!t.group_name)
+            .map((t) => t.group_name!)
+        )
+      ).sort();
+      return normal.length > 0 ? normal : ["A", "B", "C", "D"];
+    }
+    if (stageType === "playoff") {
+      return Array.from(
+        new Set(
+          allTeams
+            .filter((t) => t.next_stage_type === "playoff" && t.next_stage_label)
+            .map((t) => t.next_stage_label!)
+        )
+      ).sort();
+    }
+    return [];
+  }, [stageType, allTeams]);
+
+  const phaseLabelOptions = useMemo(() => {
+    const labels = new Set<string>();
+    
+    if (competition.stages && competition.stages.length > 0) {
+      competition.stages.forEach(s => {
+        if (s.name) labels.add(s.name);
+      });
+    }
+    
+    if (competition.matches && competition.matches.length > 0) {
+      competition.matches.forEach(m => {
+        if (m.phase_label) labels.add(m.phase_label);
+      });
+    }
+    
+    const defaults = ["Group Stage", "Babak Penyisihan", "Babak 16 Besar", "Perempat Final", "Semi Final", "Final"];
+    defaults.forEach(d => labels.add(d));
+    
+    return Array.from(labels);
+  }, [competition.stages, competition.matches]);
+
   // Teams eligible for selection.
-  // - liga_grup + group stage: restrict to selected group
-  // - liga_grup + knockout stage: restrict to teams that qualified (lolos) from group standings
+  // - Group stage: restrict to selected group
+  // - Playoff group stage: restrict to teams advanced to this playoff group
+  // - Knockout stage / any phase: restrict to teams advanced to this specific phase
   const eligibleTeams = useMemo(() => {
-    if (isLigaGrup && stage === "group" && groupName) {
+    // 1. Group Stage
+    if (stageType === "group" && groupName) {
       return allTeams.filter((t) => t.group_name === groupName);
     }
-    if (isLigaGrup && stage === "knockout") {
-      const groupNames = Array.from(
-        new Set(allTeams.filter((t) => !!t.group_name).map((t) => t.group_name!))
-      ).sort();
-      if (groupNames.length === 0) return allTeams;
-      const advance = competition.advance_per_group || 2;
-      const qualifiedIds = new Set<string>();
-      for (const g of groupNames) {
-        const standings = computeStandings(
-          allTeams,
-          competition.matches || [],
-          g
-        );
-        for (let i = 0; i < Math.min(advance, standings.length); i++) {
-          qualifiedIds.add(standings[i].team.id);
-        }
-      }
-      // Fallback: if nothing qualified yet (no completed group matches), allow all
-      if (qualifiedIds.size === 0) return allTeams;
-      return allTeams.filter((t) => qualifiedIds.has(t.id));
+    
+    // 2. Playoff Group Stage
+    if (stageType === "playoff" && groupName) {
+      const playoffTeams = allTeams.filter(
+        (t) => t.next_stage_type === "playoff" && t.next_stage_label === groupName
+      );
+      if (playoffTeams.length > 0) return playoffTeams;
+      return allTeams;
     }
+    
+    // 3. Knockout / Custom Phase
+    if (stageType === "knockout") {
+      if (phaseLabel) {
+        const advancedTeams = allTeams.filter(
+          (t) => t.next_stage_type === "knockout" && t.next_stage_label === phaseLabel
+        );
+        if (advancedTeams.length > 0) return advancedTeams;
+        
+        const matchingLabelTeams = allTeams.filter(
+          (t) => t.next_stage_label === phaseLabel
+        );
+        if (matchingLabelTeams.length > 0) return matchingLabelTeams;
+      }
+      
+      // Fallback for Liga Grup format specifically (calculate qualified from group standings)
+      if (isLigaGrup) {
+        const groupNames = Array.from(
+          new Set(allTeams.filter((t) => !!t.group_name).map((t) => t.group_name!))
+        ).sort();
+        if (groupNames.length === 0) return allTeams;
+        
+        const advance = competition.advance_per_group || 2;
+        const qualifiedIds = new Set<string>();
+        for (const g of groupNames) {
+          const standings = computeStandings(
+            allTeams,
+            competition.matches || [],
+            g
+          );
+          for (let i = 0; i < Math.min(advance, standings.length); i++) {
+            qualifiedIds.add(standings[i].team.id);
+          }
+        }
+        if (qualifiedIds.size === 0) return allTeams;
+        return allTeams.filter((t) => qualifiedIds.has(t.id));
+      }
+    }
+    
     return allTeams;
-  }, [isLigaGrup, stage, groupName, allTeams, competition.matches, competition.advance_per_group]);
-
+  }, [isLigaGrup, stageType, groupName, phaseLabel, allTeams, competition.matches, competition.advance_per_group]);
 
   // Pre-compute pairs that already met in group stage of the same group
   const metPairs = new Set<string>();
-  if (isLigaGrup && stage === "group") {
+  if (isLigaGrup && (stageType === "group" || stageType === "playoff")) {
     for (const m of competition.matches || []) {
       if (m.stage !== "group") continue;
       if (groupName && m.group_name !== groupName) continue;
@@ -149,15 +239,16 @@ export function CreateMatchDialog({
     return Array.from(conflictMap.values());
   }, [selectedDateStr, team1Id, team2Id, selectedTeamIds, competition.matches, allTeams]);
 
+  // Dialog Open/Close Reset and Initialization
   useEffect(() => {
     if (open) {
       setMaxParticipants(is17an ? "3" : "2");
       setSelectionMode("manual");
       
       const isGroupStageDefault = competition.format === "liga_grup";
-      setStage(isGroupStageDefault ? "group" : "knockout");
-      setPhaseLabel(isGroupStageDefault ? "Group Stage" : "Babak Penyisihan");
-      setGroupName(isGroupStageDefault ? "A" : "");
+      setStageType(isGroupStageDefault ? "group" : "knockout");
+      setIsCustomPhase(false);
+      setIsCustomGroup(false);
 
       if (isTeamMatchFormat) {
         const existingMatches = competition.matches || [];
@@ -171,16 +262,18 @@ export function CreateMatchDialog({
 
       if (competition.events) {
         if (!location) setLocation(competition.events.location || "");
-        if (!matchDatetime) {
-          const eventDate = competition.events.event_date;
-          const eventTime = competition.events.event_time;
-          if (eventDate) {
-            const datePart = eventDate;
-            const timePart = eventTime || "08:00";
-            setMatchDatetime(`${datePart}T${timePart}`);
-          }
-        }
       }
+      
+      const defaultTime = (() => {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const hh = String(now.getHours()).padStart(2, '0');
+        const min = String(now.getMinutes()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+      })();
+      setMatchDatetime(defaultTime);
     } else {
       setRoundNumber("1");
       setMatchNumber("1");
@@ -195,35 +288,113 @@ export function CreateMatchDialog({
       setBracketMin("");
       setBracketMax("");
       setBracketLabel("");
-      setStage("knockout");
+      setStageType("knockout");
       setPhaseLabel("");
       setGroupName("");
+      setIsCustomPhase(false);
+      setIsCustomGroup(false);
     }
   }, [open, competition.events, competition.format, competition.match_type, is17an, isTeamMatchFormat]);
 
+  // Stage type change handler for defaults
+  useEffect(() => {
+    if (!open) return;
+    if (stageType === "group") {
+      setPhaseLabel("Group Stage");
+      setIsCustomPhase(false);
+      
+      const normal = allTeams.filter((t) => !!t.group_name).map((t) => t.group_name!);
+      const uniqueNormal = Array.from(new Set(normal)).sort();
+      if (uniqueNormal.length > 0) {
+        setGroupName(uniqueNormal[0]);
+        setIsCustomGroup(false);
+      } else {
+        setGroupName("A");
+        setIsCustomGroup(true);
+      }
+    } else if (stageType === "playoff") {
+      setPhaseLabel("Playoff");
+      setIsCustomPhase(false);
+      
+      const playoff = allTeams.filter((t) => t.next_stage_type === "playoff" && t.next_stage_label).map((t) => t.next_stage_label!);
+      const uniquePlayoff = Array.from(new Set(playoff)).sort();
+      if (uniquePlayoff.length > 0) {
+        setGroupName(uniquePlayoff[0]);
+        setIsCustomGroup(false);
+      } else {
+        setGroupName("Playoff Grup A");
+        setIsCustomGroup(true);
+      }
+    } else {
+      const configuredStages = competition.stages || [];
+      if (configuredStages.length > 0) {
+        const sorted = [...configuredStages].sort((a, b) => b.order_number - a.order_number);
+        setPhaseLabel(sorted[0]?.name || "Babak Penyisihan");
+      } else {
+        setPhaseLabel("Babak Penyisihan");
+      }
+      setIsCustomPhase(false);
+      setGroupName("");
+      setIsCustomGroup(false);
+    }
+  }, [stageType, competition.stages, allTeams, open]);
+
   // Group auto-fill effect based on selected teams
   useEffect(() => {
-    if (stage === "group") {
+    if (stageType === "group" || stageType === "playoff") {
       let detectedGroup = "";
       if (!is17an) {
         const t1 = allTeams.find((t) => t.id === team1Id);
         const t2 = allTeams.find((t) => t.id === team2Id);
-        if (t1?.group_name) {
-          detectedGroup = t1.group_name;
-        } else if (t2?.group_name) {
-          detectedGroup = t2.group_name;
+        if (stageType === "group") {
+          if (t1?.group_name) detectedGroup = t1.group_name;
+          else if (t2?.group_name) detectedGroup = t2.group_name;
+        } else {
+          if (t1?.next_stage_type === "playoff" && t1.next_stage_label) detectedGroup = t1.next_stage_label;
+          else if (t2?.next_stage_type === "playoff" && t2.next_stage_label) detectedGroup = t2.next_stage_label;
         }
       } else {
         const firstSelected = allTeams.find((t) => selectedTeamIds.includes(t.id));
-        if (firstSelected?.group_name) {
-          detectedGroup = firstSelected.group_name;
+        if (stageType === "group") {
+          if (firstSelected?.group_name) detectedGroup = firstSelected.group_name;
+        } else {
+          if (firstSelected?.next_stage_type === "playoff" && firstSelected.next_stage_label) detectedGroup = firstSelected.next_stage_label;
         }
       }
       if (detectedGroup) {
         setGroupName(detectedGroup);
+        setIsCustomGroup(false);
       }
     }
-  }, [stage, team1Id, team2Id, selectedTeamIds, allTeams, is17an]);
+  }, [stageType, team1Id, team2Id, selectedTeamIds, allTeams, is17an]);
+
+  // Auto-scheduling / Location suggestion based on stage, group, and phase
+  useEffect(() => {
+    if (!open) return;
+    
+    const matchingMatch = (competition.matches || []).find((m) => {
+      const isSameStage = m.stage === (stageType === "knockout" ? "knockout" : "group");
+      const isSameGroup = (stageType === "knockout") ? true : m.group_name === groupName;
+      const isSamePhase = (stageType === "knockout") ? m.phase_label === phaseLabel : true;
+      return isSameStage && isSameGroup && isSamePhase && m.match_datetime;
+    });
+
+    if (matchingMatch && matchingMatch.match_datetime) {
+      try {
+        const parsed = parseISO(matchingMatch.match_datetime);
+        // Only auto-fill suggestion if the matched datetime is in the future
+        if (parsed.getTime() > Date.now()) {
+          const formatted = format(parsed, "yyyy-MM-dd'T'HH:mm");
+          setMatchDatetime(formatted);
+        }
+        if (matchingMatch.location) {
+          setLocation(matchingMatch.location);
+        }
+      } catch (e) {
+        console.error("Error setting suggested datetime:", e);
+      }
+    }
+  }, [stageType, groupName, phaseLabel, competition.matches, open]);
 
   const createMutation = useCreateMatch();
   const assignTeams = useAssignMatchTeams();
@@ -321,9 +492,9 @@ export function CreateMatchDialog({
         age_bracket_max:
           bracketMax.trim() === "" ? null : Number(bracketMax.replace(",", ".")),
         age_bracket_label: bracketLabel.trim() || null,
-        stage: stage || null,
+        stage: stageType === "knockout" ? "knockout" : "group",
         phase_label: phaseLabel.trim() || null,
-        group_name: stage === "group" ? (groupName.trim() || null) : null,
+        group_name: (stageType === "group" || stageType === "playoff") ? (groupName.trim() || null) : null,
       },
       {
         onSuccess: (result) => {
@@ -405,6 +576,162 @@ export function CreateMatchDialog({
                 </p>
               </div>
             )}
+
+            {/* Stage, Phase & Group Configurations */}
+            <div className="space-y-4 rounded-xl border p-4 bg-muted/15 shadow-sm">
+              <Label className="text-sm font-bold flex items-center gap-1.5 text-foreground">
+                <Swords className="w-4 h-4 text-primary" />
+                Tahapan Pertandingan
+              </Label>
+              
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground">Tahap (Stage)</Label>
+                <RadioGroup
+                  value={stageType}
+                  onValueChange={(v) => setStageType(v as "group" | "playoff" | "knockout")}
+                  className="grid grid-cols-3 gap-2"
+                >
+                  <Label
+                    htmlFor="stage-group"
+                    className={cn(
+                      "flex items-center justify-center rounded-lg border p-2 cursor-pointer transition-all hover:bg-muted/50 text-xs font-medium text-center",
+                      stageType === "group" ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border bg-background"
+                    )}
+                  >
+                    <RadioGroupItem id="stage-group" value="group" className="sr-only" />
+                    Babak Grup
+                  </Label>
+                  <Label
+                    htmlFor="stage-playoff"
+                    className={cn(
+                      "flex items-center justify-center rounded-lg border p-2 cursor-pointer transition-all hover:bg-muted/50 text-xs font-medium text-center",
+                      stageType === "playoff" ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border bg-background"
+                    )}
+                  >
+                    <RadioGroupItem id="stage-playoff" value="playoff" className="sr-only" />
+                    Playoff Grup
+                  </Label>
+                  <Label
+                    htmlFor="stage-knockout"
+                    className={cn(
+                      "flex items-center justify-center rounded-lg border p-2 cursor-pointer transition-all hover:bg-muted/50 text-xs font-medium text-center",
+                      stageType === "knockout" ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border bg-background"
+                    )}
+                  >
+                    <RadioGroupItem id="stage-knockout" value="knockout" className="sr-only" />
+                    Babak Gugur
+                  </Label>
+                </RadioGroup>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                {/* Phase label field */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Label Babak / Fase</Label>
+                  {isCustomPhase ? (
+                    <div className="flex gap-1.5">
+                      <Input
+                        value={phaseLabel}
+                        onChange={(e) => setPhaseLabel(e.target.value)}
+                        placeholder="Contoh: Semifinal, Final"
+                        className="h-9 text-xs flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsCustomPhase(false)}
+                        className="h-9 px-2 text-[10px] shrink-0"
+                      >
+                        Daftar
+                      </Button>
+                    </div>
+                  ) : (
+                    <Select
+                      value={phaseLabel}
+                      onValueChange={(val) => {
+                        if (val === "__custom__") {
+                          setIsCustomPhase(true);
+                          setPhaseLabel("");
+                        } else {
+                          setPhaseLabel(val);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue placeholder="Pilih Fase" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {phaseLabelOptions.map((opt) => (
+                          <SelectItem key={opt} value={opt} className="text-xs">
+                            {opt}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="__custom__" className="text-xs text-primary font-semibold">
+                          + Tulis Kustom...
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                {/* Group name field */}
+                {(stageType === "group" || stageType === "playoff") && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">
+                      {stageType === "playoff" ? "Nama Playoff Grup" : "Nama Grup"}
+                    </Label>
+                    {isCustomGroup ? (
+                      <div className="flex gap-1.5">
+                        <Input
+                          value={groupName}
+                          onChange={(e) => setGroupName(e.target.value)}
+                          placeholder="Contoh: A, B, Playoff A"
+                          className="h-9 text-xs flex-1"
+                        />
+                        {groupNameOptions.length > 0 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsCustomGroup(false)}
+                            className="h-9 px-2 text-[10px] shrink-0"
+                          >
+                            Daftar
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <Select
+                        value={groupName}
+                        onValueChange={(val) => {
+                          if (val === "__custom__") {
+                            setIsCustomGroup(true);
+                            setGroupName("");
+                          } else {
+                            setGroupName(val);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-9 text-xs">
+                          <SelectValue placeholder="Pilih Grup" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {groupNameOptions.map((opt) => (
+                            <SelectItem key={opt} value={opt} className="text-xs">
+                              {opt}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="__custom__" className="text-xs text-primary font-semibold">
+                            + Tambah Baru...
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
 
             <div className="space-y-2">
               <Label>Cara Memilih Peserta</Label>
@@ -654,9 +981,9 @@ export function CreateMatchDialog({
                     </div>
                   </div>
 
-                  {isLigaGrup && stage === "group" && eligibleTeams.length === 0 && (
+                  {isLigaGrup && (stageType === "group" || stageType === "playoff") && eligibleTeams.length === 0 && (
                     <p className="text-xs text-muted-foreground">
-                      Belum ada tim di Grup {groupName || "?"}. Isi Nama Grup atau assign tim ke grup ini terlebih dahulu.
+                      Belum ada tim di {stageType === "playoff" ? "Playoff Grup" : "Grup"} {groupName || "?"}. Isi Nama Grup atau assign tim ke grup ini terlebih dahulu.
                     </p>
                   )}
                 </div>
@@ -671,60 +998,7 @@ export function CreateMatchDialog({
               </div>
             )}
 
-            {/* Stage, Phase & Group Configurations */}
-            <div className="space-y-3 rounded-md border p-3 bg-muted/10">
-              <Label className="text-sm font-semibold">Tahapan Pertandingan</Label>
-              
-              <div className="space-y-2">
-                <Label>Tahap (Stage)</Label>
-                <RadioGroup
-                  value={stage}
-                  onValueChange={(v) => {
-                    setStage(v);
-                    if (v === "group") {
-                      setPhaseLabel("Group Stage");
-                    } else if (phaseLabel === "Group Stage") {
-                      setPhaseLabel("Babak Penyisihan");
-                    }
-                  }}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem id="stage-group" value="group" />
-                    <Label htmlFor="stage-group" className="font-normal cursor-pointer">
-                      Babak Grup
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem id="stage-knockout" value="knockout" />
-                    <Label htmlFor="stage-knockout" className="font-normal cursor-pointer">
-                      Babak Gugur (Knockout)
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="space-y-1">
-                  <Label className="text-xs">Label Babak / Fase</Label>
-                  <Input
-                    value={phaseLabel}
-                    onChange={(e) => setPhaseLabel(e.target.value)}
-                    placeholder="Contoh: Semifinal, Final, Group Stage"
-                  />
-                </div>
-                {stage === "group" && (
-                  <div className="space-y-1">
-                    <Label className="text-xs">Nama Grup</Label>
-                    <Input
-                      value={groupName}
-                      onChange={(e) => setGroupName(e.target.value)}
-                      placeholder="Contoh: A, B, C"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
 
 
             <div className="space-y-2">
