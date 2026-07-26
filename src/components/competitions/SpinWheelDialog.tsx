@@ -11,13 +11,19 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trophy, RotateCw, X, Check, CheckCircle2, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Trophy, RotateCw, X, Check, CheckCircle2, Loader2, User as UserIcon } from "lucide-react";
 import type { CompetitionTeamWithMembers } from "@/types/competition";
+import { TeamFlag } from "@/components/competitions/TeamFlag";
+import { extractFlagAndName } from "@/lib/countries";
+import { parseMemberName, capitalizeName } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface SpinWheelDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   teams: CompetitionTeamWithMembers[];
+  competitionId?: string;
   /** When set, the wheel runs in "selection mode": each spin picks a participant
    *  until `targetCount` is reached, then `onApply` is called. */
   targetCount?: number;
@@ -65,12 +71,27 @@ export function SpinWheelDialog({
   applying = false,
   title = "Spin Wheel Peserta",
   description = "Putar roda untuk memilih peserta secara acak.",
+  competitionId,
 }: SpinWheelDialogProps) {
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [winner, setWinner] = useState<CompetitionTeamWithMembers | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
+  const [excludedIds, setExcludedIds] = useState<Set<string>>(() => {
+    if (competitionId) {
+      try {
+        const saved = localStorage.getItem(`spinwheel-excluded-${competitionId}`);
+        if (saved) return new Set(JSON.parse(saved));
+      } catch (e) {}
+    }
+    return new Set();
+  });
+
+  useEffect(() => {
+    if (competitionId) {
+      localStorage.setItem(`spinwheel-excluded-${competitionId}`, JSON.stringify(Array.from(excludedIds)));
+    }
+  }, [excludedIds, competitionId]);
   const [targetInput, setTargetInput] = useState<string>(String(targetCount ?? 2));
 
   const selectionMode = typeof targetCount === "number";
@@ -181,6 +202,42 @@ export function SpinWheelDialog({
           </div>
         )}
 
+        {teams.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-md border p-3 bg-muted/10">
+            <Label className="text-xs text-muted-foreground font-bold">Kandidat Spinwheel (Pilih yang ikut serta)</Label>
+            <div className="max-h-24 overflow-y-auto grid grid-cols-2 gap-2 pr-1 scrollbar-thin">
+              {teams.map((t) => {
+                const isSelected = !excludedIds.has(t.id) && !selectedIds.includes(t.id);
+                return (
+                  <div key={t.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`team-${t.id}`}
+                      checked={isSelected}
+                      disabled={spinning || selectedIds.includes(t.id)}
+                      onCheckedChange={(checked) => {
+                        setExcludedIds(prev => {
+                          const next = new Set(prev);
+                          if (checked) next.delete(t.id);
+                          else next.add(t.id);
+                          return next;
+                        });
+                      }}
+                    />
+                    <label
+                      htmlFor={`team-${t.id}`}
+                      className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 truncate flex items-center gap-1.5"
+                      title={t.name}
+                    >
+                      <TeamFlag team={t} className="w-4 h-3 object-cover rounded shadow-sm border border-border/30 shrink-0 text-[10px]" />
+                      <span className="truncate">{extractFlagAndName(t.name).name}</span>
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {n === 0 && !reachedTarget ? (
           <div className="py-12 text-center text-muted-foreground">
             Tidak ada peserta tersedia.
@@ -263,28 +320,72 @@ export function SpinWheelDialog({
             </div>
 
             {winner && !spinning && (
-              <div className="w-full p-4 rounded-lg bg-primary/10 border-2 border-primary text-center animate-in zoom-in">
-                <p className="text-xs uppercase text-muted-foreground">Terpilih</p>
-                <p className="text-xl font-bold">{winner.name}</p>
+              <div className="w-full p-4 rounded-xl bg-primary/10 border-2 border-primary text-center animate-in zoom-in shadow-lg">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">🎉 Tim Terpilih 🎉</p>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="flex items-center justify-center gap-2">
+                    <TeamFlag team={winner} className="w-8 h-6 object-cover rounded shadow-sm border border-border/30 text-2xl" />
+                    <span className="text-2xl font-bold tracking-tight">{extractFlagAndName(winner.name).name}</span>
+                  </div>
+                  
+                  {winner.members && winner.members.length > 0 && (
+                    <div className="flex flex-wrap justify-center gap-3 mt-1">
+                      {winner.members.map((m) => {
+                        const parsed = parseMemberName(m.name);
+                        const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
+                        const initial = name.charAt(0).toUpperCase();
+                        
+                        return (
+                          <div key={m.id} className="flex items-center gap-2 bg-background/60 backdrop-blur-sm px-2 py-1 rounded-full shadow-sm border border-border/40">
+                            <Avatar className="w-5 h-5 border border-primary/20">
+                              <AvatarImage src={m.profile?.avatar_url || ""} />
+                              <AvatarFallback className="text-[9px] bg-primary/10 text-primary">{initial}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs font-semibold text-foreground pr-1">{name}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
             <div className="flex gap-2 w-full">
-              <Button
-                onClick={handleSpin}
-                disabled={spinning || reachedTarget || n === 0}
-                className="flex-1"
-                size="lg"
-              >
-                <RotateCw className={`w-4 h-4 mr-2 ${spinning ? "animate-spin" : ""}`} />
-                {spinning
-                  ? "Memutar..."
-                  : reachedTarget
-                    ? "Target tercapai"
-                    : winner
-                      ? "Putar Lagi"
-                      : "Putar"}
-              </Button>
+              {n === 1 && !reachedTarget && !winner ? (
+                <Button
+                  onClick={() => {
+                    setWinner(pool[0]);
+                    setSelectedTeams((prev) => [...prev, pool[0]]);
+                    // Auto apply if selectionMode
+                    if (selectionMode && onApply) {
+                      onApply([pool[0].id]);
+                    }
+                  }}
+                  disabled={applying}
+                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                  size="lg"
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Pilih & Terapkan Tim
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleSpin}
+                  disabled={spinning || reachedTarget || n === 0}
+                  className="flex-1"
+                  size="lg"
+                >
+                  <RotateCw className={`w-4 h-4 mr-2 ${spinning ? "animate-spin" : ""}`} />
+                  {spinning
+                    ? "Memutar..."
+                    : reachedTarget
+                      ? "Target tercapai"
+                      : winner
+                        ? "Putar Lagi"
+                        : "Putar"}
+                </Button>
+              )}
               {!selectionMode && winner && !spinning && (
                 <Button variant="outline" onClick={handleExcludeWinner} size="lg">
                   <X className="w-4 h-4 mr-1" />

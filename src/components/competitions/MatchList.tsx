@@ -78,7 +78,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
   const [viewMode, setViewMode] = useState<"list" | "chart">("list");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedChartRound, setSelectedChartRound] = useState<string>("all");
-  const [selectedChartStage, setSelectedChartStage] = useState<"group" | "knockout">("group");
+
   const resetMatch = useResetMatch();
   const deleteMatch = useDeleteMatch();
   const updateMutation = useUpdateMatch();
@@ -94,14 +94,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
   const allTeams = competition.teams || [];
   const is17an = competition.format === "17an";
 
-  const hasKnockout = matches.some(m => m.stage === "knockout");
-  useEffect(() => {
-    if (hasKnockout) {
-      setSelectedChartStage("knockout");
-    } else {
-      setSelectedChartStage("group");
-    }
-  }, [hasKnockout]);
+
 
 
   const handleResetMatch = () => {
@@ -743,7 +736,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                   )}
                                 </>
                               )}
-                              {canManage ? (
+                              {canManage && match.status !== "completed" && match.status !== "ongoing" ? (
                                 <Popover>
                                   <PopoverTrigger asChild>
                                     <div 
@@ -858,7 +851,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                   )}
                                 </>
                               )}
-                              {canManage ? (
+                              {canManage && match.status !== "completed" && match.status !== "ongoing" ? (
                                 <Popover>
                                   <PopoverTrigger asChild>
                                     <div 
@@ -1094,7 +1087,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => setSpinningMatch(match)}
-                              disabled={match.status === "completed" || allTeams.length === 0}
+                              disabled={match.status === "completed" || match.status === "ongoing" || allTeams.length === 0}
                             >
                               <Sparkles className="w-4 h-4 mr-2" />
                               Spin Wheel Peserta
@@ -1295,33 +1288,12 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
         if (viewMode === "chart") {
           const chartMatches = filteredMatches.filter(m => {
             if (competition.format !== "liga_grup") return true;
-            return m.stage === selectedChartStage;
+            return m.stage === "knockout";
           });
 
           return (
             <div className="space-y-4">
-              {competition.format === "liga_grup" && (
-                <div className="flex justify-center">
-                  <div className="flex bg-muted p-1 rounded-lg border shadow-sm">
-                    <Button
-                      variant={selectedChartStage === "group" ? "secondary" : "ghost"}
-                      size="sm"
-                      className="h-8 px-4 text-xs font-semibold"
-                      onClick={() => setSelectedChartStage("group")}
-                    >
-                      Babak Grup
-                    </Button>
-                    <Button
-                      variant={selectedChartStage === "knockout" ? "secondary" : "ghost"}
-                      size="sm"
-                      className="h-8 px-4 text-xs font-semibold"
-                      onClick={() => setSelectedChartStage("knockout")}
-                    >
-                      Babak Gugur
-                    </Button>
-                  </div>
-                </div>
-              )}
+
               <TournamentBracket
                 competitionId={competition.id}
                 matches={chartMatches}
@@ -1356,6 +1328,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                       ? `${competition.events.event_date.split("T")[0]}T${competition.events.event_time || "08:00"}`
                       : null,
                     location: competition.events?.location || null,
+                    stages: competition.stages || []
                   });
                 }}
                 onReorderPhases={(updates) => {
@@ -1373,7 +1346,27 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                     competition_id: competition.id,
                     round_number: maxRound + 1,
                     phase_label: phaseLabel,
-                    match_number: 0
+                    match_number: 1,
+                    stage: "knockout"
+                  });
+                }}
+                onDeleteMatch={(matchId) => {
+                  deleteMatch.mutate({ id: matchId, competition_id: competition.id });
+                }}
+                onDeletePhase={(matchIds) => {
+                  matchIds.forEach(matchId => {
+                    deleteMatch.mutate({ id: matchId, competition_id: competition.id });
+                  });
+                }}
+                onAddMatch={(roundNumber, phaseLabel) => {
+                  const roundMatches = chartMatches.filter(m => m.round_number === roundNumber);
+                  const maxMatchNum = roundMatches.reduce((max, m) => Math.max(max, m.match_number || 0), 0);
+                  createMatch.mutate({
+                    competition_id: competition.id,
+                    round_number: roundNumber,
+                    match_number: maxMatchNum + 1,
+                    phase_label: phaseLabel,
+                    stage: "knockout"
                   });
                 }}
               />
@@ -1479,6 +1472,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
             open={!!spinningMatch}
             onOpenChange={(open) => !open && setSpinningMatch(null)}
             teams={pool}
+            competitionId={competition.id}
             targetCount={defaultTarget}
             allowTargetEdit={is17an && spinningMatch.max_participants == null}
             applying={assignTeams.isPending}

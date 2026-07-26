@@ -870,6 +870,9 @@ export function useDeleteMatch() {
       queryClient.invalidateQueries({
         queryKey: ["competition-details", result.competition_id],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["live-matches"],
+      });
       toast({
         title: "Berhasil",
         description: "Pertandingan berhasil dihapus",
@@ -1680,8 +1683,9 @@ export function useGenerateKnockoutFromGroups() {
       pairs: { team1_id: string; team2_id: string; label: string }[];
       match_datetime?: string | null;
       location?: string | null;
+      stages?: { name: string; order_number: number }[];
     }) => {
-      const { competition_id, pairs, match_datetime, location } = data;
+      const { competition_id, pairs, match_datetime, location, stages } = data;
       if (pairs.length === 0) throw new Error("Tidak ada tim yang lolos");
 
       // Delete previous knockout matches
@@ -1701,6 +1705,10 @@ export function useGenerateKnockoutFromGroups() {
 
       const roundLabel = (r: number) => {
         const fromEnd = rounds - r + 1;
+        if (stages && stages.length > 0) {
+          const matchedStage = stages.find(s => s.order_number === fromEnd);
+          if (matchedStage) return matchedStage.name;
+        }
         if (fromEnd === 1) return "Final";
         if (fromEnd === 2) return "Semi Final";
         if (fromEnd === 3) return "Perempat Final";
@@ -1785,6 +1793,9 @@ export function useGenerateKnockoutFromGroups() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({
         queryKey: ["competition-details", result.competition_id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["live-matches"],
       });
       toast({
         title: "Berhasil",

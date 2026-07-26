@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Edit, GripVertical, ArrowUp, ArrowDown, ListOrdered, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Edit, GripVertical, ArrowUp, ArrowDown, ListOrdered, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ export interface BracketMatch {
   phase_label?: string | null;
   status: string;
   winner_id?: string | null;
+  stage?: string | null;
 }
 
 interface TournamentBracketProps<T extends BracketMatch> {
@@ -28,6 +29,9 @@ interface TournamentBracketProps<T extends BracketMatch> {
   onRegenerateKnockout?: () => void;
   onReorderPhases?: (updates: { id: string; round_number: number }[]) => void;
   onAddPhase?: (phaseLabel: string) => void;
+  onDeleteMatch?: (matchId: string) => void;
+  onDeletePhase?: (matchIds: string[]) => void;
+  onAddMatch?: (roundNumber: number, phaseLabel: string) => void;
   competitionStages?: { name: string; order_number: number }[];
 }
 
@@ -42,6 +46,9 @@ export function TournamentBracket<T extends BracketMatch>({
   onRegenerateKnockout,
   onReorderPhases,
   onAddPhase,
+  onDeleteMatch,
+  onDeletePhase,
+  onAddMatch,
   competitionStages,
 }: TournamentBracketProps<T>) {
   const [currentRoundIdx, setCurrentRoundIdx] = useState(0);
@@ -179,15 +186,39 @@ export function TournamentBracket<T extends BracketMatch>({
     const initialX = offsets[matchId]?.x || 0;
     const initialY = offsets[matchId]?.y || 0;
 
+    let minX = -Infinity;
+    let maxX = Infinity;
+    let minY = -Infinity;
+    let maxY = Infinity;
+
+    const cardEl = document.getElementById(`match-card-${matchId}`);
+    const containerEl = innerRef.current;
+    if (cardEl && containerEl) {
+      const cardRect = cardEl.getBoundingClientRect();
+      const contRect = containerEl.getBoundingClientRect();
+      
+      const padding = 20; // Allow 20px padding
+      minX = initialX - (cardRect.left - contRect.left) + padding;
+      maxX = initialX + (contRect.right - cardRect.right) - padding;
+      minY = initialY - (cardRect.top - contRect.top) + padding;
+      maxY = initialY + (contRect.bottom - cardRect.bottom) - padding;
+    }
+
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaX = moveEvent.clientX - startX;
       const deltaY = moveEvent.clientY - startY;
 
+      let newX = initialX + deltaX;
+      let newY = initialY + deltaY;
+
+      newX = Math.max(minX, Math.min(maxX, newX));
+      newY = Math.max(minY, Math.min(maxY, newY));
+
       setOffsets((prev) => ({
         ...prev,
         [matchId]: {
-          x: initialX + deltaX,
-          y: initialY + deltaY,
+          x: newX,
+          y: newY,
         },
       }));
       
@@ -498,10 +529,10 @@ export function TournamentBracket<T extends BracketMatch>({
       {/* Viewport container */}
       <div 
         ref={containerRef}
-        className="overflow-x-auto pb-6 scrollbar-thin scroll-smooth snap-x snap-mandatory relative w-full border rounded-2xl bg-muted/5 p-4 sm:p-6"
+        className="overflow-x-auto pb-32 pt-12 scrollbar-thin relative w-full border rounded-2xl bg-muted/5 px-4 sm:px-6"
         onScroll={handleScroll}
       >
-        <div ref={innerRef} className="relative flex gap-12 min-w-max pr-12">
+        <div ref={innerRef} className="relative flex gap-12 min-w-max pr-12 pb-24">
           {/* SVG Connectors Canvas */}
           <svg className="absolute inset-0 pointer-events-none w-full h-full z-0">
             <g fill="none" strokeWidth={2}>
@@ -523,8 +554,8 @@ export function TournamentBracket<T extends BracketMatch>({
           {/* Columns */}
           {visibleRoundEntries.map(([round, roundMatches]) => {
             const r = Number(round) - 1;
-            const cardHeight = 150;
-            const baseGap = 24;
+            const cardHeight = 220;
+            const baseGap = 32;
             const paddingTop = (cardHeight + baseGap) * (Math.pow(2, r) - 1) / 2;
             const gap = (cardHeight + baseGap) * Math.pow(2, r) - cardHeight;
 
@@ -532,7 +563,7 @@ export function TournamentBracket<T extends BracketMatch>({
               <div
                 id={`round-column-${competitionId}-${round}`}
                 key={round}
-                className="flex flex-col w-[280px] sm:w-[320px] shrink-0 snap-center first:pl-2 last:pr-2 relative z-10 gap-4"
+                className="flex flex-col w-[280px] sm:w-[320px] shrink-0 first:pl-2 last:pr-2 relative z-10 gap-4"
               >
                 {/* Round Title Header (Inside column) */}
                 <div className="bg-muted/80 backdrop-blur p-2.5 rounded-xl border text-center font-bold text-xs tracking-wide shadow-sm flex items-center justify-between px-3 h-10 shrink-0 select-none">
@@ -551,8 +582,23 @@ export function TournamentBracket<T extends BracketMatch>({
                             onUpdatePhaseLabel(roundMatches, newLabel);
                           }
                         }}
+                        title="Ubah Nama Fase"
                       >
                         <Edit className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                    {canManage && onAddMatch && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-primary"
+                        onClick={() => {
+                          const firstMatch = roundMatches[0];
+                          onAddMatch(firstMatch.round_number || 1, firstMatch.phase_label || "");
+                        }}
+                        title="Tambah Pertandingan ke Fase Ini"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
                       </Button>
                     )}
                   </div>
@@ -599,19 +645,35 @@ export function TournamentBracket<T extends BracketMatch>({
                           >
                             Masuk: {(connectionSides[match.id]?.targetSide || 'left') === 'left' ? '← Kiri' : '→ Kanan'}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => toggleSourceSide(match.id)}
-                            className={cn(
-                              "px-1.5 py-0.5 rounded border text-[9px] font-bold shadow-sm transition-all flex items-center gap-1",
-                              ((connectionSides[match.id]?.sourceSide || 'right') === 'left') 
-                                ? "bg-primary text-primary-foreground border-primary" 
-                                : "bg-card text-muted-foreground border-border hover:bg-muted"
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => toggleSourceSide(match.id)}
+                              className={cn(
+                                "px-1.5 py-0.5 rounded border text-[9px] font-bold shadow-sm transition-all flex items-center gap-1",
+                                ((connectionSides[match.id]?.sourceSide || 'right') === 'left') 
+                                  ? "bg-primary text-primary-foreground border-primary" 
+                                  : "bg-card text-muted-foreground border-border hover:bg-muted"
+                              )}
+                              title="Titik Keluar Garis (Garis Kiri/Kanan)"
+                            >
+                              Keluar: {(connectionSides[match.id]?.sourceSide || 'right') === 'left' ? '← Kiri' : '→ Kanan'}
+                            </button>
+                            {onDeleteMatch && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (window.confirm("Apakah Anda yakin ingin menghapus pertandingan ini?")) {
+                                    onDeleteMatch(match.id);
+                                  }
+                                }}
+                                className="px-1.5 py-0.5 rounded border text-[9px] font-bold shadow-sm transition-all flex items-center gap-1 bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive hover:text-destructive-foreground"
+                                title="Hapus Pertandingan"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
                             )}
-                            title="Titik Keluar Garis (Garis Kiri/Kanan)"
-                          >
-                            Keluar: {(connectionSides[match.id]?.sourceSide || 'right') === 'left' ? '← Kiri' : '→ Kanan'}
-                          </button>
+                          </div>
                         </div>
                       )}
                       {renderMatchCard(match)}
@@ -690,6 +752,22 @@ export function TournamentBracket<T extends BracketMatch>({
                   >
                     <ArrowDown className="w-3.5 h-3.5" />
                   </Button>
+                  {onDeletePhase && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        if (window.confirm(`Apakah Anda yakin ingin menghapus seluruh pertandingan di fase "${phase.label}"?`)) {
+                          onDeletePhase(phase.matchIds);
+                          setLocalPhases(prev => prev.filter((_, i) => i !== idx));
+                        }
+                      }}
+                      title="Hapus Fase"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}

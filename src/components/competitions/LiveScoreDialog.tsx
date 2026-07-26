@@ -37,7 +37,7 @@ interface LiveScoreDialogProps {
 
 interface ParticipantScore {
   id: string;
-  score: number;
+  score: number | string;
   isWinner: boolean;
   winner_rank: number | null;
 }
@@ -216,7 +216,7 @@ export default function LiveScoreDialog({
   const [winnerRank1, setWinnerRank1] = useState<number | null>(null);
   const [winnerRank2, setWinnerRank2] = useState<number | null>(null);
   const [participantScores, setParticipantScores] = useState<ParticipantScore[]>([]);
-  const [sets, setSets] = useState<{ team1_score: number; team2_score: number }[]>([]);
+  const [sets, setSets] = useState<{ team1_score: number | string; team2_score: number | string }[]>([]);
   const [activeSetIndex, setActiveSetIndex] = useState(0);
   const [isWinnerAnnounceOpen, setIsWinnerAnnounceOpen] = useState(false);
   // Track whether the user has unsaved local edits — if true, remote updates won't overwrite
@@ -237,7 +237,7 @@ export default function LiveScoreDialog({
     }
     
     const set = newSets[idx];
-    const isPlayed = set.team1_score > 0 || set.team2_score > 0;
+    const isPlayed = Number(set.team1_score) > 0 || Number(set.team2_score) > 0;
     
     if (!isPlayed) {
       // Create/set a match/game score directly
@@ -457,7 +457,7 @@ export default function LiveScoreDialog({
     isDirty.current = true;
     setSets(prev => prev.map((s, idx) => {
       if (idx === activeSetIndex) {
-        return { ...s, team1_score: Math.max(0, s.team1_score + delta) };
+        return { ...s, team1_score: Math.max(0, (Number(s.team1_score) || 0) + delta) };
       }
       return s;
     }));
@@ -467,7 +467,7 @@ export default function LiveScoreDialog({
     isDirty.current = true;
     setSets(prev => prev.map((s, idx) => {
       if (idx === activeSetIndex) {
-        return { ...s, team2_score: Math.max(0, s.team2_score + delta) };
+        return { ...s, team2_score: Math.max(0, (Number(s.team2_score) || 0) + delta) };
       }
       return s;
     }));
@@ -494,8 +494,8 @@ export default function LiveScoreDialog({
   const handleUpdateProgress = () => {
     if (!match) return;
 
-    const setsWon1 = sets.filter(s => s.team1_score > s.team2_score).length;
-    const setsWon2 = sets.filter(s => s.team2_score > s.team1_score).length;
+    const setsWon1 = sets.filter(s => (Number(s.team1_score) || 0) > (Number(s.team2_score) || 0)).length;
+    const setsWon2 = sets.filter(s => (Number(s.team2_score) || 0) > (Number(s.team1_score) || 0)).length;
 
     const participantScoresToSave = is17an
       ? participantScores.map(ps => {
@@ -527,7 +527,7 @@ export default function LiveScoreDialog({
       participant_scores: participantScoresToSave,
       score1: !is17an ? setsWon1.toString() : undefined,
       score2: !is17an ? setsWon2.toString() : undefined,
-      sets_data: !is17an ? sets : undefined,
+      sets_data: !is17an ? sets.map(s => ({ team1_score: Number(s.team1_score) || 0, team2_score: Number(s.team2_score) || 0 })) : undefined,
     };
 
     updateMutation.mutate(mutationData, {
@@ -545,8 +545,8 @@ export default function LiveScoreDialog({
   const handleFinishMatch = () => {
     if (!match) return;
 
-    const setsWon1 = sets.filter(s => s.team1_score > s.team2_score).length;
-    const setsWon2 = sets.filter(s => s.team2_score > s.team1_score).length;
+    const setsWon1 = sets.filter(s => (Number(s.team1_score) || 0) > (Number(s.team2_score) || 0)).length;
+    const setsWon2 = sets.filter(s => (Number(s.team2_score) || 0) > (Number(s.team1_score) || 0)).length;
 
     let winnerId: string | null = null;
     if (!is17an) {
@@ -589,7 +589,7 @@ export default function LiveScoreDialog({
       score1: !is17an ? setsWon1.toString() : undefined,
       score2: !is17an ? setsWon2.toString() : undefined,
       winner_id: winnerId,
-      sets_data: !is17an ? sets : undefined,
+      sets_data: !is17an ? sets.map(s => ({ team1_score: Number(s.team1_score) || 0, team2_score: Number(s.team2_score) || 0 })) : undefined,
     };
 
     updateMutation.mutate(mutationData, {
@@ -671,7 +671,7 @@ export default function LiveScoreDialog({
   const updateParticipantScore = (id: string, delta: number) => {
     isDirty.current = true;
     setParticipantScores(prev => prev.map(p => 
-      p.id === id ? { ...p, score: Math.max(0, p.score + delta) } : p
+      p.id === id ? { ...p, score: Math.max(0, (Number(p.score) || 0) + delta) } : p
     ));
   };
 
@@ -840,9 +840,25 @@ export default function LiveScoreDialog({
                                     <div className="absolute -inset-2 bg-primary/10 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
                                     <div className="relative w-28 h-20 md:w-40 md:h-24 bg-muted rounded-2xl flex items-center justify-center border-2 border-border shadow-inner overflow-hidden">
                                       <div className="absolute inset-0 bg-gradient-to-b from-black/5 to-transparent pointer-events-none" />
-                                      <span className="text-5xl md:text-6xl font-black font-mono tracking-tighter text-foreground drop-shadow-sm">
-                                        {ps.score}
-                                      </span>
+                                      {!readOnly ? (
+                                        <input
+                                          type="number"
+                                          value={ps.score}
+                                          onChange={(e) => {
+                                            const rawVal = e.target.value;
+                                            const val = rawVal === "" ? "" : parseInt(rawVal);
+                                            isDirty.current = true;
+                                            setParticipantScores(prev => prev.map(p => 
+                                              p.id === ps.id ? { ...p, score: typeof val === 'number' && !isNaN(val) ? Math.max(0, val) : val } : p
+                                            ));
+                                          }}
+                                          className="w-full h-full bg-transparent text-center text-5xl md:text-6xl font-black font-mono tracking-tighter text-foreground drop-shadow-sm outline-none focus:bg-primary/5 transition-colors z-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        />
+                                      ) : (
+                                        <span className="text-5xl md:text-6xl font-black font-mono tracking-tighter text-foreground drop-shadow-sm z-10">
+                                          {ps.score}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
 
@@ -976,9 +992,23 @@ export default function LiveScoreDialog({
                   <div className="flex flex-col items-center gap-3">
                     <div className="bg-muted w-20 h-20 sm:w-[160px] sm:h-24 rounded-xl sm:rounded-3xl flex items-center justify-center relative overflow-hidden border-2 border-transparent transition-all duration-500 shadow-inner">
                       <div className="absolute inset-0 bg-gradient-to-b from-black/5 to-transparent pointer-events-none" />
-                      <span className="text-4xl sm:text-6xl font-black tracking-tighter z-10">
-                        {sets[activeSetIndex]?.team1_score ?? 0}
-                      </span>
+                      {!readOnly ? (
+                        <input
+                          type="number"
+                          value={sets[activeSetIndex]?.team1_score}
+                          onChange={(e) => {
+                            const rawVal = e.target.value;
+                            const val = rawVal === "" ? "" : parseInt(rawVal);
+                            isDirty.current = true;
+                            setSets(prev => prev.map((s, idx) => idx === activeSetIndex ? { ...s, team1_score: typeof val === 'number' && !isNaN(val) ? Math.max(0, val) : val } : s));
+                          }}
+                          className="w-full h-full bg-transparent text-center text-4xl sm:text-6xl font-black tracking-tighter outline-none focus:bg-primary/5 transition-colors z-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      ) : (
+                        <span className="text-4xl sm:text-6xl font-black tracking-tighter z-10">
+                          {sets[activeSetIndex]?.team1_score ?? 0}
+                        </span>
+                      )}
                     </div>
                     {!readOnly && (
                       <div className="flex items-center gap-2">
@@ -1023,9 +1053,9 @@ export default function LiveScoreDialog({
                     <div className="flex flex-col gap-2">
                       {Array.from({ length: Math.max(sets.length, 3) }).map((_, idx) => {
                         const set = sets[idx];
-                        const isPlayed = !!set && (set.team1_score > 0 || set.team2_score > 0);
-                        const team1Won = isPlayed && set.team1_score > set.team2_score;
-                        const team2Won = isPlayed && set.team2_score > set.team1_score;
+                        const isPlayed = !!set && (Number(set.team1_score) > 0 || Number(set.team2_score) > 0);
+                        const team1Won = isPlayed && Number(set.team1_score) > Number(set.team2_score);
+                        const team2Won = isPlayed && Number(set.team2_score) > Number(set.team1_score);
                         
                         return (
                           <div key={idx} className="flex items-center gap-3">
@@ -1099,9 +1129,23 @@ export default function LiveScoreDialog({
                   <div className="flex flex-col items-center gap-3">
                     <div className="bg-muted w-20 h-20 sm:w-[160px] sm:h-24 rounded-xl sm:rounded-3xl flex items-center justify-center relative overflow-hidden border-2 border-transparent transition-all duration-500 shadow-inner">
                       <div className="absolute inset-0 bg-gradient-to-b from-black/5 to-transparent pointer-events-none" />
-                      <span className="text-4xl sm:text-6xl font-black tracking-tighter z-10">
-                        {sets[activeSetIndex]?.team2_score ?? 0}
-                      </span>
+                      {!readOnly ? (
+                        <input
+                          type="number"
+                          value={sets[activeSetIndex]?.team2_score}
+                          onChange={(e) => {
+                            const rawVal = e.target.value;
+                            const val = rawVal === "" ? "" : parseInt(rawVal);
+                            isDirty.current = true;
+                            setSets(prev => prev.map((s, idx) => idx === activeSetIndex ? { ...s, team2_score: typeof val === 'number' && !isNaN(val) ? Math.max(0, val) : val } : s));
+                          }}
+                          className="w-full h-full bg-transparent text-center text-4xl sm:text-6xl font-black tracking-tighter outline-none focus:bg-primary/5 transition-colors z-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      ) : (
+                        <span className="text-4xl sm:text-6xl font-black tracking-tighter z-10">
+                          {sets[activeSetIndex]?.team2_score ?? 0}
+                        </span>
+                      )}
                     </div>
                     {!readOnly && (
                       <div className="flex items-center gap-2">

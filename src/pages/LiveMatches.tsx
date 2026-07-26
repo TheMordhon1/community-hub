@@ -5,16 +5,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Trophy, Clock, MapPin, Radio, Calendar, Users, Eye, CheckCircle2, ArrowLeft, X, GitBranch, Play, RefreshCw, MessageSquare, Copy, Send, ExternalLink, Edit, GitMerge } from "lucide-react";
+import { Loader2, Trophy, Clock, MapPin, Radio, Calendar, Users, Eye, CheckCircle2, ArrowLeft, X, GitBranch, Play, RefreshCw, MessageSquare, Copy, Send, ExternalLink, Edit, GitMerge, Sparkles } from "lucide-react";
 import { format, parseISO, isToday, isTomorrow } from "date-fns";
 import { id } from "date-fns/locale";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
+import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
 import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
 import { AssignRefereeDialog } from "@/components/competitions/AssignRefereeDialog";
 import { useAuth } from "@/hooks/useAuth";
-import { useUpdateMatch, useGenerateBracket, useGenerateKnockoutFromGroups, useAdvance17anRound, useResetKnockoutPhase, useCreateMatch } from "@/hooks/useCompetitions";
+import { useUpdateMatch, useGenerateBracket, useGenerateKnockoutFromGroups, useAdvance17anRound, useResetKnockoutPhase, useCreateMatch, useDeleteMatch } from "@/hooks/useCompetitions";
 import {
   areAllGroupMatchesCompleted,
   computeStandings,
@@ -125,6 +126,7 @@ export default function LiveMatches() {
   const advanceRound = useAdvance17anRound();
   const resetKnockout = useResetKnockoutPhase();
   const createMatch = useCreateMatch();
+  const deleteMatch = useDeleteMatch();
 
   const isMenteriSistemDigital = pengurusTitle === "menteri_sisdigi";
   const canManageMatch = (match: MatchData) => {
@@ -157,13 +159,16 @@ export default function LiveMatches() {
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>("all");
   const [selectedPhase, setSelectedPhase] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [selectedChartStage, setSelectedChartStage] = useState<"group" | "knockout">("knockout");
+
   const [autoRefresh, setAutoRefresh] = useState(false);
 
   const { toast } = useToast();
   const [isBroadcastOpen, setIsBroadcastOpen] = useState(false);
   const [selectedBroadcastMatchIds, setSelectedBroadcastMatchIds] = useState<string[]>([]);
   const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [spinningMatchContext, setSpinningMatchContext] = useState<{ match: MatchData, teamPosition: 1 | 2 } | null>(null);
+
+
 
   const getSportEmojiString = (sportName: string | undefined): string => {
     if (!sportName) return "🏆";
@@ -463,12 +468,7 @@ export default function LiveMatches() {
     }
   }, [matches]);
 
-  useEffect(() => {
-    const hasAnyKnockoutInFiltered = matches.some(m => m.stage === "knockout");
-    if (!hasAnyKnockoutInFiltered) {
-      setSelectedChartStage("group");
-    }
-  }, [matches]);
+
 
   const compIds = Array.from(new Set(matches.map(m => m.competition_id)));
   const { data: allTeams = [] } = useQuery({
@@ -550,6 +550,51 @@ export default function LiveMatches() {
         .map((c) => [c.id, c])
     ).values()
   );
+
+  const getEligibleTeamsForMatch = (match: MatchData) => {
+    const comp = uniqueCompetitions.find(c => c.id === match.competition_id);
+    const compTeams = allTeams.filter(t => t.competition_id === match.competition_id);
+    let baseEligible = compTeams;
+    
+    // If it's a knockout match in a group league, only show teams that advanced (the winners)
+    if (comp?.format === "liga_grup" && match.stage === "knockout") {
+      const advance = comp.advance_per_group || 2;
+      const compMatches = matches.filter(m => m.competition_id === match.competition_id);
+      const groupNamesSet = Array.from(new Set(compTeams.filter(t => !!t.group_name).map(t => t.group_name!)));
+      
+      const eligibleIds = new Set<string>();
+      groupNamesSet.forEach(g => {
+        const standings = computeStandings(
+          compTeams as unknown as CompetitionTeamWithMembers[], 
+          compMatches as unknown as CompetitionMatchWithTeams[], 
+          g
+        );
+        standings.slice(0, advance).forEach(row => eligibleIds.add(row.team.id));
+      });
+      
+      baseEligible = compTeams.filter(t => eligibleIds.has(t.id));
+    }
+    
+    // Filter out teams that are already assigned to other matches IN THIS ROUND
+    if (match.stage === "knockout") {
+      const otherMatchesInRound = matches.filter(m => 
+        m.competition_id === match.competition_id && 
+        m.stage === "knockout" && 
+        m.round_number === match.round_number &&
+        m.id !== match.id
+      );
+      
+      const alreadyAssignedIds = new Set<string>();
+      otherMatchesInRound.forEach(m => {
+        if (m.team1?.id) alreadyAssignedIds.add(m.team1.id);
+        if (m.team2?.id) alreadyAssignedIds.add(m.team2.id);
+      });
+      
+      baseEligible = baseEligible.filter(t => !alreadyAssignedIds.has(t.id));
+    }
+    
+    return baseEligible;
+  };
 
   const getMatchPhaseName = (m: MatchData) => {
     if (m.phase_label) return m.phase_label;
@@ -866,7 +911,7 @@ export default function LiveMatches() {
             <div className="flex items-center justify-between gap-1 py-1">
               <div className="flex-1 text-center min-w-0">
                 <div className={cn("font-bold text-xs truncate", match.status === "completed" && setsWon1 > setsWon2 && "text-primary")}>
-                  {canManageMatch(match) ? (
+                  {canManageMatch(match) && match.status !== "completed" && match.status !== "ongoing" ? (
                     <Popover>
                       <PopoverTrigger asChild>
                         <div
@@ -884,14 +929,14 @@ export default function LiveMatches() {
                       <PopoverContent className="w-56 p-2" align="center" onClick={(e) => e.stopPropagation()}>
                         <Label className="text-xs font-bold mb-1.5 block">Ubah Tim 1</Label>
                         <Select 
-                          value={match.team1_id || "none"} 
+                          value={(match.team1?.id || match.team1_id) || "none"} 
                           onValueChange={(val) => {
                             const newTeamId = val === "none" ? null : val;
                             updateMutation.mutate({
                               id: match.id,
                               competition_id: match.competition_id,
                               team1_id: newTeamId,
-                              team_ids: [newTeamId, match.team2_id].filter(Boolean) as string[]
+                              team_ids: [newTeamId, match.team2?.id || match.team2_id].filter(Boolean) as string[]
                             });
                           }}
                         >
@@ -900,11 +945,11 @@ export default function LiveMatches() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">Pilih Tim (TBD)</SelectItem>
-                            {allTeams.filter(t => t.competition_id === match.competition_id).map((t) => {
+                            {getEligibleTeamsForMatch(match).map((t) => {
                               const flag = getTeamFlag(t);
                               const isEmoji = flag && !flag.includes("/");
                               return (
-                                <SelectItem key={t.id} value={t.id} disabled={t.id === match.team2_id}>
+                                <SelectItem key={t.id} value={t.id} disabled={t.id === (match.team2?.id || match.team2_id)}>
                                   <span className="flex items-center gap-1.5">
                                     {isEmoji && <span className="text-base select-none shrink-0">{flag}</span>}
                                     <span>{extractFlagAndName(t.name).name}</span>
@@ -914,6 +959,37 @@ export default function LiveMatches() {
                             })}
                           </SelectContent>
                         </Select>
+                        <div className="mt-2 pt-2 border-t border-border flex flex-col gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-[10px] gap-1.5 justify-center h-8 font-semibold"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSpinningMatchContext({ match, teamPosition: 1 });
+                            }}
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-primary" />
+                            Pilih Acak (Spinwheel)
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="w-full text-[10px] gap-1.5 justify-center h-8 font-semibold text-muted-foreground hover:text-foreground"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateMutation.mutate({
+                                id: match.id,
+                                competition_id: match.competition_id,
+                                team1_id: null,
+                                team_ids: [null, match.team2_id].filter(Boolean) as string[]
+                              });
+                            }}
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Reset ke TBD
+                          </Button>
+                        </div>
                       </PopoverContent>
                     </Popover>
                   ) : (
@@ -946,7 +1022,7 @@ export default function LiveMatches() {
 
               <div className="flex-1 text-center min-w-0">
                 <div className={cn("font-bold text-xs truncate", match.status === "completed" && setsWon2 > setsWon1 && "text-primary")}>
-                  {canManageMatch(match) ? (
+                  {canManageMatch(match) && match.status !== "completed" && match.status !== "ongoing" ? (
                     <Popover>
                       <PopoverTrigger asChild>
                         <div
@@ -964,14 +1040,14 @@ export default function LiveMatches() {
                       <PopoverContent className="w-56 p-2" align="center" onClick={(e) => e.stopPropagation()}>
                         <Label className="text-xs font-bold mb-1.5 block">Ubah Tim 2</Label>
                         <Select 
-                          value={match.team2_id || "none"} 
+                          value={(match.team2?.id || match.team2_id) || "none"} 
                           onValueChange={(val) => {
                             const newTeamId = val === "none" ? null : val;
                             updateMutation.mutate({
                               id: match.id,
                               competition_id: match.competition_id,
                               team2_id: newTeamId,
-                              team_ids: [match.team1_id, newTeamId].filter(Boolean) as string[]
+                              team_ids: [match.team1?.id || match.team1_id, newTeamId].filter(Boolean) as string[]
                             });
                           }}
                         >
@@ -980,11 +1056,11 @@ export default function LiveMatches() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">Pilih Tim (TBD)</SelectItem>
-                            {allTeams.filter(t => t.competition_id === match.competition_id).map((t) => {
+                            {getEligibleTeamsForMatch(match).map((t) => {
                               const flag = getTeamFlag(t);
                               const isEmoji = flag && !flag.includes("/");
                               return (
-                                <SelectItem key={t.id} value={t.id} disabled={t.id === match.team1_id}>
+                                <SelectItem key={t.id} value={t.id} disabled={t.id === (match.team1?.id || match.team1_id)}>
                                   <span className="flex items-center gap-1.5">
                                     {isEmoji && <span className="text-base select-none shrink-0">{flag}</span>}
                                     <span>{extractFlagAndName(t.name).name}</span>
@@ -994,6 +1070,37 @@ export default function LiveMatches() {
                             })}
                           </SelectContent>
                         </Select>
+                        <div className="mt-2 pt-2 border-t border-border flex flex-col gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-[10px] gap-1.5 justify-center h-8 font-semibold"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSpinningMatchContext({ match, teamPosition: 2 });
+                            }}
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-primary" />
+                            Pilih Acak (Spinwheel)
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="w-full text-[10px] gap-1.5 justify-center h-8 font-semibold text-muted-foreground hover:text-foreground"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateMutation.mutate({
+                                id: match.id,
+                                competition_id: match.competition_id,
+                                team2_id: null,
+                                team_ids: [match.team1_id, null].filter(Boolean) as string[]
+                              });
+                            }}
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Reset ke TBD
+                          </Button>
+                        </div>
                       </PopoverContent>
                     </Popover>
                   ) : (
@@ -1953,7 +2060,7 @@ export default function LiveMatches() {
                 const compMatches = filteredChartMatches.filter(m => {
                   if (m.competition_id !== comp.id) return false;
                   if (comp.format === "liga_grup") {
-                    return m.stage === selectedChartStage;
+                    return m.stage === "knockout";
                   }
                   return true;
                 });
@@ -1991,29 +2098,6 @@ export default function LiveMatches() {
                           </p>
                         </div>
                       </div>
-
-                      {comp.format === "liga_grup" && (
-                        <div className="flex justify-center my-2">
-                          <div className="flex bg-muted/50 p-1 rounded-lg border shadow-sm">
-                            <Button
-                              variant={selectedChartStage === "group" ? "secondary" : "ghost"}
-                              size="sm"
-                              className="h-7 px-3 text-[10px] font-semibold"
-                              onClick={() => setSelectedChartStage("group")}
-                            >
-                              Babak Grup
-                            </Button>
-                            <Button
-                              variant={selectedChartStage === "knockout" ? "secondary" : "ghost"}
-                              size="sm"
-                              className="h-7 px-3 text-[10px] font-semibold"
-                              onClick={() => setSelectedChartStage("knockout")}
-                            >
-                              Babak Gugur
-                            </Button>
-                          </div>
-                        </div>
-                      )}
 
                       <div className="pt-2">
                         <TournamentBracket
@@ -2072,7 +2156,27 @@ export default function LiveMatches() {
                               competition_id: comp.id,
                               round_number: maxRound + 1,
                               phase_label: phaseLabel,
-                              match_number: 0
+                              match_number: 1,
+                              stage: "knockout"
+                            });
+                          }}
+                          onDeleteMatch={(matchId) => {
+                            deleteMatch.mutate({ id: matchId, competition_id: comp.id });
+                          }}
+                          onDeletePhase={(matchIds) => {
+                            matchIds.forEach(matchId => {
+                              deleteMatch.mutate({ id: matchId, competition_id: comp.id });
+                            });
+                          }}
+                          onAddMatch={(roundNumber, phaseLabel) => {
+                            const roundMatches = matches.filter(m => m.competition_id === comp.id && m.round_number === roundNumber);
+                            const maxMatchNum = roundMatches.reduce((max, m) => Math.max(max, m.match_number || 0), 0);
+                            createMatch.mutate({
+                              competition_id: comp.id,
+                              round_number: roundNumber,
+                              match_number: maxMatchNum + 1,
+                              phase_label: phaseLabel,
+                              stage: "knockout"
                             });
                           }}
                         />
@@ -2276,6 +2380,40 @@ export default function LiveMatches() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+      {spinningMatchContext && (
+        <SpinWheelDialog
+          open={!!spinningMatchContext}
+          onOpenChange={(open) => !open && setSpinningMatchContext(null)}
+          teams={(getEligibleTeamsForMatch(spinningMatchContext.match)
+            .filter(t => t.id !== (spinningMatchContext.teamPosition === 1 ? spinningMatchContext.match.team2?.id : spinningMatchContext.match.team1?.id))) as unknown as CompetitionTeamWithMembers[]}
+          competitionId={spinningMatchContext.match.competition_id}
+          targetCount={1}
+          allowTargetEdit={false}
+          applying={updateMutation.isPending}
+          title={`Spin Wheel — Tim ${spinningMatchContext.teamPosition}`}
+          description="Putar untuk memilih tim secara acak."
+          onApply={(picked) => {
+            if (picked.length > 0) {
+              const newTeamId = picked[0];
+              const match = spinningMatchContext.match;
+              const team1Id = spinningMatchContext.teamPosition === 1 ? newTeamId : (match.team1?.id || match.team1_id);
+              const team2Id = spinningMatchContext.teamPosition === 2 ? newTeamId : (match.team2?.id || match.team2_id);
+              const payload: any = {
+                id: match.id,
+                competition_id: match.competition_id,
+                team_ids: [team1Id, team2Id].filter(Boolean) as string[]
+              };
+              if (spinningMatchContext.teamPosition === 1) {
+                payload.team1_id = newTeamId;
+              } else {
+                payload.team2_id = newTeamId;
+              }
+              
+              updateMutation.mutate(payload, { onSuccess: () => setSpinningMatchContext(null) });
+            }
+          }}
+        />
       )}
       </div>
     </section>

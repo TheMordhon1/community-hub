@@ -155,38 +155,41 @@ export function seedKnockoutFromStandings(
   const winners = qualifiers.filter((q) => q.rank === 1);
   const runners = qualifiers.filter((q) => q.rank === 2);
 
-  // Pair each winner with a runner from a different group; rotate.
   const pairs: { team1_id: string; team2_id: string; label: string }[] = [];
-  const used = new Set<number>();
-  winners.forEach((w, i) => {
+  const pairedSet = new Set<string>();
+
+  // Pair each winner with a runner from a different group; rotate.
+  winners.forEach((w) => {
     // Find a runner from a different group not yet used.
-    let idx = runners.findIndex(
-      (r, ri) => !used.has(ri) && r.group !== w.group
+    let r = runners.find(
+      (r) => !pairedSet.has(r.teamId) && r.group !== w.group
     );
-    if (idx === -1) {
-      idx = runners.findIndex((_, ri) => !used.has(ri));
+    if (!r) {
+      r = runners.find((r) => !pairedSet.has(r.teamId));
     }
-    if (idx === -1) return;
-    used.add(idx);
-    const r = runners[idx];
-    pairs.push({
-      team1_id: w.teamId,
-      team2_id: r.teamId,
-      label: `Juara Grup ${w.group} vs Runner-up Grup ${r.group}`,
-    });
+    if (r) {
+      pairedSet.add(w.teamId);
+      pairedSet.add(r.teamId);
+      pairs.push({
+        team1_id: w.teamId,
+        team2_id: r.teamId,
+        label: `Juara Grup ${w.group} vs Runner-up Grup ${r.group}`,
+      });
+    }
   });
 
-  // Any remaining qualifiers (e.g. odd count, more than 2 advance) get paired sequentially.
-  const remaining = qualifiers.filter(
-    (q) =>
-      !winners.includes(q) &&
-      !runners.filter((_, ri) => used.has(ri)).includes(q)
-  );
+  // Any remaining qualifiers (e.g. odd count, more than 2 advance, or unmatched winners) get paired sequentially.
+  const remaining = qualifiers.filter((q) => !pairedSet.has(q.teamId));
+  
   for (let i = 0; i + 1 < remaining.length; i += 2) {
+    const q1 = remaining[i];
+    const q2 = remaining[i + 1];
     pairs.push({
-      team1_id: remaining[i].teamId,
-      team2_id: remaining[i + 1].teamId,
-      label: `Grup ${remaining[i].group} vs Grup ${remaining[i + 1].group}`,
+      team1_id: q1.teamId,
+      team2_id: q2.teamId,
+      label: q1.group === q2.group 
+        ? `Grup ${q1.group}` 
+        : `Grup ${q1.group} vs Grup ${q2.group}`,
     });
   }
 
