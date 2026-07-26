@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Trophy, Clock, MapPin, Radio, Calendar, Users, Eye, CheckCircle2, ArrowLeft, X, GitBranch, Play, RefreshCw, MessageSquare, Copy, Send, ExternalLink, Edit, GitMerge, Sparkles } from "lucide-react";
+import { Loader2, Trophy, Clock, MapPin, Radio, Calendar, Users, Eye, CheckCircle2, ArrowLeft, X, GitBranch, Play, RefreshCw, MessageSquare, Copy, Send, ExternalLink, Edit, GitMerge, Sparkles, MoreVertical, Trash2, Video } from "lucide-react";
 import { format, parseISO, isToday, isTomorrow } from "date-fns";
 import { id } from "date-fns/locale";
 import { Link, useSearchParams } from "react-router-dom";
@@ -34,6 +34,12 @@ import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, Competitio
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn, parseMemberName, capitalizeName } from "@/lib/utils";
 import {
@@ -692,7 +698,7 @@ export default function LiveMatches() {
   });
 
   const ongoingMatches = filteredMatches.filter((m) => m.status === "ongoing");
-  const upcomingMatches = filteredMatches.filter((m) => m.status === "scheduled");
+  const upcomingMatches = filteredMatches.filter((m) => m.status === "scheduled" && m.match_datetime != null);
   const completedMatches = filteredMatches.filter((m) => m.status === "completed");
 
   const formatMatchTime = (datetimeStr: string | null) => {
@@ -806,6 +812,7 @@ export default function LiveMatches() {
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-sm">{getSportEmoji(match.competition?.sport_name)}</span>
             <span className="font-semibold text-muted-foreground truncate max-w-[150px]">
+              {match.is_final && <Trophy className="w-3 h-3 text-yellow-500 fill-yellow-500 shrink-0 inline-block mr-1.5 mb-0.5" />}
               {match.competition?.custom_match_label || match.competition?.sport_name}
             </span>
             {canManageMatch(match) && match.competition_id && (
@@ -1452,6 +1459,7 @@ export default function LiveMatches() {
                         <div className="flex items-center gap-2">
                           <span className="text-base">{getSportEmoji(match.competition?.sport_name)}</span>
                           <span className="font-semibold text-foreground/80 truncate max-w-[200px]">
+                            {match.is_final && <Trophy className="w-3 h-3 text-yellow-500 fill-yellow-500 shrink-0 inline-block mr-1.5 mb-0.5" />}
                             {match.competition?.custom_match_label || match.competition?.sport_name}
                           </span>
                         </div>
@@ -1645,12 +1653,42 @@ export default function LiveMatches() {
                         <div className="flex items-center gap-2">
                           <span className="text-base">{getSportEmoji(match.competition?.sport_name)}</span>
                           <span className="font-semibold text-muted-foreground truncate max-w-[200px]">
+                            {match.is_final && <Trophy className="w-3 h-3 text-yellow-500 fill-yellow-500 shrink-0 inline-block mr-1.5 mb-0.5" />}
                             {match.competition?.custom_match_label || match.competition?.sport_name}
                           </span>
                         </div>
-                        <Badge variant="outline" className="text-[10px] font-semibold text-muted-foreground tracking-wide px-2 py-0.5">
-                          Akan Datang
-                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline" className="text-[10px] font-semibold text-muted-foreground tracking-wide px-2 py-0.5">
+                            Akan Datang
+                          </Badge>
+                          {canManageMatch(match) && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground">
+                                  <MoreVertical className="w-3.5 h-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingMatch(match as unknown as MatchData); }}>
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Edit Pertandingan
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm("Apakah Anda yakin ingin menghapus pertandingan ini?")) {
+                                      deleteMatch.mutate({ id: match.id, competition_id: match.competition_id });
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Hapus
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
                       </div>
 
                       <CardContent className="p-4 sm:p-5 flex-1 flex flex-col justify-between gap-3 sm:gap-4">
@@ -1744,23 +1782,68 @@ export default function LiveMatches() {
                                 Broadcast
                               </Button>
                               {canManageMatch(match) && (
-                                <Button
-                                  size="sm"
-                                  className="h-7 text-[10px] gap-1 px-2.5 font-bold uppercase tracking-wider bg-primary hover:bg-primary/90"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const hasReferee = (match.competition?.referees?.length || 0) > 0;
-                                    if (!hasReferee) {
-                                      setPendingStartMatchId(match.id);
-                                      return;
-                                    }
-                                    startMatchMutation.mutate(match.id);
-                                  }}
-                                  disabled={startMatchMutation.isPending}
-                                >
-                                  <Play className="w-3 h-3" />
-                                  Mulai
-                                </Button>
+                                (!match.team1?.id || !match.team2?.id) ? (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        size="sm"
+                                        className="h-7 text-[10px] gap-1 px-2.5 font-bold uppercase tracking-wider bg-primary hover:bg-primary/90"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <Users className="w-3.5 h-3.5" />
+                                        Set Tim
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-56 p-2" align="end" onClick={(e) => e.stopPropagation()}>
+                                      <Label className="text-xs font-bold mb-1.5 block">Pilih Tim dengan Spinwheel</Label>
+                                      <div className="flex flex-col gap-1.5">
+                                        <Button
+                                          variant="outline" size="sm" className="w-full text-[10px] justify-start h-8"
+                                          onClick={() => setSpinningMatchContext({ match, teamPosition: 1 })}
+                                          disabled={!!match.team1?.id}
+                                        >
+                                          <Sparkles className="w-3.5 h-3.5 mr-2 text-primary" />
+                                          Spinwheel Tim 1
+                                        </Button>
+                                        <Button
+                                          variant="outline" size="sm" className="w-full text-[10px] justify-start h-8"
+                                          onClick={() => setSpinningMatchContext({ match, teamPosition: 2 })}
+                                          disabled={!!match.team2?.id}
+                                        >
+                                          <Sparkles className="w-3.5 h-3.5 mr-2 text-primary" />
+                                          Spinwheel Tim 2
+                                        </Button>
+                                        <Button
+                                          variant="ghost" size="sm" className="w-full text-[10px] text-muted-foreground mt-1"
+                                          onClick={() => {
+                                            setSelectedCompetitionId(match.competition_id);
+                                            setActiveTab("chart");
+                                          }}
+                                        >
+                                          Atur Manual di Tab Bagan
+                                        </Button>
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    className="h-7 text-[10px] gap-1 px-2.5 font-bold uppercase tracking-wider bg-primary hover:bg-primary/90"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const hasReferee = (match.competition?.referees?.length || 0) > 0;
+                                      if (!hasReferee) {
+                                        setPendingStartMatchId(match.id);
+                                        return;
+                                      }
+                                      startMatchMutation.mutate(match.id);
+                                    }}
+                                    disabled={startMatchMutation.isPending}
+                                  >
+                                    <Play className="w-3.5 h-3.5" />
+                                    Mulai
+                                  </Button>
+                                )
                               )}
                             </div>
                           </div>
@@ -1811,6 +1894,7 @@ export default function LiveMatches() {
                         <div className="flex items-center gap-2">
                           <span className="text-base">{getSportEmoji(match.competition?.sport_name)}</span>
                           <span className="font-semibold text-foreground/70 truncate max-w-[200px]">
+                            {match.is_final && <Trophy className="w-3 h-3 text-yellow-500 fill-yellow-500 shrink-0 inline-block mr-1.5 mb-0.5" />}
                             {match.competition?.custom_match_label || match.competition?.sport_name}
                           </span>
                         </div>
@@ -1829,6 +1913,25 @@ export default function LiveMatches() {
                             {/* Team 1 */}
                             <div className="flex-1 text-center min-w-0">
                               <div className="font-bold text-sm sm:text-base flex items-center justify-center gap-1.5">
+                                {match.is_final ? (
+                                  <>
+                                    {(match.winner_id === match.team1_id || match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 1) && (
+                                      <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                    )}
+                                    {(match.winner_id === match.team2_id || match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 2) && (
+                                      <Trophy className="w-4 h-4 text-slate-400 fill-slate-400" />
+                                    )}
+                                    {match.participants?.find(p => p.team_id === match.team1_id)?.winner_rank === 3 && (
+                                      <Trophy className="w-4 h-4 text-amber-600 fill-amber-600" />
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    {(match.winner_id === match.team1_id || match.participants?.find(p => p.team_id === match.team1_id)?.is_winner) && (
+                                      <CheckCircle2 className="w-4 h-4 text-primary" />
+                                    )}
+                                  </>
+                                )}
                                 <TeamFlag team={match.team1} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
                                 <span>{match.team1 ? extractFlagAndName(match.team1.name).name : "TBD"}</span>
                               </div>
@@ -1877,6 +1980,25 @@ export default function LiveMatches() {
                             {/* Team 2 */}
                             <div className="flex-1 text-center min-w-0">
                               <div className="font-bold text-sm sm:text-base truncate flex items-center justify-center gap-1.5">
+                                {match.is_final ? (
+                                  <>
+                                    {(match.winner_id === match.team2_id || match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 1) && (
+                                      <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                    )}
+                                    {(match.winner_id === match.team1_id || match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 2) && (
+                                      <Trophy className="w-4 h-4 text-slate-400 fill-slate-400" />
+                                    )}
+                                    {match.participants?.find(p => p.team_id === match.team2_id)?.winner_rank === 3 && (
+                                      <Trophy className="w-4 h-4 text-amber-600 fill-amber-600" />
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    {(match.winner_id === match.team2_id || match.participants?.find(p => p.team_id === match.team2_id)?.is_winner) && (
+                                      <CheckCircle2 className="w-4 h-4 text-primary" />
+                                    )}
+                                  </>
+                                )}
                                 <TeamFlag team={match.team2} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
                                 <span>{match.team2 ? extractFlagAndName(match.team2.name).name : "TBD"}</span>
                               </div>
@@ -2099,7 +2221,7 @@ export default function LiveMatches() {
                         </div>
                       </div>
 
-                      <div className="pt-2">
+                      <div className="pt-2 overflow-x-auto w-full pb-4 custom-scrollbar">
                         <TournamentBracket
                           competitionId={comp.id}
                           matches={compMatches}

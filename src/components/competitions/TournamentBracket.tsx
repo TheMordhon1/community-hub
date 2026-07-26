@@ -247,10 +247,22 @@ export function TournamentBracket<T extends BracketMatch>({
     // Sort matches in each round
     Object.keys(grouped).forEach((r) => {
       grouped[Number(r)].sort((a, b) => {
-        if (!a.match_datetime && b.match_datetime) return 1;
-        if (a.match_datetime && !b.match_datetime) return -1;
-        if (!a.match_datetime && !b.match_datetime) return 0;
-        return new Date(b.match_datetime).getTime() - new Date(a.match_datetime).getTime();
+        if (a.match_datetime && b.match_datetime) {
+          const diff = new Date(a.match_datetime).getTime() - new Date(b.match_datetime).getTime();
+          if (diff !== 0) return diff;
+        } else if (a.match_datetime && !b.match_datetime) {
+          return -1;
+        } else if (!a.match_datetime && b.match_datetime) {
+          return 1;
+        }
+        
+        // Fallback to match_number for stable sorting
+        const numA = a.match_number || 0;
+        const numB = b.match_number || 0;
+        if (numA !== numB) return numA - numB;
+        
+        // Final fallback to id
+        return a.id.localeCompare(b.id);
       });
     });
 

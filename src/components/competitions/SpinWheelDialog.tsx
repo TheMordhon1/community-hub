@@ -18,6 +18,7 @@ import { TeamFlag } from "@/components/competitions/TeamFlag";
 import { extractFlagAndName } from "@/lib/countries";
 import { parseMemberName, capitalizeName } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
 
 interface SpinWheelDialogProps {
   open: boolean;
@@ -77,21 +78,32 @@ export function SpinWheelDialog({
   const [spinning, setSpinning] = useState(false);
   const [winner, setWinner] = useState<CompetitionTeamWithMembers | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [excludedIds, setExcludedIds] = useState<Set<string>>(() => {
+  const { toast } = useToast();
+
+  const loadSavedState = () => {
     if (competitionId) {
       try {
         const saved = localStorage.getItem(`spinwheel-excluded-${competitionId}`);
-        if (saved) return new Set(JSON.parse(saved));
-      } catch (e) {}
+        if (saved) return new Set<string>(JSON.parse(saved));
+      } catch (e) {
+        console.error(e);
+      }
     }
-    return new Set();
-  });
+    return new Set<string>();
+  };
 
-  useEffect(() => {
+  const [excludedIds, setExcludedIds] = useState<Set<string>>(loadSavedState);
+
+  const handleSaveState = () => {
     if (competitionId) {
       localStorage.setItem(`spinwheel-excluded-${competitionId}`, JSON.stringify(Array.from(excludedIds)));
+      toast({
+        title: "Disimpan",
+        description: "Pengaturan kandidat spinwheel berhasil disimpan.",
+      });
     }
-  }, [excludedIds, competitionId]);
+  };
+
   const [targetInput, setTargetInput] = useState<string>(String(targetCount ?? 2));
 
   const selectionMode = typeof targetCount === "number";
@@ -106,7 +118,7 @@ export function SpinWheelDialog({
       setSpinning(false);
       setWinner(null);
       setSelectedIds([]);
-      setExcludedIds(new Set());
+      setExcludedIds(loadSavedState());
       setTargetInput(String(targetCount ?? 2));
     }
   }, [open, targetCount]);
@@ -204,7 +216,14 @@ export function SpinWheelDialog({
 
         {teams.length > 0 && (
           <div className="flex flex-col gap-2 rounded-md border p-3 bg-muted/10">
-            <Label className="text-xs text-muted-foreground font-bold">Kandidat Spinwheel (Pilih yang ikut serta)</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground font-bold">Kandidat Spinwheel (Pilih yang ikut serta)</Label>
+              {competitionId && (
+                <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={handleSaveState}>
+                  Simpan
+                </Button>
+              )}
+            </div>
             <div className="max-h-24 overflow-y-auto grid grid-cols-2 gap-2 pr-1 scrollbar-thin">
               {teams.map((t) => {
                 const isSelected = !excludedIds.has(t.id) && !selectedIds.includes(t.id);
@@ -334,11 +353,12 @@ export function SpinWheelDialog({
                         const parsed = parseMemberName(m.name);
                         const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
                         const initial = name.charAt(0).toUpperCase();
+                        const avatarUrl = parsed.avatarUrl || (m.profile as any)?.avatar_url || "";
                         
                         return (
                           <div key={m.id} className="flex items-center gap-2 bg-background/60 backdrop-blur-sm px-2 py-1 rounded-full shadow-sm border border-border/40">
-                            <Avatar className="w-5 h-5 border border-primary/20">
-                              <AvatarImage src={m.profile?.avatar_url || ""} />
+                            <Avatar className="w-5 h-5 border border-primary/20 shrink-0">
+                              <AvatarImage src={avatarUrl} className="object-cover" />
                               <AvatarFallback className="text-[9px] bg-primary/10 text-primary">{initial}</AvatarFallback>
                             </Avatar>
                             <span className="text-xs font-semibold text-foreground pr-1">{name}</span>
@@ -356,7 +376,7 @@ export function SpinWheelDialog({
                 <Button
                   onClick={() => {
                     setWinner(pool[0]);
-                    setSelectedTeams((prev) => [...prev, pool[0]]);
+                    setSelectedIds((prev) => [...prev, pool[0].id]);
                     // Auto apply if selectionMode
                     if (selectionMode && onApply) {
                       onApply([pool[0].id]);

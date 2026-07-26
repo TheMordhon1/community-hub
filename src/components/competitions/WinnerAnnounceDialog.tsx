@@ -40,7 +40,10 @@ export function WinnerAnnounceDialog({
   const opponentRef = useRef<HTMLDivElement>(null);
   let fullLoserTeam: CompetitionTeamWithMembers | any | null = null;
 
-  if (match) {
+  const isFinalMatch = match?.is_final === true;
+  const isMatchAnnounce = !!match && !isFinalMatch;
+
+  if (match && !isFinalMatch) {
     if (is17an) {
       const winners = match.participants?.filter(p => p.is_winner || p.winner_rank === 1) || [];
       juara1 = winners.map(w => {
@@ -77,7 +80,31 @@ export function WinnerAnnounceDialog({
       }
     }
   } else {
+    // Competition-wide or Final Match Announcement
     const allParticipants = competition.matches?.flatMap(m => m.participants || []) || [];
+    
+    // If it's the final match, we use the match result for Juara 1 and 2
+    if (isFinalMatch && match) {
+      const setsWon1 = Array.isArray(match.sets_data)
+        ? match.sets_data.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length
+        : 0;
+      const setsWon2 = Array.isArray(match.sets_data)
+        ? match.sets_data.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length
+        : 0;
+      const isTeam1Winner = match.winner_id === match.team1_id || (match.winner_id === null && setsWon1 > setsWon2);
+      const isTeam2Winner = match.winner_id === match.team2_id || (match.winner_id === null && setsWon2 > setsWon1);
+      const winnerTeam = isTeam1Winner ? match.team1 : (isTeam2Winner ? match.team2 : null);
+      const loserTeam = isTeam1Winner ? match.team2 : (isTeam2Winner ? match.team1 : null);
+
+      if (winnerTeam) {
+        const fullTeam = competition.teams?.find(t => t.id === winnerTeam.id) || winnerTeam;
+        juara1 = [{ id: `final-winner-${fullTeam.id}`, team: fullTeam, winner_rank: 1 } as CompetitionMatchParticipant];
+      }
+      if (loserTeam) {
+        const fullTeam = competition.teams?.find(t => t.id === loserTeam.id) || loserTeam;
+        juara2 = [{ id: `final-loser-${fullTeam.id}`, team: fullTeam, winner_rank: 2 } as CompetitionMatchParticipant];
+      }
+    }
     const winnersByRank = (rank: number) => {
       const winners = allParticipants.filter(p => p.winner_rank === rank);
       const uniqueTeams = new Map();
@@ -93,11 +120,14 @@ export function WinnerAnnounceDialog({
       return Array.from(uniqueTeams.values());
     };
 
-    juara1 = winnersByRank(1);
-    juara2 = winnersByRank(2);
+    if (!isFinalMatch) {
+      juara1 = winnersByRank(1);
+      juara2 = winnersByRank(2);
+    }
     juara3 = winnersByRank(3);
 
-    if (juara1.length === 0) {
+    // Fallback if juara1 is still empty (from competition view)
+    if (juara1.length === 0 && !isFinalMatch) {
       const finalMatch = competition.matches?.find(m => m.is_final && m.status === 'completed' && m.winner_id);
       if (finalMatch) {
         const winnerTeam = competition.teams?.find(t => t.id === finalMatch.winner_id);
@@ -180,7 +210,6 @@ export function WinnerAnnounceDialog({
     }
   }, [open]);
 
-  const isMatchAnnounce = !!match;
   const hasWinners = isMatchAnnounce
     ? (juara1.length > 0)
     : ((juara1.length > 0 && maxRankToShow >= 1) || 
@@ -225,8 +254,10 @@ export function WinnerAnnounceDialog({
           </DialogTitle>
           <p className="text-muted-foreground text-center font-medium uppercase tracking-[0.2em] text-xs mt-2">
             {isMatchAnnounce && match?.team1 && match?.team2
-              ? `${competition.sport_name} • ${match.team1.name} VS ${match.team2.name}`
-              : competition.sport_name}
+              ? `${competition.sport_name} • ${match.phase_label || match.stage || "PERTANDINGAN"} • ${match.team1.name} VS ${match.team2.name}`
+              : isFinalMatch && match?.team1 && match?.team2 
+                ? `${competition.sport_name} • FINAL • ${match.team1.name} VS ${match.team2.name}`
+                : competition.sport_name}
           </p>
         </DialogHeader>
 
@@ -270,13 +301,12 @@ export function WinnerAnnounceDialog({
                         return (
                           <div key={m.id} className="flex flex-col bg-white/60 dark:bg-slate-900/40 border border-yellow-500/20 rounded-2xl p-1.5 shadow-sm hover:shadow-md transition-shadow flex-1 min-w-[110px] max-w-[180px]">
                             <div className="w-full aspect-square rounded-[10px] bg-slate-200 dark:bg-slate-800 overflow-hidden mb-2 border border-yellow-500/10">
-                              {avatarUrl ? (
-                                <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <User className="w-1/3 h-1/3 text-slate-400" />
-                                </div>
-                              )}
+                              <Avatar className="w-full h-full rounded-none">
+                                <AvatarImage src={avatarUrl || ""} alt={name} className="object-cover" />
+                                <AvatarFallback className="rounded-none bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-4xl font-bold text-slate-500">
+                                  {name.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
                             </div>
                             <span className="text-sm font-bold text-slate-800 dark:text-slate-100 text-center px-1 pb-1 line-clamp-2 leading-tight">
                               {name}
@@ -378,7 +408,7 @@ export function WinnerAnnounceDialog({
                 >
                   <div className="h-full bg-slate-100 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 rounded-3xl p-4 sm:p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group">
                     <div className="w-14 h-14 bg-slate-400 rounded-2xl flex items-center justify-center shadow-md mb-4 transform -rotate-3 group-hover:rotate-0 transition-transform duration-500 z-10 relative">
-                      <Medal className="w-8 h-8 text-white" />
+                      <Trophy className="w-8 h-8 text-white" />
                     </div>
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 relative z-10">Juara 2</p>
                     <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10 flex items-center justify-center gap-2">
@@ -395,13 +425,12 @@ export function WinnerAnnounceDialog({
                           return (
                             <div key={m.id} className="flex flex-col bg-white/50 dark:bg-slate-900/30 border border-slate-300 dark:border-slate-600 rounded-xl p-1.5 shadow-sm flex-1 min-w-[90px] max-w-[140px]">
                               <div className="w-full aspect-square rounded-lg bg-slate-200 dark:bg-slate-800 overflow-hidden mb-1.5 border border-slate-300/50 dark:border-slate-600/50">
-                                {avatarUrl ? (
-                                  <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <User className="w-1/3 h-1/3 text-slate-400" />
-                                  </div>
-                                )}
+                                <Avatar className="w-full h-full rounded-none">
+                                  <AvatarImage src={avatarUrl || ""} alt={name} className="object-cover" />
+                                  <AvatarFallback className="rounded-none bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-3xl font-bold text-slate-500">
+                                    {name.charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
                               </div>
                               <span className="text-xs font-bold text-slate-700 dark:text-slate-200 text-center line-clamp-2 leading-tight px-0.5">
                                 {shortName}
@@ -426,7 +455,7 @@ export function WinnerAnnounceDialog({
                 >
                   <div className="h-full bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-3xl p-4 sm:p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group">
                     <div className="w-14 h-14 bg-amber-600 rounded-2xl flex items-center justify-center shadow-md mb-4 transform -rotate-3 group-hover:rotate-0 transition-transform duration-500 z-10 relative">
-                      <Medal className="w-8 h-8 text-white" />
+                      <Trophy className="w-8 h-8 text-white" />
                     </div>
                     <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1 relative z-10">Juara 3</p>
                     <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10 flex items-center justify-center gap-2">
@@ -443,13 +472,12 @@ export function WinnerAnnounceDialog({
                           return (
                             <div key={m.id} className="flex flex-col bg-white/50 dark:bg-slate-900/30 border border-amber-300/50 dark:border-amber-700/50 rounded-xl p-1.5 shadow-sm flex-1 min-w-[90px] max-w-[140px]">
                               <div className="w-full aspect-square rounded-lg bg-slate-200 dark:bg-slate-800 overflow-hidden mb-1.5 border border-amber-300/30 dark:border-amber-700/30">
-                                {avatarUrl ? (
-                                  <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <User className="w-1/3 h-1/3 text-slate-400" />
-                                  </div>
-                                )}
+                                <Avatar className="w-full h-full rounded-none">
+                                  <AvatarImage src={avatarUrl || ""} alt={name} className="object-cover" />
+                                  <AvatarFallback className="rounded-none bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-3xl font-bold text-slate-500">
+                                    {name.charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
                               </div>
                               <span className="text-xs font-bold text-amber-800 dark:text-amber-200 text-center line-clamp-2 leading-tight px-0.5">
                                 {shortName}

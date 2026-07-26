@@ -23,6 +23,7 @@ import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
 import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarImage, AvatarFallback } from "@radix-ui/react-avatar";
 interface Props {
   competition: EventCompetitionWithDetails;
   canManage?: boolean;
@@ -277,6 +278,7 @@ function TeamPhasePopover({ team, competition, onUpdate, isUpdating }: {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState(team.next_stage_type || "knockout");
   const [label, setLabel] = useState(team.next_stage_label || "Quarter Final");
+  const [isConfirming, setIsConfirming] = useState(false);
 
   return (
     <Popover 
@@ -286,6 +288,7 @@ function TeamPhasePopover({ team, competition, onUpdate, isUpdating }: {
         if (isOpen) {
           setType(team.next_stage_type || "knockout");
           setLabel(team.next_stage_label || "Quarter Final");
+          setIsConfirming(false);
         }
       }}
     >
@@ -347,17 +350,43 @@ function TeamPhasePopover({ team, competition, onUpdate, isUpdating }: {
               />
             )}
           </div>
-          <Button 
-            size="sm" 
-            className="w-full h-8 text-xs font-bold" 
-            onClick={() => {
-              onUpdate(team.id, type, label);
-              setOpen(false);
-            }}
-            disabled={isUpdating}
-          >
-            Simpan
-          </Button>
+          {!isConfirming ? (
+            <Button 
+              size="sm" 
+              className="w-full h-8 text-xs font-bold" 
+              onClick={() => setIsConfirming(true)}
+              disabled={isUpdating}
+            >
+              Simpan
+            </Button>
+          ) : (
+            <div className="pt-2 border-t space-y-2 mt-2">
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                Review: Tim ini akan dimasukkan ke fase <strong>{label}</strong> ({type === 'knockout' ? 'Knockout' : 'Playoff'}). Apakah Anda yakin?
+              </p>
+              <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="flex-1 h-7 text-[10px]" 
+                  onClick={() => setIsConfirming(false)}
+                >
+                  Batal
+                </Button>
+                <Button 
+                  size="sm" 
+                  className="flex-1 h-7 text-[10px] font-bold" 
+                  onClick={() => {
+                    onUpdate(team.id, type, label);
+                    setOpen(false);
+                  }}
+                  disabled={isUpdating}
+                >
+                  Konfirmasi
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>
@@ -472,9 +501,14 @@ export function GroupStandings({ competition, canManage = false }: Props) {
     });
   };
 
-  const handleSetGroupAdvance = (groupName: string, count: number) => {
+  const handleSetGroupAdvance = (groupName: string, count: number | null) => {
     const currentSettings = { ...(competition.kids_brackets as unknown as Record<string, number> || {}) };
-    currentSettings[groupName] = count;
+    
+    if (count === null) {
+      delete currentSettings[groupName];
+    } else {
+      currentSettings[groupName] = count;
+    }
 
     updateCompetition.mutate({
       id: competition.id,
@@ -564,7 +598,8 @@ export function GroupStandings({ competition, canManage = false }: Props) {
               : t.group_name === g
           ).length;
           const maxGroupMatches = Math.max(1, groupTeamsCount - 1);
-          const groupAdvanceCount = (competition.kids_brackets as unknown as Record<string, number> | null)?.[g] ?? competition.advance_per_group ?? 2;
+          const customAdvance = (competition.kids_brackets as unknown as Record<string, number> | null)?.[g];
+          const groupAdvanceCount = customAdvance ?? competition.advance_per_group ?? 2;
 
           return (
             <Card key={`group-${isPlayoff ? 'playoff' : 'normal'}-${g}`} className="w-full min-w-0 overflow-hidden">
@@ -601,11 +636,11 @@ export function GroupStandings({ competition, canManage = false }: Props) {
 
                         const membersWithHouse = r.team.members?.map((m) => {
                           const parsed = parseMemberName(m.name);
-                          const profile = m.profile as { full_name?: string | null; house?: { block: string; number: string } } | undefined;
+                          const profile = m.profile as { full_name?: string | null; house?: { block: string; number: string }; avatar_url?: string | null } | undefined;
                           const name = capitalizeName(profile?.full_name?.trim() || parsed.name || "Pemain");
                           const house = profile?.house || 
                             (m.house_block && m.house_number ? { block: m.house_block, number: m.house_number } : null);
-                          return { name, house };
+                          return { id: m.id, name, house, avatar_url: profile?.avatar_url };
                         }) || [];
                         const hasMembers = membersWithHouse.length > 0;
 
@@ -666,7 +701,14 @@ export function GroupStandings({ competition, canManage = false }: Props) {
                                       </span>
                                     )}
                                     {advancing && r.played >= maxGroupMatches && (
-                                      canManage ? (
+                                      isPlayoff ? (
+                                        <div className="flex items-center gap-1 bg-yellow-500/10 text-yellow-600 px-1.5 py-0.5 rounded cursor-default" title="Target Fase Lanjutan">
+                                          <Medal className="w-3.5 h-3.5 shrink-0" />
+                                          <span className="text-[9px] font-bold hidden sm:inline whitespace-nowrap">
+                                            {g.toLowerCase().includes(' to ') ? g.replace(/^.* to /i, '') : "Lolos"}
+                                          </span>
+                                        </div>
+                                      ) : canManage ? (
                                         <TeamPhasePopover 
                                           team={r.team} 
                                           competition={competition} 
@@ -684,21 +726,24 @@ export function GroupStandings({ competition, canManage = false }: Props) {
                                     )}
                                   </div>
                                   {hasMembers && (
-                                    <div className="flex flex-col gap-0.5 mt-0.5">
-                                      {membersWithHouse.map((m, mIdx) => (
-                                        <span 
-                                          key={mIdx}
-                                          className="text-[10px] text-muted-foreground font-normal truncate max-w-[140px] sm:max-w-[180px] flex items-center"
-                                          title={m.house ? `${m.name} (${m.house.block}.${m.house.number})` : m.name}
-                                        >
-                                          <span className="truncate">{m.name}</span>
-                                          {m.house && (
-                                            <span className="text-[9px] text-muted-foreground/80 font-mono ml-1 bg-muted px-0.5 py-0.25 rounded shrink-0 select-none">
-                                              {m.house.block}.{m.house.number}
-                                            </span>
-                                          )}
-                                        </span>
-                                      ))}
+                                    <div className="flex flex-wrap gap-1.5 mt-1.5 max-w-[200px] sm:max-w-[240px]">
+                                      {membersWithHouse.map((m) => {
+                                        const initial = m.name.charAt(0).toUpperCase();
+                                        return (
+                                          <div key={m.id} className="flex items-center gap-1.5 bg-background/60 px-1.5 py-0.5 rounded-full border border-border/40 shadow-sm" title={m.house ? `${m.name} (${m.house.block}.${m.house.number})` : m.name}>
+                                            <Avatar className="w-3.5 h-3.5 border border-primary/20 shrink-0">
+                                              <AvatarImage src={m.avatar_url || ""} />
+                                              <AvatarFallback className="text-[7px] bg-primary/10 text-primary">{initial}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="text-[9px] font-semibold text-foreground truncate max-w-[80px]">{m.name}</span>
+                                            {m.house && (
+                                              <span className="text-[8px] text-muted-foreground/80 font-mono ml-0.5 bg-muted px-0.5 py-0.25 rounded shrink-0 select-none">
+                                                {m.house.block}.{m.house.number}
+                                              </span>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
                                     </div>
                                   )}
                                 </div>
@@ -747,10 +792,14 @@ export function GroupStandings({ competition, canManage = false }: Props) {
                     <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground shrink-0">
                       <span>Lolos:</span>
                       <select
-                        value={groupAdvanceCount}
-                        onChange={(e) => handleSetGroupAdvance(g, parseInt(e.target.value))}
+                        value={customAdvance ?? "default"}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          handleSetGroupAdvance(g, val === "default" ? null : parseInt(val));
+                        }}
                         className="bg-background border rounded px-1.5 py-0.5 font-semibold text-foreground focus:ring-1 focus:ring-primary text-[10px] outline-none"
                       >
+                        <option value="default">Default ({competition.advance_per_group ?? 2})</option>
                         {Array.from({ length: Math.max(1, groupTeamsCount) }, (_, i) => i + 1).map((num) => (
                           <option key={num} value={num}>{num} Tim</option>
                         ))}

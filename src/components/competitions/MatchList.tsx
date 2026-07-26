@@ -69,6 +69,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
   const [liveScoringMatch, setLiveScoringMatch] = useState<CompetitionMatchWithTeams | null>(null);
   const [viewingMatch, setViewingMatch] = useState<CompetitionMatchWithTeams | null>(null);
   const [spinningMatch, setSpinningMatch] = useState<CompetitionMatchWithTeams | null>(null);
+  const [spinningMatchContext, setSpinningMatchContext] = useState<{ match: CompetitionMatchWithTeams; teamPosition: 1 | 2 } | null>(null);
   const [matchToReset, setMatchToReset] = useState<string | null>(null);
   const [matchToDelete, setMatchToDelete] = useState<string | null>(null);
   const [pendingStartMatchId, setPendingStartMatchId] = useState<string | null>(null);
@@ -784,6 +785,37 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                         })}
                                       </SelectContent>
                                     </Select>
+                                    <div className="mt-2 pt-2 border-t border-border flex flex-col gap-1.5">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full text-[10px] gap-1.5 justify-center h-8 font-semibold"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSpinningMatchContext({ match, teamPosition: 1 });
+                                        }}
+                                      >
+                                        <Sparkles className="w-3.5 h-3.5 text-primary" />
+                                        Pilih Acak (Spinwheel)
+                                      </Button>
+                                      <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        className="w-full text-[10px] gap-1.5 justify-center h-8 font-semibold text-muted-foreground hover:text-foreground"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          updateMutation.mutate({
+                                            id: match.id,
+                                            competition_id: competition.id,
+                                            team1_id: null,
+                                            team_ids: [null, match.team2_id].filter(Boolean) as string[]
+                                          });
+                                        }}
+                                      >
+                                        <RefreshCw className="w-3.5 h-3.5" />
+                                        Reset ke TBD
+                                      </Button>
+                                    </div>
                                   </PopoverContent>
                                 </Popover>
                               ) : (
@@ -899,6 +931,37 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                         })}
                                       </SelectContent>
                                     </Select>
+                                    <div className="mt-2 pt-2 border-t border-border flex flex-col gap-1.5">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full text-[10px] gap-1.5 justify-center h-8 font-semibold"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSpinningMatchContext({ match, teamPosition: 2 });
+                                        }}
+                                      >
+                                        <Sparkles className="w-3.5 h-3.5 text-primary" />
+                                        Pilih Acak (Spinwheel)
+                                      </Button>
+                                      <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        className="w-full text-[10px] gap-1.5 justify-center h-8 font-semibold text-muted-foreground hover:text-foreground"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          updateMutation.mutate({
+                                            id: match.id,
+                                            competition_id: competition.id,
+                                            team2_id: null,
+                                            team_ids: [match.team1_id, null].filter(Boolean) as string[]
+                                          });
+                                        }}
+                                      >
+                                        <RefreshCw className="w-3.5 h-3.5" />
+                                        Reset ke TBD
+                                      </Button>
+                                    </div>
                                   </PopoverContent>
                                 </Popover>
                               ) : (
@@ -1494,6 +1557,37 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
           />
         );
       })()}
+
+      {/* Spin Wheel per-team */}
+      {spinningMatchContext && (
+        <SpinWheelDialog
+          open={!!spinningMatchContext}
+          onOpenChange={(open) => !open && setSpinningMatchContext(null)}
+          teams={allTeams.filter(t => t.id !== (spinningMatchContext.teamPosition === 1 ? spinningMatchContext.match.team2_id : spinningMatchContext.match.team1_id))}
+          competitionId={competition.id}
+          targetCount={1}
+          allowTargetEdit={false}
+          applying={updateMutation.isPending}
+          title={`Spin Wheel — Tim ${spinningMatchContext.teamPosition}`}
+          description="Putar untuk memilih tim secara acak."
+          onApply={(picked) => {
+            if (picked.length > 0) {
+              const newTeamId = picked[0];
+              const match = spinningMatchContext.match;
+              const team1Id = spinningMatchContext.teamPosition === 1 ? newTeamId : match.team1_id;
+              const team2Id = spinningMatchContext.teamPosition === 2 ? newTeamId : match.team2_id;
+              
+              updateMutation.mutate({
+                id: match.id,
+                competition_id: competition.id,
+                team1_id: spinningMatchContext.teamPosition === 1 ? newTeamId : undefined,
+                team2_id: spinningMatchContext.teamPosition === 2 ? newTeamId : undefined,
+                team_ids: [team1Id, team2Id].filter(Boolean) as string[]
+              }, { onSuccess: () => setSpinningMatchContext(null) });
+            }
+          }}
+        />
+      )}
 
       {/* Confirmation Dialogs */}
       <AlertDialog open={!!matchToReset} onOpenChange={(open) => !open && setMatchToReset(null)}>
