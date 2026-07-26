@@ -1245,7 +1245,7 @@ export default function LiveMatches() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-full overflow-x-hidden min-w-0">
           {/* Filters */}
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 bg-muted/30 p-3 rounded-xl border">
             <div className="relative flex-1 w-full">
@@ -1379,7 +1379,46 @@ export default function LiveMatches() {
           </div>
 
           <Tabs defaultValue="live" value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="space-y-4">
-          <TabsList className="grid grid-cols-5 w-full h-11 p-1 bg-muted/60 border rounded-xl">
+          <div className="sm:hidden mb-4 relative z-50">
+            <Select value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
+              <SelectTrigger className="w-full bg-muted/60 border rounded-xl h-11 font-semibold">
+                <SelectValue placeholder="Pilih Tampilan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="live">
+                  <div className="flex items-center gap-2">
+                    <Radio className={`w-4 h-4 ${ongoingMatches.length > 0 ? "text-red-500 animate-pulse" : ""}`} />
+                    <span>Live {ongoingMatches.length > 0 ? `(${ongoingMatches.length})` : ""}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="upcoming">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <span>Akan Datang {upcomingMatches.length > 0 ? `(${upcomingMatches.length})` : ""}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="completed">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
+                    <span>Selesai {completedMatches.length > 0 ? `(${completedMatches.length})` : ""}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="chart">
+                  <div className="flex items-center gap-2">
+                    <GitBranch className="w-4 h-4 text-muted-foreground" />
+                    <span>Bagan</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="standings">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-4 h-4 text-muted-foreground" />
+                    <span>Klasemen</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <TabsList className="hidden sm:grid grid-cols-5 w-full h-11 p-1 bg-muted/60 border rounded-xl">
             <TabsTrigger value="live" className="rounded-lg gap-1 text-[11px] sm:text-xs font-semibold px-1">
               <Radio className={`w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0 ${ongoingMatches.length > 0 ? "text-red-500 animate-pulse" : ""}`} />
               <span className="hidden xs:inline">Live</span>
@@ -2146,7 +2185,7 @@ export default function LiveMatches() {
             })()}
           </TabsContent>
 
-          <TabsContent value="chart" className="space-y-6">
+          <TabsContent value="chart" className="space-y-6 max-w-full overflow-hidden w-full min-w-0">
             {(() => {
               const competitionsToShow = selectedCompetitionId === "all"
                 ? uniqueCompetitions
@@ -2206,9 +2245,9 @@ export default function LiveMatches() {
               }
 
               return (
-                <div className="space-y-8">
+                <div className="space-y-8 w-full max-w-full min-w-0">
                   {compsWithMatches.map(({ comp, compMatches }) => (
-                    <div key={comp.id} className="space-y-3 bg-muted/10 p-4 rounded-2xl border border-muted/80 backdrop-blur-sm">
+                    <div key={comp.id} className="space-y-3 bg-muted/10 p-4 rounded-2xl border border-muted/80 backdrop-blur-sm max-w-full min-w-0">
                       <div className="flex items-center gap-2.5 pb-2 border-b border-muted">
                         <span className="text-xl">{getSportEmoji(comp.sport_name)}</span>
                         <div>
@@ -2221,7 +2260,7 @@ export default function LiveMatches() {
                         </div>
                       </div>
 
-                      <div className="pt-2 overflow-x-auto w-full pb-4 custom-scrollbar">
+                      <div className="pt-2 overflow-hidden w-full pb-4 max-w-full min-w-0">
                         <TournamentBracket
                           competitionId={comp.id}
                           matches={compMatches}

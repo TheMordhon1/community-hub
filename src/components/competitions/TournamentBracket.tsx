@@ -437,10 +437,10 @@ export function TournamentBracket<T extends BracketMatch>({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full max-w-full min-w-0">
       {/* Navigation Header for Rounds */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-muted/30 border backdrop-blur p-2 rounded-xl">
-        <div className="flex items-center justify-between gap-2 w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-muted/30 border backdrop-blur p-2 rounded-xl max-w-full min-w-0 overflow-hidden">
+        <div className="flex items-center justify-between gap-2 w-full sm:w-auto min-w-0">
           <Button
             variant="outline"
             size="icon"
@@ -480,7 +480,7 @@ export function TournamentBracket<T extends BracketMatch>({
         </div>
 
         {(Object.keys(offsets).length > 0 || (canManage && (onResetKnockout || onRegenerateKnockout))) && (
-          <div className="flex items-center justify-end gap-2 w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-muted/50">
+          <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2 w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-muted/50 pb-1 sm:pb-0 shrink-0">
             {Object.keys(offsets).length > 0 && (
               <Button
                 variant="ghost"
@@ -541,7 +541,7 @@ export function TournamentBracket<T extends BracketMatch>({
       {/* Viewport container */}
       <div 
         ref={containerRef}
-        className="overflow-x-auto pb-32 pt-12 scrollbar-thin relative w-full border rounded-2xl bg-muted/5 px-4 sm:px-6"
+        className="overflow-x-auto pb-32 pt-12 scrollbar-thin relative w-full max-w-[calc(100vw-56px)] sm:max-w-[calc(100vw-80px)] min-w-0 border rounded-2xl bg-muted/5 px-4 sm:px-6"
         onScroll={handleScroll}
       >
         <div ref={innerRef} className="relative flex gap-12 min-w-max pr-12 pb-24">

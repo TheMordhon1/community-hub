@@ -709,6 +709,20 @@ export default function LiveScoreDialog({
     }
   };
 
+  const activeMatches = (competition.matches || [])
+    .filter((m) => m.status !== "cancelled")
+    .sort((a, b) => {
+      if (a.match_datetime && b.match_datetime) {
+        return new Date(a.match_datetime).getTime() - new Date(b.match_datetime).getTime();
+      }
+      if (a.match_datetime && !b.match_datetime) return -1;
+      if (!a.match_datetime && b.match_datetime) return 1;
+      return (a.match_number || 0) - (b.match_number || 0);
+    });
+  
+  const activeMatchIndex = activeMatches.findIndex((m) => m.id === match.id);
+  const displayMatchNumber = activeMatchIndex !== -1 ? activeMatchIndex + 1 : match.match_number;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md sm:max-w-3xl overflow-auto flex flex-col max-h-[95vh] p-0">
@@ -725,7 +739,7 @@ export default function LiveScoreDialog({
             <span className="font-semibold text-foreground/80">{competition.sport_name}</span>
             <span className="text-muted-foreground/30 hidden xs:inline">•</span>
             <span className="text-muted-foreground/80">
-              {is17an ? `Sesi ${match.match_number}` : `Babak ${match.round_number} (Match ${match.match_number})`}
+              {is17an ? `Sesi ${displayMatchNumber}` : `Babak ${match.round_number} (Match ${displayMatchNumber})`}
             </span>
             {match.group_name && (
               <>
