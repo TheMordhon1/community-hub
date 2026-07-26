@@ -607,30 +607,32 @@ export function GroupStandings({ competition, canManage = false }: Props) {
 
   return (
     <>
-      <div className="flex justify-end mb-4 gap-2">
+      <div className="flex flex-wrap items-center justify-end mb-4 gap-2 w-full">
         {canManage && (
           <>
             <Button 
               variant="outline" 
               size="sm" 
-              className="h-8 text-xs font-bold gap-1.5"
+              className="h-8 text-xs font-bold gap-1.5 flex-1 sm:flex-none whitespace-nowrap"
               onClick={openStageManager}
             >
-              <Settings2 className="w-3.5 h-3.5" />
-              Pengaturan Stage
+              <Settings2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Pengaturan Stage</span>
+              <span className="sm:hidden">Pengaturan</span>
             </Button>
             <Button 
               variant="default" 
               size="sm" 
-              className="h-8 text-xs font-bold gap-1.5 bg-primary/90 hover:bg-primary text-primary-foreground"
+              className="h-8 text-xs font-bold gap-1.5 bg-primary/90 hover:bg-primary text-primary-foreground flex-1 sm:flex-none whitespace-nowrap"
               onClick={openGenerateKnockout}
             >
-              <Play className="w-3.5 h-3.5" />
-              Generate Knockout Stage
+              <Play className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Generate Knockout Stage</span>
+              <span className="sm:hidden">Gen Knockout</span>
             </Button>
           </>
         )}
-        <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground bg-muted/40 border rounded-lg px-3 py-1.5 cursor-pointer hover:bg-muted/70 transition-colors">
+        <label className="flex items-center justify-center gap-2 text-xs font-semibold text-muted-foreground bg-muted/40 border rounded-lg px-3 py-1.5 cursor-pointer hover:bg-muted/70 transition-colors w-full sm:w-auto">
           <input
             type="checkbox"
             checked={showFlags}
