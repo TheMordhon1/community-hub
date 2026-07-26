@@ -499,11 +499,11 @@ export default function LiveMatches() {
       const userIds = new Set<string>();
       teams.forEach((t) => t.members?.forEach((m) => { if (m.user_id) userIds.add(m.user_id); }));
       
-      let profileMap = new Map<string, { id: string, full_name: string | null, house?: { block: string; number: string } }>();
+      let profileMap = new Map<string, { id: string, full_name: string | null, avatar_url?: string | null, house?: { block: string; number: string } }>();
       if (userIds.size > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id, full_name")
+          .select("id, full_name, avatar_url")
           .in("id", Array.from(userIds));
         profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
 

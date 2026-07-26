@@ -1547,6 +1547,9 @@ export function useUpdateTeamPhase() {
       queryClient.invalidateQueries({
         queryKey: ["competition-details", result.competition_id],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["live-teams"],
+      });
       toast({
         title: "Berhasil",
         description: "Fase tim berhasil diperbarui",

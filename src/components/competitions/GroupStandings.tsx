@@ -23,7 +23,7 @@ import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
 import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarImage, AvatarFallback } from "@radix-ui/react-avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 interface Props {
   competition: EventCompetitionWithDetails;
   canManage?: boolean;
@@ -280,6 +280,16 @@ function TeamPhasePopover({ team, competition, onUpdate, isUpdating }: {
   const [label, setLabel] = useState(team.next_stage_label || "Quarter Final");
   const [isConfirming, setIsConfirming] = useState(false);
 
+  const settings = competition.kids_brackets as unknown as Record<string, any> || {};
+  const stageTypes = settings.__stage_types || {};
+
+  const handleSelectLabel = (val: string) => {
+    setLabel(val);
+    if (stageTypes[val]) {
+      setType(stageTypes[val]);
+    }
+  };
+
   return (
     <Popover 
       open={open} 
@@ -322,13 +332,13 @@ function TeamPhasePopover({ team, competition, onUpdate, isUpdating }: {
           <div className="space-y-2">
             <label className="text-[10px] font-semibold text-muted-foreground">Nama Fase/Grup</label>
             {type === "knockout" ? (
-              <Select value={label} onValueChange={setLabel}>
+              <Select value={label} onValueChange={handleSelectLabel}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {competition.stages && competition.stages.length > 0 ? (
-                    competition.stages.map(s => (
+                  {competition.stages && competition.stages.filter(s => (stageTypes[s.name] || "knockout") === "knockout").length > 0 ? (
+                    competition.stages.filter(s => (stageTypes[s.name] || "knockout") === "knockout").map(s => (
                       <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
                     ))
                   ) : (
@@ -342,12 +352,33 @@ function TeamPhasePopover({ team, competition, onUpdate, isUpdating }: {
                 </SelectContent>
               </Select>
             ) : (
-              <Input 
-                value={label} 
-                onChange={(e) => setLabel(e.target.value)} 
-                placeholder="Misal: Playoff Grup A" 
-                className="h-8 text-xs" 
-              />
+              <div className="space-y-2">
+                <Select value={competition.stages?.some(s => s.name === label) ? label : ""} onValueChange={handleSelectLabel}>
+                  <SelectTrigger className="h-8 text-xs bg-muted/30">
+                    <SelectValue placeholder="Pilih fase yang sudah ada..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {competition.stages?.filter(s => stageTypes[s.name] === "playoff").length ? (
+                      competition.stages.filter(s => stageTypes[s.name] === "playoff").map(s => (
+                        <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-2 text-[10px] text-muted-foreground text-center italic">Belum ada grup yang disimpan</div>
+                    )}
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-2">
+                  <div className="h-px bg-border flex-1"></div>
+                  <span className="text-[9px] text-muted-foreground font-semibold">ATAU KETIK BARU</span>
+                  <div className="h-px bg-border flex-1"></div>
+                </div>
+                <Input 
+                  value={label} 
+                  onChange={(e) => setLabel(e.target.value)} 
+                  placeholder="Misal: Playoff Grup A" 
+                  className="h-8 text-xs" 
+                />
+              </div>
             )}
           </div>
           {!isConfirming ? (
@@ -406,8 +437,9 @@ export function GroupStandings({ competition, canManage = false }: Props) {
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
 
   const [isStageManagerOpen, setIsStageManagerOpen] = useState(false);
-  const [localStages, setLocalStages] = useState<{ id?: string; name: string; order_number: number }[]>([]);
+  const [localStages, setLocalStages] = useState<{ id?: string; name: string; order_number: number; type: string }[]>([]);
   const [newStageName, setNewStageName] = useState("");
+  const [newStageType, setNewStageType] = useState("knockout");
 
   const updateCompetition = useUpdateCompetition();
   const updateTeamPhase = useUpdateTeamPhase();
@@ -470,11 +502,32 @@ export function GroupStandings({ competition, canManage = false }: Props) {
   const openStageManager = () => {
     // default to empty or the saved stages
     const currentStages = competition.stages || [];
-    setLocalStages(currentStages.map(s => ({ id: s.id, name: s.name, order_number: s.order_number })));
+    const settings = competition.kids_brackets as unknown as Record<string, any> || {};
+    const stageTypes = settings.__stage_types || {};
+    
+    setLocalStages(currentStages.map(s => ({ 
+      id: s.id, 
+      name: s.name, 
+      order_number: s.order_number,
+      type: stageTypes[s.name] || "knockout"
+    })));
     setIsStageManagerOpen(true);
   };
 
   const handleSaveStages = () => {
+    const settings = { ...(competition.kids_brackets as unknown as Record<string, any> || {}) };
+    const newStageTypes: Record<string, string> = {};
+    localStages.forEach(s => {
+      newStageTypes[s.name] = s.type;
+    });
+    settings.__stage_types = newStageTypes;
+
+    updateCompetition.mutate({
+      id: competition.id,
+      event_id: competition.event_id,
+      kids_brackets: settings as unknown as any,
+    });
+
     saveCompetitionStages.mutate({
       competition_id: competition.id,
       stages: localStages.map((s, idx) => ({ name: s.name, order_number: idx + 1 })),
@@ -640,7 +693,7 @@ export function GroupStandings({ competition, canManage = false }: Props) {
                           const name = capitalizeName(profile?.full_name?.trim() || parsed.name || "Pemain");
                           const house = profile?.house || 
                             (m.house_block && m.house_number ? { block: m.house_block, number: m.house_number } : null);
-                          return { id: m.id, name, house, avatar_url: profile?.avatar_url };
+                          return { id: m.id, name, house, avatar_url: parsed.avatarUrl || r.team.logo_url || profile?.avatar_url };
                         }) || [];
                         const hasMembers = membersWithHouse.length > 0;
 
@@ -865,9 +918,27 @@ export function GroupStandings({ competition, canManage = false }: Props) {
               >
                 <div className="flex flex-col gap-0.5 flex-1 min-w-0 mr-2">
                   <span className="text-sm font-semibold truncate">{stage.name}</span>
-                  <span className="text-[10px] text-muted-foreground font-medium">
-                    Urutan: {idx + 1}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground font-medium">
+                      Urutan: {idx + 1}
+                    </span>
+                    <Select 
+                      value={stage.type} 
+                      onValueChange={(val) => {
+                        const updated = [...localStages];
+                        updated[idx].type = val;
+                        setLocalStages(updated);
+                      }}
+                    >
+                      <SelectTrigger className="h-5 text-[9px] w-[130px] border-none bg-muted/50 px-1.5 focus:ring-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="knockout" className="text-[10px]">Babak Gugur (Knockout)</SelectItem>
+                        <SelectItem value="playoff" className="text-[10px]">Grup / Playoff</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <Button
@@ -903,31 +974,42 @@ export function GroupStandings({ competition, canManage = false }: Props) {
             ))}
           </div>
 
-          <div className="mt-3 pt-3 border-t flex items-center gap-2">
-            <Input
-              placeholder="Nama fase (misal: Final, Semi Final)"
-              value={newStageName}
-              onChange={(e) => setNewStageName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newStageName.trim()) {
-                  setLocalStages(prev => [...prev, { name: newStageName.trim(), order_number: prev.length + 1 }]);
-                  setNewStageName("");
-                }
-              }}
-              className="h-9 text-sm flex-1"
-            />
+          <div className="mt-3 pt-3 border-t flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <Select value={newStageType} onValueChange={setNewStageType}>
+                <SelectTrigger className="h-9 text-xs w-[180px] shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="knockout">Babak Gugur</SelectItem>
+                  <SelectItem value="playoff">Grup / Playoff</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="Nama fase (misal: Final, Grup A)"
+                value={newStageName}
+                onChange={(e) => setNewStageName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newStageName.trim()) {
+                    setLocalStages(prev => [...prev, { name: newStageName.trim(), order_number: prev.length + 1, type: newStageType }]);
+                    setNewStageName("");
+                  }
+                }}
+                className="h-9 text-sm flex-1"
+              />
+            </div>
             <Button
               size="sm"
               variant="outline"
-              className="h-9 px-3 shrink-0 flex items-center gap-1"
+              className="h-9 px-3 w-full flex items-center justify-center gap-1"
               disabled={!newStageName.trim()}
               onClick={() => {
-                setLocalStages(prev => [...prev, { name: newStageName.trim(), order_number: prev.length + 1 }]);
+                setLocalStages(prev => [...prev, { name: newStageName.trim(), order_number: prev.length + 1, type: newStageType }]);
                 setNewStageName("");
               }}
             >
               <Plus className="w-3.5 h-3.5" />
-              Tambah
+              Tambah Fase
             </Button>
           </div>
 
@@ -935,7 +1017,7 @@ export function GroupStandings({ competition, canManage = false }: Props) {
             <Button variant="outline" size="sm" onClick={() => setIsStageManagerOpen(false)}>
               Batal
             </Button>
-            <Button size="sm" onClick={handleSaveStages} disabled={saveCompetitionStages.isPending}>
+            <Button size="sm" onClick={handleSaveStages} disabled={saveCompetitionStages.isPending || updateCompetition.isPending}>
               Simpan Urutan
             </Button>
           </DialogFooter>
