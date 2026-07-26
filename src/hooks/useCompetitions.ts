@@ -799,42 +799,7 @@ export function useUpdateMatch() {
         queryKey: ["live-matches"],
       });
       
-      // Handle progression if match is completed with a winner
-      if (variables.status === "completed" && variables.winner_id && variables.id) {
-        try {
-          // Fetch current match to get next_match_id
-          const { data: match, error } = await supabase
-            .from("competition_matches")
-            .select("next_match_id, match_number")
-            .eq("id", variables.id)
-            .single();
-            
-          if (error) throw error;
-          
-          if (match?.next_match_id) {
-            // Determine if team1 or team2 in the next match
-            // Match M goes to match ceil(M/2) in the next round.
-            // If M is odd, it's team1. If M is even, it's team2.
-            const isTeam1 = match.match_number % 2 !== 0;
-            const updateData = isTeam1 
-              ? { team1_id: variables.winner_id } 
-              : { team2_id: variables.winner_id };
-              
-            const { error: nextError } = await supabase
-              .from("competition_matches")
-              .update(updateData)
-              .eq("id", match.next_match_id);
-              
-            if (nextError) throw nextError;
-            
-            queryClient.invalidateQueries({
-              queryKey: ["competition-details", variables.competition_id],
-            });
-          }
-        } catch (err) {
-          console.error("Error progressing winner:", err);
-        }
-      }
+      // Progression logic disabled as per user request to allow manual team assignment
       
       toast({
         title: "Berhasil",

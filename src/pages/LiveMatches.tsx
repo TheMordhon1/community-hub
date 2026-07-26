@@ -578,25 +578,14 @@ export default function LiveMatches() {
         standings.slice(0, advance).forEach(row => eligibleIds.add(row.team.id));
       });
       
-      baseEligible = compTeams.filter(t => eligibleIds.has(t.id));
-    }
-    
-    // Filter out teams that are already assigned to other matches IN THIS ROUND
-    if (match.stage === "knockout") {
-      const otherMatchesInRound = matches.filter(m => 
-        m.competition_id === match.competition_id && 
-        m.stage === "knockout" && 
-        m.round_number === match.round_number &&
-        m.id !== match.id
-      );
-      
-      const alreadyAssignedIds = new Set<string>();
-      otherMatchesInRound.forEach(m => {
-        if (m.team1?.id) alreadyAssignedIds.add(m.team1.id);
-        if (m.team2?.id) alreadyAssignedIds.add(m.team2.id);
+      // Also add manually passed teams
+      compTeams.forEach(t => {
+        if (t.next_stage_label) {
+          eligibleIds.add(t.id);
+        }
       });
       
-      baseEligible = baseEligible.filter(t => !alreadyAssignedIds.has(t.id));
+      baseEligible = compTeams.filter(t => eligibleIds.has(t.id));
     }
     
     return baseEligible;

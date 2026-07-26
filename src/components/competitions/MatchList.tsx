@@ -161,6 +161,31 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
     return { round: r, name };
   });
 
+  const getEligibleTeamsForMatch = (match: CompetitionMatchWithTeams) => {
+    let baseEligible = allTeams;
+    
+    if (competition.format === "liga_grup" && match.stage === "knockout") {
+      const advance = competition.advance_per_group || 2;
+      const groupNamesSet = Array.from(new Set(allTeams.filter(t => !!t.group_name).map(t => t.group_name!)));
+      
+      const eligibleIds = new Set<string>();
+      groupNamesSet.forEach(g => {
+        const standings = computeStandings(allTeams, matches, g);
+        standings.slice(0, advance).forEach(row => eligibleIds.add(row.team.id));
+      });
+      
+      allTeams.forEach(t => {
+        if (t.next_stage_label) {
+          eligibleIds.add(t.id);
+        }
+      });
+      
+      baseEligible = allTeams.filter(t => eligibleIds.has(t.id));
+    }
+    
+    return baseEligible;
+  };
+
   const filteredMatches = matches.filter((match) => {
     // 1. Filter by search query (team name or member name)
     if (searchQuery.trim()) {
@@ -647,7 +672,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                         </SelectTrigger>
                                         <SelectContent>
                                           <SelectItem value="none">Pilih Tim (TBD)</SelectItem>
-                                          {allTeams.map((t) => {
+                                          {getEligibleTeamsForMatch(match).map((t) => {
                                             const flag = getTeamFlag(t);
                                             const isEmoji = flag && !flag.includes("/");
                                             const isAlreadySelected = match.participants?.some(otherP => otherP.id !== p.id && otherP.team_id === t.id);
@@ -771,7 +796,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                       </SelectTrigger>
                                       <SelectContent>
                                         <SelectItem value="none">Pilih Tim (TBD)</SelectItem>
-                                        {allTeams.map((t) => {
+                                        {getEligibleTeamsForMatch(match).map((t) => {
                                           const flag = getTeamFlag(t);
                                           const isEmoji = flag && !flag.includes("/");
                                           return (
@@ -917,7 +942,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                       </SelectTrigger>
                                       <SelectContent>
                                         <SelectItem value="none">Pilih Tim (TBD)</SelectItem>
-                                        {allTeams.map((t) => {
+                                        {getEligibleTeamsForMatch(match).map((t) => {
                                           const flag = getTeamFlag(t);
                                           const isEmoji = flag && !flag.includes("/");
                                           return (

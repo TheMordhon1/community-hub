@@ -644,33 +644,7 @@ export function TournamentBracket<T extends BracketMatch>({
                       </div>
                       {canManage && (
                         <div className="absolute -top-7 left-0 right-0 flex items-center justify-between opacity-0 group-hover/card:opacity-100 transition-opacity duration-200 z-30 select-none px-1">
-                          <button
-                            type="button"
-                            onClick={() => toggleTargetSide(match.id)}
-                            className={cn(
-                              "px-1.5 py-0.5 rounded border text-[9px] font-bold shadow-sm transition-all flex items-center gap-1",
-                              ((connectionSides[match.id]?.targetSide || 'left') === 'left') 
-                                ? "bg-primary text-primary-foreground border-primary" 
-                                : "bg-card text-muted-foreground border-border hover:bg-muted"
-                            )}
-                            title="Titik Masuk Garis (Garis Kiri/Kanan)"
-                          >
-                            Masuk: {(connectionSides[match.id]?.targetSide || 'left') === 'left' ? '← Kiri' : '→ Kanan'}
-                          </button>
-                          <div className="flex gap-1">
-                            <button
-                              type="button"
-                              onClick={() => toggleSourceSide(match.id)}
-                              className={cn(
-                                "px-1.5 py-0.5 rounded border text-[9px] font-bold shadow-sm transition-all flex items-center gap-1",
-                                ((connectionSides[match.id]?.sourceSide || 'right') === 'left') 
-                                  ? "bg-primary text-primary-foreground border-primary" 
-                                  : "bg-card text-muted-foreground border-border hover:bg-muted"
-                              )}
-                              title="Titik Keluar Garis (Garis Kiri/Kanan)"
-                            >
-                              Keluar: {(connectionSides[match.id]?.sourceSide || 'right') === 'left' ? '← Kiri' : '→ Kanan'}
-                            </button>
+                          <div className="flex gap-1 ml-auto">
                             {onDeleteMatch && (
                               <button
                                 type="button"
