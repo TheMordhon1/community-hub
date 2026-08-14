@@ -486,11 +486,12 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
             Kategori: <span className="font-medium">{AGE_CATEGORY_LABELS[ageCategory]}</span>
             {" · "}
             <span className="font-medium">{GENDER_CATEGORY_LABELS[genderCategory]}</span>
-            {isPaidEvent && " · Rumah harus sudah membayar."}
+            {!is17an && isPaidEvent && " · Rumah harus sudah membayar."}
           </DialogDescription>
         </DialogHeader>
 
-        {isPaidEvent && (
+        {!is17an && isPaidEvent && (
+
           <Alert>
             <Wallet className="h-4 w-4" />
             <AlertTitle>Acara Berbayar</AlertTitle>
