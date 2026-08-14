@@ -223,10 +223,21 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         : getKidsBracket(ageValue)
       : null;
 
+  const hasBrackets = !!customBrackets && customBrackets.length > 0;
+  // Age is required when the competition targets kids, or when the organizer has
+  // defined age brackets (registration must fall inside one of them).
+  const requireAge = ageCategory === "kids" || hasBrackets;
+  const matchedBracket =
+    hasBrackets && ageValue != null && !isNaN(ageValue)
+      ? findBracket(ageValue, customBrackets)
+      : null;
+  const bracketMismatch = hasBrackets && ageValue != null && !isNaN(ageValue) && !matchedBracket;
+
   const categoryMismatch =
     ageGroup && ageCategory !== "mixed" && ageGroup !== ageCategory;
   const genderMismatch =
     genderCategory !== "mixed" && gender !== "" && !isGenderMatchingCategory(gender as Gender, genderCategory);
+
 
   const selectedProfile = profiles?.find((p) => p.id === selectedProfileId);
   const finalName =
