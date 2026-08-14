@@ -368,6 +368,38 @@ export type Database = {
           },
         ]
       }
+      competition_stages: {
+        Row: {
+          competition_id: string
+          created_at: string
+          id: string
+          name: string
+          order_number: number
+        }
+        Insert: {
+          competition_id: string
+          created_at?: string
+          id?: string
+          name: string
+          order_number: number
+        }
+        Update: {
+          competition_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          order_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_stages_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "event_competitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competition_team_members: {
         Row: {
           created_at: string
@@ -407,38 +439,6 @@ export type Database = {
             referencedRelation: "competition_teams"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      competition_stages: {
-        Row: {
-          id: string
-          competition_id: string
-          name: string
-          order_number: number
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          competition_id: string
-          name: string
-          order_number: number
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          competition_id?: string
-          name?: string
-          order_number?: number
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "competition_stages_competition_id_fkey"
-            columns: ["competition_id"]
-            isOneToOne: false
-            referencedRelation: "event_competitions"
-            referencedColumns: ["id"]
-          }
         ]
       }
       competition_teams: {
