@@ -21,7 +21,7 @@ import {
   PARTICIPANT_TYPE_LABELS,
   STATUS_LABELS,
 } from "@/types/competition";
-import { AGE_CATEGORY_LABELS, GENDER_CATEGORY_LABELS, type AgeCategory, type GenderCategory } from "@/lib/age-groups";
+import { AGE_CATEGORY_LABELS, GENDER_CATEGORY_LABELS, formatBracket, type AgeBracket, type AgeCategory, type GenderCategory } from "@/lib/age-groups";
 import { useDeleteCompetition } from "@/hooks/useCompetitions";
 
 interface CompetitionCardProps {
