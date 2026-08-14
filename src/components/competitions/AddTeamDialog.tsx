@@ -948,11 +948,13 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
               isPending ||
               submitting ||
               isFormInvalid ||
-              (!isTeam && isPaidEvent && !selectedHouse) ||
-              (ageCategory === "kids" && ageInput.trim() !== "" && (ageValue == null || isNaN(ageValue))) ||
+              (!isTeam && !is17an && isPaidEvent && !selectedHouse) ||
+              (!isActualTeamMode && requireAge && (ageValue == null || isNaN(ageValue))) ||
+              (!isActualTeamMode && bracketMismatch) ||
               !!categoryMismatch ||
-              (!isActualTeamMode && genderCategory === "mixed" && genderMismatch)
+              (!isActualTeamMode && !is17an && genderCategory === "mixed" && genderMismatch)
             }
+
           >
             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Daftarkan
