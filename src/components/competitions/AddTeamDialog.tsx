@@ -116,6 +116,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
 
   const ageCategory = (competition.age_category as AgeCategory) || "mixed";
   const genderCategory = ((competition as unknown as { gender_category?: GenderCategory }).gender_category) || "mixed";
+  const is17an = competition.format === "17an";
+
 
   // Parent event for paid-event status
   const { data: event } = useQuery({
@@ -221,10 +223,21 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         : getKidsBracket(ageValue)
       : null;
 
+  const hasBrackets = !!customBrackets && customBrackets.length > 0;
+  // Age is required when the competition targets kids, or when the organizer has
+  // defined age brackets (registration must fall inside one of them).
+  const requireAge = ageCategory === "kids" || hasBrackets;
+  const matchedBracket =
+    hasBrackets && ageValue != null && !isNaN(ageValue)
+      ? findBracket(ageValue, customBrackets)
+      : null;
+  const bracketMismatch = hasBrackets && ageValue != null && !isNaN(ageValue) && !matchedBracket;
+
   const categoryMismatch =
     ageGroup && ageCategory !== "mixed" && ageGroup !== ageCategory;
   const genderMismatch =
     genderCategory !== "mixed" && gender !== "" && !isGenderMatchingCategory(gender as Gender, genderCategory);
+
 
   const selectedProfile = profiles?.find((p) => p.id === selectedProfileId);
   const finalName =
@@ -284,7 +297,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         return;
       }
     }
-    if (!isTeam && isPaidEvent) {
+    if (!isTeam && !is17an && isPaidEvent) {
       if (!selectedHouse) {
         toast({
           variant: "destructive",
@@ -302,11 +315,21 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         return;
       }
     }
-    if (ageCategory === "kids" && ageValue != null && (isNaN(ageValue) || ageValue < 0)) {
+    if (requireAge && !isActualTeamMode && (ageValue == null || isNaN(ageValue) || ageValue < 0)) {
       toast({
         variant: "destructive",
-        title: "Umur tidak valid",
-        description: "Masukkan umur yang valid atau kosongkan jika tidak diketahui.",
+        title: "Umur wajib diisi",
+        description: hasBrackets
+          ? "Umur diperlukan untuk menentukan grup umur peserta."
+          : "Masukkan umur peserta yang valid.",
+      });
+      return;
+    }
+    if (!isActualTeamMode && bracketMismatch) {
+      toast({
+        variant: "destructive",
+        title: "Umur di luar grup umur",
+        description: `Grup umur tersedia: ${(customBrackets || []).map(formatBracket).join(", ")}.`,
       });
       return;
     }
@@ -318,6 +341,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       });
       return;
     }
+
 
     const existingSeeds = competition.teams?.map((t) => t.seed_number || 0) || [];
     const nextSeed = existingSeeds.length > 0 ? Math.max(...existingSeeds) + 1 : 1;
@@ -462,11 +486,12 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
             Kategori: <span className="font-medium">{AGE_CATEGORY_LABELS[ageCategory]}</span>
             {" · "}
             <span className="font-medium">{GENDER_CATEGORY_LABELS[genderCategory]}</span>
-            {isPaidEvent && " · Rumah harus sudah membayar."}
+            {!is17an && isPaidEvent && " · Rumah harus sudah membayar."}
           </DialogDescription>
         </DialogHeader>
 
-        {isPaidEvent && (
+        {!is17an && isPaidEvent && (
+
           <Alert>
             <Wallet className="h-4 w-4" />
             <AlertTitle>Acara Berbayar</AlertTitle>
@@ -476,7 +501,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           </Alert>
         )}
 
-        {eligibleHouses.length === 0 && (
+        {!is17an && eligibleHouses.length === 0 && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Tidak ada rumah yang bisa didaftarkan</AlertTitle>
@@ -712,7 +737,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
             </>
           )}
 
-          {!isTeam && !isActualTeamMode && (
+          {!isTeam && !isActualTeamMode && !is17an && (
             <div className="space-y-2">
               <Label>
                 Nomor Rumah
@@ -738,10 +763,10 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
             </div>
           )}
 
-          {!isActualTeamMode && ageCategory === "kids" && (
+          {!isActualTeamMode && requireAge && (
               <div className="space-y-2">
                 <Label htmlFor="age">
-                  Umur (tahun)
+                  Umur (tahun) <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="age"
@@ -754,15 +779,41 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                 <p className="text-xs text-muted-foreground">
                   Gunakan desimal untuk anak-anak (mis. 1.6 = 1 thn 7 bln).
                 </p>
+                {hasBrackets && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-xs text-muted-foreground">Grup umur:</span>
+                    {(customBrackets || []).map((b, i) => (
+                      <Badge
+                        key={i}
+                        variant={
+                          matchedBracket && formatBracket(matchedBracket) === formatBracket(b)
+                            ? "default"
+                            : "outline"
+                        }
+                        className="text-[10px]"
+                      >
+                        {formatBracket(b)}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
                 {ageGroup && (
                   <div className="flex flex-wrap items-center gap-2 pt-1">
                     <Badge variant="secondary">
                       Kategori: {AGE_GROUP_LABELS[ageGroup]}
                     </Badge>
-                    {kidsBracket && (
+                    {!hasBrackets && kidsBracket && (
                       <Badge variant="outline">Grup Anak: {kidsBracket}</Badge>
                     )}
                   </div>
+                )}
+                {bracketMismatch && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Umur {ageInput} tidak masuk grup umur yang tersedia.
+                    </AlertDescription>
+                  </Alert>
                 )}
                 {categoryMismatch && (
                   <Alert variant="destructive" className="mt-2">
@@ -775,7 +826,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
               </div>
           )}
 
-          {!isActualTeamMode && genderCategory === "mixed" && (
+
+          {!isActualTeamMode && !is17an && genderCategory === "mixed" && (
               <div className="space-y-2">
                 <Label>
                   Jenis Kelamin
@@ -808,7 +860,9 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                 )}
               </div>
           )}
+          {!is17an && (
           <div className="space-y-2">
+
             <Label htmlFor="team-flag">Bendera / Ikon Tim (Opsional)</Label>
             <Popover open={isFlagPopoverOpen} onOpenChange={setIsFlagPopoverOpen} modal={true}>
               <PopoverTrigger asChild>
@@ -881,6 +935,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
               </PopoverContent>
             </Popover>
           </div>
+          )}
+
         </div>
 
         <DialogFooter className="shrink-0 pt-2 border-t">
@@ -893,11 +949,13 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
               isPending ||
               submitting ||
               isFormInvalid ||
-              (!isTeam && isPaidEvent && !selectedHouse) ||
-              (ageCategory === "kids" && ageInput.trim() !== "" && (ageValue == null || isNaN(ageValue))) ||
+              (!isTeam && !is17an && isPaidEvent && !selectedHouse) ||
+              (!isActualTeamMode && requireAge && (ageValue == null || isNaN(ageValue))) ||
+              (!isActualTeamMode && bracketMismatch) ||
               !!categoryMismatch ||
-              (!isActualTeamMode && genderCategory === "mixed" && genderMismatch)
+              (!isActualTeamMode && !is17an && genderCategory === "mixed" && genderMismatch)
             }
+
           >
             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Daftarkan
