@@ -315,11 +315,21 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         return;
       }
     }
-    if (ageCategory === "kids" && ageValue != null && (isNaN(ageValue) || ageValue < 0)) {
+    if (requireAge && !isActualTeamMode && (ageValue == null || isNaN(ageValue) || ageValue < 0)) {
       toast({
         variant: "destructive",
-        title: "Umur tidak valid",
-        description: "Masukkan umur yang valid atau kosongkan jika tidak diketahui.",
+        title: "Umur wajib diisi",
+        description: hasBrackets
+          ? "Umur diperlukan untuk menentukan grup umur peserta."
+          : "Masukkan umur peserta yang valid.",
+      });
+      return;
+    }
+    if (!isActualTeamMode && bracketMismatch) {
+      toast({
+        variant: "destructive",
+        title: "Umur di luar grup umur",
+        description: `Grup umur tersedia: ${(customBrackets || []).map(formatBracket).join(", ")}.`,
       });
       return;
     }
@@ -331,6 +341,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       });
       return;
     }
+
 
     const existingSeeds = competition.teams?.map((t) => t.seed_number || 0) || [];
     const nextSeed = existingSeeds.length > 0 ? Math.max(...existingSeeds) + 1 : 1;
