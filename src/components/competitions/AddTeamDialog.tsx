@@ -934,6 +934,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
               </PopoverContent>
             </Popover>
           </div>
+          )}
+
         </div>
 
         <DialogFooter className="shrink-0 pt-2 border-t">
