@@ -859,7 +859,9 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                 )}
               </div>
           )}
+          {!is17an && (
           <div className="space-y-2">
+
             <Label htmlFor="team-flag">Bendera / Ikon Tim (Opsional)</Label>
             <Popover open={isFlagPopoverOpen} onOpenChange={setIsFlagPopoverOpen} modal={true}>
               <PopoverTrigger asChild>
