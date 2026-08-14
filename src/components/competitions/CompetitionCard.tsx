@@ -131,6 +131,22 @@ export function CompetitionCard({
             )}
           </div>
 
+          {ageBrackets.length > 0 && (
+            <div className="space-y-1.5 rounded-lg border border-dashed p-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Grup Umur
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {ageBrackets.map((b, i) => (
+                  <Badge key={i} variant="secondary" className="text-[10px] font-normal">
+                    {formatBracket(b)}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+
           {/* Actions */}
           <div className="flex gap-2 pt-2 mt-auto">
             <Button asChild variant="default" size="sm" className="flex-1">
