@@ -73,9 +73,10 @@ export function CompetitionCard({
                 <Trophy className="w-5 h-5 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
-                <CardTitle className="text-lg line-clamp-1">
+                <CardTitle className="text-sm font-semibold leading-snug line-clamp-2">
                   {competition.sport_name}
                 </CardTitle>
+
                 {showEventName && (
                   <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
                     {showEventName}
