@@ -116,6 +116,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
 
   const ageCategory = (competition.age_category as AgeCategory) || "mixed";
   const genderCategory = ((competition as unknown as { gender_category?: GenderCategory }).gender_category) || "mixed";
+  const is17an = competition.format === "17an";
+
 
   // Parent event for paid-event status
   const { data: event } = useQuery({
