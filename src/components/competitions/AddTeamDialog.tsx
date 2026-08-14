@@ -826,7 +826,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           )}
 
 
-          {!isActualTeamMode && genderCategory === "mixed" && (
+          {!isActualTeamMode && !is17an && genderCategory === "mixed" && (
               <div className="space-y-2">
                 <Label>
                   Jenis Kelamin
