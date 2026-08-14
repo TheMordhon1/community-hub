@@ -736,7 +736,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
             </>
           )}
 
-          {!isTeam && !isActualTeamMode && (
+          {!isTeam && !isActualTeamMode && !is17an && (
             <div className="space-y-2">
               <Label>
                 Nomor Rumah
@@ -762,10 +762,10 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
             </div>
           )}
 
-          {!isActualTeamMode && ageCategory === "kids" && (
+          {!isActualTeamMode && requireAge && (
               <div className="space-y-2">
                 <Label htmlFor="age">
-                  Umur (tahun)
+                  Umur (tahun) <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="age"
@@ -778,15 +778,41 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                 <p className="text-xs text-muted-foreground">
                   Gunakan desimal untuk anak-anak (mis. 1.6 = 1 thn 7 bln).
                 </p>
+                {hasBrackets && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-xs text-muted-foreground">Grup umur:</span>
+                    {(customBrackets || []).map((b, i) => (
+                      <Badge
+                        key={i}
+                        variant={
+                          matchedBracket && formatBracket(matchedBracket) === formatBracket(b)
+                            ? "default"
+                            : "outline"
+                        }
+                        className="text-[10px]"
+                      >
+                        {formatBracket(b)}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
                 {ageGroup && (
                   <div className="flex flex-wrap items-center gap-2 pt-1">
                     <Badge variant="secondary">
                       Kategori: {AGE_GROUP_LABELS[ageGroup]}
                     </Badge>
-                    {kidsBracket && (
+                    {!hasBrackets && kidsBracket && (
                       <Badge variant="outline">Grup Anak: {kidsBracket}</Badge>
                     )}
                   </div>
+                )}
+                {bracketMismatch && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Umur {ageInput} tidak masuk grup umur yang tersedia.
+                    </AlertDescription>
+                  </Alert>
                 )}
                 {categoryMismatch && (
                   <Alert variant="destructive" className="mt-2">
@@ -798,6 +824,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                 )}
               </div>
           )}
+
 
           {!isActualTeamMode && genderCategory === "mixed" && (
               <div className="space-y-2">
