@@ -297,7 +297,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         return;
       }
     }
-    if (!isTeam && isPaidEvent) {
+    if (!isTeam && !is17an && isPaidEvent) {
       if (!selectedHouse) {
         toast({
           variant: "destructive",
