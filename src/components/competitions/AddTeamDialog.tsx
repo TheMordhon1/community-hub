@@ -500,7 +500,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           </Alert>
         )}
 
-        {eligibleHouses.length === 0 && (
+        {!is17an && eligibleHouses.length === 0 && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Tidak ada rumah yang bisa didaftarkan</AlertTitle>
