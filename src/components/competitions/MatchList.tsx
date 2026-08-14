@@ -23,7 +23,7 @@ import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
 import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
 import { AssignRefereeDialog } from "@/components/competitions/AssignRefereeDialog";
 import { Play } from "lucide-react";
-import { useResetMatch, useDeleteMatch, useUpdateMatch, useAssignMatchTeams, useGenerateBracket, useGenerateKnockoutFromGroups, useAdvance17anRound, useResetKnockoutPhase, useCreateMatch } from "@/hooks/useCompetitions";
+import { useResetMatch, useDeleteMatch, useUpdateMatch, useAssignMatchTeams, useGenerateBracket, useGenerateKnockoutFromGroups, useAdvance17anRound, useResetKnockoutPhase, useCreateMatch, useGenerate17an } from "@/hooks/useCompetitions";
 import {
   areAllGroupMatchesCompleted,
   computeStandings,
@@ -87,6 +87,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
   const generateBracket = useGenerateBracket();
   const generateKnockout = useGenerateKnockoutFromGroups();
   const advanceRound = useAdvance17anRound();
+  const create17anSchedule = useGenerate17an();
   const resetKnockout = useResetKnockoutPhase();
   const createMatch = useCreateMatch();
   const queryClient = useQueryClient();
@@ -256,37 +257,12 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
     return true;
   });
 
-  // Group matches by round
-  const matchesByRound = filteredMatches.reduce((acc, match) => {
+  const getMatchPhaseName = (match: CompetitionMatchWithTeams) => {
+    if (match.phase_label) return match.phase_label;
+
     const round = match.round_number;
-    if (!acc[round]) acc[round] = [];
-    acc[round].push(match);
-    return acc;
-  }, {} as Record<number, CompetitionMatchWithTeams[]>);
-
-  // Sort matches within each round by datetime (descending - latest first, nulls last), then by match_number
-  const timeOf = (m: CompetitionMatchWithTeams) =>
-    m.match_datetime ? new Date(m.match_datetime).getTime() : 0;
-
-  Object.keys(matchesByRound).forEach((r) => {
-    matchesByRound[Number(r)].sort((a, b) => {
-      if (!a.match_datetime && b.match_datetime) return 1;
-      if (a.match_datetime && !b.match_datetime) return -1;
-      if (!a.match_datetime && !b.match_datetime) return (a.match_number || 0) - (b.match_number || 0);
-
-      const diff = timeOf(b) - timeOf(a);
-      if (diff !== 0) return diff;
-      return (a.match_number || 0) - (b.match_number || 0);
-    });
-  });
-
-  const getRoundName = (round: number, totalRounds: number, matches: CompetitionMatchWithTeams[]) => {
-    // Check if there's a custom phase label in any match of this round
-    const customLabel = matches.find(m => m.phase_label)?.phase_label;
-    if (customLabel) return customLabel;
-
     if (competition.stages && competition.stages.length > 0) {
-      if (matches[0]?.stage === "group") {
+      if (match.stage === "group") {
         const maxOrder = Math.max(...competition.stages.map(s => s.order_number));
         const groupStageName = competition.stages.find(s => s.order_number === maxOrder);
         if (groupStageName) return groupStageName.name;
@@ -306,6 +282,30 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
     return `Babak ${round}`;
   };
 
+  // Group matches by phase name
+  const matchesByPhase = filteredMatches.reduce((acc, match) => {
+    const phaseName = getMatchPhaseName(match);
+    if (!acc[phaseName]) acc[phaseName] = [];
+    acc[phaseName].push(match);
+    return acc;
+  }, {} as Record<string, CompetitionMatchWithTeams[]>);
+
+  // Sort matches within each phase by datetime (descending - latest first, nulls last), then by match_number
+  const timeOf = (m: CompetitionMatchWithTeams) =>
+    m.match_datetime ? new Date(m.match_datetime).getTime() : 0;
+
+  Object.keys(matchesByPhase).forEach((phaseName) => {
+    matchesByPhase[phaseName].sort((a, b) => {
+      if (!a.match_datetime && b.match_datetime) return 1;
+      if (a.match_datetime && !b.match_datetime) return -1;
+      if (!a.match_datetime && !b.match_datetime) return (a.match_number || 0) - (b.match_number || 0);
+
+      const diff = timeOf(b) - timeOf(a);
+      if (diff !== 0) return diff;
+      return (a.match_number || 0) - (b.match_number || 0);
+    });
+  });
+
 
 
   const getStatusVariant = (status: string) => {
@@ -322,14 +322,6 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
         return "outline";
     }
   };
-
-  // Order phases by earliest match datetime, then by round number
-  const sortedRoundEntries = Object.entries(matchesByRound).sort(([ra, ma], [rb, mb]) => {
-    const ta = Math.min(...ma.map(timeOf));
-    const tb = Math.min(...mb.map(timeOf));
-    if (ta !== tb) return ta - tb;
-    return Number(ra) - Number(rb);
-  });
 
 
 
@@ -1270,6 +1262,45 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
           }
           
           if (comp.format === "17an") {
+            const hasMatches = matchesList.length > 0;
+            const highestRound = hasMatches ? Math.max(...matchesList.map(m => m.round_number)) : 0;
+            const latestMatches = matchesList.filter(m => m.round_number === highestRound);
+            const allLatestCompleted = latestMatches.length > 0 && latestMatches.every(m => m.status === 'completed');
+            
+            if (!hasMatches) {
+              return (
+                <div className="text-center space-y-3 p-4">
+                  <Play className="w-8 h-8 text-primary mx-auto opacity-75" />
+                  <div>
+                    <p className="text-xs font-bold">Mulai Pertandingan</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Buat jadwal pertama untuk format kompetisi ini.</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (teamsList.length === 0) {
+                        alert("Belum ada peserta yang terdaftar.");
+                        return;
+                      }
+                      const num = window.prompt("Berapa peserta per pertandingan?", "2");
+                      const parsedNum = Math.max(1, parseInt(num || "2", 10) || 1);
+                      create17anSchedule.mutate({ 
+                        competition_id: comp.id,
+                        teams: teamsList,
+                        teams_per_match: parsedNum,
+                        phase_label: "Babak 1"
+                      });
+                    }}
+                    disabled={create17anSchedule.isPending}
+                    className="w-full text-xs font-bold"
+                  >
+                    {create17anSchedule.isPending ? "Memproses..." : "Buat Jadwal Pertama"}
+                  </Button>
+                </div>
+              );
+            }
+
             return (
               <div className="text-center space-y-3 p-4">
                 <Trophy className="w-8 h-8 text-primary mx-auto opacity-75 animate-bounce" />
@@ -1462,16 +1493,26 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
           );
         }
 
-        return sortedRoundEntries.map(([round, roundMatches], roundIdx) => (
-          <div key={round} className="space-y-3">
+        const sortedPhaseEntries = Object.entries(matchesByPhase).sort(([phaseA, ma], [phaseB, mb]) => {
+          const ta = Math.min(...ma.map(timeOf).filter(t => t > 0));
+          const tb = Math.min(...mb.map(timeOf).filter(t => t > 0));
+          if (isFinite(ta) && isFinite(tb) && ta !== tb) return ta - tb;
+          
+          const minRoundA = Math.min(...ma.map(m => m.round_number || 1));
+          const minRoundB = Math.min(...mb.map(m => m.round_number || 1));
+          return minRoundA - minRoundB;
+        });
+
+        return sortedPhaseEntries.map(([phaseName, phaseMatches], phaseIdx) => (
+          <div key={phaseName} className="space-y-3">
             <h4 className="font-semibold text-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2 sm:border-none sm:pb-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-base sm:text-lg">{getRoundName(Number(round), totalRounds, roundMatches)}</span>
-                <Badge variant="outline" className="font-normal text-xs whitespace-nowrap">{roundMatches.length} pertandingan</Badge>
+                <span className="text-base sm:text-lg">{phaseName}</span>
+                <Badge variant="outline" className="font-normal text-xs whitespace-nowrap">{phaseMatches.length} pertandingan</Badge>
               </div>
               <div className="flex items-center gap-1.5 justify-end w-full sm:w-auto">
                 {/* Phase actions menu — rendered only on first round header */}
-                {roundIdx === 0 && headerActions && (
+                {phaseIdx === 0 && headerActions && (
                   <div className="relative z-10">{headerActions}</div>
                 )}
                 {canManage && (
@@ -1480,11 +1521,11 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                     size="sm" 
                     className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-primary px-2"
                     onClick={() => {
-                      const firstMatch = roundMatches[0];
+                      const firstMatch = phaseMatches[0];
                       const newLabel = window.prompt("Ubah Label Pertandingan/Babak (kosongkan untuk kembali ke default):", firstMatch.phase_label || "");
                       if (newLabel !== null) {
                         // Bulk update all matches in this round
-                        roundMatches.forEach(m => {
+                        phaseMatches.forEach(m => {
                           updateMutation.mutate({
                             id: m.id,
                             competition_id: competition.id,
@@ -1502,7 +1543,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
             </h4>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {roundMatches.map((match, index) => renderMatchCard(match, index))}
+              {phaseMatches.map((match, index) => renderMatchCard(match, index))}
             </div>
           </div>
         ));
