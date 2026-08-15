@@ -16,7 +16,51 @@ import type {
   CompetitionMatchParticipant,
 } from "@/types/competition";
 import type { Profile } from "@/types/database";
+import type { AgeBracket, AgeCategory, GenderCategory } from "@/lib/age-groups";
+import type { Json, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
+
+/** Shared shape of the competition configuration fields editable from the UI. */
+interface CompetitionConfigInput {
+  sport_name: string;
+  format: CompetitionFormat;
+  match_type: MatchType;
+  custom_match_label?: string | null;
+  participant_type: ParticipantType;
+  rules?: string | null;
+  max_participants?: number | null;
+  registration_deadline?: string | null;
+  status?: CompetitionStatus;
+  is_point?: boolean;
+  age_category?: AgeCategory;
+  gender_category?: GenderCategory;
+  kids_brackets?: AgeBracket[] | null;
+  group_count?: number | null;
+  sets_per_match?: number | null;
+  advance_per_group?: number | null;
+}
+
+export type CreateCompetitionInput = CompetitionConfigInput & {
+  event_id?: string | null;
+};
+
+export type UpdateCompetitionInput = Partial<CompetitionConfigInput> & {
+  id: string;
+  event_id: string;
+};
+
+/** Age brackets are stored as jsonb; normalize to a Json-compatible value. */
+const serializeBrackets = (brackets: AgeBracket[] | null | undefined): Json | null =>
+  brackets ? (brackets as unknown as Json) : null;
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return fallback;
+};
+
 
 const parseMemberName = (rawName: string | null | undefined) => {
   if (!rawName) return { name: "", avatarUrl: "" };
