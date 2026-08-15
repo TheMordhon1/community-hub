@@ -323,25 +323,12 @@ export function useCreateCompetition() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: {
-      event_id?: string;
-      sport_name: string;
-      format: CompetitionFormat;
-      match_type: MatchType;
-      custom_match_label?: string | null;
-      participant_type: ParticipantType;
-      rules?: string;
-      max_participants?: number;
-      registration_deadline?: string;
-      is_point?: boolean;
-      age_category?: string;
-      gender_category?: string;
-      kids_brackets?: { min: number; max: number; label?: string }[] | null;
-      group_count?: number | null;
-      sets_per_match?: number | null;
-      advance_per_group?: number | null;
-    }) => {
-      const { error } = await supabase.from("event_competitions").insert(data as never);
+    mutationFn: async (data: CreateCompetitionInput) => {
+      const payload: TablesInsert<"event_competitions"> = {
+        ...data,
+        kids_brackets: serializeBrackets(data.kids_brackets),
+      };
+      const { error } = await supabase.from("event_competitions").insert(payload);
 
       if (error) throw error;
     },
@@ -354,11 +341,11 @@ export function useCreateCompetition() {
       queryClient.invalidateQueries({ queryKey: ["all-competitions"] });
       toast({ title: "Berhasil", description: "Kompetisi berhasil dibuat" });
     },
-    onError: () => {
+    onError: (error: unknown) => {
       toast({
         variant: "destructive",
         title: "Gagal",
-        description: "Gagal membuat kompetisi",
+        description: getErrorMessage(error, "Gagal membuat kompetisi"),
       });
     },
   });
@@ -370,30 +357,17 @@ export function useUpdateCompetition() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: {
-      id: string;
-      event_id: string;
-      sport_name?: string;
-      format?: CompetitionFormat;
-      match_type?: MatchType;
-      custom_match_label?: string | null;
-      participant_type?: ParticipantType;
-      rules?: string | null;
-      max_participants?: number | null;
-      registration_deadline?: string | null;
-      status?: CompetitionStatus;
-      is_point?: boolean;
-      age_category?: string;
-      gender_category?: string;
-      kids_brackets?: { min: number; max: number; label?: string }[] | null;
-      group_count?: number | null;
-      sets_per_match?: number | null;
-      advance_per_group?: number | null;
-    }) => {
-      const { id, event_id, ...updateData } = data;
+    mutationFn: async ({ id, event_id, ...fields }: UpdateCompetitionInput) => {
+      const payload: TablesUpdate<"event_competitions"> = {
+        ...fields,
+        ...(fields.kids_brackets !== undefined
+          ? { kids_brackets: serializeBrackets(fields.kids_brackets) }
+          : {}),
+      };
+
       const { error } = await supabase
         .from("event_competitions")
-        .update(updateData as never)
+        .update(payload)
         .eq("id", id);
 
       if (error) throw error;
@@ -404,20 +378,22 @@ export function useUpdateCompetition() {
         queryKey: ["event-competitions", result.event_id],
       });
       queryClient.invalidateQueries({ queryKey: ["competition-details"] });
+      queryClient.invalidateQueries({ queryKey: ["all-competitions"] });
       toast({
         title: "Berhasil",
         description: "Kompetisi berhasil diperbarui",
       });
     },
-    onError: () => {
+    onError: (error: unknown) => {
       toast({
         variant: "destructive",
         title: "Gagal",
-        description: "Gagal memperbarui kompetisi",
+        description: getErrorMessage(error, "Gagal memperbarui kompetisi"),
       });
     },
   });
 }
+
 
 // Delete competition
 export function useDeleteCompetition() {
