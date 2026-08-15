@@ -801,13 +801,14 @@ export function useUpdateMatch() {
 
       if (participant_scores && participant_scores.length > 0) {
         for (const ps of participant_scores) {
-          const rowData: any = {
+          const rowData: TablesInsert<"competition_match_participants"> = {
             match_id: id,
             team_id: ps.team_id,
             score: ps.score,
             is_winner: ps.is_winner ?? false,
             winner_rank: ps.winner_rank ?? null,
           };
+
           
           if (ps.id) {
             const { error: partError } = await supabase
