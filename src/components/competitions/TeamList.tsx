@@ -112,8 +112,17 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   const groupOptions = GROUP_LETTERS.slice(0, groupCount);
 
   const teams = competition.teams || [];
-  const formedTeams = useMemo(() => teams.filter((t) => !t.is_individual), [teams]);
-  const individualRegistrants = useMemo(() => teams.filter((t) => t.is_individual), [teams]);
+  
+  const isIndividualFormat = useMemo(() => {
+    if (competition.format === "17an") return true;
+    if (competition.match_type === "1v1") return true;
+    // user or house participants don't need grouping
+    if (competition.participant_type === "user" || competition.participant_type === "house") return true;
+    return false;
+  }, [competition.format, competition.match_type, competition.participant_type]);
+
+  const formedTeams = useMemo(() => teams.filter((t) => isIndividualFormat || !t.is_individual), [teams, isIndividualFormat]);
+  const individualRegistrants = useMemo(() => isIndividualFormat ? [] : teams.filter((t) => t.is_individual), [teams, isIndividualFormat]);
 
   const handleDeleteTeam = () => {
     if (!deletingTeam) return;
@@ -280,11 +289,15 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                             <span>{extractFlagAndName(team.name).name}</span>
                           </h4>
                           <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                            {team.house && (
-                              <Badge variant="outline" className="text-xs">
-                                Blok {team.house.block} No. {team.house.number}
-                              </Badge>
-                            )}
+                            {(() => {
+                              const house = team.house || (team.members?.[0]?.profile as any)?.house;
+                              if (!house) return null;
+                              return (
+                                <Badge variant="outline" className="text-xs">
+                                  Blok {house.block} No. {house.number}
+                                </Badge>
+                              );
+                            })()}
                             {team.age != null && (
                               <Badge variant="outline" className="text-xs">
                                 {Number(team.age)} thn
@@ -354,7 +367,7 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                       )}
                     </div>
 
-                    {team.members && team.members.length > 0 && (
+                    {!team.is_individual && team.members && team.members.length > 0 && (
                       <div className="space-y-2">
                         <p className="text-xs text-muted-foreground uppercase">Anggota</p>
                         <div className="space-y-1">

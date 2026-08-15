@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, Trophy, Medal, Plus, X, Swords } from "lucide-react";
+import { Loader2, Trophy, Medal, Plus, X, Swords, Users, Trash2 } from "lucide-react";
 
 import { useUpdateMatch } from "@/hooks/useCompetitions";
 import { useToast } from "@/hooks/use-toast";
@@ -52,13 +52,15 @@ export function UpdateMatchDialog({
   const [winnerRank2, setWinnerRank2] = useState<number | null>(null);
   const [winnerId, setWinnerId] = useState<string>("");
   const [status, setStatus] = useState<MatchStatus>("scheduled");
-  const [location, setLocation] = useState("");
+  const [location, setLocation] = useState("Lapangan Badminton PKT");
   const [notes, setNotes] = useState("");
   const [phaseLabel, setPhaseLabel] = useState("");
   const [matchDatetime, setMatchDatetime] = useState("");
   const [isPoint, setIsPoint] = useState(true);
   const [isFinal, setIsFinal] = useState(false);
   const [sets, setSets] = useState<{ team1_score: number | ""; team2_score: number | "" }[]>([]);
+  const [localParticipants, setLocalParticipants] = useState<{ id: string; isNew?: boolean }[]>([]);
+  const [deletedParticipantIds, setDeletedParticipantIds] = useState<string[]>([]);
 
   // Additional editable fields
   const [roundNumber, setRoundNumber] = useState("1");
@@ -188,7 +190,7 @@ export function UpdateMatchDialog({
       setScore2(match.score2 || "");
       setWinnerId(match.winner_id || "");
       setStatus(match.status);
-      setLocation(match.location || "");
+      setLocation(match.location || "Lapangan Badminton PKT");
       setNotes(match.notes || "");
       setPhaseLabel(match.phase_label || "");
       setIsPoint(match.is_point !== false);
@@ -230,6 +232,8 @@ export function UpdateMatchDialog({
       
       // Handle participants
       if (match.participants) {
+        setLocalParticipants(match.participants.map(p => ({ id: p.id })));
+        setDeletedParticipantIds([]);
         const scores: Record<string, string> = {};
         const winners: Record<string, boolean> = {};
         const ranks: Record<string, number | null> = {};
@@ -320,12 +324,12 @@ export function UpdateMatchDialog({
             winner_rank: rankVal,
           };
         })
-      : (match.participants && match.participants.length > 0)
-        ? match.participants.map(p => {
+      : (localParticipants && localParticipants.length > 0)
+        ? localParticipants.map(p => {
             const teamIdVal = participantTeams[p.id];
-            const finalTeamId = teamIdVal === "none" ? null : (teamIdVal || p.team_id || null);
+            const finalTeamId = teamIdVal === "none" ? null : (teamIdVal || null);
             return {
-              id: p.id,
+              id: p.isNew ? undefined : p.id,
               team_id: finalTeamId,
               score: participantScores[p.id] || null,
               is_winner: participantWinners[p.id] || (participantRanks[p.id] === 1),
@@ -357,6 +361,7 @@ export function UpdateMatchDialog({
         team1_id: !is17an ? team1Id : null,
         team2_id: !is17an ? team2Id : null,
         team_ids: teamIds.length > 0 ? teamIds : undefined,
+        deleted_participant_ids: is17an && deletedParticipantIds.length > 0 ? deletedParticipantIds : undefined,
       },
 
       {
@@ -784,17 +789,34 @@ export function UpdateMatchDialog({
 
 
           {/* Participants Scores (17an) */}
-          {is17an && match.participants && match.participants.length > 0 && (
+          {is17an && (
             <div className="space-y-3">
               <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Skor Peserta</Label>
               <div className="grid gap-3">
-                {match.participants.map((p) => {
+                {localParticipants.map((p, index) => {
                   const currentTeamId = participantTeams[p.id] || "none";
                   return (
                     <div key={p.id} className="p-3 rounded-lg border bg-muted/30 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Slot Peserta {index + 1}</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-[10px] text-destructive hover:text-destructive/80"
+                          onClick={() => {
+                            if (!p.isNew) {
+                              setDeletedParticipantIds(prev => [...prev, p.id]);
+                            }
+                            setLocalParticipants(prev => prev.filter(x => x.id !== p.id));
+                          }}
+                        >
+                          <X className="w-3 h-3 mr-1" /> Hapus
+                        </Button>
+                      </div>
+                      
                       {/* Team card picker for this participant slot */}
                       <div className="space-y-1">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Peserta</Label>
                         <div className="grid grid-cols-1 gap-1 max-h-36 overflow-y-auto border rounded-md p-1.5 bg-background">
                           {/* TBD option */}
                           <button
@@ -874,11 +896,13 @@ export function UpdateMatchDialog({
                               key={r}
                               variant={participantRanks[p.id] === r ? "default" : "outline"}
                               size="sm"
-                              className={`h-8 flex-1 gap-1 text-[10px] uppercase font-bold tracking-tighter ${
-                                participantRanks[p.id] === r
-                                  ? (r === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : r === 2 ? 'bg-slate-400 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-700')
-                                  : ''
-                              }`}
+                              className={cn(
+                                "h-8 flex-1 gap-1 text-[10px] uppercase font-bold tracking-tighter transition-all",
+                                participantRanks[p.id] === r && r === 1 ? "bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500" : "",
+                                participantRanks[p.id] === r && r === 2 ? "bg-slate-400 hover:bg-slate-500 text-white border-slate-400" : "",
+                                participantRanks[p.id] === r && r === 3 ? "bg-amber-700 hover:bg-amber-800 text-white border-amber-700" : ""
+                              )}
+                              style={participantRanks[p.id] === r ? { backgroundColor: r === 1 ? '#eab308' : r === 2 ? '#94a3b8' : '#b45309', color: 'white', borderColor: 'transparent' } : {}}
                               onClick={() => setParticipantRanks(prev => ({ ...prev, [p.id]: prev[p.id] === r ? null : r }))}
                             >
                               <Medal className="w-3 h-3" />
@@ -890,6 +914,59 @@ export function UpdateMatchDialog({
                     </div>
                   );
                 })}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-dashed flex-1"
+                  onClick={() => setLocalParticipants(prev => [...prev, { id: `temp-${Date.now()}`, isNew: true }])}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Tambah Slot
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-dashed flex-1"
+                  onClick={() => {
+                    const existingTeamIds = Object.values(participantTeams);
+                    const unassignedTeams = allTeams.filter(t => !existingTeamIds.includes(t.id));
+                    
+                    const newParticipants = unassignedTeams.map((t, index) => ({
+                      id: `temp-${Date.now()}-${index}`,
+                      isNew: true
+                    }));
+                    
+                    const newParticipantTeams = { ...participantTeams };
+                    newParticipants.forEach((p, index) => {
+                      newParticipantTeams[p.id] = unassignedTeams[index].id;
+                    });
+                    
+                    setLocalParticipants(prev => [...prev, ...newParticipants]);
+                    setParticipantTeams(newParticipantTeams);
+                  }}
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Semua Peserta
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0 border-dashed w-9 h-9 border-destructive/30 text-destructive hover:bg-destructive/10"
+                  title="Hapus Semua Peserta"
+                  onClick={() => {
+                    const deletedIds = localParticipants.filter(p => !p.isNew).map(p => p.id);
+                    setDeletedParticipantIds(prev => [...prev, ...deletedIds]);
+                    setLocalParticipants([]);
+                    setParticipantTeams({});
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
             </div>
           )}
@@ -917,11 +994,11 @@ export function UpdateMatchDialog({
                           key={r}
                           variant={winnerRank1 === r ? "default" : "outline"}
                           size="sm"
-                          className={`h-7 flex-1 gap-1 text-[9px] uppercase font-bold tracking-tighter ${
-                            winnerRank1 === r 
-                              ? (r === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : r === 2 ? 'bg-slate-400 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-700') 
-                              : ''
-                          }`}
+                          className={cn(
+                            "h-7 flex-1 gap-1 text-[9px] uppercase font-bold tracking-tighter transition-all",
+                            winnerRank1 === r ? "border-transparent" : ""
+                          )}
+                          style={winnerRank1 === r ? { backgroundColor: r === 1 ? '#eab308' : r === 2 ? '#94a3b8' : '#b45309', color: 'white', borderColor: 'transparent' } : {}}
                           onClick={() => {
                             setWinnerRank1(winnerRank1 === r ? null : r);
                             if (r === 1 && winnerRank1 !== r) setWinnerId(team1Id);
@@ -951,11 +1028,11 @@ export function UpdateMatchDialog({
                           key={r}
                           variant={winnerRank2 === r ? "default" : "outline"}
                           size="sm"
-                          className={`h-7 flex-1 gap-1 text-[9px] uppercase font-bold tracking-tighter ${
-                            winnerRank2 === r 
-                              ? (r === 1 ? 'bg-yellow-500 hover:bg-yellow-600' : r === 2 ? 'bg-slate-400 hover:bg-slate-500' : 'bg-amber-600 hover:bg-amber-700') 
-                              : ''
-                          }`}
+                          className={cn(
+                            "h-7 flex-1 gap-1 text-[9px] uppercase font-bold tracking-tighter transition-all",
+                            winnerRank2 === r ? "border-transparent" : ""
+                          )}
+                          style={winnerRank2 === r ? { backgroundColor: r === 1 ? '#eab308' : r === 2 ? '#94a3b8' : '#b45309', color: 'white', borderColor: 'transparent' } : {}}
                           onClick={() => {
                             setWinnerRank2(winnerRank2 === r ? null : r);
                             if (r === 1 && winnerRank2 !== r) setWinnerId(team2Id);

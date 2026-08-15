@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Trophy, Medal } from "lucide-react";
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers, CompetitionMatchWithTeams } from "@/types/competition";
-import { computeStandings, GROUP_LETTERS, seedKnockoutFromStandings, hasKnockoutMatches } from "@/lib/liga-group";
+import { computeStandings, GROUP_LETTERS, seedKnockoutFromStandings, hasKnockoutMatches, StandingRow } from "@/lib/liga-group";
 import {
   Popover,
   PopoverContent,
@@ -280,8 +280,8 @@ function TeamPhasePopover({ team, competition, onUpdate, isUpdating }: {
   const [label, setLabel] = useState(team.next_stage_label || "Quarter Final");
   const [isConfirming, setIsConfirming] = useState(false);
 
-  const settings = competition.kids_brackets as unknown as Record<string, any> || {};
-  const stageTypes = settings.__stage_types || {};
+  const settings = competition.kids_brackets as unknown as Record<string, unknown> || {};
+  const stageTypes = (settings.__stage_types as Record<string, string>) || {};
 
   const handleSelectLabel = (val: string) => {
     setLabel(val);
@@ -467,12 +467,12 @@ export function GroupStandings({ competition, canManage = false }: Props) {
   };
 
   const handleGenerateKnockout = () => {
-    const fakeStandings: Record<string, any[]> = {};
+    const fakeStandings: Record<string, StandingRow[]> = {};
     for (const [g, teamIds] of Object.entries(selectedQualifiers)) {
       fakeStandings[g] = teamIds.map((tid) => ({
         played: 1,
         team: { id: tid }
-      }));
+      } as StandingRow));
     }
 
     const advanceMap: Record<string, number> = {};
@@ -486,7 +486,7 @@ export function GroupStandings({ competition, canManage = false }: Props) {
       advanceMap[g] = groupAdvanceCount;
     });
 
-    const pairs = seedKnockoutFromStandings(fakeStandings as any, advanceMap);
+    const pairs = seedKnockoutFromStandings(fakeStandings as Record<string, StandingRow[]>, advanceMap);
     
     generateKnockout.mutate({
       competition_id: competition.id,
@@ -502,8 +502,8 @@ export function GroupStandings({ competition, canManage = false }: Props) {
   const openStageManager = () => {
     // default to empty or the saved stages
     const currentStages = competition.stages || [];
-    const settings = competition.kids_brackets as unknown as Record<string, any> || {};
-    const stageTypes = settings.__stage_types || {};
+    const settings = competition.kids_brackets as unknown as Record<string, unknown> || {};
+    const stageTypes = (settings.__stage_types as Record<string, string>) || {};
     
     setLocalStages(currentStages.map(s => ({ 
       id: s.id, 
@@ -515,7 +515,7 @@ export function GroupStandings({ competition, canManage = false }: Props) {
   };
 
   const handleSaveStages = () => {
-    const settings = { ...(competition.kids_brackets as unknown as Record<string, any> || {}) };
+    const settings = { ...(competition.kids_brackets as unknown as Record<string, unknown> || {}) };
     const newStageTypes: Record<string, string> = {};
     localStages.forEach(s => {
       newStageTypes[s.name] = s.type;
@@ -525,7 +525,7 @@ export function GroupStandings({ competition, canManage = false }: Props) {
     updateCompetition.mutate({
       id: competition.id,
       event_id: competition.event_id,
-      kids_brackets: settings as unknown as any,
+      kids_brackets: settings as unknown as { min: number; max: number; label?: string }[],
     });
 
     saveCompetitionStages.mutate({

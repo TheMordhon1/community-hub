@@ -175,6 +175,8 @@ export function useCompetitionDetails(competitionId: string | undefined, options
           (membersData || []).map((m) => {
             const profile = m.user_id ? profileMap.get(m.user_id) : undefined;
             // For manual members, attach house from stored house_block/house_number columns
+            const team = teams?.find((t) => t.id === m.team_id);
+            const teamHouse = team?.house_id ? houseMap.get(team.house_id) : undefined;
             const manualHouse =
               !m.user_id &&
               (m as unknown as { house_block?: string | null }).house_block &&
@@ -182,6 +184,11 @@ export function useCompetitionDetails(competitionId: string | undefined, options
                 ? {
                     block: (m as unknown as { house_block: string }).house_block,
                     number: (m as unknown as { house_number: string }).house_number,
+                  }
+                : teamHouse
+                ? {
+                    block: teamHouse.block,
+                    number: teamHouse.number,
                   }
                 : undefined;
             return {
@@ -734,9 +741,10 @@ export function useUpdateMatch() {
       team1_id?: string | null;
       team2_id?: string | null;
       team_ids?: string[];
+      deleted_participant_ids?: string[];
       next_match_id?: string | null;
     }) => {
-      const { id, competition_id, participant_scores, team_ids, ...updateData } = data;
+      const { id, competition_id, participant_scores, team_ids, deleted_participant_ids, ...updateData } = data;
 
       const { error } = await supabase
           .from("competition_matches")
@@ -744,6 +752,14 @@ export function useUpdateMatch() {
           .eq("id", id);
 
       if (error) throw error;
+
+      if (deleted_participant_ids && deleted_participant_ids.length > 0) {
+        const { error: delErr } = await supabase
+          .from("competition_match_participants")
+          .delete()
+          .in("id", deleted_participant_ids);
+        if (delErr) throw delErr;
+      }
 
       if (team_ids) {
         // Replace participants set
@@ -764,14 +780,7 @@ export function useUpdateMatch() {
 
       if (participant_scores && participant_scores.length > 0) {
         for (const ps of participant_scores) {
-          const upsertData: {
-            id?: string;
-            match_id: string;
-            team_id: string | undefined;
-            score: string | null;
-            is_winner: boolean;
-            winner_rank: number | null;
-          } = {
+          const rowData: any = {
             match_id: id,
             team_id: ps.team_id,
             score: ps.score,
@@ -779,13 +788,18 @@ export function useUpdateMatch() {
             winner_rank: ps.winner_rank ?? null,
           };
           
-          if (ps.id) upsertData.id = ps.id;
-
-          const { error: partError } = await supabase
-            .from("competition_match_participants")
-            .upsert(upsertData, { onConflict: 'match_id, team_id' });
-          
-          if (partError) throw partError;
+          if (ps.id) {
+            const { error: partError } = await supabase
+              .from("competition_match_participants")
+              .update(rowData)
+              .eq("id", ps.id);
+            if (partError) throw partError;
+          } else {
+            const { error: partError } = await supabase
+              .from("competition_match_participants")
+              .insert(rowData);
+            if (partError) throw partError;
+          }
         }
       }
 

@@ -39,6 +39,9 @@ export function CompetitionCard({
 }: CompetitionCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const deleteMutation = useDeleteCompetition();
+  const ageBrackets: AgeBracket[] = Array.isArray(competition.kids_brackets)
+    ? (competition.kids_brackets as AgeBracket[])
+    : [];
 
   const handleDelete = () => {
     deleteMutation.mutate({

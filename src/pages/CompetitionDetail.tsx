@@ -118,7 +118,7 @@ export default function CompetitionDetail() {
   const [customPhaseLabel, setCustomPhaseLabel] = useState("");
   const [isFinalMatch, setIsFinalMatch] = useState(false);
   const [teamsPerMatch, setTeamsPerMatch] = useState<string>("2");
-  const [maxRankToShow, setMaxRankToShow] = useState(3);
+  const [announceVisibleRanks, setAnnounceVisibleRanks] = useState<number[] | null>(null);
 
   // Check if user can manage this competition
   const isReferee = competition?.referees?.some(
@@ -482,33 +482,35 @@ export default function CompetitionDetail() {
 
       {competition.matches?.some(m => m.is_final && (m.participants?.some(p => p.winner_rank) || (m.status === 'completed' && m.winner_id))) && (
         <div className="fixed bottom-6 inset-x-0 flex flex-col md:flex-row items-center justify-center gap-4 z-50 px-6">
-          {canManage && (
-            <div className="bg-background/95 backdrop-blur-md border rounded-full px-4 py-2 shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Tampilkan Juara:</span>
-              <div className="flex gap-1">
-                {[1, 2, 3].map((r) => (
-                  <Button
-                    key={r}
-                    variant={maxRankToShow === r ? "default" : "outline"}
-                    size="sm"
-                    className={`h-7 w-7 p-0 rounded-full text-[10px] ${maxRankToShow === r ? 'bg-primary' : ''}`}
-                    onClick={() => setMaxRankToShow(r)}
-                  >
-                    {r}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-          <Button 
-            className="h-auto py-3 px-10 bg-yellow-500 hover:bg-yellow-600 text-black font-black italic tracking-tight shadow-[0_8px_30px_rgb(234,179,8,0.3)] group animate-in slide-in-from-bottom-8 duration-500 rounded-full border-2 border-white/20"
-            onClick={() => setIsWinnerAnnounceOpen(true)}
-          >
-            <div className="flex items-center gap-3">
-              <Trophy className="w-5 h-5 group-hover:scale-125 transition-transform" />
-              <span className="text-base">LIHAT PEMENANG</span>
-            </div>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                className="bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-black italic tracking-tight shadow-[0_8px_30px_rgb(234,179,8,0.3)] group animate-in slide-in-from-bottom-8 duration-500 rounded-full border-2 border-white/20 py-3 px-10 h-auto text-base"
+              >
+                <div className="flex items-center gap-3">
+                  <Trophy className="w-5 h-5 group-hover:scale-125 transition-transform" />
+                  <span>LIHAT PEMENANG</span>
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-56 font-bold">
+              <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks(null); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer font-bold">
+                Tampilkan Semua (1, 2, 3)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks([1]); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer">
+                Tampilkan Juara 1 Saja
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks([2]); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer text-slate-500">
+                Tampilkan Juara 2 Saja
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks([3]); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer text-amber-600">
+                Tampilkan Juara 3 Saja
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks([1, 2]); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer">
+                Tampilkan Juara 1 & 2
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
 
@@ -604,6 +606,7 @@ export default function CompetitionDetail() {
               <MatchList
                 competition={competition}
                 canManage={canModifyMatches}
+                onCreateMatch={() => setIsCreateMatchOpen(true)}
                 headerActions={canModifyMatches ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -891,7 +894,7 @@ export default function CompetitionDetail() {
         open={isWinnerAnnounceOpen}
         onOpenChange={setIsWinnerAnnounceOpen}
         competition={competition}
-        maxRankToShow={maxRankToShow}
+        visibleRanks={announceVisibleRanks}
       />
     </section>
   );

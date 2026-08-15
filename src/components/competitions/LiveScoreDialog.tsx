@@ -1,15 +1,21 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import confetti from "canvas-confetti";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Loader2, Minus, Plus, Trophy, Users, CheckCircle2, Medal, RefreshCw, RotateCcw, Edit } from "lucide-react";
+import { Loader2, Minus, Plus, Trophy, Users, CheckCircle2, Medal, RefreshCw, RotateCcw, Edit, User } from "lucide-react";
 import { useUpdateMatch, useResetMatch } from "@/hooks/useCompetitions";
 import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
 import { toast } from "@/hooks/use-toast";
@@ -72,12 +78,14 @@ export default function LiveScoreDialog({
             id,
             name,
             logo_url,
+            house:houses(block, number),
             members:competition_team_members(id, name, user_id, house_block, house_number)
           ),
           team2:competition_teams!team2_id (
             id,
             name,
             logo_url,
+            house:houses(block, number),
             members:competition_team_members(id, name, user_id, house_block, house_number)
           ),
           participants:competition_match_participants (
@@ -90,6 +98,7 @@ export default function LiveScoreDialog({
               id,
               name,
               logo_url,
+              house:houses(block, number),
               members:competition_team_members(id, name, user_id, house_block, house_number)
             )
           )
@@ -113,11 +122,11 @@ export default function LiveScoreDialog({
         });
       }
 
-      let profileMap = new Map<string, { id: string, full_name: string | null, house?: { block: string; number: string } }>();
+      let profileMap = new Map<string, { id: string, full_name: string | null, avatar_url?: string | null, house?: { block: string; number: string } }>();
       if (userIds.size > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id, full_name")
+          .select("id, full_name, avatar_url")
           .in("id", Array.from(userIds));
         profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
 
@@ -143,6 +152,7 @@ export default function LiveScoreDialog({
       }
 
       interface TeamWithOptionalMembers {
+        house?: { block: string; number: string };
         members?: Array<{
           id: string;
           team_id?: string | null;
@@ -172,7 +182,7 @@ export default function LiveScoreDialog({
               ...mem,
               profile: {
                 full_name: profile.full_name,
-                avatar_url: null,
+                avatar_url: profile.avatar_url || null,
                 house: profile.house ? { block: profile.house.block, number: profile.house.number } : undefined
               }
             };
@@ -180,7 +190,9 @@ export default function LiveScoreDialog({
           const manualHouse =
             mem.house_block && mem.house_number
               ? { block: mem.house_block, number: mem.house_number }
-              : undefined;
+              : team.house?.block && team.house?.number
+                ? { block: team.house.block, number: team.house.number }
+                : undefined;
           return {
             ...mem,
             profile: manualHouse ? { house: manualHouse } : undefined,
@@ -219,6 +231,7 @@ export default function LiveScoreDialog({
   const [sets, setSets] = useState<{ team1_score: number | string; team2_score: number | string }[]>([]);
   const [activeSetIndex, setActiveSetIndex] = useState(0);
   const [isWinnerAnnounceOpen, setIsWinnerAnnounceOpen] = useState(false);
+  const [announceVisibleRanks, setAnnounceVisibleRanks] = useState<number[] | null>(null);
   // Track whether the user has unsaved local edits — if true, remote updates won't overwrite
   const isDirty = useRef(false);
   // Track the last match id we initialized from to detect dialog open/switch
@@ -685,7 +698,7 @@ export default function LiveScoreDialog({
   const setParticipantRank = (id: string, rank: number | null) => {
     isDirty.current = true;
     setParticipantScores(prev => prev.map(p => 
-      p.id === id ? { ...p, rank, isWinner: rank !== null ? true : p.isWinner } : p
+      p.id === id ? { ...p, winner_rank: rank, isWinner: rank !== null ? true : p.isWinner } : p
     ));
   };
 
@@ -785,25 +798,55 @@ export default function LiveScoreDialog({
                   return (
                     <div 
                       key={ps.id} 
-                      className={`rounded-2xl p-4 border transition-all duration-300 ${
-                        ps.isWinner 
-                          ? 'bg-primary/5 border-primary shadow-sm ring-1 ring-primary/20' 
-                          : 'bg-muted/30 border-border hover:bg-muted/50'
-                      }`}
+                      className={cn(
+                        "rounded-2xl p-4 border transition-all duration-300",
+                        !ps.isWinner && "bg-muted/30 border-border hover:bg-muted/50",
+                        ps.isWinner && !ps.winner_rank && "bg-primary/5 border-primary shadow-sm ring-1 ring-primary/20",
+                        ps.winner_rank === 1 && "border-yellow-500 shadow-sm ring-1 ring-yellow-500/20 bg-yellow-500/5",
+                        ps.winner_rank === 2 && "border-slate-400 shadow-sm ring-1 ring-slate-400/20 bg-slate-400/5",
+                        ps.winner_rank === 3 && "border-amber-700 shadow-sm ring-1 ring-amber-700/20 bg-amber-700/5"
+                      )}
+                      style={
+                        ps.winner_rank === 1 ? { borderColor: '#eab308', backgroundColor: 'rgba(234, 179, 8, 0.05)' } :
+                        ps.winner_rank === 2 ? { borderColor: '#94a3b8', backgroundColor: 'rgba(148, 163, 184, 0.05)' } :
+                        ps.winner_rank === 3 ? { borderColor: '#b45309', backgroundColor: 'rgba(180, 83, 9, 0.05)' } : {}
+                      }
                     >
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                         {/* Left: Team Info */}
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-0.5">
-                              <Users className={`w-4 h-4 ${ps.isWinner ? 'text-primary' : 'text-muted-foreground'}`} />
-                              <h3 className={`font-bold text-base truncate ${ps.isWinner ? 'text-primary' : ''}`}>
-                                {participant?.team?.name}
-                              </h3>
+                              {(() => {
+                                const isIndividual = competition.participant_type === 'user';
+                                const IconToUse = isIndividual ? User : Users;
+                                const firstMember = (participant?.team as CompetitionTeamWithMembers)?.members?.[0];
+                                
+                                let displayName = participant?.team?.name;
+                                if (isIndividual && firstMember) {
+                                  const parsed = parseMemberName(firstMember.name);
+                                  const name = capitalizeName(firstMember.profile?.full_name?.trim() || parsed.name || "Pemain");
+                                  const house = (firstMember.profile as typeof firstMember.profile & { house?: { block: string; number: string } })?.house;
+                                  displayName = `${name}${house ? ` (${house.block}.${house.number})` : ""}`;
+                                }
+                                
+                                return (
+                                  <>
+                                    <IconToUse className={cn("w-4 h-4", ps.isWinner && !ps.winner_rank ? "text-primary" : ps.winner_rank === 1 ? "text-yellow-500" : ps.winner_rank === 2 ? "text-slate-400" : ps.winner_rank === 3 ? "text-amber-700" : "text-muted-foreground")} 
+                                           style={ps.winner_rank === 1 ? { color: '#eab308' } : ps.winner_rank === 2 ? { color: '#94a3b8' } : ps.winner_rank === 3 ? { color: '#b45309' } : {}}
+                                    />
+                                    <h3 className={cn("font-bold text-base truncate", ps.isWinner && !ps.winner_rank ? "text-primary" : ps.winner_rank === 1 ? "text-yellow-500" : ps.winner_rank === 2 ? "text-slate-400" : ps.winner_rank === 3 ? "text-amber-700" : "")}
+                                        style={ps.winner_rank === 1 ? { color: '#eab308' } : ps.winner_rank === 2 ? { color: '#94a3b8' } : ps.winner_rank === 3 ? { color: '#b45309' } : {}}
+                                    >
+                                      {displayName}
+                                    </h3>
+                                  </>
+                                );
+                              })()}
                               {ps.isWinner && !ps.winner_rank && <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0 opacity-50" />}
                             </div>
 
                             {/* Players List */}
-                            {(participant?.team as CompetitionTeamWithMembers)?.members && (participant.team as CompetitionTeamWithMembers).members!.length > 0 && (
+                            {competition.participant_type !== 'user' && (participant?.team as CompetitionTeamWithMembers)?.members && (participant.team as CompetitionTeamWithMembers).members!.length > 0 && (
                               <div className="flex flex-wrap gap-1 mb-2">
                                 {(participant.team as CompetitionTeamWithMembers).members!.map((m) => {
                                   const parsed = parseMemberName(m.name);
@@ -897,9 +940,16 @@ export default function LiveScoreDialog({
                             <Button
                               variant={ps.isWinner ? "default" : "outline"}
                               size="icon"
-                              className={`h-12 w-12 md:h-14 md:w-14 rounded-xl transition-all duration-300 ${
-                                ps.isWinner ? 'bg-primary shadow-lg shadow-primary/20' : 'hover:border-primary/50'
-                              }`}
+                              className={cn(
+                                "h-12 w-12 md:h-14 md:w-14 rounded-xl transition-all duration-300 border-transparent",
+                                ps.isWinner && !ps.winner_rank && "bg-primary shadow-lg shadow-primary/20",
+                                !ps.isWinner && "hover:border-primary/50 text-muted-foreground"
+                              )}
+                              style={
+                                ps.winner_rank === 1 ? { backgroundColor: '#eab308', color: 'white' } :
+                                ps.winner_rank === 2 ? { backgroundColor: '#94a3b8', color: 'white' } :
+                                ps.winner_rank === 3 ? { backgroundColor: '#b45309', color: 'white' } : {}
+                              }
                               onClick={() => toggleParticipantWinner(ps.id)}
                             >
                               <Trophy className={`w-6 h-6 md:w-8 md:h-8 ${ps.isWinner ? 'fill-current' : ''}`} />
@@ -915,9 +965,11 @@ export default function LiveScoreDialog({
                                  key={r}
                                  variant={ps.winner_rank === r ? "default" : "outline"}
                                  size="sm"
-                                 className={`h-8 flex-1 gap-1 text-[10px] uppercase font-bold tracking-tighter transition-all ${
-                                   ps.winner_rank === r ? getRankColor(r) : 'text-muted-foreground hover:text-primary hover:border-primary/50'
-                                 }`}
+                                 className={cn(
+                                   "h-8 flex-1 gap-1 text-[10px] uppercase font-bold tracking-tighter transition-all",
+                                   ps.winner_rank === r ? "text-white border-transparent" : "text-muted-foreground hover:text-primary hover:border-primary/50"
+                                 )}
+                                 style={ps.winner_rank === r ? { backgroundColor: r === 1 ? '#eab308' : r === 2 ? '#94a3b8' : '#b45309', color: 'white', borderColor: 'transparent' } : {}}
                                  onClick={() => setParticipantRank(ps.id, ps.winner_rank === r ? null : r)}
                                >
                                  <Trophy className="w-3 h-3" />
@@ -985,11 +1037,22 @@ export default function LiveScoreDialog({
                 <div className="flex flex-col items-center flex-1 min-w-0">
                   <h3 className="font-bold text-sm sm:text-xl text-center leading-tight mb-1 flex flex-wrap items-center gap-1 justify-center w-full px-1">
                     {match.team1 && <TeamFlag team={match.team1} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />}
-                    <span className="break-words">{match.team1 ? extractFlagAndName(match.team1.name).name : "TBD"}</span>
+                    {(() => {
+                      const isIndividual = competition.participant_type === 'user';
+                      const firstMember = (match.team1 as CompetitionTeamWithMembers)?.members?.[0];
+                      let displayName = match.team1 ? extractFlagAndName(match.team1.name).name : "TBD";
+                      if (isIndividual && firstMember) {
+                        const parsed = parseMemberName(firstMember.name);
+                        const name = capitalizeName(firstMember.profile?.full_name?.trim() || parsed.name || "Pemain");
+                        const house = (firstMember.profile as typeof firstMember.profile & { house?: { block: string; number: string } })?.house;
+                        displayName = `${name}${house ? ` (${house.block}.${house.number})` : ""}`;
+                      }
+                      return <span className="break-words">{displayName}</span>;
+                    })()}
                   </h3>
 
                   {/* Players List Team 1 */}
-                  {(match.team1 as CompetitionTeamWithMembers)?.members && (match.team1 as CompetitionTeamWithMembers).members!.length > 0 && (
+                  {competition.participant_type !== 'user' && (match.team1 as CompetitionTeamWithMembers)?.members && (match.team1 as CompetitionTeamWithMembers).members!.length > 0 && (
                     <div className="flex flex-col items-center gap-0.5 mb-3 w-full px-1">
                       {(match.team1 as CompetitionTeamWithMembers).members!.map((m) => {
                         const parsed = parseMemberName(m.name);
@@ -1043,9 +1106,11 @@ export default function LiveScoreDialog({
                             key={r}
                             variant={winnerRank1 === r ? "default" : "outline"}
                             size="sm"
-                            className={`h-7 px-1.5 text-[9px] uppercase font-bold tracking-tighter transition-all ${
-                              winnerRank1 === r ? getRankColor(r) : 'text-muted-foreground'
-                            }`}
+                            className={cn(
+                              "h-7 px-1.5 text-[9px] uppercase font-bold tracking-tighter transition-all",
+                              winnerRank1 === r ? "text-white border-transparent" : "text-muted-foreground"
+                            )}
+                            style={winnerRank1 === r ? { backgroundColor: r === 1 ? '#eab308' : r === 2 ? '#94a3b8' : '#b45309', color: 'white', borderColor: 'transparent' } : {}}
                             onClick={() => setWinnerRank1(winnerRank1 === r ? null : r)}
                           >
                             Juara {r}
@@ -1123,10 +1188,21 @@ export default function LiveScoreDialog({
                 <div className="flex flex-col items-center flex-1 min-w-0">
                   <h3 className="font-bold text-sm sm:text-xl text-center leading-tight mb-1 flex flex-wrap items-center gap-1 justify-center w-full px-1">
                     {match.team2 && <TeamFlag team={match.team2} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />}
-                    <span className="break-words">{match.team2 ? extractFlagAndName(match.team2.name).name : "TBD"}</span>
+                    {(() => {
+                      const isIndividual = competition.participant_type === 'user';
+                      const firstMember = (match.team2 as CompetitionTeamWithMembers)?.members?.[0];
+                      let displayName = match.team2 ? extractFlagAndName(match.team2.name).name : "TBD";
+                      if (isIndividual && firstMember) {
+                        const parsed = parseMemberName(firstMember.name);
+                        const name = capitalizeName(firstMember.profile?.full_name?.trim() || parsed.name || "Pemain");
+                        const house = (firstMember.profile as typeof firstMember.profile & { house?: { block: string; number: string } })?.house;
+                        displayName = `${name}${house ? ` (${house.block}.${house.number})` : ""}`;
+                      }
+                      return <span className="break-words">{displayName}</span>;
+                    })()}
                   </h3>
                   {/* Players List Team 2 */}
-                  {(match.team2 as CompetitionTeamWithMembers)?.members && (match.team2 as CompetitionTeamWithMembers).members!.length > 0 && (
+                  {competition.participant_type !== 'user' && (match.team2 as CompetitionTeamWithMembers)?.members && (match.team2 as CompetitionTeamWithMembers).members!.length > 0 && (
                     <div className="flex flex-col items-center gap-0.5 mb-3 w-full px-1">
                       {(match.team2 as CompetitionTeamWithMembers).members!.map((m) => {
                         const parsed = parseMemberName(m.name);
@@ -1179,9 +1255,11 @@ export default function LiveScoreDialog({
                             key={r}
                             variant={winnerRank2 === r ? "default" : "outline"}
                             size="sm"
-                            className={`h-7 px-1.5 text-[9px] uppercase font-bold tracking-tighter transition-all ${
-                              winnerRank2 === r ? getRankColor(r) : 'text-muted-foreground'
-                            }`}
+                            className={cn(
+                              "h-7 px-1.5 text-[9px] uppercase font-bold tracking-tighter transition-all",
+                              winnerRank2 === r ? "text-white border-transparent" : "text-muted-foreground"
+                            )}
+                            style={winnerRank2 === r ? { backgroundColor: r === 1 ? '#eab308' : r === 2 ? '#94a3b8' : '#b45309', color: 'white', borderColor: 'transparent' } : {}}
                             onClick={() => setWinnerRank2(winnerRank2 === r ? null : r)}
                           >
                             Juara {r}
@@ -1209,15 +1287,35 @@ export default function LiveScoreDialog({
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="absolute bottom-24 right-6 z-50 pointer-events-auto"
+            className="absolute bottom-24 right-6 z-50 pointer-events-auto flex items-center gap-2"
           >
-            <Button
-              onClick={() => setIsWinnerAnnounceOpen(true)}
-              className="bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-black shadow-xl shadow-yellow-500/30 rounded-full border border-yellow-400/50 flex items-center gap-2 py-3 px-6 h-auto text-sm animate-bounce"
-            >
-              <Trophy className="w-5 h-5 fill-white" />
-              Tampilkan Pemenang
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  className="bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-black shadow-xl shadow-yellow-500/30 rounded-full border border-yellow-400/50 flex items-center gap-2 py-3 px-6 h-auto text-sm"
+                >
+                  <Trophy className="w-5 h-5 fill-white" />
+                  Tampilkan Pemenang
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 font-bold">
+                <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks(null); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer font-bold">
+                  Tampilkan Semua (1, 2, 3)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks([1]); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer">
+                  Tampilkan Juara 1 Saja
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks([2]); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer text-slate-500">
+                  Tampilkan Juara 2 Saja
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks([3]); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer text-amber-600">
+                  Tampilkan Juara 3 Saja
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks([1, 2]); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer">
+                  Tampilkan Juara 1 & 2
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </motion.div>
         )}
 
@@ -1282,12 +1380,38 @@ export default function LiveScoreDialog({
           </div>
         </DialogFooter>
       </DialogContent>
-      <WinnerAnnounceDialog
-        open={isWinnerAnnounceOpen}
-        onOpenChange={setIsWinnerAnnounceOpen}
-        competition={competition}
-        match={match}
-      />
+      {(() => {
+        const matchToAnnounce = (() => {
+          if (!match) return null;
+          if (is17an && match.participants) {
+            return {
+              ...match,
+              participants: match.participants.map(p => {
+                const localState = participantScores.find(ps => ps.id === p.id);
+                if (localState) {
+                  return {
+                    ...p,
+                    is_winner: localState.isWinner || localState.winner_rank === 1,
+                    winner_rank: localState.winner_rank
+                  };
+                }
+                return p;
+              })
+            };
+          }
+          return match;
+        })();
+
+        return (
+          <WinnerAnnounceDialog
+            open={isWinnerAnnounceOpen}
+            onOpenChange={setIsWinnerAnnounceOpen}
+            competition={competition}
+            match={matchToAnnounce}
+            visibleRanks={announceVisibleRanks}
+          />
+        );
+      })()}
     </Dialog>
   );
 }

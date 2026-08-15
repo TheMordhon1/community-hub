@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, Users, Sparkles, Shuffle, MousePointerClick, Swords, Calendar } from "lucide-react";
+import { Loader2, Users, Sparkles, Shuffle, MousePointerClick, Swords, Calendar, Clock } from "lucide-react";
 import { useCreateMatch } from "@/hooks/useCompetitions";
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
@@ -37,7 +37,7 @@ interface CreateMatchDialogProps {
   competition: EventCompetitionWithDetails;
 }
 
-type SelectionMode = "manual" | "random" | "spin";
+type SelectionMode = "manual" | "random" | "spin" | "later";
 
 export function CreateMatchDialog({
   open,
@@ -59,7 +59,7 @@ export function CreateMatchDialog({
     const min = String(now.getMinutes()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
   });
-  const [location, setLocation] = useState("");
+  const [location, setLocation] = useState("Lapangan Badminton PKT");
   const [maxParticipants, setMaxParticipants] = useState<string>("2");
   const [selectionMode, setSelectionMode] = useState<SelectionMode>("manual");
   const [spinFor, setSpinFor] = useState<{ matchId: string; target: number } | null>(null);
@@ -261,7 +261,7 @@ export function CreateMatchDialog({
       }
 
       if (competition.events) {
-        if (!location) setLocation(competition.events.location || "");
+        if (!location) setLocation(competition.events.location || "Lapangan Badminton PKT");
       }
       
       const defaultTime = (() => {
@@ -281,7 +281,7 @@ export function CreateMatchDialog({
       setTeam2Id("");
       setSelectedTeamIds([]);
       setMatchDatetime("");
-      setLocation("");
+      setLocation("Lapangan Badminton PKT");
       setMaxParticipants("2");
       setSelectionMode("manual");
       setSpinFor(null);
@@ -530,7 +530,7 @@ export function CreateMatchDialog({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {!isTeamMatchFormat && (
+            {(!isTeamMatchFormat || is17an) && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Babak (Round)</Label>
@@ -555,7 +555,7 @@ export function CreateMatchDialog({
               </div>
             )}
 
-            {!isTeamMatchFormat && (
+            {(!isTeamMatchFormat || is17an) && (
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <Users className="w-4 h-4" />
@@ -779,16 +779,47 @@ export function CreateMatchDialog({
                     </div>
                   </div>
                 </Label>
+                <Label
+                  htmlFor="mode-later"
+                  className="flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/30"
+                >
+                  <RadioGroupItem id="mode-later" value="later" />
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Tentukan Nanti</div>
+                    <div className="text-xs text-muted-foreground">
+                      Buat match kosong. Peserta dapat ditentukan nanti.
+                    </div>
+                  </div>
+                </Label>
               </RadioGroup>
             </div>
 
             {selectionMode === "manual" && (
               is17an ? (
               <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Users className="w-4 h-4" />
-                    Pilih Peserta ({selectedTeamIds.length}/{targetCount})
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      Pilih Peserta ({selectedTeamIds.length}/{targetCount})
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-[10px] px-2 h-auto py-1"
+                      onClick={() => {
+                        if (selectedTeamIds.length === allTeams.length) {
+                          setSelectedTeamIds([]);
+                        } else {
+                          setMaxParticipants(allTeams.length.toString());
+                          setSelectedTeamIds(allTeams.map(t => t.id));
+                        }
+                      }}
+                    >
+                      {selectedTeamIds.length === allTeams.length ? "Batal Pilih Semua" : `Pilih Semua (${allTeams.length})`}
+                    </Button>
+                  </div>
                   <div className="border rounded-md p-2 space-y-2 max-h-48 overflow-y-auto bg-muted/20">
                     {allTeams.map((team) => {
                       const checked = selectedTeamIds.includes(team.id);
@@ -990,7 +1021,7 @@ export function CreateMatchDialog({
               )
             )}
 
-            {selectionMode !== "manual" && (
+            {selectionMode !== "manual" && selectionMode !== "later" && (
               <div className="rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">
                 Tersedia <strong>{allTeams.length}</strong> peserta terdaftar. Sistem akan{" "}
                 {selectionMode === "random" ? "mengacak" : "memutar roda untuk memilih"}{" "}

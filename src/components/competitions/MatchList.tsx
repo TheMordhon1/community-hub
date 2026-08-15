@@ -22,7 +22,7 @@ import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
 import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
 import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
 import { AssignRefereeDialog } from "@/components/competitions/AssignRefereeDialog";
-import { Play } from "lucide-react";
+import { Play, Settings } from "lucide-react";
 import { useResetMatch, useDeleteMatch, useUpdateMatch, useAssignMatchTeams, useGenerateBracket, useGenerateKnockoutFromGroups, useAdvance17anRound, useResetKnockoutPhase, useCreateMatch, useGenerate17an } from "@/hooks/useCompetitions";
 import {
   areAllGroupMatchesCompleted,
@@ -30,6 +30,7 @@ import {
   hasGroupMatches,
   hasKnockoutMatches,
   seedKnockoutFromStandings,
+  StandingRow,
 } from "@/lib/liga-group";
 import { getTeamFlag, extractFlagAndName } from "@/lib/countries";
 import { TeamFlag } from "./TeamFlag";
@@ -62,9 +63,10 @@ interface MatchListProps {
   competition: EventCompetitionWithDetails;
   canManage: boolean;
   headerActions?: React.ReactNode;
+  onCreateMatch?: () => void;
 }
 
-export function MatchList({ competition, canManage, headerActions }: MatchListProps) {
+export function MatchList({ competition, canManage, headerActions, onCreateMatch }: MatchListProps) {
   const [editingMatch, setEditingMatch] = useState<CompetitionMatchWithTeams | null>(null);
   const [liveScoringMatch, setLiveScoringMatch] = useState<CompetitionMatchWithTeams | null>(null);
   const [viewingMatch, setViewingMatch] = useState<CompetitionMatchWithTeams | null>(null);
@@ -125,6 +127,12 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
             <p className="text-sm text-muted-foreground mt-2">
               Klik "Generate Bracket" untuk membuat jadwal pertandingan
             </p>
+          )}
+          {canManage && onCreateMatch && (
+            <Button onClick={onCreateMatch} className="mt-4">
+              <Swords className="w-4 h-4 mr-2" />
+              Buat Pertandingan
+            </Button>
           )}
         </CardContent>
       </Card>
@@ -326,7 +334,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
 
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-16">
       {/* Filters */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 bg-muted/30 p-3 rounded-xl border">
         <div className="relative flex-1 w-full">
@@ -691,7 +699,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                                 )}
                               </div>
                               {/* Members under team name in participants path */}
-                              {(p.team as (typeof p.team & { members?: { id: string; name: string | null; user_id: string | null; profile?: { full_name: string | null; house?: { block: string; number: string } } }[] }) | undefined)?.members?.map((m) => {
+                              {!p.team?.is_individual && (p.team as (typeof p.team & { members?: { id: string; name: string | null; user_id: string | null; profile?: { full_name: string | null; house?: { block: string; number: string } } }[] }) | undefined)?.members?.map((m) => {
                                 const parsed = parseMemberName(m.name);
                                 const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Pemain");
                                 const house = (m.profile as { house?: { block: string; number: string } } | null | undefined)?.house;
@@ -845,7 +853,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                               )}
                             </div>
                             {/* Members under team1 name */}
-                            {(match.team1 as (typeof match.team1 & { members?: { id: string; name: string | null; user_id: string | null; profile?: { full_name: string | null; house?: { block: string; number: string } } }[] }) | undefined)?.members?.map((m) => {
+                            {!match.team1?.is_individual && (match.team1 as (typeof match.team1 & { members?: { id: string; name: string | null; user_id: string | null; profile?: { full_name: string | null; house?: { block: string; number: string } } }[] }) | undefined)?.members?.map((m) => {
                               const parsed = parseMemberName(m.name);
                               const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Pemain");
                               const house = (m.profile as { house?: { block: string; number: string } } | null | undefined)?.house;
@@ -991,7 +999,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                               )}
                             </div>
                             {/* Members under team2 name */}
-                            {(match.team2 as (typeof match.team2 & { members?: { id: string; name: string | null; user_id: string | null; profile?: { full_name: string | null; house?: { block: string; number: string } } }[] }) | undefined)?.members?.map((m) => {
+                            {!match.team2?.is_individual && (match.team2 as (typeof match.team2 & { members?: { id: string; name: string | null; user_id: string | null; profile?: { full_name: string | null; house?: { block: string; number: string } } }[] }) | undefined)?.members?.map((m) => {
                               const parsed = parseMemberName(m.name);
                               const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Pemain");
                               const house = (m.profile as { house?: { block: string; number: string } } | null | undefined)?.house;
@@ -1109,87 +1117,108 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
 
                     {/* Right: Actions */}
                     <div className="flex flex-wrap items-center gap-1.5 justify-end w-full">
-                      {match.status === "scheduled" && canManage && (
-                        <Button
-                          size="sm"
-                          className="h-7 text-[10px] sm:text-xs px-2.5 sm:px-3 bg-primary hover:bg-primary/90 shadow-sm font-bold"
-                          onClick={() => {
-                            const hasReferee = (competition.referees?.length || 0) > 0;
-                            if (!hasReferee) {
-                              setPendingStartMatchId(match.id);
-                              return;
-                            }
-                            updateMutation.mutate({
-                              id: match.id,
-                              competition_id: competition.id,
-                              status: 'ongoing'
-                            });
-                          }}
-                          disabled={updateMutation.isPending}
-                        >
-                          <Play className="w-3 h-3 mr-1" />
-                          <span>Mulai</span>
-                        </Button>
-                      )}
+                      {(() => {
+                        const hasPeserta = (match.participants && match.participants.length > 0) || !!match.team1_id || !!match.team2_id;
+                        return (
+                          <>
+                            {hasPeserta ? (
+                              <>
+                                {match.status === "scheduled" && canManage && (
+                                  <Button
+                                    size="sm"
+                                    className="h-7 text-[10px] sm:text-xs px-2.5 sm:px-3 bg-primary hover:bg-primary/90 shadow-sm font-bold"
+                                    onClick={() => {
+                                      const hasReferee = (competition.referees?.length || 0) > 0;
+                                      if (!hasReferee) {
+                                        setPendingStartMatchId(match.id);
+                                        return;
+                                      }
+                                      updateMutation.mutate({
+                                        id: match.id,
+                                        competition_id: competition.id,
+                                        status: 'ongoing'
+                                      });
+                                    }}
+                                    disabled={updateMutation.isPending}
+                                  >
+                                    <Play className="w-3 h-3 mr-1" />
+                                    <span>Mulai</span>
+                                  </Button>
+                                )}
 
-                      {match.status === "ongoing" && canManage && (
-                        <Button
-                          size="sm"
-                          className="h-7 text-[10px] sm:text-xs px-2.5 sm:px-3 bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 font-bold"
-                          onClick={() => setLiveScoringMatch(match)}
-                        >
-                          <Play className="w-3 h-3 mr-1" />
-                          <span>Live Score</span>
-                        </Button>
-                      )}
+                                {match.status === "ongoing" && canManage && (
+                                  <Button
+                                    size="sm"
+                                    className="h-7 text-[10px] sm:text-xs px-2.5 sm:px-3 bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 font-bold"
+                                    onClick={() => setLiveScoringMatch(match)}
+                                  >
+                                    <Play className="w-3 h-3 mr-1" />
+                                    <span>Live Score</span>
+                                  </Button>
+                                )}
 
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="h-7 text-[10px] sm:text-xs px-2.5 sm:px-3 gap-1"
-                        onClick={() => setViewingMatch(match)}
-                      >
-                        <Eye className="w-3 h-3" />
-                        <span>Detail</span>
-                      </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="h-7 text-[10px] sm:text-xs px-2.5 sm:px-3 gap-1"
+                                  onClick={() => setViewingMatch(match)}
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  <span>Detail</span>
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-[10px] sm:text-xs px-2.5 sm:px-3 gap-1"
+                                onClick={() => setEditingMatch(match)}
+                              >
+                                <Settings className="w-3 h-3" />
+                                <span>Setting</span>
+                              </Button>
+                            )}
                       
-                      {canManage && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-muted shrink-0">
-                              <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => setEditingMatch(match)}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit Pertandingan
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setSpinningMatch(match)}
-                              disabled={match.status === "completed" || match.status === "ongoing" || allTeams.length === 0}
-                            >
-                              <Sparkles className="w-4 h-4 mr-2" />
-                              Spin Wheel Peserta
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => setMatchToReset(match.id)}
-                              className="text-amber-600 focus:text-amber-600 focus:bg-amber-50"
-                            >
-                              <RefreshCw className={`w-4 h-4 mr-2 ${resetMatch.isPending ? 'animate-spin' : ''}`} />
-                              Reset Skor
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => setMatchToDelete(match.id)}
-                              className="text-destructive focus:text-destructive focus:bg-destructive/5"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Hapus Pertandingan
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
+                            {canManage && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-muted shrink-0">
+                                    <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem onClick={() => setEditingMatch(match)}>
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Edit Pertandingan
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => setSpinningMatch(match)}
+                                    disabled={match.status === "completed" || match.status === "ongoing" || allTeams.length === 0}
+                                  >
+                                    <Sparkles className="w-4 h-4 mr-2" />
+                                    Spin Wheel Peserta
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => setMatchToReset(match.id)}
+                                    className="text-amber-600 focus:text-amber-600 focus:bg-amber-50"
+                                  >
+                                    <RefreshCw className={`w-4 h-4 mr-2 ${resetMatch.isPending ? 'animate-spin' : ''}`} />
+                                    Reset Skor
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => setMatchToDelete(match.id)}
+                                    className="text-destructive focus:text-destructive focus:bg-destructive/5"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Hapus Pertandingan
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -1235,7 +1264,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                     onClick={(e) => {
                       e.stopPropagation();
                       const advance = comp.advance_per_group || 2;
-                      const standingsByGroup: Record<string, any[]> = {};
+                      const standingsByGroup: Record<string, StandingRow[]> = {};
                       groupNamesSet.forEach((g) => {
                         standingsByGroup[g] = computeStandings(teamsList, matchesList, g);
                       });
@@ -1435,7 +1464,7 @@ export function MatchList({ competition, canManage, headerActions }: MatchListPr
                 onRegenerateKnockout={() => {
                   const advance = competition.advance_per_group || 2;
                   const groupNamesSet = Array.from(new Set(allTeams.filter(t => !!t.group_name).map(t => t.group_name!))).sort();
-                  const standingsByGroup: Record<string, any[]> = {};
+                  const standingsByGroup: Record<string, StandingRow[]> = {};
                   groupNamesSet.forEach((g) => {
                     standingsByGroup[g] = computeStandings(allTeams, matches, g);
                   });

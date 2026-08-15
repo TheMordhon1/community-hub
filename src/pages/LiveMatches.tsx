@@ -49,6 +49,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -60,7 +61,7 @@ interface MatchTeam {
   group_name?: string | null;
   next_stage_type?: string | null;
   next_stage_label?: string | null;
-  members?: { id: string, name: string | null, user_id?: string | null, profile?: { full_name?: string | null, avatar_url?: string | null, house?: { block: string; number: string } } }[];
+  members?: { id: string, name: string | null, user_id?: string | null, house_block?: string | null, house_number?: string | null, profile?: { full_name?: string | null, avatar_url?: string | null, house?: { block: string; number: string } } }[];
 }
 
 interface MatchParticipant {
@@ -80,6 +81,7 @@ interface CompetitionDetail {
   sets_per_match: number | null;
   kids_brackets: boolean | null;
   advance_per_group: number | null;
+  is_point: boolean | null;
   event_id: string | null;
   events: {
     event_date: string | null;
@@ -329,7 +331,7 @@ export default function LiveMatches() {
     },
   });
 
-  // Close member popover on any click outside
+  // Close member popover on click outside
   useEffect(() => {
     if (!openMemberPopover) return;
     const handler = () => setOpenMemberPopover(null);
@@ -353,6 +355,7 @@ export default function LiveMatches() {
             sets_per_match,
             kids_brackets,
             advance_per_group,
+            is_point,
             event_id,
             events:events(event_date, event_time, location),
             referees:competition_referees(user_id),
@@ -362,12 +365,14 @@ export default function LiveMatches() {
             id,
             name,
             logo_url,
+            house:houses(block, number),
             members:competition_team_members(id, name, user_id, house_block, house_number)
           ),
           team2:competition_teams!team2_id (
             id,
             name,
             logo_url,
+            house:houses(block, number),
             members:competition_team_members(id, name, user_id, house_block, house_number)
           ),
           participants:competition_match_participants (
@@ -380,6 +385,7 @@ export default function LiveMatches() {
               id,
               name,
               logo_url,
+              house:houses(block, number),
               members:competition_team_members(id, name, user_id, house_block, house_number)
             )
           )
@@ -436,12 +442,15 @@ export default function LiveMatches() {
           if (mem.user_id) {
             return { ...mem, profile: profileMap.get(mem.user_id) };
           }
-          // Manual member: build profile-like object from stored house_block/house_number
+          // Manual member: build profile-like object from stored house_block/house_number or team.house
           const manualMem = mem as typeof mem & { house_block?: string | null; house_number?: string | null };
+          const teamHouse = (team as CompetitionTeamWithMembers).house;
           const manualHouse =
             manualMem.house_block && manualMem.house_number
               ? { block: manualMem.house_block, number: manualMem.house_number }
-              : undefined;
+              : teamHouse?.block && teamHouse?.number
+                ? { block: teamHouse.block, number: teamHouse.number }
+                : undefined;
           return {
             ...mem,
             profile: manualHouse ? { house: manualHouse } : undefined,
@@ -485,6 +494,7 @@ export default function LiveMatches() {
         .from("competition_teams")
         .select(`
           id, name, group_name, competition_id, logo_url, next_stage_type, next_stage_label,
+          house:houses(block, number),
           members:competition_team_members(id, name, user_id, house_block, house_number)
         `)
         .in("competition_id", compIds)
@@ -493,7 +503,7 @@ export default function LiveMatches() {
       if (error) throw error;
 
       type RawTeamMember = { id: string; name: string | null; user_id: string | null; house_block: string | null; house_number: string | null };
-      type RawTeam = { id: string; name: string; group_name: string | null; competition_id: string; logo_url?: string | null; members: RawTeamMember[] | null };
+      type RawTeam = { id: string; name: string; group_name: string | null; competition_id: string; logo_url?: string | null; house?: { block: string; number: string }; members: RawTeamMember[] | null };
       const teams = (data as unknown as RawTeam[]) || [];
 
       const userIds = new Set<string>();
@@ -537,7 +547,9 @@ export default function LiveMatches() {
           }
           const manualHouse = m.house_block && m.house_number
             ? { block: m.house_block, number: m.house_number }
-            : undefined;
+            : t.house?.block && t.house?.number
+              ? { block: t.house.block, number: t.house.number }
+              : undefined;
           return {
             ...m,
             profile: manualHouse ? { house: manualHouse } : undefined,
@@ -1121,11 +1133,71 @@ export default function LiveMatches() {
             </div>
           ) : (
             <div className="space-y-1.5 py-0.5">
-              <div className="grid gap-1">
-                {match.participants?.slice(0, 2).map((p, idx) => (
-                  <div key={p.id} className="flex items-center justify-between text-[11px] bg-muted/20 px-2 py-1 rounded border">
-                    <span className="truncate font-medium">{p.team?.name || "Peserta"}</span>
-                    <span className="font-mono font-bold text-primary">{p.score || "0"}</span>
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
+                <Users className="w-3 h-3" />
+                Semua Peserta:
+              </div>
+              <div className="grid gap-1 max-h-[120px] overflow-y-auto pr-1">
+                {[...(match.participants || [])].sort((a, b) => {
+                  if (match.status === "completed") {
+                    if (a.winner_rank && b.winner_rank) return a.winner_rank - b.winner_rank;
+                    if (a.winner_rank) return -1;
+                    if (b.winner_rank) return 1;
+                    if (a.is_winner && !b.is_winner) return -1;
+                    if (!a.is_winner && b.is_winner) return 1;
+                  }
+                  return 0;
+                }).map((p, idx) => (
+                  <div key={p.id} className={cn("flex items-center justify-between text-[11px] bg-muted/20 px-2 py-1 rounded border", p.is_winner && "font-bold text-primary")}>
+                    <div className="flex items-center gap-2 font-medium">
+                      {/* <span className="text-xs text-muted-foreground font-mono shrink-0">#{idx + 1}</span> */}
+                    {(() => {
+                      const m = p.team?.members?.[0];
+                      const houseStr = m?.house_block && m?.house_number 
+                        ? `${m.house_block}.${m.house_number}`
+                        : (m?.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.block && (m?.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.number
+                          ? `${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house!.block}.${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house!.number}`
+                          : (p.team as CompetitionTeamWithMembers)?.house?.block && (p.team as CompetitionTeamWithMembers)?.house?.number
+                            ? `${(p.team as CompetitionTeamWithMembers).house!.block}.${(p.team as CompetitionTeamWithMembers).house!.number}`
+                            : null;
+                      return (
+                        <span className="truncate font-medium flex items-center gap-1.5">
+                          {match.status === "completed" && match.is_final ? (
+                            <>
+                              {p.winner_rank === 1 && <Trophy className="w-3 h-3 text-yellow-500 fill-yellow-500 shrink-0" />}
+                              {p.winner_rank === 2 && <Trophy className="w-3 h-3 text-slate-400 fill-slate-400 shrink-0" />}
+                              {p.winner_rank === 3 && <Trophy className="w-3 h-3 text-amber-600 fill-amber-600 shrink-0" />}
+                              {(p.is_winner && !p.winner_rank) && <Trophy className="w-3 h-3 text-yellow-500 fill-yellow-500 shrink-0" />}
+                            </>
+                          ) : match.status === "completed" ? (
+                            <>
+                              {p.is_winner && <CheckCircle2 className="w-3 h-3 text-primary shrink-0" />}
+                            </>
+                          ) : null}
+                          <span className={cn(p.is_winner && "text-primary font-bold", "truncate flex items-center gap-1.5")}>
+                            {(() => {
+                              const avatarUrl = p.team?.logo_url || m?.profile?.avatar_url;
+                              return avatarUrl ? (
+                                <Avatar className="w-4 h-4 shadow-sm border border-border/20 shrink-0 rounded-md">
+                                  <AvatarImage src={avatarUrl} className="object-cover" />
+                                  <AvatarFallback className="text-[7px] rounded-md">
+                                    {(p.team?.name || "P").charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                              ) : null;
+                            })()}
+                            <span className="truncate">
+                              {p.team?.name || "Peserta"}
+                              {houseStr && <span className="text-muted-foreground font-normal ml-1">({houseStr})</span>}
+                            </span>
+                          </span>
+                        </span>
+                      );
+                    })()}
+                    </div>
+                    {match.competition?.is_point !== false && (
+                      <span className="font-mono font-bold text-primary ml-2">{p.score || "0"}</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1577,18 +1649,71 @@ export default function LiveMatches() {
                           <div className="space-y-2 py-1">
                             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
                               <Users className="w-3.5 h-3.5" />
-                              Peserta Teratas:
+                              Semua Peserta:
                             </div>
-                            <div className="grid gap-1.5">
-                              {match.participants?.slice(0, 3).map((p, idx) => (
-                                <div key={p.id} className="flex items-center justify-between text-sm bg-muted/30 px-3 py-1.5 rounded-lg border">
+                            <div className="grid gap-1.5 max-h-[160px] overflow-y-auto pr-1">
+                              {[...(match.participants || [])].sort((a, b) => {
+                                if (match.status === "completed") {
+                                  if (a.winner_rank && b.winner_rank) return a.winner_rank - b.winner_rank;
+                                  if (a.winner_rank) return -1;
+                                  if (b.winner_rank) return 1;
+                                  if (a.is_winner && !b.is_winner) return -1;
+                                  if (!a.is_winner && b.is_winner) return 1;
+                                }
+                                return 0;
+                              }).map((p, idx) => (
+                                <div key={p.id} className={cn("flex items-center justify-between text-sm bg-muted/30 px-3 py-1.5 rounded-lg border", p.is_winner && "font-bold text-primary bg-primary/5 border-primary/20")}>
                                   <div className="flex items-center gap-2 font-medium">
-                                    <span className="text-xs text-muted-foreground font-mono">#{idx + 1}</span>
-                                    <span className="truncate">{p.team?.name || "Peserta"}</span>
+                                    {/* <span className="text-xs text-muted-foreground font-mono">#{idx + 1}</span> */}
+                                    {(() => {
+                                      const m = p.team?.members?.[0];
+                                      const houseStr = m?.house_block && m?.house_number 
+                                        ? `${m.house_block}.${m.house_number}`
+                                        : (m?.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.block && (m?.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.number
+                                          ? `${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house!.block}.${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house!.number}`
+                                          : (p.team as CompetitionTeamWithMembers)?.house?.block && (p.team as CompetitionTeamWithMembers)?.house?.number
+                                            ? `${(p.team as CompetitionTeamWithMembers).house!.block}.${(p.team as CompetitionTeamWithMembers).house!.number}`
+                                            : null;
+                                      return (
+                                        <span className="truncate flex items-center gap-1.5">
+                                          {match.status === "completed" && match.is_final ? (
+                                            <>
+                                              {p.winner_rank === 1 && <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500 shrink-0" />}
+                                              {p.winner_rank === 2 && <Trophy className="w-4 h-4 text-slate-400 fill-slate-400 shrink-0" />}
+                                              {p.winner_rank === 3 && <Trophy className="w-4 h-4 text-amber-600 fill-amber-600 shrink-0" />}
+                                              {(p.is_winner && !p.winner_rank) && <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500 shrink-0" />}
+                                            </>
+                                          ) : match.status === "completed" ? (
+                                            <>
+                                              {p.is_winner && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
+                                            </>
+                                          ) : null}
+                                          <span className={cn(p.is_winner && "text-primary font-bold", "truncate flex items-center gap-1.5")}>
+                                            {(() => {
+                                              const avatarUrl = p.team?.logo_url || m?.profile?.avatar_url;
+                                              return avatarUrl ? (
+                                                <Avatar className="w-4 h-4 shadow-sm border border-border/20 shrink-0 rounded-md">
+                                                  <AvatarImage src={avatarUrl} className="object-cover" />
+                                                  <AvatarFallback className="text-[7px] rounded-md">
+                                                    {(p.team?.name || "P").charAt(0).toUpperCase()}
+                                                  </AvatarFallback>
+                                                </Avatar>
+                                              ) : null;
+                                            })()}
+                                            <span className="truncate">
+                                              {p.team?.name || "Peserta"}
+                                              {houseStr && <span className="text-muted-foreground font-normal ml-1">({houseStr})</span>}
+                                            </span>
+                                          </span>
+                                        </span>
+                                      );
+                                    })()}
                                   </div>
-                                  <span className="font-mono font-bold text-primary bg-primary/5 px-2 py-0.5 rounded border">
-                                    {p.score || "0"}
-                                  </span>
+                                  {match.competition?.is_point !== false && (
+                                    <span className="font-mono font-bold text-primary bg-primary/5 px-2 py-0.5 rounded border ml-2">
+                                      {p.score || "0"}
+                                    </span>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -2051,18 +2176,71 @@ export default function LiveMatches() {
                           <div className="space-y-2 py-1 opacity-80">
                             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
                               <Users className="w-3.5 h-3.5" />
-                              Peserta Teratas:
+                              Semua Peserta:
                             </div>
-                            <div className="grid gap-1.5">
-                              {match.participants?.slice(0, 3).map((p, idx) => (
-                                <div key={p.id} className="flex items-center justify-between text-sm bg-muted/20 px-3 py-1.5 rounded-lg border">
+                            <div className="grid gap-1.5 max-h-[160px] overflow-y-auto pr-1">
+                              {[...(match.participants || [])].sort((a, b) => {
+                                if (match.status === "completed") {
+                                  if (a.winner_rank && b.winner_rank) return a.winner_rank - b.winner_rank;
+                                  if (a.winner_rank) return -1;
+                                  if (b.winner_rank) return 1;
+                                  if (a.is_winner && !b.is_winner) return -1;
+                                  if (!a.is_winner && b.is_winner) return 1;
+                                }
+                                return 0;
+                              }).map((p, idx) => (
+                                <div key={p.id} className={cn("flex items-center justify-between text-sm bg-muted/20 px-3 py-1.5 rounded-lg border", p.is_winner && "font-bold text-primary bg-primary/5 border-primary/20")}>
                                   <div className="flex items-center gap-2 font-medium">
-                                    <span className="text-xs text-muted-foreground font-mono">#{idx + 1}</span>
-                                    <span className="truncate">{p.team?.name || "Peserta"}</span>
+                                    {/* <span className="text-xs text-muted-foreground font-mono">#{idx + 1}</span> */}
+                                    {(() => {
+                                      const m = p.team?.members?.[0];
+                                      const houseStr = m?.house_block && m?.house_number 
+                                        ? `${m.house_block}.${m.house_number}`
+                                        : (m?.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.block && (m?.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.number
+                                          ? `${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house!.block}.${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house!.number}`
+                                          : (p.team as CompetitionTeamWithMembers)?.house?.block && (p.team as CompetitionTeamWithMembers)?.house?.number
+                                            ? `${(p.team as CompetitionTeamWithMembers).house!.block}.${(p.team as CompetitionTeamWithMembers).house!.number}`
+                                            : null;
+                                      return (
+                                        <span className="truncate flex items-center gap-1.5">
+                                          {match.status === "completed" && match.is_final ? (
+                                            <>
+                                              {p.winner_rank === 1 && <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500 shrink-0" />}
+                                              {p.winner_rank === 2 && <Trophy className="w-4 h-4 text-slate-400 fill-slate-400 shrink-0" />}
+                                              {p.winner_rank === 3 && <Trophy className="w-4 h-4 text-amber-600 fill-amber-600 shrink-0" />}
+                                              {(p.is_winner && !p.winner_rank) && <Trophy className="w-4 h-4 text-yellow-500 fill-yellow-500 shrink-0" />}
+                                            </>
+                                          ) : match.status === "completed" ? (
+                                            <>
+                                              {p.is_winner && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
+                                            </>
+                                          ) : null}
+                                          <span className={cn(p.is_winner && "text-primary font-bold", "truncate flex items-center gap-1.5")}>
+                                            {(() => {
+                                              const avatarUrl = p.team?.logo_url || m?.profile?.avatar_url;
+                                              return avatarUrl ? (
+                                                <Avatar className="w-4 h-4 shadow-sm border border-border/20 shrink-0 rounded-md">
+                                                  <AvatarImage src={avatarUrl} className="object-cover" />
+                                                  <AvatarFallback className="text-[7px] rounded-md">
+                                                    {(p.team?.name || "P").charAt(0).toUpperCase()}
+                                                  </AvatarFallback>
+                                                </Avatar>
+                                              ) : null;
+                                            })()}
+                                            <span className="truncate">
+                                              {p.team?.name || "Peserta"}
+                                              {houseStr && <span className="text-muted-foreground font-normal ml-1">({houseStr})</span>}
+                                            </span>
+                                          </span>
+                                        </span>
+                                      );
+                                    })()}
                                   </div>
-                                  <span className="font-mono font-bold text-primary bg-primary/5 px-2 py-0.5 rounded border">
-                                    {p.score || "0"}
-                                  </span>
+                                  {match.competition?.is_point !== false && (
+                                    <span className="font-mono font-bold text-primary bg-primary/5 px-2 py-0.5 rounded border ml-2">
+                                      {p.score || "0"}
+                                    </span>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -2549,7 +2727,7 @@ export default function LiveMatches() {
               const match = spinningMatchContext.match;
               const team1Id = spinningMatchContext.teamPosition === 1 ? newTeamId : (match.team1?.id || match.team1_id);
               const team2Id = spinningMatchContext.teamPosition === 2 ? newTeamId : (match.team2?.id || match.team2_id);
-              const payload: any = {
+              const payload: Parameters<typeof updateMutation.mutate>[0] = {
                 id: match.id,
                 competition_id: match.competition_id,
                 team_ids: [team1Id, team2Id].filter(Boolean) as string[]

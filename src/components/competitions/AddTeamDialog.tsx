@@ -21,9 +21,10 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, AlertCircle, Wallet } from "lucide-react";
+import { Loader2, AlertCircle, Wallet, Plus, Check, ChevronsUpDown, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { useCreateTeam } from "@/hooks/useCompetitions";
 import { useEventHousePayments } from "@/hooks/useEventHousePayments";
@@ -49,6 +50,126 @@ import { COUNTRIES, getFlagImgUrl } from "@/lib/countries";
 import type { Profile, House, Event } from "@/types/database";
 
 import { MemberAvatarSelector } from "./MemberAvatarSelector";
+
+export type ProfileWithHouse = { 
+  id: string; 
+  user_id: string | null;
+  full_name: string; 
+  avatar_url?: string | null;
+  house_id?: string;
+  house?: { block: string; number: string }; 
+};
+
+function ProfileCombobox({ 
+  value, 
+  onChange, 
+  profiles, 
+  placeholder 
+}: { 
+  value: string; 
+  onChange: (val: string) => void; 
+  profiles: ProfileWithHouse[]; 
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const { naturalSort } = useNaturalSort();
+
+  const filtered = useMemo(() => {
+    if (!search) return profiles;
+    const lower = search.toLowerCase();
+    return profiles.filter(p => {
+      const nameMatch = (p.full_name || "").toLowerCase().includes(lower);
+      const blockMatch = p.house?.block?.toLowerCase().includes(lower);
+      const numberMatch = p.house?.number?.toLowerCase().includes(lower);
+      const fullHouseMatch = p.house ? `${p.house.block}${p.house.number}`.toLowerCase().includes(lower) : false;
+      const fullHouseMatchWithSpace = p.house ? `${p.house.block} ${p.house.number}`.toLowerCase().includes(lower) : false;
+      return nameMatch || blockMatch || numberMatch || fullHouseMatch || fullHouseMatchWithSpace;
+    });
+  }, [profiles, search]);
+
+  const groupedProfiles = useMemo(() => {
+    const groups: Record<string, ProfileWithHouse[]> = {};
+    const noHouse: ProfileWithHouse[] = [];
+
+    filtered.forEach(p => {
+      if (p.house) {
+        const key = `${p.house.block}${p.house.number}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(p);
+      } else {
+        noHouse.push(p);
+      }
+    });
+
+    const sortedKeys = Object.keys(groups).sort((a, b) => naturalSort(a, b));
+
+    const result: { group: string; items: ProfileWithHouse[] }[] = [];
+    sortedKeys.forEach(k => {
+      groups[k].sort((a, b) => naturalSort(a.full_name || "", b.full_name || ""));
+      result.push({ group: k, items: groups[k] });
+    });
+    if (noHouse.length > 0) {
+      noHouse.sort((a, b) => naturalSort(a.full_name || "", b.full_name || ""));
+      result.push({ group: "Tanpa Rumah", items: noHouse });
+    }
+    return result;
+  }, [filtered, naturalSort]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal bg-background"
+        >
+          {value
+            ? (() => {
+                const p = profiles.find((x) => x.id === value);
+                if (!p) return placeholder;
+                const name = p.full_name || "(tanpa nama)";
+                return p.house ? `${name} (${p.house.block}${p.house.number})` : name;
+              })()
+            : placeholder}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)] max-h-80 overflow-y-auto" align="start">
+        <Command>
+          <CommandInput placeholder="Cari warga..." value={search} onValueChange={setSearch} />
+          <CommandList>
+            <CommandEmpty>Warga tidak ditemukan.</CommandEmpty>
+            {groupedProfiles.map(({ group, items }) => (
+              <CommandGroup key={group} heading={group}>
+                {items.map((p) => (
+                  <CommandItem
+                    key={p.id}
+                    value={p.id}
+                    onSelect={() => {
+                      onChange(p.id === value ? "" : p.id);
+                      setOpen(false);
+                      setSearch("");
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        value === p.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {p.full_name || "(tanpa nama)"}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 const parseMemberName = (rawName: string | null | undefined) => {
   if (!rawName) return { name: "", avatarUrl: "" };
@@ -95,9 +216,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
     }
   }, [competition?.match_type]);
 
-  const isTeam = teamSize > 1;
   const [regMode, setRegMode] = useState<"team" | "individual">("team");
-  const isActualTeamMode = isTeam && regMode === "team";
+  const isActualTeamMode = regMode === "team";
 
   const [members, setMembers] = useState<{ source: "user" | "manual"; profileId: string; name: string; avatarUrl: string; houseBlock: string; houseNumber: string }[]>(
     () => Array.from({ length: teamSize }, () => ({ source: "user", profileId: "", name: "", avatarUrl: "", houseBlock: "", houseNumber: "" }))
@@ -107,6 +227,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
   const [teamFlag, setTeamFlag] = useState("");
   const [flagSearch, setFlagSearch] = useState("");
   const [isFlagPopoverOpen, setIsFlagPopoverOpen] = useState(false);
+  const [isHousePopoverOpen, setIsHousePopoverOpen] = useState(false);
   const filteredCountries = useMemo(() => {
     return COUNTRIES.filter(c =>
       c.name.toLowerCase().includes(flagSearch.toLowerCase())
@@ -150,12 +271,54 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
   const { data: profiles } = useQuery({
     queryKey: ["all-profiles"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
+      const { data: membersData, error: membersError } = await supabase
+        .from("house_members")
+        .select(`
+          id,
+          user_id,
+          house_id,
+          full_name,
+          house:houses ( block, number )
+        `)
+        .eq("status", "approved")
         .order("full_name", { ascending: true });
-      if (error) throw error;
-      return data as Profile[];
+        
+      if (membersError) throw membersError;
+
+      const userIds = (membersData || [])
+        .map(m => m.user_id)
+        .filter(Boolean) as string[];
+
+      const profilesMap = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, avatar_url")
+          .in("id", userIds);
+          
+        if (profilesData) {
+          profilesData.forEach(p => {
+            if (p.avatar_url) profilesMap.set(p.id, p.avatar_url);
+          });
+        }
+      }
+
+      const typedData = membersData as unknown as { 
+        id: string; 
+        user_id: string | null;
+        house_id: string | null;
+        full_name: string;
+        house: { block: string; number: string } | null;
+      }[];
+      
+      return (typedData || []).map((m) => ({
+        id: m.id,
+        user_id: m.user_id,
+        house_id: m.house_id || undefined,
+        full_name: m.full_name,
+        avatar_url: m.user_id ? profilesMap.get(m.user_id) : null,
+        house: m.house || undefined
+      })) as ProfileWithHouse[];
     },
     enabled: open,
   });
@@ -184,8 +347,8 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
 
   useEffect(() => {
     if (open) {
-      setRegMode(isTeam ? "team" : "individual");
-      setMembers(Array.from({ length: teamSize }, () => ({ source: "user" as const, profileId: "", name: "", avatarUrl: "", houseBlock: "", houseNumber: "" })));
+      setRegMode(teamSize > 1 ? "team" : "individual");
+      setMembers(Array.from({ length: Math.max(1, teamSize) }, () => ({ source: "user" as const, profileId: "", name: "", avatarUrl: "", houseBlock: "", houseNumber: "" })));
       setSingleAvatarUrl("");
       setTeamName("");
       setTeamFlag("");
@@ -202,7 +365,17 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       setTeamFlag("");
       setFlagSearch("");
     }
-  }, [open, teamSize, isTeam]);
+  }, [open, teamSize]);
+
+  const handleAddMember = () => {
+    setMembers([...members, { source: "user", profileId: "", name: "", avatarUrl: "", houseBlock: "", houseNumber: "" }]);
+  };
+
+  const handleRemoveMember = (index: number) => {
+    if (members.length > 1) {
+      setMembers(members.filter((_, i) => i !== index));
+    }
+  };
 
   const houseLabel = (id: string) => {
     const h = houses?.find((x) => x.id === id);
@@ -297,7 +470,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         return;
       }
     }
-    if (!isTeam && !is17an && isPaidEvent) {
+    if (!isActualTeamMode && !is17an && isPaidEvent) {
       if (!selectedHouse) {
         toast({
           variant: "destructive",
@@ -369,11 +542,11 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
             const baseName = m.source === "user" ? (prof?.full_name || "") : m.name;
             return {
               team_id: team.id,
-              user_id: m.source === "user" && m.profileId ? m.profileId : null,
-              name: serializeMemberName(baseName, m.avatarUrl),
+              user_id: m.source === "user" ? (prof?.user_id || null) : null,
+              name: serializeMemberName(baseName, m.avatarUrl || prof?.avatar_url || ""),
               is_captain: index === 0,
-              house_block: m.source === "manual" && m.houseBlock.trim() ? m.houseBlock.trim() : null,
-              house_number: m.source === "manual" && m.houseNumber.trim() ? m.houseNumber.trim() : null,
+              house_block: m.source === "user" ? (prof?.house?.block || null) : (m.source === "manual" && m.houseBlock.trim() ? m.houseBlock.trim() : null),
+              house_number: m.source === "user" ? (prof?.house?.number || null) : (m.source === "manual" && m.houseNumber.trim() ? m.houseNumber.trim() : null),
             };
           });
 
@@ -402,17 +575,17 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       } finally {
         setSubmitting(false);
       }
-    } else if (isTeam) {
-      // Individual registration in a team competition
+    } else {
+      // Individual registration
       setSubmitting(true);
       try {
         const team = await createTeamMutation.mutateAsync({
           competition_id: competition.id,
           name: finalName,
-          house_id: null, // house is hidden for >1v1
+          house_id: source === "user" ? (profiles?.find(p => p.id === selectedProfileId)?.house_id || null) : (selectedHouse || null),
           seed_number: nextSeed,
           participant_name: finalName,
-          user_id: source === "user" ? selectedProfileId : null,
+          user_id: source === "user" ? (profiles?.find(p => p.id === selectedProfileId)?.user_id || null) : null,
           age: ageValue,
           age_group: ageGroup,
           gender: gender || null,
@@ -423,9 +596,11 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         if (team) {
           const memberInsert = {
             team_id: team.id,
-            user_id: source === "user" ? selectedProfileId : null,
-            name: serializeMemberName(finalName, singleAvatarUrl),
+            user_id: source === "user" ? (profiles?.find(p => p.id === selectedProfileId)?.user_id || null) : null,
+            name: serializeMemberName(finalName, singleAvatarUrl || profiles?.find(p => p.id === selectedProfileId)?.avatar_url || ""),
             is_captain: true,
+            house_block: source === "user" ? (profiles?.find(p => p.id === selectedProfileId)?.house?.block || null) : null,
+            house_number: source === "user" ? (profiles?.find(p => p.id === selectedProfileId)?.house?.number || null) : null,
           };
 
           const { error: memberError } = await supabase
@@ -452,26 +627,6 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       } finally {
         setSubmitting(false);
       }
-    } else {
-      // 1v1 Individual registration
-      createTeamMutation.mutate(
-        {
-          competition_id: competition.id,
-          name: finalName,
-          house_id: selectedHouse || null,
-          seed_number: nextSeed,
-          participant_name: finalName,
-          user_id: source === "user" ? selectedProfileId : null,
-          age: ageValue,
-          age_group: ageGroup,
-          gender: gender || null,
-          is_individual: false,
-          logo_url: singleAvatarUrl || (teamFlag && teamFlag !== "none" ? teamFlag : undefined),
-        },
-        {
-          onSuccess: () => onOpenChange(false),
-        }
-      );
     }
   };
 
@@ -514,7 +669,6 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
         )}
 
         <div className="flex-1 overflow-y-auto py-2 space-y-4 pr-1">
-          {isTeam && (
             <div className="space-y-2 pb-2 border-b">
               <Label>Cara Mendaftar</Label>
               <RadioGroup
@@ -525,18 +679,17 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                 <div className="flex items-center gap-2">
                   <RadioGroupItem id="reg-team" value="team" />
                   <Label htmlFor="reg-team" className="font-normal cursor-pointer">
-                    Daftar Sebagai Tim ({teamSize} Orang)
+                    Daftar Sebagai Tim
                   </Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <RadioGroupItem id="reg-individual" value="individual" />
                   <Label htmlFor="reg-individual" className="font-normal cursor-pointer">
-                    Daftar Individu (Satu per Satu)
+                    Daftar Individu
                   </Label>
                 </div>
               </RadioGroup>
             </div>
-          )}
 
           {!isActualTeamMode && (
             <div className="space-y-2">
@@ -579,9 +732,20 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
               {members.map((member, i) => (
                 <div key={i} className="space-y-2 border-l-2 border-primary/20 pl-3 py-1">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold text-muted-foreground">
-                      Anggota {i + 1} {i === 0 && "(Kapten)"} <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">
+                        Anggota {i + 1} {i === 0 && "(Kapten)"} <span className="text-destructive">*</span>
+                      </Label>
+                      {members.length > 1 && (
+                        <button
+                          type="button"
+                          className="text-destructive hover:text-destructive/80 shrink-0 ml-2"
+                          onClick={() => handleRemoveMember(i)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                     <RadioGroup
                       value={member.source}
                       onValueChange={(v) => {
@@ -606,25 +770,16 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                     </RadioGroup>
                   </div>
                   {member.source === "user" ? (
-                    <Select
+                    <ProfileCombobox
                       value={member.profileId}
-                      onValueChange={(v) => {
+                      onChange={(v) => {
                         const updated = [...members];
                         updated[i] = { ...updated[i], profileId: v };
                         setMembers(updated);
                       }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={`Pilih warga untuk anggota ${i + 1}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(profiles || []).map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.full_name || "(tanpa nama)"}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      profiles={profiles || []}
+                      placeholder={`Pilih warga untuk anggota ${i + 1}`}
+                    />
                   ) : (
                     <div className="space-y-2">
                       <Input
@@ -636,33 +791,51 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                         }}
                         placeholder={`Nama anggota ${i + 1}`}
                       />
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                          <Label className="text-xs text-muted-foreground">Blok <span className="text-destructive">*</span></Label>
-                          <Input
-                            value={member.houseBlock}
-                            onChange={(e) => {
-                              const updated = [...members];
-                              updated[i] = { ...updated[i], houseBlock: e.target.value };
-                              setMembers(updated);
-                            }}
-                            placeholder="A"
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <Label className="text-xs text-muted-foreground">No. Rumah <span className="text-destructive">*</span></Label>
-                          <Input
-                            value={member.houseNumber}
-                            onChange={(e) => {
-                              const updated = [...members];
-                              updated[i] = { ...updated[i], houseNumber: e.target.value };
-                              setMembers(updated);
-                            }}
-                            placeholder="12"
-                            className="h-8 text-xs"
-                          />
-                        </div>
+                      <div className="space-y-1 mt-2">
+                        <Label className="text-xs text-muted-foreground">Pilih Rumah <span className="text-destructive">*</span></Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className="w-full justify-between font-normal bg-background h-9"
+                            >
+                              {member.houseBlock && member.houseNumber
+                                ? `${member.houseBlock}${member.houseNumber}`
+                                : "Pilih rumah..."}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)] max-h-60 overflow-y-auto" align="start">
+                            <Command>
+                              <CommandInput placeholder="Cari..." />
+                              <CommandList>
+                                <CommandEmpty>Tidak ditemukan.</CommandEmpty>
+                                <CommandGroup>
+                                  {eligibleHouses.map((h) => (
+                                    <CommandItem
+                                      key={h.id}
+                                      value={`${h.block}${h.number}`}
+                                      onSelect={() => {
+                                        const updated = [...members];
+                                        updated[i] = { ...updated[i], houseBlock: h.block, houseNumber: h.number };
+                                        setMembers(updated);
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          member.houseBlock === h.block && member.houseNumber === h.number ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      {h.block}{h.number}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </div>
                   )}
@@ -687,24 +860,28 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                   />
                 </div>
               ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full border-dashed"
+                onClick={handleAddMember}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Tambah Anggota
+              </Button>
             </div>
           ) : (
             <>
               {source === "user" ? (
                 <div className="space-y-2">
                   <Label>Pilih Warga <span className="text-destructive">*</span></Label>
-                  <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih warga" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(profiles || []).map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.full_name || "(tanpa nama)"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <ProfileCombobox
+                    value={selectedProfileId}
+                    onChange={setSelectedProfileId}
+                    profiles={profiles || []}
+                    placeholder="Pilih warga"
+                  />
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -737,29 +914,55 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
             </>
           )}
 
-          {!isTeam && !isActualTeamMode && !is17an && (
+          {!isActualTeamMode && source === "manual" && (
             <div className="space-y-2">
-              <Label>
-                Nomor Rumah
-              </Label>
-              <Select value={selectedHouse} onValueChange={setSelectedHouse}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih rumah" />
-                </SelectTrigger>
-                <SelectContent>
-                  {eligibleHouses.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground text-center">
-                      Tidak ada rumah tersedia
-                    </div>
-                  ) : (
-                    eligibleHouses.map((h) => (
-                      <SelectItem key={h.id} value={h.id}>
-                        Blok {h.block} No. {h.number}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <Label>Nomor Rumah <span className="text-destructive">*</span></Label>
+              <Popover open={isHousePopoverOpen} onOpenChange={setIsHousePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={isHousePopoverOpen}
+                    className="w-full justify-between font-normal bg-background"
+                  >
+                    {selectedHouse
+                      ? (() => {
+                          const h = eligibleHouses.find((h) => h.id === selectedHouse);
+                          return h ? `${h.block}${h.number}` : "Pilih rumah";
+                        })()
+                      : "Pilih rumah..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)] max-h-60 overflow-y-auto" align="start">
+                  <Command>
+                    <CommandInput placeholder="Cari..." />
+                    <CommandList>
+                      <CommandEmpty>Rumah tidak ditemukan.</CommandEmpty>
+                      <CommandGroup>
+                        {eligibleHouses.map((h) => (
+                          <CommandItem
+                            key={h.id}
+                            value={`${h.block}${h.number}`}
+                            onSelect={() => {
+                              setSelectedHouse(h.id === selectedHouse ? "" : h.id);
+                              setIsHousePopoverOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedHouse === h.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {h.block}{h.number}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 
@@ -949,7 +1152,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
               isPending ||
               submitting ||
               isFormInvalid ||
-              (!isTeam && !is17an && isPaidEvent && !selectedHouse) ||
+              (!isActualTeamMode && !is17an && isPaidEvent && !selectedHouse) ||
               (!isActualTeamMode && requireAge && (ageValue == null || isNaN(ageValue))) ||
               (!isActualTeamMode && bracketMismatch) ||
               !!categoryMismatch ||
