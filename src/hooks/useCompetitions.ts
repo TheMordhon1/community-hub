@@ -16,7 +16,51 @@ import type {
   CompetitionMatchParticipant,
 } from "@/types/competition";
 import type { Profile } from "@/types/database";
+import type { AgeBracket, AgeCategory, GenderCategory } from "@/lib/age-groups";
+import type { Json, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
+
+/** Shared shape of the competition configuration fields editable from the UI. */
+interface CompetitionConfigInput {
+  sport_name: string;
+  format: CompetitionFormat;
+  match_type: MatchType;
+  custom_match_label?: string | null;
+  participant_type: ParticipantType;
+  rules?: string | null;
+  max_participants?: number | null;
+  registration_deadline?: string | null;
+  status?: CompetitionStatus;
+  is_point?: boolean;
+  age_category?: AgeCategory;
+  gender_category?: GenderCategory;
+  kids_brackets?: AgeBracket[] | null;
+  group_count?: number | null;
+  sets_per_match?: number | null;
+  advance_per_group?: number | null;
+}
+
+export type CreateCompetitionInput = CompetitionConfigInput & {
+  event_id?: string | null;
+};
+
+export type UpdateCompetitionInput = Partial<CompetitionConfigInput> & {
+  id: string;
+  event_id: string;
+};
+
+/** Age brackets are stored as jsonb; normalize to a Json-compatible value. */
+const serializeBrackets = (brackets: AgeBracket[] | null | undefined): Json | null =>
+  brackets ? (brackets as unknown as Json) : null;
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return fallback;
+};
+
 
 const parseMemberName = (rawName: string | null | undefined) => {
   if (!rawName) return { name: "", avatarUrl: "" };
@@ -323,25 +367,12 @@ export function useCreateCompetition() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: {
-      event_id?: string;
-      sport_name: string;
-      format: CompetitionFormat;
-      match_type: MatchType;
-      custom_match_label?: string | null;
-      participant_type: ParticipantType;
-      rules?: string;
-      max_participants?: number;
-      registration_deadline?: string;
-      is_point?: boolean;
-      age_category?: string;
-      gender_category?: string;
-      kids_brackets?: { min: number; max: number; label?: string }[] | null;
-      group_count?: number | null;
-      sets_per_match?: number | null;
-      advance_per_group?: number | null;
-    }) => {
-      const { error } = await supabase.from("event_competitions").insert(data as never);
+    mutationFn: async (data: CreateCompetitionInput) => {
+      const payload: TablesInsert<"event_competitions"> = {
+        ...data,
+        kids_brackets: serializeBrackets(data.kids_brackets),
+      };
+      const { error } = await supabase.from("event_competitions").insert(payload);
 
       if (error) throw error;
     },
@@ -354,11 +385,11 @@ export function useCreateCompetition() {
       queryClient.invalidateQueries({ queryKey: ["all-competitions"] });
       toast({ title: "Berhasil", description: "Kompetisi berhasil dibuat" });
     },
-    onError: () => {
+    onError: (error: unknown) => {
       toast({
         variant: "destructive",
         title: "Gagal",
-        description: "Gagal membuat kompetisi",
+        description: getErrorMessage(error, "Gagal membuat kompetisi"),
       });
     },
   });
@@ -370,30 +401,18 @@ export function useUpdateCompetition() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: {
-      id: string;
-      event_id: string;
-      sport_name?: string;
-      format?: CompetitionFormat;
-      match_type?: MatchType;
-      custom_match_label?: string | null;
-      participant_type?: ParticipantType;
-      rules?: string | null;
-      max_participants?: number | null;
-      registration_deadline?: string | null;
-      status?: CompetitionStatus;
-      is_point?: boolean;
-      age_category?: string;
-      gender_category?: string;
-      kids_brackets?: { min: number; max: number; label?: string }[] | null;
-      group_count?: number | null;
-      sets_per_match?: number | null;
-      advance_per_group?: number | null;
-    }) => {
-      const { id, event_id, ...updateData } = data;
+    mutationFn: async ({ id, event_id, kids_brackets, ...fields }: UpdateCompetitionInput) => {
+      const payload: TablesUpdate<"event_competitions"> = {
+        ...fields,
+        ...(kids_brackets !== undefined
+          ? { kids_brackets: serializeBrackets(kids_brackets) }
+          : {}),
+      };
+
+
       const { error } = await supabase
         .from("event_competitions")
-        .update(updateData as never)
+        .update(payload)
         .eq("id", id);
 
       if (error) throw error;
@@ -404,20 +423,22 @@ export function useUpdateCompetition() {
         queryKey: ["event-competitions", result.event_id],
       });
       queryClient.invalidateQueries({ queryKey: ["competition-details"] });
+      queryClient.invalidateQueries({ queryKey: ["all-competitions"] });
       toast({
         title: "Berhasil",
         description: "Kompetisi berhasil diperbarui",
       });
     },
-    onError: () => {
+    onError: (error: unknown) => {
       toast({
         variant: "destructive",
         title: "Gagal",
-        description: "Gagal memperbarui kompetisi",
+        description: getErrorMessage(error, "Gagal memperbarui kompetisi"),
       });
     },
   });
 }
+
 
 // Delete competition
 export function useDeleteCompetition() {
@@ -780,13 +801,14 @@ export function useUpdateMatch() {
 
       if (participant_scores && participant_scores.length > 0) {
         for (const ps of participant_scores) {
-          const rowData: any = {
+          const rowData: TablesInsert<"competition_match_participants"> = {
             match_id: id,
             team_id: ps.team_id,
             score: ps.score,
             is_winner: ps.is_winner ?? false,
             winner_rank: ps.winner_rank ?? null,
           };
+
           
           if (ps.id) {
             const { error: partError } = await supabase
