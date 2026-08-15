@@ -401,13 +401,14 @@ export function useUpdateCompetition() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, event_id, ...fields }: UpdateCompetitionInput) => {
+    mutationFn: async ({ id, event_id, kids_brackets, ...fields }: UpdateCompetitionInput) => {
       const payload: TablesUpdate<"event_competitions"> = {
         ...fields,
-        ...(fields.kids_brackets !== undefined
-          ? { kids_brackets: serializeBrackets(fields.kids_brackets) }
+        ...(kids_brackets !== undefined
+          ? { kids_brackets: serializeBrackets(kids_brackets) }
           : {}),
       };
+
 
       const { error } = await supabase
         .from("event_competitions")
