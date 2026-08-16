@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GlobalCompetitionList } from "@/components/competitions/GlobalCompetitionList";
 import { EventCard, EmptyEventState } from "@/components/events/EventCard";
