@@ -185,6 +185,49 @@ export function CreateMatchDialog({
     return allTeams;
   }, [isLigaGrup, stageType, groupName, phaseLabel, allTeams, competition.matches, competition.advance_per_group]);
 
+  // Age brackets configured on the competition
+  const competitionBrackets = useMemo<AgeBracket[]>(
+    () => (Array.isArray(competition.kids_brackets) ? (competition.kids_brackets as AgeBracket[]) : []),
+    [competition.kids_brackets]
+  );
+
+  // Optional age range override typed for this match
+  const matchBracket = useMemo(() => {
+    const min = parseFloat(bracketMin);
+    const max = parseFloat(bracketMax);
+    if (isNaN(min) && isNaN(max)) return null;
+    return { min: isNaN(min) ? null : min, max: isNaN(max) ? null : max };
+  }, [bracketMin, bracketMax]);
+
+  // Registered participants stay reusable across matches — they are only
+  // narrowed by the age range of this match (when one is set).
+  const bracketedTeams = useMemo(() => {
+    if (!matchBracket) return allTeams;
+    return allTeams.filter(
+      (t) => t.age != null && isAgeInBracket(t.age, matchBracket.min, matchBracket.max)
+    );
+  }, [allTeams, matchBracket]);
+
+  // Group participants by their age bracket so selection is fair per age group
+  const teamsByAgeBracket = useMemo(() => {
+    const groups = new Map<string, typeof bracketedTeams>();
+    for (const t of bracketedTeams) {
+      let label = "Tanpa Umur";
+      if (t.age != null) {
+        const b = findBracket(t.age, competitionBrackets);
+        label = b ? formatBracket(b) : `${t.age} thn`;
+      }
+      const list = groups.get(label) || [];
+      list.push(t);
+      groups.set(label, list);
+    }
+    return Array.from(groups.entries()).sort((a, b) => {
+      const ageA = a[1][0]?.age ?? Infinity;
+      const ageB = b[1][0]?.age ?? Infinity;
+      return ageA - ageB;
+    });
+  }, [bracketedTeams, competitionBrackets]);
+
   // Pre-compute pairs that already met in group stage of the same group
   const metPairs = new Set<string>();
   if (isLigaGrup && (stageType === "group" || stageType === "playoff")) {
