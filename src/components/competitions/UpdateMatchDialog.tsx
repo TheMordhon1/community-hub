@@ -20,7 +20,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, Trophy, Medal, Plus, X, Swords, Users, Trash2 } from "lucide-react";
+import { Loader2, Trophy, Medal, Plus, X, Swords, Users, Trash2, Copy } from "lucide-react";
+import { CopyMatchParticipantsDialog } from "@/components/competitions/CopyMatchParticipantsDialog";
 
 import { useUpdateMatch } from "@/hooks/useCompetitions";
 import { useToast } from "@/hooks/use-toast";
@@ -71,6 +72,7 @@ export function UpdateMatchDialog({
   const [team2Id, setTeam2Id] = useState("");
   const [isCustomPhase, setIsCustomPhase] = useState(false);
   const [isCustomGroup, setIsCustomGroup] = useState(false);
+  const [isCopyMatchModalOpen, setIsCopyMatchModalOpen] = useState(false);
 
   const is17an = competition.format === "17an";
   const isTeamMatchFormat = competition.match_type && competition.match_type !== "1v1";
@@ -264,6 +266,33 @@ export function UpdateMatchDialog({
       }
     }
   }, [match, competition.sets_per_match]);
+
+  const handleCopyMatchParticipants = (copiedTeams: CompetitionTeamWithMembers[]) => {
+    if (is17an) {
+      const newParticipants: { id: string; isNew: boolean }[] = [];
+      const newTeamsState = { ...participantTeams };
+
+      copiedTeams.forEach((t, idx) => {
+        const slotId = `copy-${t.id}-${Date.now()}-${idx}`;
+        newParticipants.push({ id: slotId, isNew: true });
+        newTeamsState[slotId] = t.id;
+      });
+
+      setLocalParticipants((prev) => [...prev, ...newParticipants]);
+      setParticipantTeams(newTeamsState);
+      toast({
+        title: "Peserta Disalin",
+        description: `${copiedTeams.length} peserta dari match lain berhasil dimasukkan ke match ini.`,
+      });
+    } else {
+      if (copiedTeams[0]) setTeam1Id(copiedTeams[0].id);
+      if (copiedTeams[1]) setTeam2Id(copiedTeams[1].id);
+      toast({
+        title: "Tim Disalin",
+        description: "Tim berhasil disalin dari match lain.",
+      });
+    }
+  };
 
   // Derive sets-won and effective score/winner from the sets editor
   const validSets = sets.filter(
@@ -594,6 +623,18 @@ export function UpdateMatchDialog({
           {/* Team Selection */}
           {!is17an && (
             <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pilih Tim Tanding</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCopyMatchModalOpen(true)}
+                  className="h-7 px-2 text-xs font-normal gap-1.5 text-primary border-primary/30 hover:bg-primary/5"
+                >
+                  <Copy className="w-3.5 h-3.5" /> Salin dari Match Lain
+                </Button>
+              </div>
               <div className="text-xs text-amber-600 dark:text-amber-400 font-medium bg-amber-500/10 border border-amber-500/25 rounded-md p-2 flex items-center gap-2">
                 <Swords className="w-3.5 h-3.5 shrink-0" />
                 <span>Pertandingan format ini wajib mempertemukan <strong>2 tim berbeda</strong>.</span>
@@ -915,22 +956,32 @@ export function UpdateMatchDialog({
                   );
                 })}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="w-full border-dashed flex-1"
+                  className="border-dashed flex-1 text-xs"
                   onClick={() => setLocalParticipants(prev => [...prev, { id: `temp-${Date.now()}`, isNew: true }])}
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus className="w-3.5 h-3.5 mr-1" />
                   Tambah Slot
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="w-full border-dashed flex-1"
+                  className="border-dashed flex-1 text-xs text-primary border-primary/30 hover:bg-primary/5"
+                  onClick={() => setIsCopyMatchModalOpen(true)}
+                >
+                  <Copy className="w-3.5 h-3.5 mr-1" />
+                  Salin dari Match Lain
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-dashed flex-1 text-xs"
                   onClick={() => {
                     const existingTeamIds = Object.values(participantTeams);
                     const unassignedTeams = allTeams.filter(t => !existingTeamIds.includes(t.id));
@@ -1173,6 +1224,13 @@ export function UpdateMatchDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+      <CopyMatchParticipantsDialog
+        open={isCopyMatchModalOpen}
+        onOpenChange={setIsCopyMatchModalOpen}
+        currentMatchId={match.id}
+        competition={competition}
+        onCopySelectedTeams={handleCopyMatchParticipants}
+      />
     </Dialog>
   );
 }

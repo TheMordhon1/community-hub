@@ -21,7 +21,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, AlertCircle, Check, ChevronsUpDown } from "lucide-react";
+import { Loader2, AlertCircle, Check, ChevronsUpDown, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -75,14 +75,10 @@ function ProfileCombobox({
 
   const filtered = useMemo(() => {
     if (!search) return profiles;
-    const lower = search.toLowerCase();
+    const terms = search.toLowerCase().split(/\s+/).filter(Boolean);
     return profiles.filter(p => {
-      const nameMatch = (p.full_name || "").toLowerCase().includes(lower);
-      const blockMatch = p.house?.block?.toLowerCase().includes(lower);
-      const numberMatch = p.house?.number?.toLowerCase().includes(lower);
-      const fullHouseMatch = p.house ? `${p.house.block}${p.house.number}`.toLowerCase().includes(lower) : false;
-      const fullHouseMatchWithSpace = p.house ? `${p.house.block} ${p.house.number}`.toLowerCase().includes(lower) : false;
-      return nameMatch || blockMatch || numberMatch || fullHouseMatch || fullHouseMatchWithSpace;
+      const searchableText = `${p.full_name || ""} ${p.house?.block || ""}${p.house?.number || ""} ${p.house?.block || ""} ${p.house?.number || ""}`.toLowerCase();
+      return terms.every(term => searchableText.includes(term));
     });
   }, [profiles, search]);
 
@@ -135,7 +131,7 @@ function ProfileCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)] max-h-80 overflow-y-auto" align="start">
-        <Command>
+        <Command shouldFilter={false}>
           <CommandInput placeholder="Cari warga..." value={search} onValueChange={setSearch} />
           <CommandList>
             <CommandEmpty>Warga tidak ditemukan.</CommandEmpty>
@@ -324,6 +320,127 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
     },
     enabled: open,
   });
+
+  const { data: otherTeams } = useQuery({
+    queryKey: ["other-teams", competition.event_id, competition.id],
+    queryFn: async () => {
+      let competitionsData: { id: string; sport_name: string }[] = [];
+      
+      if (competition.event_id) {
+        const eventIdStr: string = competition.event_id;
+        const { data } = await supabase
+          .from("event_competitions")
+          .select("id, sport_name")
+          .eq("event_id", eventIdStr);
+        if (data) competitionsData = data;
+      }
+      
+      if (competitionsData.length === 0) {
+        const { data } = await supabase
+          .from("event_competitions")
+          .select("id, sport_name")
+          .order("created_at", { ascending: false })
+          .limit(20);
+        if (data) competitionsData = data;
+      }
+      
+      const compIds = competitionsData.map(c => c.id);
+      if (compIds.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from("competition_teams")
+        .select(`
+          *,
+          members:competition_team_members (*)
+        `)
+        .in("competition_id", compIds)
+        .order("created_at", { ascending: false });
+        
+      if (error || !data) return [];
+      
+      const typedData = data as unknown as import("@/types/competition").CompetitionTeamWithMembers[];
+      
+      return typedData
+        .filter(t => t.id !== team?.id)
+        .map(t => {
+          const comp = competitionsData.find(c => c.id === t.competition_id);
+          return {
+            ...t,
+            sport_name: comp?.sport_name || "Lomba Lain"
+          };
+        });
+    },
+    enabled: open,
+  });
+
+  const [isCopyPopoverOpen, setIsCopyPopoverOpen] = useState(false);
+  const [copySearch, setCopySearch] = useState("");
+
+  const filteredOtherTeams = useMemo(() => {
+    if (!otherTeams) return [];
+    if (!copySearch) return otherTeams;
+    const lower = copySearch.toLowerCase();
+    return otherTeams.filter(t => 
+      (t.name || "").toLowerCase().includes(lower) || 
+      (t.participant_name || "").toLowerCase().includes(lower)
+    );
+  }, [otherTeams, copySearch]);
+
+  const groupedOtherTeams = useMemo(() => {
+    const groups: Record<string, typeof otherTeams> = {};
+    filteredOtherTeams.forEach(t => {
+      if (!groups[t.sport_name]) groups[t.sport_name] = [];
+      groups[t.sport_name].push(t);
+    });
+    return groups;
+  }, [filteredOtherTeams]);
+
+  const handleCopyTeam = (copiedTeam: import("@/types/competition").CompetitionTeamWithMembers & { sport_name: string }) => {
+    setIsIndividual(copiedTeam.is_individual || false);
+    setTeamName(copiedTeam.name || "");
+    setTeamFlag(copiedTeam.logo_url || "");
+    setAgeInput(copiedTeam.age ? String(copiedTeam.age) : "");
+    setGender((copiedTeam.gender as Gender) || "");
+    
+    if (copiedTeam.is_individual) {
+      const firstMember = copiedTeam.members?.[0];
+      if (copiedTeam.user_id) {
+        setSource("user");
+        setSelectedProfileId(copiedTeam.user_id);
+        setSingleAvatarUrl(copiedTeam.logo_url || parseMemberName(firstMember?.name).avatarUrl);
+      } else {
+        setSource("manual");
+        setManualName(copiedTeam.participant_name || copiedTeam.name || parseMemberName(firstMember?.name).name);
+        setSelectedHouse(copiedTeam.house_id || "");
+        setSingleAvatarUrl(copiedTeam.logo_url || parseMemberName(firstMember?.name).avatarUrl);
+      }
+    } else {
+      const sortedMembers = [...(copiedTeam.members || [])].sort((a, b) => {
+        if (a.is_captain) return -1;
+        if (b.is_captain) return 1;
+        return a.created_at.localeCompare(b.created_at);
+      });
+      
+      const newMembers = sortedMembers.map(m => {
+        const parsed = parseMemberName(m.name);
+        return {
+          source: (m.user_id ? "user" : "manual") as "user" | "manual",
+          profileId: m.user_id || "",
+          name: parsed.name,
+          avatarUrl: parsed.avatarUrl,
+          houseBlock: m.house_block || "",
+          houseNumber: m.house_number || "",
+        };
+      });
+      
+      while(newMembers.length < teamSize) {
+         newMembers.push({ source: "user", profileId: "", name: "", avatarUrl: "", houseBlock: "", houseNumber: "" });
+      }
+      
+      setMembers(newMembers.slice(0, Math.max(teamSize, newMembers.length)));
+    }
+    setIsCopyPopoverOpen(false);
+  };
 
   useEffect(() => {
     if (open && team) {
@@ -595,6 +712,43 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto py-2 space-y-4 pr-1">
+            <div className="space-y-2 pb-2 border-b">
+              <Label>Salin Data dari Match / Lomba Lain (Opsional)</Label>
+              <Popover open={isCopyPopoverOpen} onOpenChange={setIsCopyPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-muted-foreground font-normal">
+                    <Copy className="mr-2 h-4 w-4" />
+                    Salin dari Match / Lomba Lain...
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-80 overflow-y-auto" align="start">
+                  <Command>
+                    <CommandInput placeholder="Cari nama peserta/tim..." value={copySearch} onValueChange={setCopySearch} />
+                    <CommandList>
+                      <CommandEmpty>Belum ada data peserta dari match/lomba lain.</CommandEmpty>
+                      {Object.entries(groupedOtherTeams).map(([sportName, teams]) => (
+                        <CommandGroup key={sportName} heading={sportName}>
+                          {teams.map(t => (
+                            <CommandItem
+                              key={t.id}
+                              value={`${t.name} ${t.participant_name}`}
+                              onSelect={() => handleCopyTeam(t)}
+                            >
+                              <div className="flex flex-col gap-0.5">
+                                <span>{t.is_individual ? t.participant_name : t.name}</span>
+                                {!t.is_individual && t.participant_name && t.participant_name !== t.name && (
+                                  <span className="text-xs text-muted-foreground">{t.participant_name}</span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      ))}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
           {!showTeamFields && (
             <div className="space-y-2">
               <Label>Sumber Peserta</Label>

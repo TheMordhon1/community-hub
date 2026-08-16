@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, Users, Sparkles, Shuffle, MousePointerClick, Swords, Calendar, Clock } from "lucide-react";
+import { Loader2, Users, Sparkles, Shuffle, MousePointerClick, Swords, Calendar, Clock, Copy } from "lucide-react";
+import { CopyMatchParticipantsDialog } from "@/components/competitions/CopyMatchParticipantsDialog";
 import { useCreateMatch } from "@/hooks/useCompetitions";
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
@@ -74,6 +75,7 @@ export function CreateMatchDialog({
   const [groupName, setGroupName] = useState("");
   const [isCustomPhase, setIsCustomPhase] = useState(false);
   const [isCustomGroup, setIsCustomGroup] = useState(false);
+  const [isCopyMatchModalOpen, setIsCopyMatchModalOpen] = useState(false);
 
   const is17an = competition.format === "17an";
   const isTeamMatchFormat = competition.match_type && competition.match_type !== "1v1";
@@ -442,6 +444,25 @@ export function CreateMatchDialog({
 
   const createMutation = useCreateMatch();
   const assignTeams = useAssignMatchTeams();
+
+  const handleCopyMatchParticipants = (copiedTeams: CompetitionTeamWithMembers[]) => {
+    if (is17an) {
+      const copiedIds = copiedTeams.map((t) => t.id);
+      setSelectedTeamIds((prev) => Array.from(new Set([...prev, ...copiedIds])));
+      setMaxParticipants(String(Math.max(targetCount, selectedTeamIds.length + copiedIds.length)));
+      toast({
+        title: "Peserta Disalin",
+        description: `${copiedTeams.length} peserta disalin dari match lain.`,
+      });
+    } else {
+      if (copiedTeams[0]) setTeam1Id(copiedTeams[0].id);
+      if (copiedTeams[1]) setTeam2Id(copiedTeams[1].id);
+      toast({
+        title: "Tim Disalin",
+        description: "Tim berhasil disalin dari match lain.",
+      });
+    }
+  };
 
   const toggleTeam = (teamId: string) => {
     setSelectedTeamIds((prev) =>
@@ -847,24 +868,35 @@ export function CreateMatchDialog({
                       <Users className="w-4 h-4" />
                       Pilih Peserta ({selectedTeamIds.length}/{targetCount})
                     </Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-6 text-[10px] px-2 h-auto py-1"
-                      onClick={() => {
-                        if (selectedTeamIds.length === bracketedTeams.length) {
-                          setSelectedTeamIds([]);
-                        } else {
-                          setMaxParticipants(bracketedTeams.length.toString());
-                          setSelectedTeamIds(bracketedTeams.map((t) => t.id));
-                        }
-                      }}
-                    >
-                      {selectedTeamIds.length === bracketedTeams.length && bracketedTeams.length > 0
-                        ? "Batal Pilih Semua"
-                        : `Pilih Semua (${bracketedTeams.length})`}
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] px-2 py-1 text-primary border-primary/30 hover:bg-primary/5 gap-1"
+                        onClick={() => setIsCopyMatchModalOpen(true)}
+                      >
+                        <Copy className="w-3 h-3" /> Salin dari Match Lain
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] px-2 py-1"
+                        onClick={() => {
+                          if (selectedTeamIds.length === bracketedTeams.length) {
+                            setSelectedTeamIds([]);
+                          } else {
+                            setMaxParticipants(bracketedTeams.length.toString());
+                            setSelectedTeamIds(bracketedTeams.map((t) => t.id));
+                          }
+                        }}
+                      >
+                        {selectedTeamIds.length === bracketedTeams.length && bracketedTeams.length > 0
+                          ? "Batal Pilih Semua"
+                          : `Pilih Semua (${bracketedTeams.length})`}
+                      </Button>
+                    </div>
                   </div>
                   <p className="text-[11px] text-muted-foreground">
                     Peserta yang sudah terdaftar dapat dipakai lagi di pertandingan lain
@@ -1186,6 +1218,12 @@ export function CreateMatchDialog({
           }}
         />
       )}
+      <CopyMatchParticipantsDialog
+        open={isCopyMatchModalOpen}
+        onOpenChange={setIsCopyMatchModalOpen}
+        competition={competition}
+        onCopySelectedTeams={handleCopyMatchParticipants}
+      />
     </>
   );
 }

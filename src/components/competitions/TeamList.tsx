@@ -16,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Users, Trash2, Edit2, Crown, Sparkles, Shuffle, Loader2, Pencil, Check, X } from "lucide-react";
+import { Plus, Users, Trash2, Edit2, Crown, Sparkles, Shuffle, Loader2, Pencil, Check, X, Copy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
 import { useDeleteTeam, useUpdateTeamGroup } from "@/hooks/useCompetitions";
@@ -28,6 +28,7 @@ import { SpinWheelDialog } from "./SpinWheelDialog";
 import { EditTeamDialog } from "./EditTeamDialog";
 import { SpinWheelGroupTeamsDialog } from "./SpinWheelGroupTeamsDialog";
 import { AssignIndividualsDialog } from "./AssignIndividualsDialog";
+import { CopyOtherMatchTeamsModal } from "./CopyOtherMatchTeamsModal";
 import { getTeamFlag, extractFlagAndName } from "@/lib/countries";
 import { TeamFlag } from "./TeamFlag";
 
@@ -79,6 +80,7 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   const [isSpinOpen, setIsSpinOpen] = useState(false);
   const [isGroupSpinOpen, setIsGroupSpinOpen] = useState(false);
   const [isManualAssignOpen, setIsManualAssignOpen] = useState(false);
+  const [isCopyOtherTeamsModalOpen, setIsCopyOtherTeamsModalOpen] = useState(false);
   // Inline member name editing
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editingMemberName, setEditingMemberName] = useState("");
@@ -223,16 +225,35 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   if (teams.length === 0) {
     return (
       <Card>
-        <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-          <Users className="w-12 h-12 text-muted-foreground mb-2 opacity-50" />
-          <p className="text-muted-foreground">Belum ada peserta terdaftar</p>
+        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+          <Users className="w-12 h-12 text-muted-foreground mb-3 opacity-40" />
+          <p className="text-sm font-semibold text-foreground">Belum ada peserta terdaftar</p>
+          <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+            Daftarkan peserta baru atau salin peserta dari pertandingan/lomba lain dengan cepat.
+          </p>
           {canManage && (
-            <Button variant="outline" size="sm" className="mt-4" onClick={onAddTeam}>
-              <Plus className="w-4 h-4 mr-1" />
-              Tambah Peserta
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 mt-5">
+              <Button size="sm" onClick={onAddTeam} className="w-full sm:w-auto px-5 gap-1.5 shadow-sm">
+                <Plus className="w-4 h-4" />
+                Tambah Peserta
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCopyOtherTeamsModalOpen(true)}
+                className="w-full sm:w-auto px-4 gap-2 text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50 shadow-sm transition-all"
+              >
+                <Copy className="w-4 h-4 shrink-0 text-primary" />
+                <span>Salin dari Match / Lomba Lain</span>
+              </Button>
+            </div>
           )}
         </CardContent>
+        <CopyOtherMatchTeamsModal
+          open={isCopyOtherTeamsModalOpen}
+          onOpenChange={setIsCopyOtherTeamsModalOpen}
+          competition={competition}
+        />
       </Card>
     );
   }
@@ -240,7 +261,7 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
   return (
     <>
       <div className="space-y-6">
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {isLigaGrup && canManage && formedTeams.length >= groupCount && (
             <Button size="sm" variant="outline" onClick={handleAutoAssignGroups}>
               <Shuffle className="w-4 h-4 mr-1" />
@@ -257,10 +278,21 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
             Spin Wheel
           </Button>
           {canManage && (
-            <Button size="sm" onClick={onAddTeam}>
-              <Plus className="w-4 h-4 mr-1" />
-              Tambah Peserta
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsCopyOtherTeamsModalOpen(true)}
+                className="gap-2 text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50 shadow-sm transition-all"
+              >
+                <Copy className="w-4 h-4 shrink-0 text-primary" />
+                <span>Salin dari Match Lain</span>
+              </Button>
+              <Button size="sm" onClick={onAddTeam} className="gap-1.5 shadow-sm">
+                <Plus className="w-4 h-4" />
+                Tambah Peserta
+              </Button>
+            </>
           )}
         </div>
 
@@ -275,15 +307,26 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
               </Badge>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              {groupTeams.map((team, index) => (
-                <Card key={team.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                          {team.seed_number || index + 1}
-                        </div>
-                        <div>
+              {groupTeams.map((team, index) => {
+                const firstMember = team.members?.[0];
+                const avatarUrl =
+                  team.logo_url ||
+                  (firstMember ? getMemberAvatar(firstMember, team.logo_url) : "");
+                const displayName = extractFlagAndName(team.participant_name || team.name).name;
+                const initials = getInitials(displayName);
+
+                return (
+                  <Card key={team.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-10 h-10 rounded-full border border-primary/20 shrink-0 shadow-sm">
+                            {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} className="object-cover" />}
+                            <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
+                              {initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
                           <h4 className="font-semibold flex items-center gap-1.5">
                             <TeamFlag team={team} className="w-5 h-3.5 object-cover rounded shadow-sm inline-block select-none border border-border/20 shrink-0 text-base" />
                             <span>{extractFlagAndName(team.name).name}</span>
@@ -447,7 +490,8 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                     )}
                   </CardContent>
                 </Card>
-              ))}
+              );
+            })}
             </div>
           </div>
         ))}
@@ -589,6 +633,12 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
         open={!!editingTeam}
         onOpenChange={(open) => !open && setEditingTeam(null)}
         team={editingTeam}
+        competition={competition}
+      />
+
+      <CopyOtherMatchTeamsModal
+        open={isCopyOtherTeamsModalOpen}
+        onOpenChange={setIsCopyOtherTeamsModalOpen}
         competition={competition}
       />
     </>
