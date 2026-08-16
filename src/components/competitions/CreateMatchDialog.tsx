@@ -23,6 +23,7 @@ import { computeStandings } from "@/lib/liga-group";
 import { parseMemberName, capitalizeName, cn } from "@/lib/utils";
 import { TeamFlag } from "@/components/competitions/TeamFlag";
 import { extractFlagAndName } from "@/lib/countries";
+import { findBracket, formatBracket, isAgeInBracket, type AgeBracket } from "@/lib/age-groups";
 import {
   Select,
   SelectContent,
@@ -183,6 +184,49 @@ export function CreateMatchDialog({
     
     return allTeams;
   }, [isLigaGrup, stageType, groupName, phaseLabel, allTeams, competition.matches, competition.advance_per_group]);
+
+  // Age brackets configured on the competition
+  const competitionBrackets = useMemo<AgeBracket[]>(
+    () => (Array.isArray(competition.kids_brackets) ? (competition.kids_brackets as AgeBracket[]) : []),
+    [competition.kids_brackets]
+  );
+
+  // Optional age range override typed for this match
+  const matchBracket = useMemo(() => {
+    const min = parseFloat(bracketMin);
+    const max = parseFloat(bracketMax);
+    if (isNaN(min) && isNaN(max)) return null;
+    return { min: isNaN(min) ? null : min, max: isNaN(max) ? null : max };
+  }, [bracketMin, bracketMax]);
+
+  // Registered participants stay reusable across matches — they are only
+  // narrowed by the age range of this match (when one is set).
+  const bracketedTeams = useMemo(() => {
+    if (!matchBracket) return allTeams;
+    return allTeams.filter(
+      (t) => t.age != null && isAgeInBracket(t.age, matchBracket.min, matchBracket.max)
+    );
+  }, [allTeams, matchBracket]);
+
+  // Group participants by their age bracket so selection is fair per age group
+  const teamsByAgeBracket = useMemo(() => {
+    const groups = new Map<string, typeof bracketedTeams>();
+    for (const t of bracketedTeams) {
+      let label = "Tanpa Umur";
+      if (t.age != null) {
+        const b = findBracket(t.age, competitionBrackets);
+        label = b ? formatBracket(b) : `${t.age} thn`;
+      }
+      const list = groups.get(label) || [];
+      list.push(t);
+      groups.set(label, list);
+    }
+    return Array.from(groups.entries()).sort((a, b) => {
+      const ageA = a[1][0]?.age ?? Infinity;
+      const ageB = b[1][0]?.age ?? Infinity;
+      return ageA - ageB;
+    });
+  }, [bracketedTeams, competitionBrackets]);
 
   // Pre-compute pairs that already met in group stage of the same group
   const metPairs = new Set<string>();
@@ -809,78 +853,102 @@ export function CreateMatchDialog({
                       size="sm"
                       className="h-6 text-[10px] px-2 h-auto py-1"
                       onClick={() => {
-                        if (selectedTeamIds.length === allTeams.length) {
+                        if (selectedTeamIds.length === bracketedTeams.length) {
                           setSelectedTeamIds([]);
                         } else {
-                          setMaxParticipants(allTeams.length.toString());
-                          setSelectedTeamIds(allTeams.map(t => t.id));
+                          setMaxParticipants(bracketedTeams.length.toString());
+                          setSelectedTeamIds(bracketedTeams.map((t) => t.id));
                         }
                       }}
                     >
-                      {selectedTeamIds.length === allTeams.length ? "Batal Pilih Semua" : `Pilih Semua (${allTeams.length})`}
+                      {selectedTeamIds.length === bracketedTeams.length && bracketedTeams.length > 0
+                        ? "Batal Pilih Semua"
+                        : `Pilih Semua (${bracketedTeams.length})`}
                     </Button>
                   </div>
-                  <div className="border rounded-md p-2 space-y-2 max-h-48 overflow-y-auto bg-muted/20">
-                    {allTeams.map((team) => {
-                      const checked = selectedTeamIds.includes(team.id);
-                      const disabled = !checked && selectedTeamIds.length >= targetCount;
-                      const members = (team as CompetitionTeamWithMembers).members || [];
-                      return (
-                        <div
-                          key={team.id}
-                          className={cn(
-                            "flex items-start gap-3 p-2 rounded-lg border transition-colors cursor-pointer",
-                            checked
-                              ? "bg-primary/10 border-primary/30"
-                              : disabled
-                              ? "opacity-50 cursor-not-allowed border-transparent"
-                              : "hover:bg-muted/50 border-transparent hover:border-border"
-                          )}
-                          onClick={() => !disabled && toggleTeam(team.id)}
-                        >
-                          <Checkbox
-                            id={`team-${team.id}`}
-                            checked={checked}
-                            disabled={disabled}
-                            onCheckedChange={() => toggleTeam(team.id)}
-                            className="mt-0.5 shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <Label
-                              htmlFor={`team-${team.id}`}
-                              className={cn(
-                                "text-sm font-semibold cursor-pointer flex items-center gap-1.5",
-                                checked ? "text-primary" : "",
-                                disabled ? "cursor-not-allowed" : ""
-                              )}
-                            >
-                              <TeamFlag team={team} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
-                              <span>{extractFlagAndName(team.name).name}</span>
-                            </Label>
-                            {members.length > 0 && (
-                              <div className="flex flex-wrap gap-x-2 gap-y-0 mt-0.5">
-                                {members.map((m) => {
-                                  const parsed = parseMemberName(m.name);
-                                  const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
-                                  return (
-                                    <span key={m.id} className="text-[10px] text-muted-foreground">
-                                      {name}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Peserta yang sudah terdaftar dapat dipakai lagi di pertandingan lain
+                    {matchBracket ? " — daftar disaring sesuai rentang umur match ini." : " — dikelompokkan per grup umur."}
+                  </p>
+                  <div className="border rounded-md p-2 space-y-3 max-h-56 overflow-y-auto bg-muted/20">
+                    {teamsByAgeBracket.map(([bracketLabelText, teams]) => (
+                      <div key={bracketLabelText} className="space-y-1.5">
+                        <div className="flex items-center justify-between px-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                            {bracketLabelText}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{teams.length} peserta</span>
                         </div>
-                      );
-                    })}
-                    {allTeams.length === 0 && (
+                        {teams.map((team) => {
+                          const checked = selectedTeamIds.includes(team.id);
+                          const disabled = !checked && selectedTeamIds.length >= targetCount;
+                          const members = (team as CompetitionTeamWithMembers).members || [];
+                          return (
+                            <div
+                              key={team.id}
+                              className={cn(
+                                "flex items-start gap-3 p-2 rounded-lg border transition-colors cursor-pointer",
+                                checked
+                                  ? "bg-primary/10 border-primary/30"
+                                  : disabled
+                                  ? "opacity-50 cursor-not-allowed border-transparent"
+                                  : "hover:bg-muted/50 border-transparent hover:border-border"
+                              )}
+                              onClick={() => !disabled && toggleTeam(team.id)}
+                            >
+                              <Checkbox
+                                id={`team-${team.id}`}
+                                checked={checked}
+                                disabled={disabled}
+                                onCheckedChange={() => toggleTeam(team.id)}
+                                className="mt-0.5 shrink-0"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <Label
+                                  htmlFor={`team-${team.id}`}
+                                  className={cn(
+                                    "text-sm font-semibold cursor-pointer flex items-center gap-1.5",
+                                    checked ? "text-primary" : "",
+                                    disabled ? "cursor-not-allowed" : ""
+                                  )}
+                                >
+                                  <TeamFlag team={team} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
+                                  <span>{extractFlagAndName(team.name).name}</span>
+                                  {team.age != null && (
+                                    <span className="text-[10px] font-normal text-muted-foreground">
+                                      ({team.age} thn)
+                                    </span>
+                                  )}
+                                </Label>
+                                {members.length > 0 && (
+                                  <div className="flex flex-wrap gap-x-2 gap-y-0 mt-0.5">
+                                    {members.map((m) => {
+                                      const parsed = parseMemberName(m.name);
+                                      const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
+                                      return (
+                                        <span key={m.id} className="text-[10px] text-muted-foreground">
+                                          {name}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                    {bracketedTeams.length === 0 && (
                       <p className="text-xs text-muted-foreground p-4 text-center">
-                        Belum ada peserta terdaftar.
+                        {allTeams.length === 0
+                          ? "Belum ada peserta terdaftar."
+                          : "Tidak ada peserta pada rentang umur match ini."}
                       </p>
                     )}
                   </div>
                 </div>
+
               ) : (
                 <div className="space-y-3">
                   <div className="text-xs text-amber-600 dark:text-amber-400 font-medium bg-amber-500/10 border border-amber-500/25 rounded-md p-2 flex items-center gap-2">
