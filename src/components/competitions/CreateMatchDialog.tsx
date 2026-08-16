@@ -853,78 +853,102 @@ export function CreateMatchDialog({
                       size="sm"
                       className="h-6 text-[10px] px-2 h-auto py-1"
                       onClick={() => {
-                        if (selectedTeamIds.length === allTeams.length) {
+                        if (selectedTeamIds.length === bracketedTeams.length) {
                           setSelectedTeamIds([]);
                         } else {
-                          setMaxParticipants(allTeams.length.toString());
-                          setSelectedTeamIds(allTeams.map(t => t.id));
+                          setMaxParticipants(bracketedTeams.length.toString());
+                          setSelectedTeamIds(bracketedTeams.map((t) => t.id));
                         }
                       }}
                     >
-                      {selectedTeamIds.length === allTeams.length ? "Batal Pilih Semua" : `Pilih Semua (${allTeams.length})`}
+                      {selectedTeamIds.length === bracketedTeams.length && bracketedTeams.length > 0
+                        ? "Batal Pilih Semua"
+                        : `Pilih Semua (${bracketedTeams.length})`}
                     </Button>
                   </div>
-                  <div className="border rounded-md p-2 space-y-2 max-h-48 overflow-y-auto bg-muted/20">
-                    {allTeams.map((team) => {
-                      const checked = selectedTeamIds.includes(team.id);
-                      const disabled = !checked && selectedTeamIds.length >= targetCount;
-                      const members = (team as CompetitionTeamWithMembers).members || [];
-                      return (
-                        <div
-                          key={team.id}
-                          className={cn(
-                            "flex items-start gap-3 p-2 rounded-lg border transition-colors cursor-pointer",
-                            checked
-                              ? "bg-primary/10 border-primary/30"
-                              : disabled
-                              ? "opacity-50 cursor-not-allowed border-transparent"
-                              : "hover:bg-muted/50 border-transparent hover:border-border"
-                          )}
-                          onClick={() => !disabled && toggleTeam(team.id)}
-                        >
-                          <Checkbox
-                            id={`team-${team.id}`}
-                            checked={checked}
-                            disabled={disabled}
-                            onCheckedChange={() => toggleTeam(team.id)}
-                            className="mt-0.5 shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <Label
-                              htmlFor={`team-${team.id}`}
-                              className={cn(
-                                "text-sm font-semibold cursor-pointer flex items-center gap-1.5",
-                                checked ? "text-primary" : "",
-                                disabled ? "cursor-not-allowed" : ""
-                              )}
-                            >
-                              <TeamFlag team={team} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
-                              <span>{extractFlagAndName(team.name).name}</span>
-                            </Label>
-                            {members.length > 0 && (
-                              <div className="flex flex-wrap gap-x-2 gap-y-0 mt-0.5">
-                                {members.map((m) => {
-                                  const parsed = parseMemberName(m.name);
-                                  const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
-                                  return (
-                                    <span key={m.id} className="text-[10px] text-muted-foreground">
-                                      {name}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Peserta yang sudah terdaftar dapat dipakai lagi di pertandingan lain
+                    {matchBracket ? " — daftar disaring sesuai rentang umur match ini." : " — dikelompokkan per grup umur."}
+                  </p>
+                  <div className="border rounded-md p-2 space-y-3 max-h-56 overflow-y-auto bg-muted/20">
+                    {teamsByAgeBracket.map(([bracketLabelText, teams]) => (
+                      <div key={bracketLabelText} className="space-y-1.5">
+                        <div className="flex items-center justify-between px-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                            {bracketLabelText}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{teams.length} peserta</span>
                         </div>
-                      );
-                    })}
-                    {allTeams.length === 0 && (
+                        {teams.map((team) => {
+                          const checked = selectedTeamIds.includes(team.id);
+                          const disabled = !checked && selectedTeamIds.length >= targetCount;
+                          const members = (team as CompetitionTeamWithMembers).members || [];
+                          return (
+                            <div
+                              key={team.id}
+                              className={cn(
+                                "flex items-start gap-3 p-2 rounded-lg border transition-colors cursor-pointer",
+                                checked
+                                  ? "bg-primary/10 border-primary/30"
+                                  : disabled
+                                  ? "opacity-50 cursor-not-allowed border-transparent"
+                                  : "hover:bg-muted/50 border-transparent hover:border-border"
+                              )}
+                              onClick={() => !disabled && toggleTeam(team.id)}
+                            >
+                              <Checkbox
+                                id={`team-${team.id}`}
+                                checked={checked}
+                                disabled={disabled}
+                                onCheckedChange={() => toggleTeam(team.id)}
+                                className="mt-0.5 shrink-0"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <Label
+                                  htmlFor={`team-${team.id}`}
+                                  className={cn(
+                                    "text-sm font-semibold cursor-pointer flex items-center gap-1.5",
+                                    checked ? "text-primary" : "",
+                                    disabled ? "cursor-not-allowed" : ""
+                                  )}
+                                >
+                                  <TeamFlag team={team} className="w-4 h-3 object-cover rounded shadow-sm shrink-0 border border-border/20" />
+                                  <span>{extractFlagAndName(team.name).name}</span>
+                                  {team.age != null && (
+                                    <span className="text-[10px] font-normal text-muted-foreground">
+                                      ({team.age} thn)
+                                    </span>
+                                  )}
+                                </Label>
+                                {members.length > 0 && (
+                                  <div className="flex flex-wrap gap-x-2 gap-y-0 mt-0.5">
+                                    {members.map((m) => {
+                                      const parsed = parseMemberName(m.name);
+                                      const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
+                                      return (
+                                        <span key={m.id} className="text-[10px] text-muted-foreground">
+                                          {name}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                    {bracketedTeams.length === 0 && (
                       <p className="text-xs text-muted-foreground p-4 text-center">
-                        Belum ada peserta terdaftar.
+                        {allTeams.length === 0
+                          ? "Belum ada peserta terdaftar."
+                          : "Tidak ada peserta pada rentang umur match ini."}
                       </p>
                     )}
                   </div>
                 </div>
+
               ) : (
                 <div className="space-y-3">
                   <div className="text-xs text-amber-600 dark:text-amber-400 font-medium bg-amber-500/10 border border-amber-500/25 rounded-md p-2 flex items-center gap-2">
