@@ -138,7 +138,7 @@ export default function Events() {
   return (
     <section className="min-h-screen bg-background p-6">
       <div className="mx-auto space-y-6">
-        <Tabs defaultValue="events" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
