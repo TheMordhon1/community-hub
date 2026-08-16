@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GlobalCompetitionList } from "@/components/competitions/GlobalCompetitionList";
 import { EventCard, EmptyEventState } from "@/components/events/EventCard";
@@ -18,6 +18,15 @@ import type { Event, EventRsvp } from "@/types/database";
 export default function Events() {
   const { user, canManageContent } = useAuth();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "competitions" ? "competitions" : "events";
+  const handleTabChange = (value: string) => {
+    if (value === "competitions") {
+      setSearchParams({ tab: "competitions" });
+    } else {
+      setSearchParams({}, { replace: false });
+    }
+  };
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
@@ -129,7 +138,7 @@ export default function Events() {
   return (
     <section className="min-h-screen bg-background p-6">
       <div className="mx-auto space-y-6">
-        <Tabs defaultValue="events" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
