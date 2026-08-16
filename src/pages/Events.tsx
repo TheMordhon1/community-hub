@@ -18,6 +18,15 @@ import type { Event, EventRsvp } from "@/types/database";
 export default function Events() {
   const { user, canManageContent } = useAuth();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "competitions" ? "competitions" : "events";
+  const handleTabChange = (value: string) => {
+    if (value === "competitions") {
+      setSearchParams({ tab: "competitions" });
+    } else {
+      setSearchParams({}, { replace: false });
+    }
+  };
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
