@@ -8,7 +8,7 @@ import { id as idLocale } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { cn, parseMemberName, capitalizeName } from "@/lib/utils";
+import { cn, parseMemberName, capitalizeName, isAggregateScore } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -179,7 +179,8 @@ export function MatchList({ competition, canManage, headerActions, onCreateMatch
       
       const eligibleIds = new Set<string>();
       groupNamesSet.forEach(g => {
-        const standings = computeStandings(allTeams, matches, g);
+        const isAggregate = isAggregateScore(competition?.sport_name);
+        const standings = computeStandings(allTeams, matches, g, false, isAggregate);
         standings.slice(0, advance).forEach(row => eligibleIds.add(row.team.id));
       });
       
@@ -484,8 +485,13 @@ export function MatchList({ competition, canManage, headerActions, onCreateMatch
           // Compute effective scores from sets_data if sets exist (badminton/multi-set),
           // otherwise fall back to stored score1/score2.
           const setsArr = Array.isArray(match.sets_data) ? match.sets_data : [];
-          const setsWon1 = setsArr.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length;
-          const setsWon2 = setsArr.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length;
+          const isAggregate = isAggregateScore(competition?.sport_name);
+          const setsWon1 = isAggregate 
+            ? setsArr.reduce((acc, s) => acc + (Number(s.team1_score) || 0), 0)
+            : setsArr.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length;
+          const setsWon2 = isAggregate 
+            ? setsArr.reduce((acc, s) => acc + (Number(s.team2_score) || 0), 0)
+            : setsArr.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length;
           const displayScore1 = setsArr.length > 0 ? String(setsWon1) : (match.score1 || "");
           const displayScore2 = setsArr.length > 0 ? String(setsWon2) : (match.score2 || "");
           const hasScoreValues = setsArr.length > 0 || match.score1 !== null || match.score2 !== null;
@@ -1266,7 +1272,8 @@ export function MatchList({ competition, canManage, headerActions, onCreateMatch
                       const advance = comp.advance_per_group || 2;
                       const standingsByGroup: Record<string, StandingRow[]> = {};
                       groupNamesSet.forEach((g) => {
-                        standingsByGroup[g] = computeStandings(teamsList, matchesList, g);
+                        const isAggregate = isAggregateScore(competition?.sport_name);
+                        standingsByGroup[g] = computeStandings(teamsList, matchesList, g, false, isAggregate);
                       });
                       const pairs = seedKnockoutFromStandings(standingsByGroup, advance);
                       generateKnockout.mutate({
@@ -1466,7 +1473,8 @@ export function MatchList({ competition, canManage, headerActions, onCreateMatch
                   const groupNamesSet = Array.from(new Set(allTeams.filter(t => !!t.group_name).map(t => t.group_name!))).sort();
                   const standingsByGroup: Record<string, StandingRow[]> = {};
                   groupNamesSet.forEach((g) => {
-                    standingsByGroup[g] = computeStandings(allTeams, matches, g);
+                    const isAggregate = isAggregateScore(competition?.sport_name);
+                    standingsByGroup[g] = computeStandings(allTeams, matches, g, false, isAggregate);
                   });
                   const pairs = seedKnockoutFromStandings(standingsByGroup, advance);
                   generateKnockout.mutate({

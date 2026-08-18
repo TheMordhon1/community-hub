@@ -2,7 +2,7 @@ import type { Profile, House, Event } from './database';
 import type { AgeCategory, AgeBracket, GenderCategory, Gender } from '@/lib/age-groups';
 
 export type CompetitionFormat = 'knockout' | 'round_robin' | 'league' | 'liga_grup' | 'swiss' | '17an' | 'custom';
-export type MatchType = '1v1' | '2v2' | '3v3' | '5v5' | '11v11' | 'custom';
+export type MatchType = '1v1' | '2v2' | '3v3' | '4v4' | '5v5' | '11v11' | 'custom';
 export type ParticipantType = 'user' | 'house' | 'team';
 export type CompetitionStatus = 'registration' | 'ongoing' | 'completed' | 'cancelled';
 export type MatchStatus = 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
@@ -156,6 +156,7 @@ export const MATCH_TYPE_LABELS: Record<MatchType, string> = {
   '1v1': '1 vs 1',
   '2v2': '2 vs 2',
   '3v3': '3 vs 3',
+  '4v4': '4 vs 4',
   '5v5': '5 vs 5',
   '11v11': '11 vs 11',
   'custom': 'Custom',

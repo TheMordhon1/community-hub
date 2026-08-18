@@ -27,7 +27,8 @@ export function computeStandings(
   teams: CompetitionTeamWithMembers[],
   matches: CompetitionMatchWithTeams[],
   groupName: string,
-  isPlayoff: boolean = false
+  isPlayoff: boolean = false,
+  isAggregate: boolean = false
 ): StandingRow[] {
   const groupTeams = teams.filter((t) => 
     isPlayoff 
@@ -69,15 +70,24 @@ export function computeStandings(
     if (s1 > s2) {
       r1.wins += 1;
       r2.losses += 1;
+      if (isAggregate) r1.points += 3;
     } else if (s2 > s1) {
       r2.wins += 1;
       r1.losses += 1;
+      if (isAggregate) r2.points += 3;
     } else {
       r1.draws += 1;
       r2.draws += 1;
+      if (isAggregate) {
+        r1.points += 1;
+        r2.points += 1;
+      }
     }
-    r1.points += s1;
-    r2.points += s2;
+    
+    if (!isAggregate) {
+      r1.points += s1;
+      r2.points += s2;
+    }
     r1.diff = r1.setsFor - r1.setsAgainst;
     r2.diff = r2.setsFor - r2.setsAgainst;
   }

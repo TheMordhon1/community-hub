@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
-import { parseMemberName, capitalizeName, cn } from "@/lib/utils";
+import { parseMemberName, capitalizeName, cn, getInitials } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -277,41 +277,73 @@ export function WinnerAnnounceDialog({
              <div className="flex items-end justify-center gap-2 md:gap-4 mt-8 pt-10 pb-4 h-[400px] sm:h-[500px]">
                {/* Juara 2 */}
                <div className="flex-1 flex flex-col items-center justify-end h-[75%] sm:h-[80%] relative group">
-                  {maxRankToShow >= 2 && juara2.map(p => (
-                    <div key={p.id} className="w-full flex flex-col items-center mb-4 z-20 animate-in slide-in-from-bottom-10 fade-in duration-700">
-                      {!is17an && p.team && (
-                         <div className="bg-background/90 backdrop-blur-sm border shadow-sm rounded-lg px-2 py-1 mb-2 max-w-[120px] text-center">
-                           <span className="text-[10px] md:text-xs font-bold truncate block">{extractFlagAndName(p.team.name).name}</span>
-                         </div>
-                      )}
-                      <div className="flex flex-wrap justify-center gap-1.5 w-full">
-                         {(p.team as CompetitionTeamWithMembers)?.members && (p.team as CompetitionTeamWithMembers).members!.length > 0 ? (
-                           (p.team as CompetitionTeamWithMembers).members!.map(m => {
-                              const parsed = parseMemberName(m.name);
-                              const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
-                              const displayName = name;
-                              const houseStr = m.house_block && m.house_number 
-                                ? `${m.house_block}.${m.house_number}`
-                                : (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.block && (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.number
-                                  ? `${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.block}.${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.number}`
-                                  : (p.team as CompetitionTeamWithMembers)?.house?.block && (p.team as CompetitionTeamWithMembers)?.house?.number
-                                    ? `${(p.team as CompetitionTeamWithMembers).house.block}.${(p.team as CompetitionTeamWithMembers).house.number}`
-                                    : null;
-                              const avatarSrc = m.profile?.avatar_url || parsed.avatarUrl || (p.team as CompetitionTeamWithMembers)?.logo_url || "";
-                              return (
-                                <div key={m.id} className="flex flex-col items-center w-[60px] sm:w-[80px] cursor-pointer hover:scale-105 transition-transform" onClick={() => setSelectedMember({ rank: 2, avatarUrl: avatarSrc, name: displayName, houseStr, teamName: p.team ? extractFlagAndName(p.team.name).name : null })}>
-                                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 shadow-sm border-slate-300">
-                                    <Avatar className="w-full h-full"><AvatarImage src={avatarSrc} className="object-cover" /><AvatarFallback className="text-[10px] sm:text-xs font-bold">{name.charAt(0)}</AvatarFallback></Avatar>
+                  {maxRankToShow >= 2 && juara2.map(p => {
+                    const teamName = p.team ? extractFlagAndName(p.team.name).name : "";
+                    const hasTeamPhoto = Boolean(p.team?.logo_url && (p.team.logo_url.includes("/") || p.team.logo_url.startsWith("http")));
+                    const members = (p.team as CompetitionTeamWithMembers)?.members || [];
+
+                    return (
+                      <div key={p.id} className="w-full flex flex-col items-center mb-4 z-20 animate-in slide-in-from-bottom-10 fade-in duration-700">
+                        {p.team ? (
+                          <>
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 shadow-md border-slate-300 bg-slate-400 flex items-center justify-center mb-1.5 shrink-0">
+                              {hasTeamPhoto ? (
+                                <img src={p.team.logo_url!} alt={teamName} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-lg sm:text-xl font-black text-white uppercase drop-shadow">
+                                  {getInitials(teamName || "TIM")}
+                                </span>
+                              )}
+                            </div>
+                            {!is17an && (
+                              <div className="bg-background/90 backdrop-blur-sm border shadow-sm rounded-lg px-2 py-0.5 mb-1.5 max-w-[120px] text-center">
+                                <span className="text-[10px] md:text-xs font-bold truncate block">{teamName}</span>
+                              </div>
+                            )}
+                            <div className="flex flex-wrap justify-center gap-1 w-full max-w-[180px]">
+                              {members.length > 0 ? (
+                                members.map(m => {
+                                  const parsed = parseMemberName(m.name);
+                                  const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
+                                  const avatarSrc = m.profile?.avatar_url || parsed.avatarUrl || "";
+                                  return (
+                                    <div 
+                                      key={m.id} 
+                                      className="flex items-center gap-1 bg-background/80 backdrop-blur-sm border border-slate-300/50 rounded-md px-1.5 py-0.5 shadow-sm cursor-pointer hover:scale-105 transition-transform" 
+                                      onClick={() => setSelectedMember({ rank: 2, avatarUrl: avatarSrc, name, houseStr: null, teamName })}
+                                    >
+                                      {avatarSrc && <img src={avatarSrc} alt={name} className="w-3.5 h-3.5 rounded-full object-cover shrink-0" />}
+                                      <span className="text-[10px] sm:text-[11px] font-bold text-center leading-tight">{name}</span>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <User className="w-8 h-8 text-muted-foreground opacity-50 mb-2" />
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-wrap justify-center gap-1.5 w-full">
+                            {members.length > 0 ? (
+                              members.map(m => {
+                                const parsed = parseMemberName(m.name);
+                                const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
+                                const avatarSrc = m.profile?.avatar_url || parsed.avatarUrl || "";
+                                return (
+                                  <div key={m.id} className="flex flex-col items-center cursor-pointer hover:scale-105 transition-transform" onClick={() => setSelectedMember({ rank: 2, avatarUrl: avatarSrc, name, houseStr: null, teamName: null })}>
+                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 shadow-sm border-slate-300">
+                                      <Avatar className="w-full h-full"><AvatarImage src={avatarSrc} className="object-cover" /><AvatarFallback className="text-[10px] sm:text-xs font-bold">{name.charAt(0)}</AvatarFallback></Avatar>
+                                    </div>
+                                    <span className="text-[10px] sm:text-xs font-bold text-center leading-tight mt-1.5 w-full px-1 line-clamp-2">{name}</span>
                                   </div>
-                                  <span className="text-[10px] sm:text-xs font-bold text-center leading-tight mt-1.5 w-full px-1 line-clamp-3">{displayName}</span>
-                                  {houseStr && <span className="text-[12px] text-muted-foreground font-semibold mt-0.5">({houseStr})</span>}
-                                </div>
-                              )
-                           })
-                         ) : <User className="w-8 h-8 text-muted-foreground opacity-50 mb-2" />}
+                                );
+                              })
+                            ) : <User className="w-8 h-8 text-muted-foreground opacity-50 mb-2" />}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <div className="w-full bg-gradient-to-t from-slate-500 to-slate-300 rounded-t-2xl flex flex-col items-center justify-start pt-4 sm:pt-6 text-white h-[60%] relative shadow-[0_-10px_20px_-5px_rgba(148,163,184,0.4)] z-10 transition-all duration-500 hover:h-[65%]">
                      <span className="text-4xl sm:text-6xl font-black drop-shadow-md">2</span>
                      <span className="text-[8px] sm:text-xs uppercase tracking-widest font-bold opacity-90 mt-1 sm:mt-2">Silver</span>
@@ -320,41 +352,73 @@ export function WinnerAnnounceDialog({
                
                {/* Juara 1 */}
                <div className="flex-[1.2] flex flex-col items-center justify-end h-full relative group z-20 -mx-1 sm:-mx-2">
-                  {(!visibleRanks || visibleRanks.includes(1)) && juara1.map((p) => (
-                    <div key={p.id} className="w-full flex flex-col items-center mb-4 z-20 animate-in slide-in-from-bottom-10 fade-in duration-500 delay-150 fill-mode-both">
-                      {!is17an && p.team && (
-                         <div className="bg-background/90 backdrop-blur-sm border-2 border-yellow-500/50 shadow-md rounded-lg px-2 py-1 mb-2 max-w-[140px] text-center">
-                           <span className="text-[10px] sm:text-xs font-black truncate block">{extractFlagAndName(p.team.name).name}</span>
-                         </div>
-                      )}
-                      <div className="flex flex-wrap justify-center gap-1.5 w-full">
-                         {(p.team as CompetitionTeamWithMembers)?.members && (p.team as CompetitionTeamWithMembers).members!.length > 0 ? (
-                           (p.team as CompetitionTeamWithMembers).members!.map(m => {
-                              const parsed = parseMemberName(m.name);
-                              const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
-                              const displayName = name;
-                              const houseStr = m.house_block && m.house_number 
-                                ? `${m.house_block}.${m.house_number}`
-                                : (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.block && (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.number
-                                  ? `${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.block}.${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.number}`
-                                  : (p.team as CompetitionTeamWithMembers)?.house?.block && (p.team as CompetitionTeamWithMembers)?.house?.number
-                                    ? `${(p.team as CompetitionTeamWithMembers).house.block}.${(p.team as CompetitionTeamWithMembers).house.number}`
-                                    : null;
-                              const avatarSrc = m.profile?.avatar_url || parsed.avatarUrl || (p.team as CompetitionTeamWithMembers)?.logo_url || "";
-                              return (
-                                <div key={m.id} className="flex flex-col items-center w-[70px] sm:w-[90px] cursor-pointer hover:scale-105 transition-transform" onClick={() => setSelectedMember({ rank: 1, avatarUrl: avatarSrc, name: displayName, houseStr, teamName: p.team ? extractFlagAndName(p.team.name).name : null })}>
-                                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-4 shadow-lg border-yellow-400">
-                                    <Avatar className="w-full h-full"><AvatarImage src={avatarSrc} className="object-cover" /><AvatarFallback className="text-sm font-bold">{name.charAt(0)}</AvatarFallback></Avatar>
+                  {(!visibleRanks || visibleRanks.includes(1)) && juara1.map((p) => {
+                    const teamName = p.team ? extractFlagAndName(p.team.name).name : "";
+                    const hasTeamPhoto = Boolean(p.team?.logo_url && (p.team.logo_url.includes("/") || p.team.logo_url.startsWith("http")));
+                    const members = (p.team as CompetitionTeamWithMembers)?.members || [];
+
+                    return (
+                      <div key={p.id} className="w-full flex flex-col items-center mb-4 z-20 animate-in slide-in-from-bottom-10 fade-in duration-500 delay-150 fill-mode-both">
+                        {p.team ? (
+                          <>
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-4 shadow-lg border-yellow-400 bg-yellow-500 flex items-center justify-center mb-2 shrink-0">
+                              {hasTeamPhoto ? (
+                                <img src={p.team.logo_url!} alt={teamName} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-xl sm:text-2xl font-black text-white uppercase drop-shadow">
+                                  {getInitials(teamName || "TIM")}
+                                </span>
+                              )}
+                            </div>
+                            {!is17an && (
+                              <div className="bg-background/90 backdrop-blur-sm border-2 border-yellow-500/50 shadow-md rounded-lg px-2.5 py-1 mb-2 max-w-[140px] text-center">
+                                <span className="text-xs sm:text-sm font-black truncate block">{teamName}</span>
+                              </div>
+                            )}
+                            <div className="flex flex-wrap justify-center gap-1.5 w-full max-w-[220px]">
+                              {members.length > 0 ? (
+                                members.map(m => {
+                                  const parsed = parseMemberName(m.name);
+                                  const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
+                                  const avatarSrc = m.profile?.avatar_url || parsed.avatarUrl || "";
+                                  return (
+                                    <div 
+                                      key={m.id} 
+                                      className="flex items-center gap-1 bg-background/80 backdrop-blur-sm border border-yellow-500/30 rounded-lg px-2 py-0.5 shadow-sm cursor-pointer hover:scale-105 transition-transform" 
+                                      onClick={() => setSelectedMember({ rank: 1, avatarUrl: avatarSrc, name, houseStr: null, teamName })}
+                                    >
+                                      {avatarSrc && <img src={avatarSrc} alt={name} className="w-3.5 h-3.5 rounded-full object-cover shrink-0" />}
+                                      <span className="text-[11px] sm:text-xs font-bold text-center leading-tight">{name}</span>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <User className="w-10 h-10 text-muted-foreground opacity-50 mb-2" />
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-wrap justify-center gap-1.5 w-full">
+                            {members.length > 0 ? (
+                              members.map(m => {
+                                const parsed = parseMemberName(m.name);
+                                const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
+                                const avatarSrc = m.profile?.avatar_url || parsed.avatarUrl || "";
+                                return (
+                                  <div key={m.id} className="flex flex-col items-center cursor-pointer hover:scale-105 transition-transform" onClick={() => setSelectedMember({ rank: 1, avatarUrl: avatarSrc, name, houseStr: null, teamName: null })}>
+                                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-4 shadow-lg border-yellow-400">
+                                      <Avatar className="w-full h-full"><AvatarImage src={avatarSrc} className="object-cover" /><AvatarFallback className="text-sm font-bold">{name.charAt(0)}</AvatarFallback></Avatar>
+                                    </div>
+                                    <span className="text-xs sm:text-sm font-black text-center leading-tight mt-2 w-full px-1 line-clamp-2">{name}</span>
                                   </div>
-                                  <span className="text-xs sm:text-sm font-black text-center leading-tight mt-2 w-full px-1 line-clamp-3">{displayName}</span>
-                                  {houseStr && <span className="text-[12px] text-muted-foreground font-bold mt-0.5">({houseStr})</span>}
-                                </div>
-                              )
-                           })
-                         ) : <User className="w-10 h-10 text-muted-foreground opacity-50 mb-2" />}
+                                );
+                              })
+                            ) : <User className="w-10 h-10 text-muted-foreground opacity-50 mb-2" />}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <div className="w-full bg-gradient-to-t from-yellow-600 to-yellow-400 rounded-t-3xl flex flex-col items-center justify-start pt-6 sm:pt-8 text-white h-[75%] sm:h-[80%] relative shadow-[0_-15px_30px_-5px_rgba(234,179,8,0.5)] z-10 transition-all duration-500 hover:h-[80%] sm:hover:h-[85%]">
                      <Trophy className="w-6 h-6 sm:w-8 sm:h-8 absolute top-3 sm:top-4 opacity-50" />
                      <span className="text-6xl sm:text-8xl font-black drop-shadow-lg mt-4 sm:mt-6">1</span>
@@ -364,41 +428,73 @@ export function WinnerAnnounceDialog({
 
                {/* Juara 3 */}
                <div className="flex-1 flex flex-col items-center justify-end h-[60%] sm:h-[65%] relative group">
-                  {maxRankToShow >= 3 && juara3.map(p => (
-                    <div key={p.id} className="w-full flex flex-col items-center mb-4 z-20 animate-in slide-in-from-bottom-10 fade-in duration-700 delay-300 fill-mode-both">
-                      {!is17an && p.team && (
-                         <div className="bg-background/90 backdrop-blur-sm border shadow-sm rounded-lg px-2 py-1 mb-2 max-w-[120px] text-center">
-                           <span className="text-[9px] sm:text-[10px] font-bold truncate block">{extractFlagAndName(p.team.name).name}</span>
-                         </div>
-                      )}
-                      <div className="flex flex-wrap justify-center gap-1.5 w-full">
-                         {(p.team as CompetitionTeamWithMembers)?.members && (p.team as CompetitionTeamWithMembers).members!.length > 0 ? (
-                           (p.team as CompetitionTeamWithMembers).members!.map(m => {
-                              const parsed = parseMemberName(m.name);
-                              const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
-                              const displayName = name;
-                              const houseStr = m.house_block && m.house_number 
-                                ? `${m.house_block}.${m.house_number}`
-                                : (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.block && (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.number
-                                  ? `${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.block}.${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.number}`
-                                  : (p.team as CompetitionTeamWithMembers)?.house?.block && (p.team as CompetitionTeamWithMembers)?.house?.number
-                                    ? `${(p.team as CompetitionTeamWithMembers).house.block}.${(p.team as CompetitionTeamWithMembers).house.number}`
-                                    : null;
-                              const avatarSrc = m.profile?.avatar_url || parsed.avatarUrl || (p.team as CompetitionTeamWithMembers)?.logo_url || "";
-                              return (
-                                <div key={m.id} className="flex flex-col items-center w-[50px] sm:w-[70px] cursor-pointer hover:scale-105 transition-transform" onClick={() => setSelectedMember({ rank: 3, avatarUrl: avatarSrc, name: displayName, houseStr, teamName: p.team ? extractFlagAndName(p.team.name).name : null })}>
-                                  <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full overflow-hidden border-2 shadow-sm border-amber-600">
-                                    <Avatar className="w-full h-full"><AvatarImage src={avatarSrc} className="object-cover" /><AvatarFallback className="text-[10px] sm:text-xs font-bold">{name.charAt(0)}</AvatarFallback></Avatar>
+                  {maxRankToShow >= 3 && juara3.map(p => {
+                    const teamName = p.team ? extractFlagAndName(p.team.name).name : "";
+                    const hasTeamPhoto = Boolean(p.team?.logo_url && (p.team.logo_url.includes("/") || p.team.logo_url.startsWith("http")));
+                    const members = (p.team as CompetitionTeamWithMembers)?.members || [];
+
+                    return (
+                      <div key={p.id} className="w-full flex flex-col items-center mb-4 z-20 animate-in slide-in-from-bottom-10 fade-in duration-700 delay-300 fill-mode-both">
+                        {p.team ? (
+                          <>
+                            <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full overflow-hidden border-2 shadow-md border-amber-600 bg-amber-600 flex items-center justify-center mb-1.5 shrink-0">
+                              {hasTeamPhoto ? (
+                                <img src={p.team.logo_url!} alt={teamName} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-base sm:text-lg font-black text-white uppercase drop-shadow">
+                                  {getInitials(teamName || "TIM")}
+                                </span>
+                              )}
+                            </div>
+                            {!is17an && (
+                              <div className="bg-background/90 backdrop-blur-sm border shadow-sm rounded-lg px-2 py-0.5 mb-1.5 max-w-[120px] text-center">
+                                <span className="text-[9px] sm:text-[10px] font-bold truncate block">{teamName}</span>
+                              </div>
+                            )}
+                            <div className="flex flex-wrap justify-center gap-1 w-full max-w-[160px]">
+                              {members.length > 0 ? (
+                                members.map(m => {
+                                  const parsed = parseMemberName(m.name);
+                                  const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
+                                  const avatarSrc = m.profile?.avatar_url || parsed.avatarUrl || "";
+                                  return (
+                                    <div 
+                                      key={m.id} 
+                                      className="flex items-center gap-1 bg-background/80 backdrop-blur-sm border border-amber-500/30 rounded-md px-1.5 py-0.5 shadow-sm cursor-pointer hover:scale-105 transition-transform" 
+                                      onClick={() => setSelectedMember({ rank: 3, avatarUrl: avatarSrc, name, houseStr: null, teamName })}
+                                    >
+                                      {avatarSrc && <img src={avatarSrc} alt={name} className="w-3.5 h-3.5 rounded-full object-cover shrink-0" />}
+                                      <span className="text-[9px] sm:text-[10px] font-bold text-center leading-tight">{name}</span>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <User className="w-6 h-6 text-muted-foreground opacity-50 mb-2" />
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-wrap justify-center gap-1.5 w-full">
+                            {members.length > 0 ? (
+                              members.map(m => {
+                                const parsed = parseMemberName(m.name);
+                                const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
+                                const avatarSrc = m.profile?.avatar_url || parsed.avatarUrl || "";
+                                return (
+                                  <div key={m.id} className="flex flex-col items-center cursor-pointer hover:scale-105 transition-transform" onClick={() => setSelectedMember({ rank: 3, avatarUrl: avatarSrc, name, houseStr: null, teamName: null })}>
+                                    <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full overflow-hidden border-2 shadow-sm border-amber-600">
+                                      <Avatar className="w-full h-full"><AvatarImage src={avatarSrc} className="object-cover" /><AvatarFallback className="text-[10px] sm:text-xs font-bold">{name.charAt(0)}</AvatarFallback></Avatar>
+                                    </div>
+                                    <span className="text-[9px] sm:text-[10px] font-bold text-center leading-tight mt-1.5 w-full px-1 line-clamp-2">{name}</span>
                                   </div>
-                                  <span className="text-[9px] sm:text-[10px] font-bold text-center leading-tight mt-1.5 w-full px-1 line-clamp-3">{displayName}</span>
-                                  {houseStr && <span className="text-[12px] text-muted-foreground font-semibold mt-0.5">({houseStr})</span>}
-                                </div>
-                              )
-                           })
-                         ) : <User className="w-6 h-6 text-muted-foreground opacity-50 mb-2" />}
+                                );
+                              })
+                            ) : <User className="w-6 h-6 text-muted-foreground opacity-50 mb-2" />}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <div className="w-full bg-gradient-to-t from-amber-800 to-amber-600 rounded-t-2xl flex flex-col items-center justify-start pt-4 sm:pt-6 text-white h-[50%] sm:h-[55%] relative shadow-[0_-10px_20px_-5px_rgba(180,83,9,0.4)] z-10 transition-all duration-500 hover:h-[55%] sm:hover:h-[60%]">
                      <span className="text-3xl sm:text-5xl font-black drop-shadow-md">3</span>
                      <span className="text-[7px] sm:text-[10px] uppercase tracking-widest font-bold opacity-90 mt-1 sm:mt-2">Bronze</span>
@@ -422,58 +518,76 @@ export function WinnerAnnounceDialog({
                   <div className="absolute right-0 top-0 -mr-8 -mt-8 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none" />
                   <div className="absolute left-0 bottom-0 -ml-8 -mb-8 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none" />
                   
-                  <div className="relative mb-5 z-10">
-                    <div className="w-20 h-20 bg-yellow-500 rounded-2xl flex items-center justify-center shadow-xl transform -rotate-3 group-hover:rotate-0 transition-transform duration-500">
-                      <Trophy className="w-10 h-10 text-white fill-white" />
-                    </div>
-                    <div className="absolute -top-3 -right-3 bg-black text-white text-[10px] font-black px-3 py-1 rounded-full border border-yellow-500 uppercase tracking-wider shadow-md">
-                       {isMatchAnnounce ? "pemenang" : "juara 1"}
-                    </div>
-                  </div>
-                  
-                  {!is17an && (
-                    <h3 className="text-3xl md:text-4xl font-black tracking-tight leading-tight mb-6 relative z-10 flex items-center justify-center gap-3">
-                      {p.team && <TeamFlag team={p.team} className="w-10 h-7 object-cover rounded shadow-md inline-block select-none border border-yellow-500/30 shrink-0 text-3xl" fallbackSize="text-4xl" />}
-                      <span>{p.team ? extractFlagAndName(p.team.name).name : ""}</span>
-                    </h3>
-                  )}
-                  
-                  <div className="flex flex-wrap justify-center gap-4 w-full relative z-10">
-                    {(p.team as CompetitionTeamWithMembers)?.members && (p.team as CompetitionTeamWithMembers).members!.length > 0 ? (
-                      (p.team as CompetitionTeamWithMembers).members!.map((m) => {
-                        const parsed = parseMemberName(m.name);
-                        const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
-                        const avatarUrl = m.profile?.avatar_url || parsed.avatarUrl || (p.team as CompetitionTeamWithMembers)?.logo_url || "";
-                        const houseStr = m.house_block && m.house_number 
-                          ? `${m.house_block}.${m.house_number}`
-                          : (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.block && (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.number
-                            ? `${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.block}.${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.number}`
-                            : (p.team as CompetitionTeamWithMembers)?.house?.block && (p.team as CompetitionTeamWithMembers)?.house?.number
-                              ? `${(p.team as CompetitionTeamWithMembers).house.block}.${(p.team as CompetitionTeamWithMembers).house.number}`
-                              : null;
-                        return (
-                          <div key={m.id} onClick={() => setSelectedMember({ rank: 1, avatarUrl, name, houseStr, teamName: p.team ? extractFlagAndName(p.team.name).name : null })} className="flex flex-col cursor-pointer bg-white/60 dark:bg-slate-900/40 border border-yellow-500/20 rounded-2xl p-1.5 shadow-sm hover:shadow-md transition-shadow flex-1 min-w-[110px] max-w-[180px]">
-                            <div className="w-full aspect-square rounded-[10px] bg-slate-200 dark:bg-slate-800 overflow-hidden mb-2 border border-yellow-500/10">
-                              <Avatar className="w-full h-full rounded-none">
-                                <AvatarImage src={avatarUrl || ""} alt={name} className="object-cover" />
-                                <AvatarFallback className="rounded-none bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-4xl font-bold text-slate-500">
-                                  {name.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
+                  {(() => {
+                    const hasTeamPhoto = Boolean(p.team?.logo_url && (p.team.logo_url.includes("/") || p.team.logo_url.startsWith("http")));
+                    return (
+                      <>
+                        {hasTeamPhoto ? (
+                          <div className="relative w-full max-w-lg aspect-[16/9] sm:aspect-[2/1] rounded-2xl overflow-hidden shadow-xl border-2 border-yellow-500/40 mb-5 z-10">
+                            <img src={p.team!.logo_url!} alt="Foto Tim" className="w-full h-full object-cover" />
+                            <div className="absolute top-3 right-3 bg-black/80 text-white text-[10px] font-black px-3 py-1 rounded-full border border-yellow-500 uppercase tracking-wider shadow-md backdrop-blur-sm">
+                               {isMatchAnnounce ? "pemenang" : "juara 1"}
                             </div>
-                            <span className="text-sm font-bold text-slate-800 dark:text-slate-100 text-center px-1 pb-1 line-clamp-2 leading-tight">
-                              {name}
-                            </span>
                           </div>
-                        );
-                      })
-                    ) : (
-                      <div className="flex items-center justify-center gap-2">
-                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                        <span className="text-sm font-bold text-yellow-600 uppercase tracking-widest">Pemenang Utama</span>
-                      </div>
-                    )}
-                  </div>
+                        ) : (
+                          <div className="relative mb-5 z-10">
+                            <div className="w-20 h-20 bg-yellow-500 rounded-2xl flex items-center justify-center shadow-xl transform -rotate-3 group-hover:rotate-0 transition-transform duration-500 overflow-hidden">
+                              <span className="text-3xl font-black text-white uppercase drop-shadow-sm">
+                                {getInitials(p.team ? extractFlagAndName(p.team.name).name : "TIM")}
+                              </span>
+                            </div>
+                            <div className="absolute -top-3 -right-3 bg-black text-white text-[10px] font-black px-3 py-1 rounded-full border border-yellow-500 uppercase tracking-wider shadow-md">
+                               {isMatchAnnounce ? "pemenang" : "juara 1"}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {!is17an && (
+                          <h3 className="text-3xl md:text-4xl font-black tracking-tight leading-tight mb-6 relative z-10 flex items-center justify-center gap-3">
+                            {p.team && <TeamFlag team={p.team} className="w-10 h-7 object-cover rounded shadow-md inline-block select-none border border-yellow-500/30 shrink-0 text-3xl" fallbackSize="text-4xl" />}
+                            <span>{p.team ? extractFlagAndName(p.team.name).name : ""}</span>
+                          </h3>
+                        )}
+                        
+                        <div className="flex flex-wrap justify-center gap-3 w-full relative z-10">
+                          {(p.team as CompetitionTeamWithMembers)?.members && (p.team as CompetitionTeamWithMembers).members!.length > 0 ? (
+                            (p.team as CompetitionTeamWithMembers).members!.map((m) => {
+                              const parsed = parseMemberName(m.name);
+                              const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
+                              const avatarUrl = m.profile?.avatar_url || parsed.avatarUrl || "";
+                              const houseStr = m.house_block && m.house_number 
+                                ? `${m.house_block}.${m.house_number}`
+                                : (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.block && (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.number
+                                  ? `${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.block}.${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.number}`
+                                  : (p.team as CompetitionTeamWithMembers)?.house?.block && (p.team as CompetitionTeamWithMembers)?.house?.number
+                                    ? `${(p.team as CompetitionTeamWithMembers).house.block}.${(p.team as CompetitionTeamWithMembers).house.number}`
+                                    : null;
+                              
+                              return (
+                                <div 
+                                  key={m.id} 
+                                  onClick={() => setSelectedMember({ rank: 1, avatarUrl, name, houseStr: null, teamName: p.team ? extractFlagAndName(p.team.name).name : null })} 
+                                  className="flex items-center gap-2 cursor-pointer bg-slate-100 dark:bg-slate-800/80 border border-yellow-500/30 rounded-xl px-4 py-2 shadow-sm hover:shadow-md hover:border-yellow-500 transition-all"
+                                >
+                                  {avatarUrl ? (
+                                    <img src={avatarUrl} alt={name} className="w-6 h-6 rounded-full object-cover shrink-0 border border-yellow-500/30" />
+                                  ) : null}
+                                  <span className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                                    {name}
+                                  </span>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="flex items-center justify-center gap-2">
+                              <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                              <span className="text-sm font-bold text-yellow-600 uppercase tracking-widest">Pemenang Utama</span>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </motion.div>
             ))}
@@ -510,46 +624,66 @@ export function WinnerAnnounceDialog({
                       }}
                     >
                       <div className="h-full bg-slate-100 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 rounded-3xl p-4 sm:p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group max-w-md mx-auto">
-                        <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10 flex items-center justify-center gap-2">
-                          <TeamFlag team={fullLoserTeam} className="w-6 h-4 object-cover rounded shadow-sm inline-block select-none border border-slate-300 dark:border-slate-700 shrink-0 text-xl" fallbackSize="text-2xl" />
-                          <span>{extractFlagAndName(fullLoserTeam.name).name}</span>
-                        </h4>
-                        
-                        <div className="flex flex-wrap justify-center gap-3 w-full relative z-10">
-                          {fullLoserTeam.members && fullLoserTeam.members.length > 0 ? (
-                            fullLoserTeam.members.map((m: NonNullable<CompetitionTeamWithMembers['members']>[number]) => {
-                              const parsed = parseMemberName(m.name);
-                              const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
-                              const avatarUrl = m.profile?.avatar_url || parsed.avatarUrl || fullLoserTeam.logo_url || "";
-                              const houseStr = m.house_block && m.house_number 
-                                ? `${m.house_block}.${m.house_number}`
-                                : (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.block && (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.number
-                                  ? `${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.block}.${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.number}`
-                                  : fullLoserTeam.house?.block && fullLoserTeam.house?.number
-                                    ? `${fullLoserTeam.house.block}.${fullLoserTeam.house.number}`
-                                    : null;
-                            
-                              return (
-                                <div key={m.id} onClick={() => setSelectedMember({ rank: 2, avatarUrl, name, houseStr, teamName: fullLoserTeam ? extractFlagAndName(fullLoserTeam.name).name : null })} className="flex flex-col cursor-pointer bg-white/50 dark:bg-slate-900/30 border border-slate-300 dark:border-slate-600 rounded-xl p-1.5 shadow-sm flex-1 min-w-[90px] max-w-[140px] opacity-80">
-                                  <div className="w-full aspect-square rounded-lg bg-slate-200 dark:bg-slate-800 overflow-hidden mb-1.5 border border-slate-300/50 dark:border-slate-600/50 transition-all">
-                                    {avatarUrl ? (
-                                      <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center">
-                                        <User className="w-1/3 h-1/3 text-slate-400" />
-                                      </div>
-                                    )}
+                        {(() => {
+                          const hasTeamPhoto = Boolean(fullLoserTeam.logo_url && (fullLoserTeam.logo_url.includes("/") || fullLoserTeam.logo_url.startsWith("http")));
+                          return (
+                            <>
+                              {hasTeamPhoto ? (
+                                <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden shadow-md border border-slate-300 dark:border-slate-700 mb-4 z-10">
+                                  <img src={fullLoserTeam.logo_url!} alt="Foto Tim" className="w-full h-full object-cover" />
+                                  <div className="absolute top-2 right-2 bg-black/80 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full border border-slate-400 uppercase tracking-wider shadow-sm backdrop-blur-sm">
+                                    Lawan
                                   </div>
-                                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 text-center line-clamp-2 leading-tight px-0.5">
-                                    {name}
+                                </div>
+                              ) : (
+                                <div className="w-14 h-14 bg-slate-400 rounded-2xl flex items-center justify-center shadow-md mb-4 transform -rotate-3 group-hover:rotate-0 transition-transform duration-500 z-10 relative overflow-hidden">
+                                  <span className="text-xl font-black text-white uppercase drop-shadow-sm">
+                                    {getInitials(extractFlagAndName(fullLoserTeam.name).name)}
                                   </span>
                                 </div>
-                              );
-                            })
-                          ) : (
-                            <span className="text-[10px] text-slate-400 italic">Peserta</span>
-                          )}
-                        </div>
+                              )}
+                              
+                              <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10 flex items-center justify-center gap-2">
+                                <TeamFlag team={fullLoserTeam} className="w-6 h-4 object-cover rounded shadow-sm inline-block select-none border border-slate-300 dark:border-slate-700 shrink-0 text-xl" fallbackSize="text-2xl" />
+                                <span>{extractFlagAndName(fullLoserTeam.name).name}</span>
+                              </h4>
+                              
+                              <div className="flex flex-wrap justify-center gap-2 w-full relative z-10">
+                                {fullLoserTeam.members && fullLoserTeam.members.length > 0 ? (
+                                  fullLoserTeam.members.map((m: NonNullable<CompetitionTeamWithMembers['members']>[number]) => {
+                                    const parsed = parseMemberName(m.name);
+                                    const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
+                                    const avatarUrl = m.profile?.avatar_url || parsed.avatarUrl || "";
+                                    const houseStr = m.house_block && m.house_number 
+                                      ? `${m.house_block}.${m.house_number}`
+                                      : (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.block && (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.number
+                                        ? `${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.block}.${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.number}`
+                                        : fullLoserTeam.house?.block && fullLoserTeam.house?.number
+                                          ? `${fullLoserTeam.house.block}.${fullLoserTeam.house.number}`
+                                          : null;
+                                  
+                                    return (
+                                      <div 
+                                        key={m.id} 
+                                        onClick={() => setSelectedMember({ rank: 2, avatarUrl, name, houseStr: null, teamName: extractFlagAndName(fullLoserTeam.name).name })} 
+                                        className="flex items-center gap-1.5 cursor-pointer bg-white/70 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-1.5 shadow-sm hover:shadow-md transition-all"
+                                      >
+                                        {avatarUrl ? (
+                                          <img src={avatarUrl} alt={name} className="w-5 h-5 rounded-full object-cover shrink-0 border border-slate-300" />
+                                        ) : null}
+                                        <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                                          {name}
+                                        </span>
+                                      </div>
+                                    );
+                                  })
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 italic">Peserta</span>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     </motion.div>
                   )}
@@ -567,55 +701,73 @@ export function WinnerAnnounceDialog({
                   transition={{ delay: 0.4 }}
                 >
                   <div className="h-full bg-slate-100 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 rounded-3xl p-4 sm:p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group">
-                    <div className="w-14 h-14 bg-slate-400 rounded-2xl flex items-center justify-center shadow-md mb-4 transform -rotate-3 group-hover:rotate-0 transition-transform duration-500 z-10 relative">
-                      <Trophy className="w-8 h-8 text-white" />
-                    </div>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 relative z-10">Juara 2</p>
-                    {!is17an && (
-                      <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10 flex items-center justify-center gap-2">
-                        {p.team && <TeamFlag team={p.team} className="w-6 h-4 object-cover rounded shadow-sm inline-block select-none border border-slate-300 dark:border-slate-700 shrink-0 text-xl" fallbackSize="text-2xl" />}
-                        <span>{p.team ? extractFlagAndName(p.team.name).name : ""}</span>
-                      </h4>
-                    )}
-                    <div className="flex flex-wrap justify-center gap-3 w-full relative z-10">
-                      {(p.team as CompetitionTeamWithMembers)?.members && (p.team as CompetitionTeamWithMembers).members!.length > 0 ? (
-                        (p.team as CompetitionTeamWithMembers).members!.map((m) => {
-                          const parsed = parseMemberName(m.name);
-                          const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
-                          const avatarUrl = m.profile?.avatar_url || parsed.avatarUrl || (p.team as CompetitionTeamWithMembers)?.logo_url || "";
-                          const houseStr = m.house_block && m.house_number 
-                            ? `${m.house_block}.${m.house_number}`
-                            : (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.block && (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.number
-                              ? `${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.block}.${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.number}`
-                              : (p.team as CompetitionTeamWithMembers)?.house?.block && (p.team as CompetitionTeamWithMembers)?.house?.number
-                                ? `${(p.team as CompetitionTeamWithMembers).house.block}.${(p.team as CompetitionTeamWithMembers).house.number}`
-                                : null;
-                          const displayName = is17an ? name : (name.split(' ')[0] || "Anonim");
-                          return (
-                            <div key={m.id} onClick={() => setSelectedMember({ rank: 2, avatarUrl, name, houseStr, teamName: p.team ? extractFlagAndName(p.team.name).name : null })} className="flex flex-col cursor-pointer bg-white/50 dark:bg-slate-900/30 border border-slate-300 dark:border-slate-600 rounded-xl p-1.5 shadow-sm flex-1 min-w-[90px] max-w-[140px]">
-                              <div className="w-full aspect-square rounded-lg bg-slate-200 dark:bg-slate-800 overflow-hidden mb-1.5 border border-slate-300/50 dark:border-slate-600/50">
-                                <Avatar className="w-full h-full rounded-none">
-                                  <AvatarImage src={avatarUrl || ""} alt={name} className="object-cover" />
-                                  <AvatarFallback className="rounded-none bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-3xl font-bold text-slate-500">
-                                    {name.charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                              </div>
-                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 text-center line-clamp-2 leading-tight px-0.5">
-                                {displayName}
-                              </span>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <span className="text-[10px] text-slate-400 italic">Pemenang Tim</span>
-                      )}
-                    </div>
+                     {(() => {
+                       const hasTeamPhoto = Boolean(p.team?.logo_url && (p.team.logo_url.includes("/") || p.team.logo_url.startsWith("http")));
+                       return (
+                         <>
+                           {hasTeamPhoto ? (
+                             <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden shadow-md border border-slate-300 dark:border-slate-700 mb-4 z-10">
+                               <img src={p.team!.logo_url!} alt="Foto Tim" className="w-full h-full object-cover" />
+                               <div className="absolute top-2 right-2 bg-black/80 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full border border-slate-400 uppercase tracking-wider shadow-sm backdrop-blur-sm">
+                                 Juara 2
+                               </div>
+                             </div>
+                           ) : (
+                             <div className="w-14 h-14 bg-slate-400 rounded-2xl flex items-center justify-center shadow-md mb-4 transform -rotate-3 group-hover:rotate-0 transition-transform duration-500 z-10 relative overflow-hidden">
+                               <span className="text-xl font-black text-white uppercase drop-shadow-sm">
+                                 {getInitials(p.team ? extractFlagAndName(p.team.name).name : "TIM")}
+                               </span>
+                             </div>
+                           )}
+                           {!hasTeamPhoto && <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 relative z-10">Juara 2</p>}
+                           {!is17an && (
+                             <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10 flex items-center justify-center gap-2">
+                               {p.team && <TeamFlag team={p.team} className="w-6 h-4 object-cover rounded shadow-sm inline-block select-none border border-slate-300 dark:border-slate-700 shrink-0 text-xl" fallbackSize="text-2xl" />}
+                               <span>{p.team ? extractFlagAndName(p.team.name).name : ""}</span>
+                             </h4>
+                           )}
+                           <div className="flex flex-wrap justify-center gap-2 w-full relative z-10">
+                             {(p.team as CompetitionTeamWithMembers)?.members && (p.team as CompetitionTeamWithMembers).members!.length > 0 ? (
+                               (p.team as CompetitionTeamWithMembers).members!.map((m) => {
+                                 const parsed = parseMemberName(m.name);
+                                 const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
+                                 const avatarUrl = m.profile?.avatar_url || parsed.avatarUrl || "";
+                                 const houseStr = m.house_block && m.house_number 
+                                   ? `${m.house_block}.${m.house_number}`
+                                   : (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.block && (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.number
+                                     ? `${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.block}.${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.number}`
+                                     : (p.team as CompetitionTeamWithMembers)?.house?.block && (p.team as CompetitionTeamWithMembers)?.house?.number
+                                       ? `${(p.team as CompetitionTeamWithMembers).house.block}.${(p.team as CompetitionTeamWithMembers).house.number}`
+                                       : null;
+                                 const displayName = is17an ? name : (name.split(' ')[0] || "Anonim");
+
+                                 return (
+                                   <div 
+                                     key={m.id} 
+                                     onClick={() => setSelectedMember({ rank: 2, avatarUrl, name, houseStr: null, teamName: p.team ? extractFlagAndName(p.team.name).name : null })} 
+                                     className="flex items-center gap-1.5 cursor-pointer bg-white/70 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-1.5 shadow-sm hover:shadow-md transition-all"
+                                   >
+                                     {avatarUrl ? (
+                                       <img src={avatarUrl} alt={name} className="w-5 h-5 rounded-full object-cover shrink-0 border border-slate-300" />
+                                     ) : null}
+                                     <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                                       {displayName}
+                                     </span>
+                                   </div>
+                                 );
+                               })
+                             ) : (
+                               <span className="text-[10px] text-slate-400 italic">Pemenang Tim</span>
+                             )}
+                           </div>
+                         </>
+                       );
+                     })()}
                   </div>
                 </motion.div>
-              ))}
+               ))}
 
-              {maxRankToShow >= 3 && (!visibleRanks || visibleRanks.includes(3)) && juara3.map((p) => (
+               {maxRankToShow >= 3 && (!visibleRanks || visibleRanks.includes(3)) && juara3.map((p) => (
                 <motion.div
                   key={p.id}
                   initial={{ opacity: 0, x: 20 }}
@@ -623,50 +775,68 @@ export function WinnerAnnounceDialog({
                   transition={{ delay: 0.5 }}
                 >
                   <div className="h-full bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-3xl p-4 sm:p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group">
-                    <div className="w-14 h-14 bg-amber-600 rounded-2xl flex items-center justify-center shadow-md mb-4 transform -rotate-3 group-hover:rotate-0 transition-transform duration-500 z-10 relative">
-                      <Trophy className="w-8 h-8 text-white" />
-                    </div>
-                    <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1 relative z-10">Juara 3</p>
-                    {!is17an && (
-                      <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10 flex items-center justify-center gap-2">
-                        {p.team && <TeamFlag team={p.team} className="w-6 h-4 object-cover rounded shadow-sm inline-block select-none border border-amber-200 dark:border-amber-800 shrink-0 text-xl" fallbackSize="text-2xl" />}
-                        <span>{p.team ? extractFlagAndName(p.team.name).name : ""}</span>
-                      </h4>
-                    )}
-                    <div className="flex flex-wrap justify-center gap-3 w-full relative z-10">
-                      {(p.team as CompetitionTeamWithMembers)?.members && (p.team as CompetitionTeamWithMembers).members!.length > 0 ? (
-                        (p.team as CompetitionTeamWithMembers).members!.map((m) => {
-                          const parsed = parseMemberName(m.name);
-                          const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
-                          const avatarUrl = m.profile?.avatar_url || parsed.avatarUrl || (p.team as CompetitionTeamWithMembers)?.logo_url || "";
-                          const houseStr = m.house_block && m.house_number 
-                            ? `${m.house_block}.${m.house_number}`
-                            : (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.block && (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.number
-                              ? `${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.block}.${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.number}`
-                              : (p.team as CompetitionTeamWithMembers)?.house?.block && (p.team as CompetitionTeamWithMembers)?.house?.number
-                                ? `${(p.team as CompetitionTeamWithMembers).house.block}.${(p.team as CompetitionTeamWithMembers).house.number}`
-                                : null;
-                          const displayName = is17an ? name : (name.split(' ')[0] || "Anonim");
-                          return (
-                            <div key={m.id} onClick={() => setSelectedMember({ rank: 3, avatarUrl, name, houseStr, teamName: p.team ? extractFlagAndName(p.team.name).name : null })} className="flex flex-col cursor-pointer bg-white/50 dark:bg-slate-900/30 border border-amber-300/50 dark:border-amber-700/50 rounded-xl p-1.5 shadow-sm flex-1 min-w-[90px] max-w-[140px]">
-                              <div className="w-full aspect-square rounded-lg bg-slate-200 dark:bg-slate-800 overflow-hidden mb-1.5 border border-amber-300/30 dark:border-amber-700/30">
-                                <Avatar className="w-full h-full rounded-none">
-                                  <AvatarImage src={avatarUrl || ""} alt={name} className="object-cover" />
-                                  <AvatarFallback className="rounded-none bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-3xl font-bold text-slate-500">
-                                    {name.charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                              </div>
-                              <span className="text-xs font-bold text-amber-800 dark:text-amber-200 text-center line-clamp-2 leading-tight px-0.5">
-                                {displayName}
-                              </span>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <span className="text-[10px] text-amber-400 italic">Pemenang Tim</span>
-                      )}
-                    </div>
+                     {(() => {
+                       const hasTeamPhoto = Boolean(p.team?.logo_url && (p.team.logo_url.includes("/") || p.team.logo_url.startsWith("http")));
+                       return (
+                         <>
+                           {hasTeamPhoto ? (
+                             <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden shadow-md border border-amber-300 dark:border-amber-700 mb-4 z-10">
+                               <img src={p.team!.logo_url!} alt="Foto Tim" className="w-full h-full object-cover" />
+                               <div className="absolute top-2 right-2 bg-black/80 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full border border-amber-400 uppercase tracking-wider shadow-sm backdrop-blur-sm">
+                                 Juara 3
+                               </div>
+                             </div>
+                           ) : (
+                             <div className="w-14 h-14 bg-amber-600 rounded-2xl flex items-center justify-center shadow-md mb-4 transform -rotate-3 group-hover:rotate-0 transition-transform duration-500 z-10 relative overflow-hidden">
+                               <span className="text-xl font-black text-white uppercase drop-shadow-sm">
+                                 {getInitials(p.team ? extractFlagAndName(p.team.name).name : "TIM")}
+                               </span>
+                             </div>
+                           )}
+                           {!hasTeamPhoto && <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1 relative z-10">Juara 3</p>}
+                           {!is17an && (
+                             <h4 className="text-xl font-bold tracking-tight leading-tight mb-4 relative z-10 flex items-center justify-center gap-2">
+                               {p.team && <TeamFlag team={p.team} className="w-6 h-4 object-cover rounded shadow-sm inline-block select-none border border-amber-200 dark:border-amber-800 shrink-0 text-xl" fallbackSize="text-2xl" />}
+                               <span>{p.team ? extractFlagAndName(p.team.name).name : ""}</span>
+                             </h4>
+                           )}
+                           <div className="flex flex-wrap justify-center gap-2 w-full relative z-10">
+                             {(p.team as CompetitionTeamWithMembers)?.members && (p.team as CompetitionTeamWithMembers).members!.length > 0 ? (
+                               (p.team as CompetitionTeamWithMembers).members!.map((m) => {
+                                 const parsed = parseMemberName(m.name);
+                                 const name = capitalizeName(parsed.name || m.profile?.full_name?.trim() || "Anonim");
+                                 const avatarUrl = m.profile?.avatar_url || parsed.avatarUrl || "";
+                                 const houseStr = m.house_block && m.house_number 
+                                   ? `${m.house_block}.${m.house_number}`
+                                   : (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.block && (m.profile as typeof m.profile & { house?: { block: string; number: string } })?.house?.number
+                                     ? `${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.block}.${(m.profile as typeof m.profile & { house?: { block: string; number: string } }).house.number}`
+                                     : (p.team as CompetitionTeamWithMembers)?.house?.block && (p.team as CompetitionTeamWithMembers)?.house?.number
+                                       ? `${(p.team as CompetitionTeamWithMembers).house.block}.${(p.team as CompetitionTeamWithMembers).house.number}`
+                                       : null;
+                                 const displayName = is17an ? name : (name.split(' ')[0] || "Anonim");
+
+                                 return (
+                                   <div 
+                                     key={m.id} 
+                                     onClick={() => setSelectedMember({ rank: 3, avatarUrl, name, houseStr: null, teamName: p.team ? extractFlagAndName(p.team.name).name : null })} 
+                                     className="flex items-center gap-1.5 cursor-pointer bg-white/70 dark:bg-slate-900/50 border border-amber-300/50 dark:border-amber-700/50 rounded-xl px-3 py-1.5 shadow-sm hover:shadow-md transition-all"
+                                   >
+                                     {avatarUrl ? (
+                                       <img src={avatarUrl} alt={name} className="w-5 h-5 rounded-full object-cover shrink-0 border border-amber-300" />
+                                     ) : null}
+                                     <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                                       {displayName}
+                                     </span>
+                                   </div>
+                                 );
+                               })
+                             ) : (
+                               <span className="text-[10px] text-amber-400 italic">Pemenang Tim</span>
+                             )}
+                           </div>
+                         </>
+                       );
+                     })()}
                   </div>
                 </motion.div>
               ))}

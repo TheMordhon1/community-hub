@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -21,11 +22,12 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, AlertCircle, Wallet, Plus, Check, ChevronsUpDown, Trash2, Copy } from "lucide-react";
+import { Loader2, AlertCircle, Wallet, Plus, Check, ChevronsUpDown, Trash2, Copy, Camera, Image as ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { MemberAvatarSelector, convertToWebP } from "./MemberAvatarSelector";
 import { useCreateTeam } from "@/hooks/useCompetitions";
 import { useEventHousePayments } from "@/hooks/useEventHousePayments";
 import { useToast } from "@/hooks/use-toast";
@@ -46,10 +48,8 @@ import {
   type Gender,
 } from "@/lib/age-groups";
 import type { EventCompetitionWithDetails } from "@/types/competition";
-import { COUNTRIES, getFlagImgUrl } from "@/lib/countries";
+import { COUNTRIES, getFlagImgUrl, extractFlagAndName } from "@/lib/countries";
 import type { Profile, House, Event } from "@/types/database";
-
-import { MemberAvatarSelector } from "./MemberAvatarSelector";
 
 export type ProfileWithHouse = { 
   id: string; 
@@ -64,12 +64,14 @@ function ProfileCombobox({
   value, 
   onChange, 
   profiles, 
-  placeholder 
+  placeholder,
+  disabledProfileIds = []
 }: { 
   value: string; 
   onChange: (val: string) => void; 
   profiles: ProfileWithHouse[]; 
   placeholder: string;
+  disabledProfileIds?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -139,25 +141,32 @@ function ProfileCombobox({
             <CommandEmpty>Warga tidak ditemukan.</CommandEmpty>
             {groupedProfiles.map(({ group, items }) => (
               <CommandGroup key={group} heading={group}>
-                {items.map((p) => (
-                  <CommandItem
-                    key={p.id}
-                    value={p.id}
-                    onSelect={() => {
-                      onChange(p.id === value ? "" : p.id);
-                      setOpen(false);
-                      setSearch("");
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        value === p.id ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {p.full_name || "(tanpa nama)"}
-                  </CommandItem>
-                ))}
+                {items.map((p) => {
+                  const isDisabled = disabledProfileIds?.includes(p.id);
+                  return (
+                    <CommandItem
+                      key={p.id}
+                      value={p.id}
+                      disabled={isDisabled}
+                      onSelect={() => {
+                        if (isDisabled) return;
+                        onChange(p.id === value ? "" : p.id);
+                        setOpen(false);
+                        setSearch("");
+                      }}
+                      className={isDisabled ? "opacity-50 cursor-not-allowed" : ""}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          value === p.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {p.full_name || "(tanpa nama)"}
+                      {isDisabled && <span className="ml-auto text-[10px] text-muted-foreground border px-1 rounded bg-muted/30">Sudah Masuk</span>}
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             ))}
           </CommandList>
@@ -206,6 +215,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       case "1v1": return 1;
       case "2v2": return 2;
       case "3v3": return 3;
+      case "4v4": return 4;
       case "5v5": return 5;
       case "11v11": return 11;
       default: return 1;
@@ -224,11 +234,76 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
   const [flagSearch, setFlagSearch] = useState("");
   const [isFlagPopoverOpen, setIsFlagPopoverOpen] = useState(false);
   const [isHousePopoverOpen, setIsHousePopoverOpen] = useState(false);
+  const [isUploadingTeamPhoto, setIsUploadingTeamPhoto] = useState(false);
+  const teamFileInputRef = useRef<HTMLInputElement>(null);
+  const teamCameraInputRef = useRef<HTMLInputElement>(null);
+
   const filteredCountries = useMemo(() => {
     return COUNTRIES.filter(c =>
       c.name.toLowerCase().includes(flagSearch.toLowerCase())
     );
   }, [flagSearch]);
+
+  const handleTeamPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        variant: "destructive",
+        title: "File tidak valid",
+        description: "Silakan pilih file gambar (JPG, PNG, dll)",
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "File terlalu besar",
+        description: "Ukuran maksimal foto adalah 5MB",
+      });
+      return;
+    }
+
+    setIsUploadingTeamPhoto(true);
+    try {
+      let processedFile = file;
+      if (file.type !== "image/webp") {
+        try {
+          processedFile = await convertToWebP(file);
+        } catch (convertErr) {
+          console.warn("Failed to convert to WebP", convertErr);
+        }
+      }
+
+      const fileExt = processedFile.type === "image/webp" ? "webp" : processedFile.name.split(".").pop() || "jpg";
+      const randomId = Math.random().toString(36).substring(2, 15);
+      const filePath = `teams/${randomId}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("competition-avatars")
+        .upload(filePath, processedFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("competition-avatars")
+        .getPublicUrl(filePath);
+
+      setTeamFlag(urlData.publicUrl);
+      toast({ title: "Foto tim berhasil diunggah" });
+    } catch (err) {
+      console.error(err);
+      toast({
+        variant: "destructive",
+        title: "Gagal mengunggah foto",
+        description: "Terjadi kesalahan saat mengunggah foto tim",
+      });
+    } finally {
+      setIsUploadingTeamPhoto(false);
+    }
+  };
   const [submitting, setSubmitting] = useState(false);
 
   const ageCategory = (competition.age_category as AgeCategory) || "mixed";
@@ -390,6 +465,48 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
       return true;
     });
   }, [sortedHouses, isPaidEvent, paidHouseIds]);
+
+  const disabledProfileIds = useMemo(() => {
+    const alreadyAddedIds = new Set<string>();
+    const alreadyAddedNames = new Set<string>();
+
+    if (competition?.teams) {
+      competition.teams.forEach(t => {
+        if (t.user_id) alreadyAddedIds.add(t.user_id);
+        if (t.participant_name) {
+          const parsed = parseMemberName(t.participant_name);
+          alreadyAddedNames.add(parsed.name.toLowerCase().trim());
+        }
+        
+        t.members?.forEach(m => {
+          if (m.user_id) alreadyAddedIds.add(m.user_id);
+          if (m.name) {
+            const parsed = parseMemberName(m.name);
+            alreadyAddedNames.add(parsed.name.toLowerCase().trim());
+          }
+        });
+      });
+    }
+
+    // Also disable those currently selected in the form
+    members.forEach(m => {
+      if (m.source === "user" && m.profileId) {
+        alreadyAddedIds.add(m.profileId);
+      }
+    });
+    
+    if (!isActualTeamMode && source === "user" && selectedProfileId) {
+      alreadyAddedIds.add(selectedProfileId);
+    }
+
+    return (profiles || []).filter(p => {
+      if (alreadyAddedIds.has(p.id)) return true;
+      if (p.user_id && alreadyAddedIds.has(p.user_id)) return true;
+      if (p.full_name && alreadyAddedNames.has(p.full_name.toLowerCase().trim())) return true;
+      return false;
+    }).map(p => p.id);
+  }, [competition.teams, profiles, members, isActualTeamMode, source, selectedProfileId]);
+
 
   useEffect(() => {
     if (open) {
@@ -869,14 +986,24 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
           )}
 
           {isActualTeamMode && (
-            <div className="space-y-2">
-              <Label htmlFor="team-name">Nama Tim (Opsional)</Label>
-              <Input
-                id="team-name"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                placeholder="Nama tim (kosongkan untuk gabungan nama)"
-              />
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="team-name">Nama Tim (Opsional)</Label>
+                <Input
+                  id="team-name"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  placeholder="Nama tim (kosongkan untuk gabungan nama)"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-muted-foreground">Foto / Logo Tim (Opsional)</Label>
+                <MemberAvatarSelector
+                  avatarUrl={teamFlag}
+                  onChange={(url) => setTeamFlag(url)}
+                  defaultFallbackName={teamName || "Tim"}
+                />
+              </div>
             </div>
           )}
 
@@ -932,6 +1059,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                       }}
                       profiles={profiles || []}
                       placeholder={`Pilih warga untuk anggota ${i + 1}`}
+                      disabledProfileIds={disabledProfileIds}
                     />
                   ) : (
                     <div className="space-y-2">
@@ -1034,6 +1162,7 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                     onChange={setSelectedProfileId}
                     profiles={profiles || []}
                     placeholder="Pilih warga"
+                    disabledProfileIds={disabledProfileIds}
                   />
                 </div>
               ) : (
@@ -1216,83 +1345,6 @@ export function AddTeamDialog({ open, onOpenChange, competition }: AddTeamDialog
                 )}
               </div>
           )}
-          {!is17an && (
-          <div className="space-y-2">
-
-            <Label htmlFor="team-flag">Bendera / Ikon Tim (Opsional)</Label>
-            <Popover open={isFlagPopoverOpen} onOpenChange={setIsFlagPopoverOpen} modal={true}>
-              <PopoverTrigger asChild>
-                <Button
-                  id="team-flag"
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-between font-normal bg-background"
-                >
-                  {teamFlag ? (
-                    <span className="flex items-center gap-2">
-                      {getFlagImgUrl(teamFlag) ? (
-                        <img src={getFlagImgUrl(teamFlag)!} alt="" className="w-5 h-3.5 object-cover rounded shadow-sm border shrink-0" />
-                      ) : (
-                        <span className="text-base">{teamFlag}</span>
-                      )}
-                      <span>{COUNTRIES.find(c => c.flag === teamFlag)?.name}</span>
-                    </span>
-                  ) : (
-                    "Tanpa Bendera"
-                  )}
-                  <span className="text-muted-foreground ml-2 text-xs">▼</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)] h-[240px] max-h-[50vh] overflow-hidden flex flex-col" align="start">
-                <div className="p-2 shrink-0 bg-popover border-b border-border z-10">
-                  <Input
-                    placeholder="Cari bendera..."
-                    value={flagSearch}
-                    onChange={(e) => setFlagSearch(e.target.value)}
-                    className="h-8 focus-visible:ring-emerald-500"
-                  />
-                </div>
-                <div className="overflow-y-auto overscroll-contain touch-pan-y p-1 flex-1 min-h-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTeamFlag("");
-                      setIsFlagPopoverOpen(false);
-                    }}
-                    className={cn(
-                      "w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors",
-                      !teamFlag && "bg-accent/50 font-semibold text-primary"
-                    )}
-                  >
-                    Tanpa Bendera
-                  </button>
-                  {filteredCountries.map((c) => (
-                    <button
-                      key={c.name}
-                      type="button"
-                      onClick={() => {
-                        setTeamFlag(c.flag);
-                        setIsFlagPopoverOpen(false);
-                      }}
-                      className={cn(
-                        "w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2.5",
-                        teamFlag === c.flag && "bg-accent/50 font-semibold text-primary"
-                      )}
-                    >
-                      {getFlagImgUrl(c.flag) ? (
-                        <img src={getFlagImgUrl(c.flag)!} alt="" className="w-5 h-3.5 object-cover rounded shadow-sm border shrink-0 select-none" />
-                      ) : (
-                        <span className="text-base select-none shrink-0">{c.flag}</span>
-                      )}
-                      <span className="truncate">{c.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-          )}
-
         </div>
 
         <DialogFooter className="shrink-0 pt-2 border-t">

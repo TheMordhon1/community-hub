@@ -45,6 +45,7 @@ import AnnouncementCategoriesAdmin from "./pages/admin/AnnouncementCategories";
 import GamificationSettings from "./pages/GamificationSettings";
 import RedeemPoints from "./pages/RedeemPoints";
 import LiveMatches from "@/pages/LiveMatches";
+import DoorPrize from "@/pages/DoorPrize";
 
 const queryClient = new QueryClient();
 
@@ -124,6 +125,7 @@ function AppRoutes() {
           <Route path="/admin/announcement-categories" element={<AnnouncementCategoriesAdmin />} />
           <Route path="/gamification" element={<GamificationSettings />} />
           <Route path="/redeem-points" element={<RedeemPoints />} />
+          <Route path="/door-prize" element={<DoorPrize />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFound />} />

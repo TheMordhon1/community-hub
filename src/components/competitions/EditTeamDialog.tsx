@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -21,7 +22,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, AlertCircle, Check, ChevronsUpDown, Copy } from "lucide-react";
+import { Loader2, AlertCircle, Check, ChevronsUpDown, Copy, Camera, Image as ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -43,7 +44,7 @@ import {
   type Gender,
 } from "@/lib/age-groups";
 import type { EventCompetitionWithDetails, CompetitionTeamWithMembers } from "@/types/competition";
-import { COUNTRIES, getFlagImgUrl } from "@/lib/countries";
+import { COUNTRIES, getFlagImgUrl, extractFlagAndName } from "@/lib/countries";
 import type { Profile, House } from "@/types/database";
 import { useNaturalSort } from "@/hooks/useNaturalSort";
 
@@ -56,7 +57,7 @@ export type ProfileWithHouse = {
   house?: { block: string; number: string }; 
 };
 
-import { MemberAvatarSelector } from "./MemberAvatarSelector";
+import { MemberAvatarSelector, convertToWebP } from "./MemberAvatarSelector";
 
 function ProfileCombobox({ 
   value, 
@@ -201,6 +202,11 @@ interface EditTeamDialogProps {
   competition: EventCompetitionWithDetails;
 }
 
+const findProfile = (profilesList: ProfileWithHouse[] | undefined | null, idOrUserId: string | null | undefined) => {
+  if (!profilesList || !idOrUserId) return undefined;
+  return profilesList.find((p) => p.id === idOrUserId || (p.user_id && p.user_id === idOrUserId));
+};
+
 export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTeamDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -210,6 +216,7 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
       case "1v1": return 1;
       case "2v2": return 2;
       case "3v3": return 3;
+      case "4v4": return 4;
       case "5v5": return 5;
       case "11v11": return 11;
       default: return 1;
@@ -232,11 +239,76 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
   const [teamFlag, setTeamFlag] = useState("");
   const [flagSearch, setFlagSearch] = useState("");
   const [isFlagPopoverOpen, setIsFlagPopoverOpen] = useState(false);
+  const [isUploadingTeamPhoto, setIsUploadingTeamPhoto] = useState(false);
+  const teamFileInputRef = useRef<HTMLInputElement>(null);
+  const teamCameraInputRef = useRef<HTMLInputElement>(null);
+
   const filteredCountries = useMemo(() => {
     return COUNTRIES.filter(c =>
       c.name.toLowerCase().includes(flagSearch.toLowerCase())
     );
   }, [flagSearch]);
+
+  const handleTeamPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        variant: "destructive",
+        title: "File tidak valid",
+        description: "Silakan pilih file gambar (JPG, PNG, dll)",
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "File terlalu besar",
+        description: "Ukuran maksimal foto adalah 5MB",
+      });
+      return;
+    }
+
+    setIsUploadingTeamPhoto(true);
+    try {
+      let processedFile = file;
+      if (file.type !== "image/webp") {
+        try {
+          processedFile = await convertToWebP(file);
+        } catch (convertErr) {
+          console.warn("Failed to convert to WebP", convertErr);
+        }
+      }
+
+      const fileExt = processedFile.type === "image/webp" ? "webp" : processedFile.name.split(".").pop() || "jpg";
+      const randomId = Math.random().toString(36).substring(2, 15);
+      const filePath = `teams/${randomId}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("competition-avatars")
+        .upload(filePath, processedFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("competition-avatars")
+        .getPublicUrl(filePath);
+
+      setTeamFlag(urlData.publicUrl);
+      toast({ title: "Foto tim berhasil diunggah" });
+    } catch (err) {
+      console.error(err);
+      toast({
+        variant: "destructive",
+        title: "Gagal mengunggah foto",
+        description: "Terjadi kesalahan saat mengunggah foto tim",
+      });
+    } finally {
+      setIsUploadingTeamPhoto(false);
+    }
+  };
 
   // Roster members (for full team mode)
   const [members, setMembers] = useState<{ source: "user" | "manual"; profileId: string; name: string; avatarUrl: string; houseBlock: string; houseNumber: string }[]>([]);
@@ -404,9 +476,10 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
     
     if (copiedTeam.is_individual) {
       const firstMember = copiedTeam.members?.[0];
+      const matchingProf = findProfile(profiles, copiedTeam.user_id);
       if (copiedTeam.user_id) {
         setSource("user");
-        setSelectedProfileId(copiedTeam.user_id);
+        setSelectedProfileId(matchingProf ? matchingProf.id : copiedTeam.user_id);
         setSingleAvatarUrl(copiedTeam.logo_url || parseMemberName(firstMember?.name).avatarUrl);
       } else {
         setSource("manual");
@@ -423,13 +496,14 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
       
       const newMembers = sortedMembers.map(m => {
         const parsed = parseMemberName(m.name);
+        const matchingProf = findProfile(profiles, m.user_id);
         return {
           source: (m.user_id ? "user" : "manual") as "user" | "manual",
-          profileId: m.user_id || "",
+          profileId: matchingProf ? matchingProf.id : (m.user_id || ""),
           name: parsed.name,
-          avatarUrl: parsed.avatarUrl,
-          houseBlock: m.house_block || "",
-          houseNumber: m.house_number || "",
+          avatarUrl: parsed.avatarUrl || (matchingProf?.avatar_url || ""),
+          houseBlock: m.house_block || (matchingProf?.house?.block || ""),
+          houseNumber: m.house_number || (matchingProf?.house?.number || ""),
         };
       });
       
@@ -451,30 +525,49 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
       setGender((team.gender as Gender) || "");
 
       const isFlag = team.logo_url && !team.logo_url.includes("/");
-      setTeamFlag(isFlag ? team.logo_url : "");
+      setTeamFlag(team.logo_url || "");
       setFlagSearch("");
 
       const isActualIndividual = !isTeam || !!team.is_individual;
 
       if (isActualIndividual) {
+        const matchingProf = findProfile(profiles, team.user_id);
         setSource(team.user_id ? "user" : "manual");
-        setSelectedProfileId(team.user_id || "");
+        setSelectedProfileId(matchingProf ? matchingProf.id : (team.user_id || ""));
         const parsed = parseMemberName(team.participant_name || team.name);
         setManualName(parsed.name);
         setSingleAvatarUrl((team.logo_url && !isFlag) ? team.logo_url : (parsed.avatarUrl || ""));
       } else {
         // Map existing members
-        const existingMembers = (team.members || []).map(m => {
+        let existingMembers = (team.members || []).map(m => {
           const parsed = parseMemberName(m.name);
+          const matchingProf = findProfile(profiles, m.user_id);
           return {
             source: (m.user_id ? "user" : "manual") as "user" | "manual",
-            profileId: m.user_id || "",
-            name: parsed.name,
-            avatarUrl: parsed.avatarUrl || "",
-            houseBlock: (m as unknown as { house_block?: string | null }).house_block || "",
-            houseNumber: (m as unknown as { house_number?: string | null }).house_number || "",
+            profileId: matchingProf ? matchingProf.id : (m.user_id || ""),
+            name: parsed.name || m.name || "",
+            avatarUrl: parsed.avatarUrl || (matchingProf?.avatar_url || ""),
+            houseBlock: (m as unknown as { house_block?: string | null }).house_block || (matchingProf?.house?.block || ""),
+            houseNumber: (m as unknown as { house_number?: string | null }).house_number || (matchingProf?.house?.number || ""),
           };
         });
+
+        // Fallback: If no members exist in DB or fewer than expected, try parsing SpinWheel formatted team name ("Player 1 & Player 2")
+        if (existingMembers.length === 0 && team.name && team.name.includes(" & ")) {
+          const splitNames = team.name.split(" & ").map(s => s.trim());
+          existingMembers = splitNames.map(nameStr => {
+            const parsed = parseMemberName(nameStr);
+            const matchingProf = profiles?.find(p => p.full_name?.toLowerCase() === parsed.name.toLowerCase());
+            return {
+              source: matchingProf ? "user" : "manual",
+              profileId: matchingProf ? matchingProf.id : "",
+              name: parsed.name,
+              avatarUrl: parsed.avatarUrl || (matchingProf?.avatar_url || ""),
+              houseBlock: matchingProf?.house?.block || "",
+              houseNumber: matchingProf?.house?.number || "",
+            };
+          });
+        }
 
         // Pad to match team size if needed
         while (existingMembers.length < teamSize) {
@@ -485,7 +578,7 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
     } else {
       setFlagSearch("");
     }
-  }, [open, team, teamSize, isTeam]);
+  }, [open, team, teamSize, isTeam, profiles]);
 
   const ageValue = ageInput.trim() === "" ? null : Number(ageInput.replace(",", "."));
   const ageGroup = ageValue != null && !isNaN(ageValue) ? getAgeGroup(ageValue) : null;
@@ -506,14 +599,14 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
   const genderMismatch =
     genderCategory !== "mixed" && gender !== "" && !isGenderMatchingCategory(gender as Gender, genderCategory);
 
-  const selectedProfile = profiles?.find((p) => p.id === selectedProfileId);
+  const selectedProfile = findProfile(profiles, selectedProfileId);
   const finalName =
     source === "user" ? selectedProfile?.full_name?.trim() || "" : manualName.trim();
 
   const memberNames = useMemo(() => {
     return members.map((m) => {
       if (m.source === "user") {
-        const prof = profiles?.find((p) => p.id === m.profileId);
+        const prof = findProfile(profiles, m.profileId);
         return prof?.full_name?.trim() || "";
       }
       return m.name.trim();
@@ -601,13 +694,14 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
 
       if (!isTeam || isIndividual) {
         // Update individual team
+        const selProf = findProfile(profiles, selectedProfileId);
         const { error: teamError } = await supabase
           .from("competition_teams")
           .update({
             name: finalTeamName,
             participant_name: finalParticipantName,
-            user_id: source === "user" ? (profiles?.find(p => p.id === selectedProfileId)?.user_id || null) : null,
-            house_id: !isTeam ? (source === "user" ? (profiles?.find(p => p.id === selectedProfileId)?.house_id || null) : (selectedHouse || null)) : null,
+            user_id: source === "user" ? (selProf?.user_id || null) : null,
+            house_id: !isTeam ? (source === "user" ? (selProf?.house_id || null) : (selectedHouse || null)) : null,
             age: ageValue,
             age_group: ageGroup,
             gender: gender || null,
@@ -624,7 +718,7 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
             .from("competition_team_members")
             .insert({
               team_id: team.id,
-              user_id: source === "user" ? (profiles?.find(p => p.id === selectedProfileId)?.user_id || null) : null,
+              user_id: source === "user" ? (selProf?.user_id || null) : null,
               name: serializeMemberName(finalName, singleAvatarUrl),
               is_captain: true,
             });
@@ -651,7 +745,7 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
         await supabase.from("competition_team_members").delete().eq("team_id", team.id);
 
         const memberInserts = members.map((m, index) => {
-          const prof = profiles?.find((p) => p.id === m.profileId);
+          const prof = findProfile(profiles, m.profileId);
           const baseName = m.source === "user" ? (prof?.full_name || "") : m.name;
           return {
             team_id: team.id,
@@ -774,14 +868,24 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
           )}
 
           {showTeamFields && (
-            <div className="space-y-2">
-              <Label htmlFor="edit-team-name">Nama Tim</Label>
-              <Input
-                id="edit-team-name"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                placeholder="Nama tim"
-              />
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="edit-team-name">Nama Tim</Label>
+                <Input
+                  id="edit-team-name"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  placeholder="Nama tim"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-muted-foreground">Foto / Logo Tim (Opsional)</Label>
+                <MemberAvatarSelector
+                  avatarUrl={teamFlag}
+                  onChange={(url) => setTeamFlag(url)}
+                  defaultFallbackName={teamName || "Tim"}
+                />
+              </div>
             </div>
           )}
 
@@ -895,13 +999,13 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
                     }}
                     defaultFallbackName={
                       member.source === "user"
-                        ? profiles?.find((p) => p.id === member.profileId)?.full_name || `Anggota ${i + 1}`
+                        ? findProfile(profiles, member.profileId)?.full_name || `Anggota ${i + 1}`
                         : member.name || `Anggota ${i + 1}`
                     }
                     isRegisteredUser={member.source === "user" && !!member.profileId}
                     userProfileAvatar={
                       member.source === "user"
-                        ? profiles?.find((p) => p.id === member.profileId)?.avatar_url
+                        ? findProfile(profiles, member.profileId)?.avatar_url
                         : null
                     }
                   />
@@ -938,13 +1042,13 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
                 onChange={setSingleAvatarUrl}
                 defaultFallbackName={
                   source === "user"
-                    ? profiles?.find((p) => p.id === selectedProfileId)?.full_name || "Peserta"
+                    ? findProfile(profiles, selectedProfileId)?.full_name || "Peserta"
                     : manualName || "Peserta"
                 }
                 isRegisteredUser={source === "user" && !!selectedProfileId}
                 userProfileAvatar={
                   source === "user"
-                    ? profiles?.find((p) => p.id === selectedProfileId)?.avatar_url
+                    ? findProfile(profiles, selectedProfileId)?.avatar_url
                     : null
                 }
               />
@@ -1058,79 +1162,6 @@ export function EditTeamDialog({ open, onOpenChange, team, competition }: EditTe
               </div>
             </>
           )}
-          <div className="space-y-2">
-            <Label htmlFor="edit-team-flag">Bendera / Ikon Tim (Opsional)</Label>
-            <Popover open={isFlagPopoverOpen} onOpenChange={setIsFlagPopoverOpen} modal={true}>
-              <PopoverTrigger asChild>
-                <Button
-                  id="edit-team-flag"
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-between font-normal bg-background"
-                >
-                  {teamFlag ? (
-                    <span className="flex items-center gap-2">
-                      {getFlagImgUrl(teamFlag) ? (
-                        <img src={getFlagImgUrl(teamFlag)!} alt="" className="w-5 h-3.5 object-cover rounded shadow-sm border shrink-0" />
-                      ) : (
-                        <span className="text-base">{teamFlag}</span>
-                      )}
-                      <span>{COUNTRIES.find(c => c.flag === teamFlag)?.name}</span>
-                    </span>
-                  ) : (
-                    "Tanpa Bendera"
-                  )}
-                  <span className="text-muted-foreground ml-2 text-xs">▼</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)] h-[240px] max-h-[50vh] overflow-hidden flex flex-col" align="start">
-                <div className="p-2 shrink-0 bg-popover border-b border-border z-10">
-                  <Input
-                    placeholder="Cari bendera..."
-                    value={flagSearch}
-                    onChange={(e) => setFlagSearch(e.target.value)}
-                    className="h-8 focus-visible:ring-emerald-500"
-                  />
-                </div>
-                <div className="overflow-y-auto overscroll-contain touch-pan-y p-1 flex-1 min-h-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTeamFlag("");
-                      setIsFlagPopoverOpen(false);
-                    }}
-                    className={cn(
-                      "w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors",
-                      !teamFlag && "bg-accent/50 font-semibold text-primary"
-                    )}
-                  >
-                    Tanpa Bendera
-                  </button>
-                  {filteredCountries.map((c) => (
-                    <button
-                      key={c.name}
-                      type="button"
-                      onClick={() => {
-                        setTeamFlag(c.flag);
-                        setIsFlagPopoverOpen(false);
-                      }}
-                      className={cn(
-                        "w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2.5",
-                        teamFlag === c.flag && "bg-accent/50 font-semibold text-primary"
-                      )}
-                    >
-                      {getFlagImgUrl(c.flag) ? (
-                        <img src={getFlagImgUrl(c.flag)!} alt="" className="w-5 h-3.5 object-cover rounded shadow-sm border shrink-0 select-none" />
-                      ) : (
-                        <span className="text-base select-none shrink-0">{c.flag}</span>
-                      )}
-                      <span className="truncate">{c.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
         </div>
 
         <DialogFooter className="shrink-0 pt-2 border-t">

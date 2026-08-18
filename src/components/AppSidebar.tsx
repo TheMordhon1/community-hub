@@ -164,7 +164,10 @@ export function AppSidebar() {
                             onClick={closeSidebarOnMobile}
                           >
                             <Link to={item.url}>
-                              <DynamicIcon name={item.icon} className="w-4 h-4" />
+                              <DynamicIcon
+                                name={item.icon}
+                                className="w-4 h-4"
+                              />
                               <span>{item.title}</span>
                             </Link>
                           </SidebarMenuButton>
@@ -178,7 +181,8 @@ export function AppSidebar() {
           </>
         )}
 
-        {(isAdmin() || (role === "pengurus" && pengurusTitle === "menteri_sisdigi")) && (
+        {(isAdmin() ||
+          (role === "pengurus" && pengurusTitle === "menteri_sisdigi")) && (
           <>
             <SidebarSeparator />
             <SidebarGroup>
@@ -245,7 +249,10 @@ export function AppSidebar() {
                 {profile?.full_name ?? "User"}
               </p>
               {isHead && (
-                <Badge variant="secondary" className="px-2 h-5 text-[9px] bg-amber-500/10 text-amber-600 border-amber-200/50 font-bold uppercase tracking-wider shadow-sm ring-1 ring-amber-500/20">
+                <Badge
+                  variant="secondary"
+                  className="px-2 h-5 text-[9px] bg-amber-500/10 text-amber-600 border-amber-200/50 font-bold uppercase tracking-wider shadow-sm ring-1 ring-amber-500/20"
+                >
                   <Crown className="w-2.5 h-2.5 mr-1" />
                   KK
                 </Badge>
@@ -281,12 +288,18 @@ export function AppSidebar() {
         </div>
       </SidebarFooter>
 
-      <AlertDialog open={isLogoutConfirmOpen} onOpenChange={setIsLogoutConfirmOpen}>
+      <AlertDialog
+        open={isLogoutConfirmOpen}
+        onOpenChange={setIsLogoutConfirmOpen}
+      >
         <AlertDialogContent className="rounded-3xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-bold text-destructive">Konfirmasi Keluar</AlertDialogTitle>
+            <AlertDialogTitle className="text-xl font-bold text-destructive">
+              Konfirmasi Keluar
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-sm">
-              Apakah Anda yakin ingin keluar dari akun Anda? Anda harus masuk kembali untuk mengakses fitur-fitur khusus.
+              Apakah Anda yakin ingin keluar dari akun Anda? Anda harus masuk
+              kembali untuk mengakses fitur-fitur khusus.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

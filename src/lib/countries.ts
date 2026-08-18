@@ -214,7 +214,10 @@ export const extractFlagAndName = (fullName: string) => {
 export const getTeamFlag = (team?: { name: string; logo_url?: string | null } | null) => {
   if (!team) return null;
   if (team.logo_url) {
-    return team.logo_url;
+    const isCustomPhoto = (team.logo_url.startsWith("http://") || team.logo_url.startsWith("https://") || team.logo_url.startsWith("blob:") || team.logo_url.startsWith("data:")) && !team.logo_url.includes("flagcdn.com");
+    if (!isCustomPhoto) {
+      return team.logo_url;
+    }
   }
   const { flag } = extractFlagAndName(team.name);
   if (flag) return flag;

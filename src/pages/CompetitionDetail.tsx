@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { isAggregateScore } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -214,7 +215,8 @@ export default function CompetitionDetail() {
     const advance = (competition.kids_brackets as unknown as Record<string, number> | null) || competition.advance_per_group || 2;
     const standingsByGroup: Record<string, StandingRow[]> = {};
     groupNamesSet.forEach((g) => {
-      standingsByGroup[g] = computeStandings(competition.teams || [], competition.matches || [], g);
+      const isAggregate = isAggregateScore(competition.sport_name);
+      standingsByGroup[g] = computeStandings(competition.teams || [], competition.matches || [], g, false, isAggregate);
     });
     const pairs = seedKnockoutFromStandings(standingsByGroup, advance);
     generateKnockout.mutate({

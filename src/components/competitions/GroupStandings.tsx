@@ -22,7 +22,7 @@ import { Play, Edit, RotateCcw, Settings2, GripVertical, Trash2, Plus, ArrowUp, 
 import LiveScoreDialog from "@/components/competitions/LiveScoreDialog";
 import { UpdateMatchDialog } from "@/components/competitions/UpdateMatchDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn, isAggregateScore } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 interface Props {
   competition: EventCompetitionWithDetails;
@@ -453,7 +453,8 @@ export function GroupStandings({ competition, canManage = false }: Props) {
     const initial: Record<string, string[]> = {};
     allGroups.forEach(groupData => {
       const { name: g, isPlayoff } = groupData;
-      const rows = computeStandings(teams, matches, g, isPlayoff);
+      const isAggregate = isAggregateScore(competition.sport_name);
+      const rows = computeStandings(teams, matches, g, isPlayoff, isAggregate);
       let groupAdvanceCount = (competition.kids_brackets as unknown as Record<string, number> | null)?.[g] ?? competition.advance_per_group ?? 2;
       if (!isPlayoff) {
         const playoffTeamsCount = teams.filter(t => t.group_name === g && t.next_stage_type === "playoff").length;
@@ -645,7 +646,8 @@ export function GroupStandings({ competition, canManage = false }: Props) {
       <div className={`grid gap-4 w-full min-w-0 ${gridColsClass}`}>
         {allGroups.map((groupData) => {
           const { name: g, isPlayoff, title } = groupData;
-          const rows = computeStandings(teams, matches, g, isPlayoff);
+          const isAggregate = isAggregateScore(competition.sport_name);
+          const rows = computeStandings(teams, matches, g, isPlayoff, isAggregate);
           
           const groupTeamsCount = teams.filter((t) => 
             isPlayoff 
@@ -695,7 +697,7 @@ export function GroupStandings({ competition, canManage = false }: Props) {
                           const name = capitalizeName(profile?.full_name?.trim() || parsed.name || "Pemain");
                           const house = profile?.house || 
                             (m.house_block && m.house_number ? { block: m.house_block, number: m.house_number } : null);
-                          return { id: m.id, name, house, avatar_url: parsed.avatarUrl || r.team.logo_url || profile?.avatar_url };
+                          return { id: m.id, name, house, avatar_url: parsed.avatarUrl || profile?.avatar_url || (r.team.is_individual ? r.team.logo_url : "") };
                         }) || [];
                         const hasMembers = membersWithHouse.length > 0;
 
@@ -1047,7 +1049,8 @@ export function GroupStandings({ competition, canManage = false }: Props) {
           <div className="grid gap-4 mt-4 sm:grid-cols-2">
             {allGroups.map((groupData) => {
               const { name: g, isPlayoff } = groupData;
-              const rows = computeStandings(teams, matches, g, isPlayoff);
+              const isAggregate = isAggregateScore(competition.sport_name);
+              const rows = computeStandings(teams, matches, g, isPlayoff, isAggregate);
               let groupAdvanceCount = (competition.kids_brackets as unknown as Record<string, number> | null)?.[g] ?? competition.advance_per_group ?? 2;
               
               if (!isPlayoff) {

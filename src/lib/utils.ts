@@ -69,3 +69,12 @@ export const capitalizeName = (name: string | null | undefined): string => {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 };
+
+export const isAggregateScore = (sportName: string | null | undefined): boolean => {
+  if (!sportName) return false;
+  const name = sportName.toLowerCase();
+  return name.includes("futsal") || 
+         name.includes("bola") || 
+         name.includes("sepak") || 
+         name.includes("basket");
+};

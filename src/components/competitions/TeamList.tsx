@@ -49,13 +49,10 @@ const serializeMemberName = (name: string, avatarUrl: string) => {
 };
 
 const getMemberAvatar = (
-  member: { name: string | null; user_id?: string | null; profile?: { avatar_url?: string | null } },
-  teamLogoUrl?: string | null
-) => {
+member: { name: string | null; user_id?: string | null; profile?: { avatar_url?: string | null; }; }, logo_url?: string) => {
   const parsed = parseMemberName(member.name);
   if (parsed.avatarUrl) return parsed.avatarUrl;
   if (member.profile?.avatar_url) return member.profile.avatar_url;
-  if (teamLogoUrl) return teamLogoUrl;
   return "";
 };
 
@@ -141,6 +138,7 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
         case "1v1": return 1;
         case "2v2": return 2;
         case "3v3": return 3;
+        case "4v4": return 4;
         case "5v5": return 5;
         case "11v11": return 11;
         default: return 1;
@@ -307,13 +305,18 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
               </Badge>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              {groupTeams.map((team, index) => {
+              {groupTeams.map((team) => {
                 const firstMember = team.members?.[0];
-                const avatarUrl =
-                  team.logo_url ||
-                  (firstMember ? getMemberAvatar(firstMember, team.logo_url) : "");
-                const displayName = extractFlagAndName(team.participant_name || team.name).name;
+                const isActualTeam = !team.is_individual;
+                const avatarUrl = isActualTeam
+                  ? (team.logo_url && team.logo_url.includes("/") ? team.logo_url : "")
+                  : (team.logo_url || (firstMember ? getMemberAvatar(firstMember) : ""));
+                const displayName = isActualTeam
+                  ? extractFlagAndName(team.name).name
+                  : extractFlagAndName(team.participant_name || team.name).name;
                 const initials = getInitials(displayName);
+
+                const teamHouse = team.house?.block && team.house?.number ? team.house : null;
 
                 return (
                   <Card key={team.id}>
@@ -332,15 +335,11 @@ export function TeamList({ competition, canManage, onAddTeam }: TeamListProps) {
                             <span>{extractFlagAndName(team.name).name}</span>
                           </h4>
                           <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                            {(() => {
-                              const house = team.house || (team.members?.[0]?.profile as any)?.house;
-                              if (!house) return null;
-                              return (
-                                <Badge variant="outline" className="text-xs">
-                                  Blok {house.block} No. {house.number}
-                                </Badge>
-                              );
-                            })()}
+                            {teamHouse && (
+                              <Badge variant="outline" className="text-xs">
+                                Blok {teamHouse.block} No. {teamHouse.number}
+                              </Badge>
+                            )}
                             {team.age != null && (
                               <Badge variant="outline" className="text-xs">
                                 {Number(team.age)} thn

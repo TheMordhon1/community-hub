@@ -26,7 +26,7 @@ import { motion } from "framer-motion";
 import { WinnerAnnounceDialog } from "./WinnerAnnounceDialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { parseMemberName, capitalizeName, cn } from "@/lib/utils";
+import { parseMemberName, capitalizeName, cn, isAggregateScore } from "@/lib/utils";
 import { TeamFlag } from "./TeamFlag";
 import { extractFlagAndName } from "@/lib/countries";
 
@@ -311,11 +311,17 @@ export default function LiveScoreDialog({
     ? (match?.participants?.filter(p => p.is_winner || p.winner_rank === 1) || [])
     : [];
 
+  const isAggregate = isAggregateScore(competition?.sport_name);
+  
   const setsWon1 = match && Array.isArray(match.sets_data)
-    ? match.sets_data.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length
+    ? isAggregate 
+      ? match.sets_data.reduce((acc, s: any) => acc + (Number(s.team1_score) || 0), 0)
+      : match.sets_data.filter((s: any) => (Number(s.team1_score) || 0) > (Number(s.team2_score) || 0)).length
     : 0;
   const setsWon2 = match && Array.isArray(match.sets_data)
-    ? match.sets_data.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length
+    ? isAggregate 
+      ? match.sets_data.reduce((acc, s: any) => acc + (Number(s.team2_score) || 0), 0)
+      : match.sets_data.filter((s: any) => (Number(s.team2_score) || 0) > (Number(s.team1_score) || 0)).length
     : 0;
   const isTeam1Winner = match && (match.winner_id === match.team1_id || (match.winner_id === null && setsWon1 > setsWon2));
   const isTeam2Winner = match && (match.winner_id === match.team2_id || (match.winner_id === null && setsWon2 > setsWon1));
@@ -507,8 +513,13 @@ export default function LiveScoreDialog({
   const handleUpdateProgress = () => {
     if (!match) return;
 
-    const setsWon1 = sets.filter(s => (Number(s.team1_score) || 0) > (Number(s.team2_score) || 0)).length;
-    const setsWon2 = sets.filter(s => (Number(s.team2_score) || 0) > (Number(s.team1_score) || 0)).length;
+    const isAggregate = isAggregateScore(competition?.sport_name);
+    const setsWon1 = isAggregate
+      ? sets.reduce((acc, s) => acc + (Number(s.team1_score) || 0), 0)
+      : sets.filter(s => (Number(s.team1_score) || 0) > (Number(s.team2_score) || 0)).length;
+    const setsWon2 = isAggregate
+      ? sets.reduce((acc, s) => acc + (Number(s.team2_score) || 0), 0)
+      : sets.filter(s => (Number(s.team2_score) || 0) > (Number(s.team1_score) || 0)).length;
 
     const participantScoresToSave = is17an
       ? participantScores.map(ps => {
@@ -558,8 +569,13 @@ export default function LiveScoreDialog({
   const handleFinishMatch = () => {
     if (!match) return;
 
-    const setsWon1 = sets.filter(s => (Number(s.team1_score) || 0) > (Number(s.team2_score) || 0)).length;
-    const setsWon2 = sets.filter(s => (Number(s.team2_score) || 0) > (Number(s.team1_score) || 0)).length;
+    const isAggregate = isAggregateScore(competition?.sport_name);
+    const setsWon1 = isAggregate
+      ? sets.reduce((acc, s) => acc + (Number(s.team1_score) || 0), 0)
+      : sets.filter(s => (Number(s.team1_score) || 0) > (Number(s.team2_score) || 0)).length;
+    const setsWon2 = isAggregate
+      ? sets.reduce((acc, s) => acc + (Number(s.team2_score) || 0), 0)
+      : sets.filter(s => (Number(s.team2_score) || 0) > (Number(s.team1_score) || 0)).length;
 
     let winnerId: string | null = null;
     if (!is17an) {
@@ -1275,7 +1291,10 @@ export default function LiveScoreDialog({
               {/* Set Win Summary Footer */}
               <div className="flex items-center justify-center w-full border-t border-dashed pt-4 text-xs font-semibold">
                 <span className="font-mono text-lg bg-primary/10 border border-primary/20 rounded-md px-2.5 py-1 text-primary">
-                  {sets.filter(s => s.team1_score > s.team2_score).length} - {sets.filter(s => s.team2_score > s.team1_score).length}
+                  {isAggregate 
+                    ? `${sets.reduce((acc, s) => acc + (Number(s.team1_score) || 0), 0)} - ${sets.reduce((acc, s) => acc + (Number(s.team2_score) || 0), 0)}`
+                    : `${sets.filter(s => s.team1_score > s.team2_score).length} - ${sets.filter(s => s.team2_score > s.team1_score).length}`
+                  }
                 </span>
               </div>
             </div>
@@ -1289,33 +1308,16 @@ export default function LiveScoreDialog({
             animate={{ opacity: 1, y: 0 }}
             className="absolute bottom-24 right-6 z-50 pointer-events-auto flex items-center gap-2"
           >
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  className="bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-black shadow-xl shadow-yellow-500/30 rounded-full border border-yellow-400/50 flex items-center gap-2 py-3 px-6 h-auto text-sm"
-                >
-                  <Trophy className="w-5 h-5 fill-white" />
-                  Tampilkan Pemenang
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 font-bold">
-                <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks(null); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer font-bold">
-                  Tampilkan Semua (1, 2, 3)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks([1]); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer">
-                  Tampilkan Juara 1 Saja
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks([2]); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer text-slate-500">
-                  Tampilkan Juara 2 Saja
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks([3]); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer text-amber-600">
-                  Tampilkan Juara 3 Saja
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setAnnounceVisibleRanks([1, 2]); setIsWinnerAnnounceOpen(true); }} className="cursor-pointer">
-                  Tampilkan Juara 1 & 2
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              className="bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-black shadow-xl shadow-yellow-500/30 rounded-full border border-yellow-400/50 flex items-center gap-2 py-3 px-6 h-auto text-sm"
+              onClick={() => {
+                setAnnounceVisibleRanks(null);
+                setIsWinnerAnnounceOpen(true);
+              }}
+            >
+              <Trophy className="w-5 h-5 fill-white" />
+              Tampilkan Pemenang
+            </Button>
           </motion.div>
         )}
 

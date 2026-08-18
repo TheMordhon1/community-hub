@@ -17,7 +17,7 @@ const AVATAR_PRESETS = [
   "https://api.dicebear.com/7.x/adventurer/svg?seed=Zoe"
 ];
 
-const convertToWebP = (file: File): Promise<File> => {
+export const convertToWebP = (file: File): Promise<File> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);

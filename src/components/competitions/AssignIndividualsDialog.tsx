@@ -60,6 +60,7 @@ export function AssignIndividualsDialog({
       case "1v1": return 1;
       case "2v2": return 2;
       case "3v3": return 3;
+      case "4v4": return 4;
       case "5v5": return 5;
       case "11v11": return 11;
       default: return 1;

@@ -29,7 +29,7 @@ import type { CompetitionMatchWithTeams, EventCompetitionWithDetails, MatchStatu
 import { MATCH_STATUS_LABELS } from "@/types/competition";
 import { extractFlagAndName } from "@/lib/countries";
 import { TeamFlag } from "@/components/competitions/TeamFlag";
-import { parseMemberName, capitalizeName, cn } from "@/lib/utils";
+import { parseMemberName, capitalizeName, cn, isAggregateScore } from "@/lib/utils";
 interface UpdateMatchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -298,8 +298,13 @@ export function UpdateMatchDialog({
   const validSets = sets.filter(
     (s) => s.team1_score !== "" && s.team2_score !== "" && !(Number(s.team1_score) === 0 && Number(s.team2_score) === 0)
   );
-  const setsWon1 = validSets.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length;
-  const setsWon2 = validSets.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length;
+  const isAggregate = isAggregateScore(competition?.sport_name);
+  const setsWon1 = isAggregate
+    ? validSets.reduce((acc, s) => acc + (Number(s.team1_score) || 0), 0)
+    : validSets.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length;
+  const setsWon2 = isAggregate
+    ? validSets.reduce((acc, s) => acc + (Number(s.team2_score) || 0), 0)
+    : validSets.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length;
   const useSets = validSets.length > 0 && !!match?.team1_id && !!match?.team2_id;
   const effectiveScore1 = useSets ? String(setsWon1) : score1;
   const effectiveScore2 = useSets ? String(setsWon2) : score2;

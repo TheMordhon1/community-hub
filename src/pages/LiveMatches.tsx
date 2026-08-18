@@ -41,7 +41,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { cn, parseMemberName, capitalizeName } from "@/lib/utils";
+import { cn, parseMemberName, capitalizeName, isAggregateScore } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -55,6 +55,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
 interface MatchTeam {
+  is_individual: any;
   id: string;
   name: string;
   logo_url?: string | null;
@@ -232,11 +233,16 @@ export default function LiveMatches() {
       let scoreText = "";
       
       // Calculate sets/scores for formatting
+      const isAggregate = isAggregateScore(match.competition?.sport_name);
       const setsWon1 = Array.isArray(match.sets_data) 
-        ? match.sets_data.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length 
+        ? isAggregate 
+          ? match.sets_data.reduce((acc, s) => acc + (Number(s.team1_score) || 0), 0)
+          : match.sets_data.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length 
         : 0;
       const setsWon2 = Array.isArray(match.sets_data) 
-        ? match.sets_data.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length 
+        ? isAggregate 
+          ? match.sets_data.reduce((acc, s) => acc + (Number(s.team2_score) || 0), 0)
+          : match.sets_data.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length 
         : 0;
         
       if (is17an) {
@@ -582,10 +588,13 @@ export default function LiveMatches() {
       
       const eligibleIds = new Set<string>();
       groupNamesSet.forEach(g => {
+        const isAggregate = isAggregateScore(comp.sport_name);
         const standings = computeStandings(
           compTeams as unknown as CompetitionTeamWithMembers[], 
           compMatches as unknown as CompetitionMatchWithTeams[], 
-          g
+          g,
+          false,
+          isAggregate
         );
         standings.slice(0, advance).forEach(row => eligibleIds.add(row.team.id));
       });
@@ -741,27 +750,61 @@ export default function LiveMatches() {
               </button>
             </PopoverTrigger>
             <PopoverContent 
-              className="w-56 p-3 bg-popover text-popover-foreground border border-border shadow-xl rounded-xl z-50"
+              className="w-[280px] p-0 overflow-hidden bg-popover text-popover-foreground border border-border shadow-xl rounded-xl z-50"
               side="top"
               align="center"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="text-xs font-bold text-foreground mb-1.5">Anggota Tim:</div>
-              <ul className="text-xs space-y-1.5">
-                {team.members.map(m => {
-                  const parsed = parseMemberName(m.name);
-                  const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
-                  const house = (m.profile as unknown as { house?: { block: string; number: string } })?.house;
-                  return (
-                    <li key={m.id} className="flex items-center gap-2 text-muted-foreground truncate">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                      <span className="truncate">
-                        {name}{house ? ` (${house.block}.${house.number})` : ""}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
+              {(() => {
+                const hasTeamPhoto = Boolean(team.logo_url && (team.logo_url.includes("/") || team.logo_url.startsWith("http")));
+                return (
+                  <div className="relative">
+                    {hasTeamPhoto ? (
+                      <div className="w-full aspect-[16/9] bg-muted relative">
+                        <img src={team.logo_url!} alt={cleanName} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className="absolute bottom-2 left-3 right-3 text-white font-black text-lg tracking-tight truncate drop-shadow-md">
+                          {cleanName}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full aspect-[21/9] bg-primary/10 flex flex-col items-center justify-center relative overflow-hidden">
+                        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary via-transparent to-transparent" />
+                        <TeamFlag team={team} className="w-8 h-6 mb-2 object-cover rounded shadow-sm border border-primary/20" />
+                        <span className="text-xl font-black text-primary uppercase tracking-tight truncate max-w-[90%] drop-shadow-sm relative z-10">
+                          {cleanName}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+              
+              <div className="p-3">
+                <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Anggota Tim</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {team.members.map(m => {
+                    const parsed = parseMemberName(m.name);
+                    const name = capitalizeName(m.profile?.full_name?.trim() || parsed.name || "Pemain");
+                    const avatarUrl = m.profile?.avatar_url || parsed.avatarUrl || "";
+                    return (
+                      <div key={m.id} className="flex items-center gap-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt={name} className="w-7 h-7 rounded-full object-cover shrink-0 border border-border" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+                            <span className="text-[10px] font-bold text-primary">{name.charAt(0).toUpperCase()}</span>
+                          </div>
+                        )}
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </PopoverContent>
           </Popover>
         </span>
@@ -790,11 +833,16 @@ export default function LiveMatches() {
 
   const renderMatchCard = (match: MatchData) => {
     const is17an = match.competition?.format === "17an";
+    const isAggregate = isAggregateScore(match.competition?.sport_name);
     const setsWon1 = Array.isArray(match.sets_data) 
-      ? match.sets_data.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length 
+      ? isAggregate 
+        ? match.sets_data.reduce((acc, s) => acc + (Number(s.team1_score) || 0), 0)
+        : match.sets_data.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length 
       : 0;
     const setsWon2 = Array.isArray(match.sets_data) 
-      ? match.sets_data.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length 
+      ? isAggregate 
+        ? match.sets_data.reduce((acc, s) => acc + (Number(s.team2_score) || 0), 0)
+        : match.sets_data.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length 
       : 0;
 
     return (
@@ -1176,7 +1224,7 @@ export default function LiveMatches() {
                           ) : null}
                           <span className={cn(p.is_winner && "text-primary font-bold", "truncate flex items-center gap-1.5")}>
                             {(() => {
-                              const avatarUrl = p.team?.logo_url || m?.profile?.avatar_url;
+                              const avatarUrl = m?.profile?.avatar_url || (p.team?.is_individual ? p.team?.logo_url : "");
                               return avatarUrl ? (
                                 <Avatar className="w-4 h-4 shadow-sm border border-border/20 shrink-0 rounded-md">
                                   <AvatarImage src={avatarUrl} className="object-cover" />
@@ -1539,11 +1587,16 @@ export default function LiveMatches() {
               <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
                 {ongoingMatches.map((match) => {
                   const is17an = match.competition?.format === "17an";
+                  const isAggregate = isAggregateScore(match.competition?.sport_name);
                   const setsWon1 = Array.isArray(match.sets_data) 
-                    ? match.sets_data.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length 
+                    ? isAggregate 
+                      ? match.sets_data.reduce((acc, s) => acc + (Number(s.team1_score) || 0), 0)
+                      : match.sets_data.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length 
                     : 0;
                   const setsWon2 = Array.isArray(match.sets_data) 
-                    ? match.sets_data.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length 
+                    ? isAggregate 
+                      ? match.sets_data.reduce((acc, s) => acc + (Number(s.team2_score) || 0), 0)
+                      : match.sets_data.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length 
                     : 0;
 
                   return (
@@ -1690,7 +1743,7 @@ export default function LiveMatches() {
                                           ) : null}
                                           <span className={cn(p.is_winner && "text-primary font-bold", "truncate flex items-center gap-1.5")}>
                                             {(() => {
-                                              const avatarUrl = p.team?.logo_url || m?.profile?.avatar_url;
+                                              const avatarUrl = m?.profile?.avatar_url || (p.team?.is_individual ? p.team?.logo_url : "");
                                               return avatarUrl ? (
                                                 <Avatar className="w-4 h-4 shadow-sm border border-border/20 shrink-0 rounded-md">
                                                   <AvatarImage src={avatarUrl} className="object-cover" />
@@ -2027,11 +2080,16 @@ export default function LiveMatches() {
               <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
                 {completedMatches.map((match) => {
                   const is17an = match.competition?.format === "17an";
+                  const isAggregate = isAggregateScore(match.competition?.sport_name);
                   const setsWon1 = Array.isArray(match.sets_data) 
-                    ? match.sets_data.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length 
+                    ? isAggregate 
+                      ? match.sets_data.reduce((acc, s) => acc + (Number(s.team1_score) || 0), 0)
+                      : match.sets_data.filter((s) => Number(s.team1_score) > Number(s.team2_score)).length 
                     : 0;
                   const setsWon2 = Array.isArray(match.sets_data) 
-                    ? match.sets_data.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length 
+                    ? isAggregate 
+                      ? match.sets_data.reduce((acc, s) => acc + (Number(s.team2_score) || 0), 0)
+                      : match.sets_data.filter((s) => Number(s.team2_score) > Number(s.team1_score)).length 
                     : 0;
 
                   return (
@@ -2217,7 +2275,7 @@ export default function LiveMatches() {
                                           ) : null}
                                           <span className={cn(p.is_winner && "text-primary font-bold", "truncate flex items-center gap-1.5")}>
                                             {(() => {
-                                              const avatarUrl = p.team?.logo_url || m?.profile?.avatar_url;
+                                              const avatarUrl = m?.profile?.avatar_url || (p.team?.is_individual ? p.team?.logo_url : "");
                                               return avatarUrl ? (
                                                 <Avatar className="w-4 h-4 shadow-sm border border-border/20 shrink-0 rounded-md">
                                                   <AvatarImage src={avatarUrl} className="object-cover" />
@@ -2451,11 +2509,14 @@ export default function LiveMatches() {
                             const compTeams = allTeams.filter(t => t.competition_id === comp.id);
                             const groupNamesSet = Array.from(new Set(compTeams.filter(t => !!t.group_name).map(t => t.group_name!))).sort();
                             const standingsByGroup: Record<string, StandingRow[]> = {};
+                            const isAggregate = isAggregateScore(comp.sport_name);
                             groupNamesSet.forEach((g) => {
                               standingsByGroup[g] = computeStandings(
                                 compTeams as unknown as CompetitionTeamWithMembers[],
                                 matches.filter(m => m.competition_id === comp.id) as unknown as CompetitionMatchWithTeams[],
-                                g
+                                g,
+                                false,
+                                isAggregate
                               );
                             });
                             const pairs = seedKnockoutFromStandings(standingsByGroup, advance);

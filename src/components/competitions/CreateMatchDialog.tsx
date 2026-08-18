@@ -21,7 +21,7 @@ import { SpinWheelDialog } from "@/components/competitions/SpinWheelDialog";
 import { useAssignMatchTeams } from "@/hooks/useCompetitions";
 import type { EventCompetitionWithDetails, CompetitionMatchWithTeams, CompetitionTeamWithMembers } from "@/types/competition";
 import { computeStandings } from "@/lib/liga-group";
-import { parseMemberName, capitalizeName, cn } from "@/lib/utils";
+import { parseMemberName, capitalizeName, cn, isAggregateScore } from "@/lib/utils";
 import { TeamFlag } from "@/components/competitions/TeamFlag";
 import { extractFlagAndName } from "@/lib/countries";
 import { findBracket, formatBracket, isAgeInBracket, type AgeBracket } from "@/lib/age-groups";
@@ -170,10 +170,13 @@ export function CreateMatchDialog({
         const advance = competition.advance_per_group || 2;
         const qualifiedIds = new Set<string>();
         for (const g of groupNames) {
+          const isAggregate = isAggregateScore(competition.sport_name);
           const standings = computeStandings(
-            allTeams,
+            competition.teams || [],
             competition.matches || [],
-            g
+            g,
+            false,
+            isAggregate
           );
           for (let i = 0; i < Math.min(advance, standings.length); i++) {
             qualifiedIds.add(standings[i].team.id);
