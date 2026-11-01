@@ -151,9 +151,37 @@ export default function AdminUsers() {
         .eq("user_id", userId);
 
       if (error) throw error;
+
+      // Keep the active organization period in sync — pengurus access is
+      // only valid for members of the currently active period.
+      const { data: activePeriod, error: periodError } = await supabase
+        .from("organization_periods")
+        .select("id")
+        .eq("is_active", true)
+        .maybeSingle();
+      if (periodError) throw periodError;
+      if (!activePeriod) return;
+
+      if (role === "pengurus" && titleId) {
+        const { error: upsertError } = await supabase
+          .from("organization_period_members")
+          .upsert(
+            { period_id: activePeriod.id, user_id: userId, title_id: titleId },
+            { onConflict: "period_id,user_id" },
+          );
+        if (upsertError) throw upsertError;
+      } else {
+        const { error: deleteError } = await supabase
+          .from("organization_period_members")
+          .delete()
+          .eq("period_id", activePeriod.id)
+          .eq("user_id", userId);
+        if (deleteError) throw deleteError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["organization-period-members"] });
       toast({
         title: "Berhasil",
         description: "Role pengguna berhasil diperbarui",

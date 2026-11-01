@@ -1375,6 +1375,91 @@ export type Database = {
         }
         Relationships: []
       }
+      organization_period_members: {
+        Row: {
+          created_at: string
+          id: string
+          period_id: string
+          title_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          period_id: string
+          title_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          period_id?: string
+          title_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_period_members_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "organization_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_period_members_title_id_fkey"
+            columns: ["title_id"]
+            isOneToOne: false
+            referencedRelation: "pengurus_titles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_period_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_periods: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          end_year: number | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          start_year: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          end_year?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          start_year: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          end_year?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          start_year?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -1958,6 +2043,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_organization_period: {
+        Args: { _period_id: string }
+        Returns: undefined
+      }
       auto_update_house_status: { Args: never; Returns: undefined }
       can_change_vote: {
         Args: { _poll_id: string; _user_id: string }
@@ -1967,6 +2056,7 @@ export type Database = {
         Args: { _competition_id: string; _user_id: string }
         Returns: boolean
       }
+      can_manage_organization: { Args: { _user_id: string }; Returns: boolean }
       generate_redeem_code: { Args: never; Returns: string }
       get_remaining_vote_changes: {
         Args: { _poll_id: string; _user_id: string }
@@ -2014,6 +2104,7 @@ export type Database = {
         Returns: boolean
       }
       is_menteri_sisdigi: { Args: { _user_id: string }; Returns: boolean }
+      sync_active_organization_roles: { Args: never; Returns: undefined }
       update_menu_orders: { Args: { p_orders: Json }; Returns: undefined }
       validate_store_voucher: {
         Args: { p_redeem_code: string; p_store_id: string }
