@@ -2056,6 +2056,7 @@ export type Database = {
         Args: { _competition_id: string; _user_id: string }
         Returns: boolean
       }
+      can_manage_organization: { Args: { _user_id: string }; Returns: boolean }
       generate_redeem_code: { Args: never; Returns: string }
       get_remaining_vote_changes: {
         Args: { _poll_id: string; _user_id: string }
