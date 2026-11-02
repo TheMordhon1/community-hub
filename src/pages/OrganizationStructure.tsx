@@ -317,7 +317,7 @@ export default function OrganizationStructure() {
         <Card>
           <CardHeader className="flex flex-row items-start sm:items-center justify-between gap-3 space-y-0 p-4 sm:p-6">
             <div className="min-w-0">
-              <CardTitle className="font-display">Daftar Pengurus</CardTitle>
+              <CardTitle className="font-display text-lg sm:text-2xl">Daftar Pengurus</CardTitle>
               {selectedPeriod && (
                 <CardDescription className="break-words">
                   {selectedPeriod.name} · {formatPeriodRange(selectedPeriod)}
@@ -358,7 +358,7 @@ export default function OrganizationStructure() {
                             )}
                           </Avatar>
                           <div className="min-w-0 flex-1">
-                            <p className="font-semibold line-clamp-1">{person.full_name}</p>
+                            <p className="font-semibold line-clamp-2 break-words">{person.full_name}</p>
                             <Badge className="mt-1 bg-accent text-accent-foreground">{person.title_display_name}</Badge>
                             {person.title_description && (
                               <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{person.title_description}</p>
