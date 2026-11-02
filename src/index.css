@@ -29,8 +29,8 @@
     --muted-foreground: 24 10% 45%;
 
     /* Accent - Sky blue (trust/community) */
-    --accent: 199 80% 65%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 199 85% 92%;
+    --accent-foreground: 199 75% 22%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -97,8 +97,8 @@
     --muted: 24 10% 20%;
     --muted-foreground: 45 20% 65%;
 
-    --accent: 199 70% 55%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 199 45% 24%;
+    --accent-foreground: 199 85% 88%;
 
     --destructive: 0 62% 45%;
     --destructive-foreground: 0 0% 100%;
