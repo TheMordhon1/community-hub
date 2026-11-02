@@ -212,7 +212,7 @@ export default function OrganizationStructure() {
             <div className="min-w-0">
               <h1 className="font-display text-xl md:text-2xl font-bold">Pengurus Paguyuban</h1>
               <p className="text-sm text-muted-foreground">
-                Susunan pengurus Paguyuban {selectedPeriod?.name ?? ""} per periode
+                Susunan pengurus Paguyuban {selectedPeriod?.name ?? ""}
               </p>
             </div>
           </div>
