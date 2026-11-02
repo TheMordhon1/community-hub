@@ -358,7 +358,7 @@ export default function OrganizationStructure() {
                             )}
                           </Avatar>
                           <div className="min-w-0 flex-1">
-                            <p className="font-semibold line-clamp-1 break-all sm:break-normal">{person.full_name}</p>
+                            <p className="font-semibold line-clamp-1">{person.full_name}</p>
                             <Badge className="mt-1 bg-accent text-accent-foreground">{person.title_display_name}</Badge>
                             {person.title_description && (
                               <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{person.title_description}</p>
