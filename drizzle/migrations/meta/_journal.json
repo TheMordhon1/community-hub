@@ -15,6 +15,13 @@
       "when": 1793534315839,
       "tag": "0001_organization_periods_allow_sisdigi",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793600416165,
+      "tag": "0002_organization_period_dates",
+      "breakpoints": true
     }
   ]
 }

@@ -1428,33 +1428,39 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          end_date: string | null
           end_year: number | null
           id: string
           is_active: boolean
           name: string
           notes: string | null
+          start_date: string | null
           start_year: number
           updated_at: string
         }
         Insert: {
           created_at?: string
           created_by?: string | null
+          end_date?: string | null
           end_year?: number | null
           id?: string
           is_active?: boolean
           name: string
           notes?: string | null
+          start_date?: string | null
           start_year: number
           updated_at?: string
         }
         Update: {
           created_at?: string
           created_by?: string | null
+          end_date?: string | null
           end_year?: number | null
           id?: string
           is_active?: boolean
           name?: string
           notes?: string | null
+          start_date?: string | null
           start_year?: number
           updated_at?: string
         }

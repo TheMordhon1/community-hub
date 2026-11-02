@@ -23,21 +23,49 @@ export interface PeriodInput {
   name: string;
   start_year: number;
   end_year: number | null;
+  /** ISO date (yyyy-MM-dd). */
+  start_date: string;
+  /** ISO date (yyyy-MM-dd), null = open-ended. */
+  end_date: string | null;
   notes?: string | null;
 }
-
-const KEYS = {
-  periods: ["organization-periods"] as const,
-  members: (periodId: string | null) => ["organization-period-members", periodId] as const,
-};
 
 const errorMessage = (e: unknown) =>
   e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String((e as { message: unknown }).message) : "Terjadi kesalahan";
 
 export { errorMessage as getPeriodErrorMessage };
 
-/** Format "2026" or "2026 - 2027". */
-export function formatPeriodYears(p: Pick<OrganizationPeriod, "start_year" | "end_year">): string {
+const KEYS = {
+  periods: ["organization-periods"] as const,
+  members: (periodId: string | null) => ["organization-period-members", periodId] as const,
+};
+
+/** Parse a yyyy-MM-dd string as a local date (avoids timezone shifts). */
+export function parseIsoDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const [y, m, d] = value.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
+export function toIsoDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+const shortDate = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric" });
+
+type PeriodRange = Pick<OrganizationPeriod, "start_year" | "end_year" | "start_date" | "end_date">;
+
+/** Format "1 Jan 2026 – 31 Des 2026", falling back to years for periods without dates. */
+export function formatPeriodRange(p: PeriodRange): string {
+  const start = parseIsoDate(p.start_date);
+  const end = parseIsoDate(p.end_date);
+  if (start) {
+    return end ? `${shortDate.format(start)} – ${shortDate.format(end)}` : `Mulai ${shortDate.format(start)}`;
+  }
   if (!p.end_year || p.end_year === p.start_year) return String(p.start_year);
   return `${p.start_year} - ${p.end_year}`;
 }
@@ -49,6 +77,7 @@ export function useOrganizationPeriods() {
       const { data, error } = await supabase
         .from("organization_periods")
         .select("*")
+        .order("start_date", { ascending: false, nullsFirst: false })
         .order("start_year", { ascending: false })
         .order("created_at", { ascending: false });
       if (error) throw error;

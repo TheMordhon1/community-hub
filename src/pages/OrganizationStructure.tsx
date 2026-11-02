@@ -45,7 +45,7 @@ import { getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
-  formatPeriodYears,
+  formatPeriodRange,
   getPeriodErrorMessage,
   useActivatePeriod,
   useAllProfiles,
@@ -201,15 +201,15 @@ export default function OrganizationStructure() {
   const isConfirmBusy = activatePeriod.isPending || deletePeriod.isPending || removeMember.isPending;
 
   return (
-    <section className="min-h-screen bg-background p-4 md:p-6">
-      <div className="mx-auto space-y-6">
+    <section className="min-h-screen bg-background p-3 sm:p-4 md:p-6">
+      <div className="mx-auto space-y-4 sm:space-y-6 min-w-0">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="space-y-1">
-          <div className="flex items-center gap-4">
-            <Link to="/dashboard">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Link to="/dashboard" aria-label="Kembali" className="shrink-0">
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <div>
+            <div className="min-w-0">
               <h1 className="font-display text-xl md:text-2xl font-bold">Pengurus Paguyuban</h1>
               <p className="text-sm text-muted-foreground">Susunan pengurus Paguyuban Nijuuroku per periode</p>
             </div>
@@ -230,13 +230,19 @@ export default function OrganizationStructure() {
                     <Loader2 className="w-4 h-4 animate-spin text-primary" />
                   ) : periods.length > 0 ? (
                     <Select value={selectedPeriod?.id} onValueChange={selectPeriod}>
-                      <SelectTrigger className="w-full md:w-72">
+                      <SelectTrigger className="w-full md:w-80 h-auto min-h-10 py-2 text-left [&>span]:min-w-0">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {periods.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {p.name} ({formatPeriodYears(p)}){p.is_active ? " • Aktif" : ""}
+                            <span className="flex flex-col min-w-0">
+                              <span className="truncate font-medium">
+                                {p.name}
+                                {p.is_active ? " • Aktif" : ""}
+                              </span>
+                              <span className="truncate text-xs text-muted-foreground">{formatPeriodRange(p)}</span>
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -247,7 +253,7 @@ export default function OrganizationStructure() {
                 </div>
               </div>
               {admin && (
-                <Button onClick={() => setPeriodDialog({ open: true, period: null })}>
+                <Button className="w-full md:w-auto shrink-0" onClick={() => setPeriodDialog({ open: true, period: null })}>
                   <Plus className="w-4 h-4 mr-2" />
                   Periode Baru
                 </Button>
@@ -264,14 +270,16 @@ export default function OrganizationStructure() {
                 ) : (
                   <Badge variant="secondary">Tidak Aktif</Badge>
                 )}
-                <span className="text-sm text-muted-foreground">
-                  {members.length} pengurus
+                <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                  <CalendarRange className="w-3.5 h-3.5" />
+                  {formatPeriodRange(selectedPeriod)}
                 </span>
+                <span className="text-sm text-muted-foreground">• {members.length} pengurus</span>
                 {selectedPeriod.notes && (
-                  <span className="text-sm text-muted-foreground">• {selectedPeriod.notes}</span>
+                  <span className="text-sm text-muted-foreground break-words basis-full sm:basis-auto">{selectedPeriod.notes}</span>
                 )}
                 {admin && (
-                  <div className="flex flex-wrap gap-2 ml-auto">
+                  <div className="flex flex-wrap gap-2 w-full sm:w-auto sm:ml-auto [&>button]:flex-1 sm:[&>button]:flex-none">
                     {!selectedPeriod.is_active && (
                       <Button size="sm" onClick={() => setConfirm({ kind: "activate", period: selectedPeriod })}>
                         <CheckCircle2 className="w-4 h-4 mr-2" />
@@ -307,23 +315,23 @@ export default function OrganizationStructure() {
 
         {/* Pengurus List */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
-            <div>
-              <CardTitle className="font-display">Daftar Pengurus</CardTitle>
+          <CardHeader className="flex flex-row items-start sm:items-center justify-between gap-3 space-y-0 p-4 sm:p-6">
+            <div className="min-w-0">
+              <CardTitle className="font-display text-lg sm:text-2xl">Daftar Pengurus</CardTitle>
               {selectedPeriod && (
-                <CardDescription>
-                  {selectedPeriod.name} ({formatPeriodYears(selectedPeriod)})
+                <CardDescription className="break-words">
+                  {selectedPeriod.name} · {formatPeriodRange(selectedPeriod)}
                 </CardDescription>
               )}
             </div>
             {admin && selectedPeriod && (
-              <Button size="sm" variant="outline" onClick={() => setMemberDialog({ open: true, member: null })}>
+              <Button size="sm" variant="outline" className="shrink-0" onClick={() => setMemberDialog({ open: true, member: null })}>
                 <UserPlus className="w-4 h-4 mr-2" />
                 Tambah
               </Button>
             )}
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
             {periodsLoading || membersLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -350,7 +358,7 @@ export default function OrganizationStructure() {
                             )}
                           </Avatar>
                           <div className="min-w-0 flex-1">
-                            <p className="font-semibold line-clamp-1">{person.full_name}</p>
+                            <p className="font-semibold line-clamp-2 break-words">{person.full_name}</p>
                             <Badge className="mt-1 bg-accent text-accent-foreground">{person.title_display_name}</Badge>
                             {person.title_description && (
                               <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{person.title_description}</p>
