@@ -647,25 +647,25 @@ _Paguyuban Nijuuroku_`;
     {
       key: "house",
       label: "Rumah",
-      className: "min-w-[160px] whitespace-nowrap",
+      className: "min-w-[110px] whitespace-nowrap",
       render: (_, row) => `${row.house?.block} - ${row.house?.number}`,
     },
     {
       key: "month",
       label: "Periode",
-      className: "min-w-[160px] whitespace-nowrap",
+      className: "min-w-[110px] whitespace-nowrap",
       render: (value, row) => `${MONTHS[(value as number) - 1]} ${row.year}`,
     },
     {
       key: "amount",
       label: "Jumlah",
-      className: "min-w-[160px] whitespace-nowrap",
+      className: "min-w-[110px] whitespace-nowrap",
       render: (value) => `Rp ${(value as number).toLocaleString("id-ID")}`,
     },
     {
       key: "status",
       label: "Status",
-      className: "min-w-[160px] whitespace-nowrap",
+      className: "min-w-[110px] whitespace-nowrap",
       render: (value) => (
         <Badge
           className={cn(
@@ -680,7 +680,7 @@ _Paguyuban Nijuuroku_`;
     {
       key: "created_at",
       label: "Tanggal",
-      className: "min-w-[160px] whitespace-nowrap",
+      className: "min-w-[110px] whitespace-nowrap",
       render: (value) => format(new Date(value as string), "dd/MM/yyyy"),
     },
     {

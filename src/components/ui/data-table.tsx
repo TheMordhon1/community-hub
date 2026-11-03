@@ -78,8 +78,8 @@ export function DataTable<T extends { id?: string | number }>({
   };
 
   return (
-    <div className="w-screen md:w-auto sm:mx-0 overflow-x-auto">
-      <div className="w-full min-w-full px-4 sm:px-0">
+    <div className="w-full max-w-full min-w-0 overflow-x-auto">
+      <div className="w-full min-w-full">
         <Table className={`w-full ${tableClassName && tableClassName}`}>
           <TableHeader>
             <TableRow>
