@@ -48,10 +48,18 @@
     --info-foreground: 0 0% 100%;
 
     --border: 40 20% 88%;
-    --input: 40 20% 88%;
+    --input: 40 18% 84%;
     --ring: 142 55% 42%;
 
     --radius: 0.75rem;
+
+    /* Elevation - soft, warm-tinted shadows */
+    --shadow-color: 24 20% 25%;
+    --shadow-soft: 0 1px 2px 0 hsl(var(--shadow-color) / 0.05);
+    --shadow-card: 0 1px 2px 0 hsl(var(--shadow-color) / 0.04), 0 4px 16px -6px hsl(var(--shadow-color) / 0.08);
+    --shadow-card-hover: 0 2px 4px 0 hsl(var(--shadow-color) / 0.05), 0 12px 28px -10px hsl(var(--shadow-color) / 0.16);
+    --shadow-pop: 0 4px 10px -2px hsl(var(--shadow-color) / 0.08), 0 20px 48px -12px hsl(var(--shadow-color) / 0.22);
+    --overlay: 24 15% 12%;
 
     /* Sidebar */
     --sidebar-background: 142 30% 25%;
@@ -113,8 +121,15 @@
     --info-foreground: 0 0% 100%;
 
     --border: 24 10% 25%;
-    --input: 24 10% 25%;
+    --input: 24 10% 28%;
     --ring: 142 55% 50%;
+
+    --shadow-color: 0 0% 0%;
+    --shadow-soft: 0 1px 2px 0 hsl(var(--shadow-color) / 0.25);
+    --shadow-card: 0 1px 2px 0 hsl(var(--shadow-color) / 0.25), 0 4px 16px -6px hsl(var(--shadow-color) / 0.35);
+    --shadow-card-hover: 0 2px 4px 0 hsl(var(--shadow-color) / 0.3), 0 12px 28px -10px hsl(var(--shadow-color) / 0.5);
+    --shadow-pop: 0 4px 10px -2px hsl(var(--shadow-color) / 0.35), 0 20px 48px -12px hsl(var(--shadow-color) / 0.6);
+    --overlay: 0 0% 0%;
 
     --sidebar-background: 24 10% 8%;
     --sidebar-foreground: 45 33% 97%;
@@ -138,14 +153,44 @@
     @apply border-border;
   }
 
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Nunito', sans-serif;
+    text-rendering: optimizeLegibility;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Quicksand', sans-serif;
-    @apply font-bold;
+    @apply font-bold tracking-tight;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.2);
+    color: hsl(var(--foreground));
+  }
+
+  /* Slim, unobtrusive scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
   }
 }
 
