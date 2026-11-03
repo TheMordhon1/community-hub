@@ -67,7 +67,7 @@ export default function Dashboard() {
       label: "Acara",
       value: statsLoading ? "..." : String(statsData?.events ?? 0),
       icon: Calendar,
-      color: "text-accent",
+      color: "text-black",
     },
     {
       label: "Pengaduan",
@@ -112,7 +112,7 @@ export default function Dashboard() {
               <Card className="hover:shadow-lg transition-shadow">
                 <CardContent className="p-4 flex items-center gap-4">
                   <div
-                    className={`w-10 h-10 rounded-lg sm:bg-muted flex items-center justify-center ${stat.color}`}
+                    className={`w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center ${stat.color}`}
                   >
                     <stat.icon className="w-5 h-5" />
                   </div>
@@ -142,7 +142,7 @@ export default function Dashboard() {
                 <Button
                   key={action.id}
                   variant="outline"
-                  className="h-auto py-4 flex-col gap-2 hover:bg-black"
+                  className="h-auto py-4 flex-col gap-2 hover:bg-slate-200"
                   asChild
                 >
                   <Link to={action.url}>
@@ -173,7 +173,7 @@ export default function Dashboard() {
                   <Button
                     key={action.id}
                     variant="outline"
-                    className="h-auto py-4 flex-col gap-2 hover:bg-black"
+                    className="h-auto py-4 flex-col gap-2 hover:bg-slate-100"
                     asChild
                   >
                     <Link to={action.url}>
@@ -207,7 +207,7 @@ export default function Dashboard() {
                   <Button
                     key={action.id}
                     variant="outline"
-                    className="h-auto py-4 flex-col gap-2 hover:bg-black"
+                    className="h-auto py-4 flex-col gap-2 hover:bg-slate-100"
                     asChild
                   >
                     <Link to={action.url}>
