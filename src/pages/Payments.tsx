@@ -1208,8 +1208,8 @@ _Paguyuban Nijuuroku_`;
 
         {/* Payments Table */}
         {(userHouse || canVerify) && (
-          <Card>
-            <CardHeader className="pb-3 flex md:flex-row items-center justify-between">
+          <Card className="min-w-0 max-w-full overflow-hidden">
+            <CardHeader className="pb-3 flex flex-col gap-3 md:flex-row md:items-center justify-between">
               <CardTitle className="text-base sm:text-lg">
                 Daftar Pembayaran
               </CardTitle>
