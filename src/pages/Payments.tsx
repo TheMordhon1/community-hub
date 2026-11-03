@@ -731,7 +731,7 @@ _Paguyuban Nijuuroku_`;
     },
   ];
   return (
-    <section className="min-h-screen bg-background p-6">
+    <section className="min-h-screen bg-background p-4 sm:p-6">
       <div className="space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
