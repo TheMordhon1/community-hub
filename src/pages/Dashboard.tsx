@@ -19,6 +19,7 @@ import {
 } from "@/hooks/useMenus";
 import { DynamicIcon } from "@/components/DynamicIcon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SmartSearchTrigger } from "@/components/search/SmartSearchTrigger";
 
 export default function Dashboard() {
   const { profile, isAdmin, canManageContent } = useAuth();
@@ -98,6 +99,15 @@ export default function Dashboard() {
               {profile?.full_name || "User"}
             </span>
           </p>
+        </motion.div>
+
+        {/* Smart Search Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+        >
+          <SmartSearchTrigger variant="card" />
         </motion.div>
 
         {/* Stats */}
