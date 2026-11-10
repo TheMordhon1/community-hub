@@ -2,6 +2,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet } from "react-router-dom";
 import { PanelLeft } from "lucide-react";
+import { GlobalLibrarySearch } from "@/components/GlobalLibrarySearch";
 
 export function AppLayout() {
   return (
@@ -14,6 +15,9 @@ export function AppLayout() {
               <PanelLeft className="h-5 w-5" />
             </SidebarTrigger>
             <span className="font-display font-bold tracking-tight">Warga PKT</span>
+            <div className="ml-auto">
+              <GlobalLibrarySearch />
+            </div>
           </header>
           <div className="flex-1 overflow-auto">
             <Outlet />
