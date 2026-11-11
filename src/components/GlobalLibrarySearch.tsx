@@ -18,10 +18,10 @@ import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { canSearchAllPayments } from "@/lib/search-access";
+import { canSearchAllPayments, getUnpaidHouseIds } from "@/lib/search-access";
 import { useAuthStore } from "@/stores/authStore";
 
-type SearchCategory = "announcements" | "events" | "schedules" | "residents" | "complaints" | "payments" | "competitions";
+type SearchCategory = "announcements" | "events" | "schedules" | "residents" | "complaints" | "payments" | "competitions" | "polls" | "contacts" | "stores" | "inventory" | "faq";
 
 interface LibraryResult {
   id: string;
@@ -44,6 +44,11 @@ const categoryMeta: Record<SearchCategory, { label: string; icon: LucideIcon }> 
   complaints: { label: "Aspirasi", icon: MessageSquareText },
   payments: { label: "Pembayaran IPL", icon: CreditCard },
   competitions: { label: "Kompetisi", icon: Trophy },
+  polls: { label: "Jajak pendapat", icon: MessageSquareText },
+  contacts: { label: "Kontak penting", icon: Users },
+  stores: { label: "Toko warga", icon: House },
+  inventory: { label: "Inventaris", icon: FileText },
+  faq: { label: "Tanya jawab", icon: FileText },
 };
 
 const paymentIntentPattern = /\b(ipl|iuran|pembayaran|bayar|lunas|tunggakan|menunggak|belum|pending|overdue)\b/i;
@@ -69,7 +74,7 @@ function findMonth(query: string): number | null {
   const normalized = query.toLocaleLowerCase("id-ID");
   const index = monthNames.findIndex((month) => new RegExp(`\\b${month}\\b`, "i").test(normalized));
   if (index >= 0) return index + 1;
-  const numeric = normalized.match(/\b(?:bulan\s*)?(1[0-2]|0?[1-9])\b/);
+  const numeric = normalized.match(/\b(?:bulan|month)\s*(1[0-2]|0?[1-9])\b/);
   return numeric ? Number(numeric[1]) : null;
 }
 
@@ -142,7 +147,7 @@ export function GlobalLibrarySearch() {
   });
 
   const { data: paymentRows, isLoading: paymentsLoading } = useQuery({
-    queryKey: ["library-search", "payments", userId, canSearchAll],
+    queryKey: ["library-search", "payments", userId, canSearchAll, debouncedQuery],
     enabled: searchEnabled && paymentIntentPattern.test(debouncedQuery),
     staleTime: 60_000,
     queryFn: async () => {
@@ -164,6 +169,11 @@ export function GlobalLibrarySearch() {
         .order("year", { ascending: false })
         .order("month", { ascending: false })
         .limit(2000);
+      const month = findMonth(debouncedQuery) ?? new Date().getMonth() + 1;
+      const year = Number(debouncedQuery.match(/\b20\d{2}\b/)?.[0]) || new Date().getFullYear();
+      if (unpaidIntentPattern.test(debouncedQuery)) {
+        request = request.eq("month", month).eq("year", year);
+      }
       if (houseIds) request = request.in("house_id", houseIds);
       const { data, error } = await request;
       if (error) throw error;
@@ -254,6 +264,81 @@ export function GlobalLibrarySearch() {
             })));
           },
         },
+        {
+          category: "polls",
+          run: async () => {
+            const [titles, descriptions] = await Promise.all([
+              supabase.from("polls").select("id,title,description,ends_at").eq("is_active", true).ilike("title", pattern).limit(8),
+              supabase.from("polls").select("id,title,description,ends_at").eq("is_active", true).ilike("description", pattern).limit(8),
+            ]);
+            if (titles.error) throw titles.error;
+            if (descriptions.error) throw descriptions.error;
+            return uniqueResults([...titles.data ?? [], ...descriptions.data ?? []].map((item) => ({
+              id: item.id, category: "polls", title: item.title,
+              detail: cleanSnippet(item.description), href: `/polls/${item.id}`,
+            })));
+          },
+        },
+        {
+          category: "contacts",
+          run: async () => {
+            const [names, descriptions, platforms] = await Promise.all([
+              supabase.from("emergency_contacts").select("id,name,phone,platform,description").eq("is_active", true).ilike("name", pattern).limit(8),
+              supabase.from("emergency_contacts").select("id,name,phone,platform,description").eq("is_active", true).ilike("description", pattern).limit(8),
+              supabase.from("emergency_contacts").select("id,name,phone,platform,description").eq("is_active", true).ilike("platform", pattern).limit(8),
+            ]);
+            for (const response of [names, descriptions, platforms]) if (response.error) throw response.error;
+            return uniqueResults([...names.data ?? [], ...descriptions.data ?? [], ...platforms.data ?? []].map((item) => ({
+              id: item.id, category: "contacts", title: item.name,
+              detail: [item.phone, item.platform, cleanSnippet(item.description, 70)].filter(Boolean).join(" · "), href: "/contacts",
+            })));
+          },
+        },
+        {
+          category: "stores",
+          run: async () => {
+            const [names, descriptions] = await Promise.all([
+              supabase.from("stores").select("id,name,description,status").eq("status", "approved").ilike("name", pattern).limit(8),
+              supabase.from("stores").select("id,name,description,status").eq("status", "approved").ilike("description", pattern).limit(8),
+            ]);
+            if (names.error) throw names.error;
+            if (descriptions.error) throw descriptions.error;
+            return uniqueResults([...names.data ?? [], ...descriptions.data ?? []].map((item) => ({
+              id: item.id, category: "stores", title: item.name,
+              detail: cleanSnippet(item.description), href: `/stores/${item.id}`,
+            })));
+          },
+        },
+        {
+          category: "inventory",
+          run: async () => {
+            const [names, descriptions, categories] = await Promise.all([
+              supabase.from("inventory_items").select("id,name,description,category,available_quantity").ilike("name", pattern).limit(8),
+              supabase.from("inventory_items").select("id,name,description,category,available_quantity").ilike("description", pattern).limit(8),
+              supabase.from("inventory_items").select("id,name,description,category,available_quantity").ilike("category", pattern).limit(8),
+            ]);
+            for (const response of [names, descriptions, categories]) if (response.error) throw response.error;
+            return uniqueResults([...names.data ?? [], ...descriptions.data ?? [], ...categories.data ?? []].map((item) => ({
+              id: item.id, category: "inventory", title: item.name,
+              detail: [item.category, `Tersedia: ${item.available_quantity}`, cleanSnippet(item.description, 70)].filter(Boolean).join(" · "), href: "/inventory",
+            })));
+          },
+        },
+        {
+          category: "faq",
+          run: async () => {
+            const [questions, answers] = await Promise.all([
+              supabase.from("faqs").select("id,question,answer").eq("is_published", true).ilike("question", pattern).limit(8),
+              supabase.from("faqs").select("id,question,answer").eq("is_published", true).ilike("answer", pattern).limit(8),
+            ]);
+            if (questions.error) throw questions.error;
+            if (answers.error) throw answers.error;
+            return uniqueResults([...questions.data ?? [], ...answers.data ?? []].map((item) => ({
+              id: item.id, category: "faq", title: item.question,
+              detail: cleanSnippet(item.answer), href: "/dashboard",
+            })));
+          },
+        },
       ];
 
       const settled = await Promise.allSettled(tasks.map((task) => task.run()));
@@ -298,14 +383,18 @@ export function GlobalLibrarySearch() {
     const year = Number(debouncedQuery.match(/\b20\d{2}\b/)?.[0]) || null;
     const houseCode = findHouseCode(debouncedQuery);
     const wantsUnpaid = unpaidIntentPattern.test(debouncedQuery);
-    return paymentRows.filter((payment) => {
+    const periodMonth = month ?? new Date().getMonth() + 1;
+    const periodYear = year ?? new Date().getFullYear();
+    const relevantRows = paymentRows.filter((payment) => {
       if (month && payment.month !== month) return false;
       if (year && payment.year !== year) return false;
       if (wantsUnpaid && payment.status === "paid") return false;
+      if (wantsUnpaid && payment.status === "pending") return false;
       const house = payment.houses as { block: string; number: string } | null;
       if (houseCode && (!house || `${house.block}${house.number}`.toLocaleLowerCase("id-ID") !== houseCode)) return false;
       return true;
-    }).slice(0, 12).map((payment) => {
+    });
+    const mappedPayments: LibraryResult[] = relevantRows.slice(0, 12).map((payment) => {
       const house = payment.houses as { block: string; number: string } | null;
       const monthName = monthNames[payment.month - 1] ?? `Bulan ${payment.month}`;
       const houseLabel = house ? `Rumah ${house.block}${house.number}` : "Rumah";
@@ -314,7 +403,34 @@ export function GlobalLibrarySearch() {
         detail: paymentStatusLabel(payment.status), href: `/payments/${payment.id}`,
       };
     });
-  }, [debouncedQuery, paymentRows]);
+    if (!wantsUnpaid || !directory) return mappedPayments;
+
+    const houseIdsInScope = directory.houses
+      .filter((house) => canSearchAll || paymentRows.some((payment) => payment.house_id === house.id))
+      .filter((house) => {
+        if (!houseCode) return true;
+        return `${house.block}${house.number}`.toLocaleLowerCase("id-ID") === houseCode;
+      })
+      .map((house) => house.id);
+    const unpaidIds = getUnpaidHouseIds(houseIdsInScope, paymentRows
+      .filter((payment) => payment.month === periodMonth && payment.year === periodYear)
+      .map((payment) => ({ house_id: payment.house_id, status: payment.status })));
+    const housesById = new Map(directory.houses.map((house) => [house.id, house]));
+    const missingPayments = unpaidIds.flatMap((houseId) => {
+      const hasOverdueRow = paymentRows.some((payment) => payment.house_id === houseId && payment.month === periodMonth && payment.year === periodYear && payment.status === "overdue");
+      if (hasOverdueRow) return [];
+      const house = housesById.get(houseId);
+      if (!house) return [];
+      return [{
+        id: `unpaid-${house.id}-${periodYear}-${periodMonth}`,
+        category: "payments" as const,
+        title: `IPL ${monthNames[periodMonth - 1]} ${periodYear} · Rumah ${house.block}${house.number}`,
+        detail: "Belum ada pembayaran tercatat",
+        href: "/payments",
+      }];
+    });
+    return [...mappedPayments, ...missingPayments].slice(0, 12);
+  }, [canSearchAll, debouncedQuery, directory, paymentRows]);
 
   const visibleResults = useMemo(() => uniqueResults([
     ...directoryResults,
@@ -389,6 +505,9 @@ export function GlobalLibrarySearch() {
                   })}
                 </CommandGroup>
               ))}
+              {searchBatch?.failedSources ? (
+                <p className="px-3 py-2 text-xs text-muted-foreground" role="status">Sebagian sumber informasi tidak dapat dimuat.</p>
+              ) : null}
             </CommandList>
           </Command>
         </DialogContent>
