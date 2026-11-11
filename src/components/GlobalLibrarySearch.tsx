@@ -160,7 +160,7 @@ export function GlobalLibrarySearch() {
           .eq("user_id", userId);
         if (membershipsError) throw membershipsError;
         houseIds = [...new Set((memberships ?? []).map((membership) => membership.house_id))];
-        if (houseIds.length === 0) return { rows: [], houseIds };
+        if (houseIds.length === 0) return { rows: [] as Array<{ id: string; house_id: string; month: number; year: number; status: string | null; houses: { block: string; number: string } | null }>, houseIds };
       }
 
       let request = supabase
@@ -177,7 +177,7 @@ export function GlobalLibrarySearch() {
       if (houseIds) request = request.in("house_id", houseIds);
       const { data, error } = await request;
       if (error) throw error;
-      return { rows: data ?? [], houseIds };
+      return { rows: data ?? [], houseIds: houseIds ?? [] };
     },
   });
 
