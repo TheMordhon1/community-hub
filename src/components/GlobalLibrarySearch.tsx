@@ -131,7 +131,7 @@ export function GlobalLibrarySearch() {
 
   const searchEnabled = open && !!userId && roleReady && debouncedQuery.length >= 2;
 
-  const { data: directory } = useQuery({
+  const { data: directory, isLoading: directoryLoading } = useQuery({
     queryKey: ["library-search", "directory", userId],
     enabled: open && !!userId,
     staleTime: 60_000,
@@ -160,7 +160,7 @@ export function GlobalLibrarySearch() {
           .eq("user_id", userId);
         if (membershipsError) throw membershipsError;
         houseIds = [...new Set((memberships ?? []).map((membership) => membership.house_id))];
-        if (houseIds.length === 0) return [];
+        if (houseIds.length === 0) return { rows: [], houseIds };
       }
 
       let request = supabase
@@ -177,7 +177,7 @@ export function GlobalLibrarySearch() {
       if (houseIds) request = request.in("house_id", houseIds);
       const { data, error } = await request;
       if (error) throw error;
-      return data ?? [];
+      return { rows: data ?? [], houseIds };
     },
   });
 
@@ -379,13 +379,14 @@ export function GlobalLibrarySearch() {
 
   const paymentResults = useMemo<LibraryResult[]>(() => {
     if (!paymentIntentPattern.test(debouncedQuery) || !paymentRows) return [];
+    const rows = paymentRows.rows;
     const month = findMonth(debouncedQuery);
     const year = Number(debouncedQuery.match(/\b20\d{2}\b/)?.[0]) || null;
     const houseCode = findHouseCode(debouncedQuery);
     const wantsUnpaid = unpaidIntentPattern.test(debouncedQuery);
     const periodMonth = month ?? new Date().getMonth() + 1;
     const periodYear = year ?? new Date().getFullYear();
-    const relevantRows = paymentRows.filter((payment) => {
+    const relevantRows = rows.filter((payment) => {
       if (month && payment.month !== month) return false;
       if (year && payment.year !== year) return false;
       if (wantsUnpaid && payment.status === "paid") return false;
@@ -406,18 +407,18 @@ export function GlobalLibrarySearch() {
     if (!wantsUnpaid || !directory) return mappedPayments;
 
     const houseIdsInScope = directory.houses
-      .filter((house) => canSearchAll || paymentRows.some((payment) => payment.house_id === house.id))
+      .filter((house) => canSearchAll || (paymentRows.houseIds ?? []).includes(house.id))
       .filter((house) => {
         if (!houseCode) return true;
         return `${house.block}${house.number}`.toLocaleLowerCase("id-ID") === houseCode;
       })
       .map((house) => house.id);
-    const unpaidIds = getUnpaidHouseIds(houseIdsInScope, paymentRows
+    const unpaidIds = getUnpaidHouseIds(houseIdsInScope, rows
       .filter((payment) => payment.month === periodMonth && payment.year === periodYear)
       .map((payment) => ({ house_id: payment.house_id, status: payment.status })));
     const housesById = new Map(directory.houses.map((house) => [house.id, house]));
     const missingPayments = unpaidIds.flatMap((houseId) => {
-      const hasOverdueRow = paymentRows.some((payment) => payment.house_id === houseId && payment.month === periodMonth && payment.year === periodYear && payment.status === "overdue");
+      const hasOverdueRow = rows.some((payment) => payment.house_id === houseId && payment.month === periodMonth && payment.year === periodYear && payment.status === "overdue");
       if (hasOverdueRow) return [];
       const house = housesById.get(houseId);
       if (!house) return [];
@@ -447,7 +448,7 @@ export function GlobalLibrarySearch() {
     })).filter((group) => group.items.length > 0);
   }, [visibleResults]);
 
-  const isLoading = (searchEnabled && isSearching) || (searchEnabled && paymentIntentPattern.test(debouncedQuery) && paymentsLoading);
+  const isLoading = (searchEnabled && isSearching) || (searchEnabled && directoryLoading) || (searchEnabled && paymentIntentPattern.test(debouncedQuery) && paymentsLoading);
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
